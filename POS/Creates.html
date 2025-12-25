@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>التكويدات - بن الغنيمي</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6F4E37",
+              "primary-hover": "#5D4037",
+              "background-light": "#F5F5F0",
+              "background-dark": "#1F1B18",
+              "surface-light": "#FFFFFF",
+              "surface-dark": "#2C2522",
+              "text-light": "#3E2723",
+              "text-dark": "#EFEBE9",
+              accent: "#D7CCC8",
+              "border-light": "#E7E5E4",
+              "border-dark": "#44403C",
+            },
+            fontFamily: {
+              display: ["Cairo", "sans-serif"],
+              body: ["Cairo", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.75rem",
+              xl: "1rem",
+            },
+            boxShadow: {
+              soft: "0 4px 20px -2px rgba(111, 78, 55, 0.05)",
+              "soft-dark": "0 4px 20px -2px rgba(0, 0, 0, 0.4)",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d7ccc8;
+        border-radius: 4px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #5d4037;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 min-h-screen flex flex-col">
+    <nav
+      class="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shadow-sm z-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-20 items-center">
+          <div class="flex items-center gap-3">
+            <div
+              class="bg-primary/10 dark:bg-primary/20 p-2 rounded-xl text-primary">
+              <span class="material-icons-round text-3xl">coffee</span>
+            </div>
+            <div>
+              <h1
+                class="text-xl font-bold text-primary dark:text-text-dark leading-tight">
+                بن الغنيمي
+              </h1>
+              <p
+                class="text-xs text-primary/80 font-semibold tracking-wide uppercase">
+                Elghonemy
+              </p>
+            </div>
+          </div>
+          <a
+            class="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent/10 dark:hover:bg-accent/5"
+            href="#">
+            <span class="text-sm font-semibold">الصفحة الرئيسية</span>
+            <span class="material-icons-round text-xl transform rotate-180"
+              >arrow_back</span
+            >
+          </a>
+        </div>
+      </div>
+    </nav>
+    <main class="flex-grow flex items-center justify-center p-6">
+      <div class="w-full max-w-5xl">
+        <div class="text-center mb-10">
+          <h2
+            class="text-3xl md:text-4xl font-extrabold text-primary dark:text-text-dark mb-2">
+            التكويدات
+          </h2>
+          <div
+            class="h-1.5 w-24 bg-primary mx-auto rounded-full opacity-80"></div>
+          <p
+            class="mt-4 text-text-light/70 dark:text-text-dark/70 max-w-lg mx-auto">
+            إدارة البيانات الأساسية للنظام، بما في ذلك الموظفين، المخازن،
+            والأصناف.
+          </p>
+        </div>
+        <div class="flex flex-wrap justify-center gap-6">
+          <a
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent hover:border-primary/30 dark:hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            href="#">
+            <div
+              class="absolute inset-0 bg-gradient-to-br from-transparent to-accent/20 dark:to-primary/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+              <span class="material-icons-round text-4xl">badge</span>
+            </div>
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
+              الموظف
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              إدارة بيانات الموظفين
+            </p>
+          </a>
+          <a
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent hover:border-primary/30 dark:hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            href="#">
+            <div
+              class="absolute inset-0 bg-gradient-to-br from-transparent to-accent/20 dark:to-primary/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+              <span class="material-icons-round text-4xl">local_shipping</span>
+            </div>
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
+              المورد
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              سجلات الموردين والشركاء
+            </p>
+          </a>
+          <a
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent hover:border-primary/30 dark:hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            href="#">
+            <div
+              class="absolute inset-0 bg-gradient-to-br from-transparent to-accent/20 dark:to-primary/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+              <span class="material-icons-round text-4xl">groups</span>
+            </div>
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
+              العملاء
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              قاعدة بيانات العملاء
+            </p>
+          </a>
+          <a
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent hover:border-primary/30 dark:hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            href="#">
+            <div
+              class="absolute inset-0 bg-gradient-to-br from-transparent to-accent/20 dark:to-primary/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+              <span class="material-icons-round text-4xl">category</span>
+            </div>
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
+              الاصناف
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              المنتجات والأسعار
+            </p>
+          </a>
+          <a
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent hover:border-primary/30 dark:hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            href="#">
+            <div
+              class="absolute inset-0 bg-gradient-to-br from-transparent to-accent/20 dark:to-primary/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+              <span class="material-icons-round text-4xl">warehouse</span>
+            </div>
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
+              المخازن
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              الجرد والمستودعات
+            </p>
+          </a>
+          <a
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent hover:border-primary/30 dark:hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            href="#">
+            <div
+              class="absolute inset-0 bg-gradient-to-br from-transparent to-accent/20 dark:to-primary/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+              <span class="material-icons-round text-4xl">savings</span>
+            </div>
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
+              الخزائن
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              المالية والنقدية
+            </p>
+          </a>
+          <a
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent hover:border-primary/30 dark:hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            href="#">
+            <div
+              class="absolute inset-0 bg-gradient-to-br from-transparent to-accent/20 dark:to-primary/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+              <span class="material-icons-round text-4xl">storefront</span>
+            </div>
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
+              الفروع
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              إعدادات فروع المتجر
+            </p>
+          </a>
+        </div>
+      </div>
+    </main>
+    <footer
+      class="bg-surface-light dark:bg-surface-dark border-t border-border-light dark:border-border-dark py-6">
+      <div class="max-w-7xl mx-auto px-4 text-center">
+        <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+          © 2025 <span class="font-bold text-primary">بن الغنيمي</span>. جميع
+          الحقوق محفوظة.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

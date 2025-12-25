@@ -1,0 +1,555 @@
+<html class="light" dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Product Selection Dialog - Elghonemy</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&amp;family=Manrope:wght@400;500;600;700&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet" />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#8b5e3c",
+              "primary-dark": "#6f4e37",
+              "primary-light": "#a67c5e",
+              "background-light": "#fbfaf9",
+              "background-dark": "#1d1815",
+              "surface-light": "#ffffff",
+              "surface-dark": "#2a2420",
+              "text-main": "#181411",
+              "text-secondary": "#857060",
+            },
+            fontFamily: {
+              display: ["Manrope", "sans-serif"],
+              arabic: ["Cairo", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              "2xl": "1rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #d1d5db;
+        border-radius: 20px;
+      }
+      .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #4b5563;
+      }
+      body {
+        font-family: "Cairo", "Manrope", sans-serif;
+      }
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-900/60 backdrop-blur-md flex items-center justify-center min-h-screen p-4 transition-all duration-300">
+    <div
+      class="w-full max-w-[960px] max-h-[90vh] flex flex-col bg-background-light dark:bg-background-dark rounded-2xl shadow-2xl overflow-hidden relative animate-fade-in-up">
+      <header
+        class="flex items-center justify-between border-b border-[#e5e7eb] dark:border-[#332e2b] px-6 py-4 bg-surface-light dark:bg-surface-dark shrink-0">
+        <div class="flex items-center gap-3">
+          <div
+            class="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary">
+            <span class="material-symbols-outlined text-2xl">inventory_2</span>
+          </div>
+          <div>
+            <h2
+              class="text-text-main dark:text-white text-xl font-bold font-arabic leading-tight">
+              اختيار المنتج
+            </h2>
+            <p class="text-text-secondary text-sm font-arabic">
+              أضف منتجات إلى الفاتورة الحالية
+            </p>
+          </div>
+        </div>
+        <button
+          aria-label="Close"
+          class="group flex items-center justify-center w-10 h-10 rounded-full hover:bg-red-50 text-text-secondary hover:text-red-500 transition-colors">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </header>
+      <div class="flex flex-col flex-1 overflow-hidden">
+        <div
+          class="px-6 py-4 flex flex-col gap-4 bg-background-light dark:bg-background-dark shrink-0 z-10 shadow-sm">
+          <div class="relative w-full">
+            <div
+              class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+              <span class="material-symbols-outlined text-text-secondary"
+                >search</span
+              >
+            </div>
+            <input
+              autofocus=""
+              class="w-full h-12 pr-12 pl-4 rounded-xl border-none bg-surface-light dark:bg-surface-dark ring-1 ring-[#e5e7eb] dark:ring-[#443e3a] focus:ring-2 focus:ring-primary focus:outline-none text-text-main dark:text-white font-arabic placeholder:text-text-secondary/60 transition-shadow shadow-sm"
+              placeholder="بحث بالاسم، الكود، أو الباركود..."
+              type="text" />
+          </div>
+          <div
+            class="flex gap-2 overflow-x-auto pb-1 custom-scrollbar scroll-smooth">
+            <button
+              class="shrink-0 px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold font-arabic shadow-sm transition-transform active:scale-95">
+              الكل
+            </button>
+            <button
+              class="shrink-0 px-4 py-2 rounded-lg bg-surface-light dark:bg-surface-dark border border-[#e5e7eb] dark:border-[#443e3a] text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-[#332e2b] text-sm font-medium font-arabic transition-colors">
+              سادة
+            </button>
+            <button
+              class="shrink-0 px-4 py-2 rounded-lg bg-surface-light dark:bg-surface-dark border border-[#e5e7eb] dark:border-[#443e3a] text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-[#332e2b] text-sm font-medium font-arabic transition-colors">
+              محوج
+            </button>
+            <button
+              class="shrink-0 px-4 py-2 rounded-lg bg-surface-light dark:bg-surface-dark border border-[#e5e7eb] dark:border-[#443e3a] text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-[#332e2b] text-sm font-medium font-arabic transition-colors">
+              حبوب
+            </button>
+            <button
+              class="shrink-0 px-4 py-2 rounded-lg bg-surface-light dark:bg-surface-dark border border-[#e5e7eb] dark:border-[#443e3a] text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-[#332e2b] text-sm font-medium font-arabic transition-colors">
+              إكسسوارات
+            </button>
+          </div>
+        </div>
+        <div
+          class="flex-1 overflow-y-auto p-6 bg-[#f4f2f0] dark:bg-[#120f0d] custom-scrollbar">
+          <div
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+            <div
+              class="group relative flex flex-col h-full bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer ring-2 ring-primary p-4 min-h-[160px]">
+              <div
+                class="absolute top-3 left-3 z-10 bg-primary text-white rounded-full p-1 shadow-sm">
+                <span class="material-symbols-outlined text-base">check</span>
+              </div>
+              <div class="flex-1 flex flex-col">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                  <h3
+                    class="text-text-main dark:text-white font-bold font-arabic text-lg leading-tight">
+                    بن سادة وسط
+                  </h3>
+                  <span
+                    class="text-[11px] text-text-secondary font-arabic bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-nowrap"
+                    >كيلو</span
+                  >
+                </div>
+                <div class="text-primary font-bold font-display text-xl mb-4">
+                  240 ج.م
+                </div>
+                <div
+                  class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <label
+                      class="text-xs font-bold text-text-secondary font-arabic"
+                      >الكمية:</label
+                    >
+                    <div
+                      class="flex items-center h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark overflow-hidden shadow-sm w-28"
+                      onclick="event.stopPropagation()">
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >add</span
+                        >
+                      </button>
+                      <input
+                        class="w-full h-full text-center bg-transparent border-none text-text-main dark:text-white font-bold font-display text-sm focus:ring-0 p-0"
+                        type="number"
+                        value="1" />
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >remove</span
+                        >
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    class="w-full h-9 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-bold font-arabic shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                    onclick="event.stopPropagation()">
+                    <span class="material-symbols-outlined text-lg"
+                      >add_shopping_cart</span
+                    >
+                    إضافة للسلة
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              class="group relative flex flex-col h-full bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary/50 p-4 min-h-[160px]">
+              <div class="flex-1 flex flex-col">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                  <h3
+                    class="text-text-main dark:text-white font-bold font-arabic text-lg leading-tight">
+                    بن محوج فاتح
+                  </h3>
+                  <span
+                    class="text-[11px] text-text-secondary font-arabic bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-nowrap"
+                    >كيلو</span
+                  >
+                </div>
+                <div class="text-primary font-bold font-display text-xl mb-4">
+                  320 ج.م
+                </div>
+                <div
+                  class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <label
+                      class="text-xs font-bold text-text-secondary font-arabic"
+                      >الكمية:</label
+                    >
+                    <div
+                      class="flex items-center h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark overflow-hidden shadow-sm w-28"
+                      onclick="event.stopPropagation()">
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >add</span
+                        >
+                      </button>
+                      <input
+                        class="w-full h-full text-center bg-transparent border-none text-text-main dark:text-white font-bold font-display text-sm focus:ring-0 p-0"
+                        type="number"
+                        value="1" />
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >remove</span
+                        >
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    class="w-full h-9 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-bold font-arabic shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                    onclick="event.stopPropagation()">
+                    <span class="material-symbols-outlined text-lg"
+                      >add_shopping_cart</span
+                    >
+                    إضافة للسلة
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              class="group relative flex flex-col h-full bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary/50 p-4 min-h-[160px]">
+              <div class="flex-1 flex flex-col">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                  <h3
+                    class="text-text-main dark:text-white font-bold font-arabic text-lg leading-tight">
+                    بن سبيشال
+                  </h3>
+                  <span
+                    class="text-[11px] text-text-secondary font-arabic bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-nowrap"
+                    >كيلو</span
+                  >
+                </div>
+                <div class="text-primary font-bold font-display text-xl mb-4">
+                  400 ج.م
+                </div>
+                <div
+                  class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <label
+                      class="text-xs font-bold text-text-secondary font-arabic"
+                      >الكمية:</label
+                    >
+                    <div
+                      class="flex items-center h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark overflow-hidden shadow-sm w-28"
+                      onclick="event.stopPropagation()">
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >add</span
+                        >
+                      </button>
+                      <input
+                        class="w-full h-full text-center bg-transparent border-none text-text-main dark:text-white font-bold font-display text-sm focus:ring-0 p-0"
+                        type="number"
+                        value="1" />
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >remove</span
+                        >
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    class="w-full h-9 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-bold font-arabic shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                    onclick="event.stopPropagation()">
+                    <span class="material-symbols-outlined text-lg"
+                      >add_shopping_cart</span
+                    >
+                    إضافة للسلة
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              class="group relative flex flex-col h-full bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary/50 p-4 min-h-[160px]">
+              <div class="flex-1 flex flex-col">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                  <h3
+                    class="text-text-main dark:text-white font-bold font-arabic text-lg leading-tight">
+                    تحويجة خاصة
+                  </h3>
+                  <span
+                    class="text-[11px] text-text-secondary font-arabic bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-nowrap"
+                    >إضافات</span
+                  >
+                </div>
+                <div class="text-primary font-bold font-display text-xl mb-4">
+                  50 ج.م
+                </div>
+                <div
+                  class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <label
+                      class="text-xs font-bold text-text-secondary font-arabic"
+                      >الكمية:</label
+                    >
+                    <div
+                      class="flex items-center h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark overflow-hidden shadow-sm w-28"
+                      onclick="event.stopPropagation()">
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >add</span
+                        >
+                      </button>
+                      <input
+                        class="w-full h-full text-center bg-transparent border-none text-text-main dark:text-white font-bold font-display text-sm focus:ring-0 p-0"
+                        type="number"
+                        value="1" />
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >remove</span
+                        >
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    class="w-full h-9 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-bold font-arabic shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                    onclick="event.stopPropagation()">
+                    <span class="material-symbols-outlined text-lg"
+                      >add_shopping_cart</span
+                    >
+                    إضافة للسلة
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              class="group relative flex flex-col h-full bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary/50 p-4 min-h-[160px]">
+              <div class="flex-1 flex flex-col">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                  <h3
+                    class="text-text-main dark:text-white font-bold font-arabic text-lg leading-tight">
+                    فلاتر V60
+                  </h3>
+                  <span
+                    class="text-[11px] text-text-secondary font-arabic bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-nowrap"
+                    >100 قطعة</span
+                  >
+                </div>
+                <div class="text-primary font-bold font-display text-xl mb-4">
+                  150 ج.م
+                </div>
+                <div
+                  class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <label
+                      class="text-xs font-bold text-text-secondary font-arabic"
+                      >الكمية:</label
+                    >
+                    <div
+                      class="flex items-center h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark overflow-hidden shadow-sm w-28"
+                      onclick="event.stopPropagation()">
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >add</span
+                        >
+                      </button>
+                      <input
+                        class="w-full h-full text-center bg-transparent border-none text-text-main dark:text-white font-bold font-display text-sm focus:ring-0 p-0"
+                        type="number"
+                        value="1" />
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >remove</span
+                        >
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    class="w-full h-9 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-bold font-arabic shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                    onclick="event.stopPropagation()">
+                    <span class="material-symbols-outlined text-lg"
+                      >add_shopping_cart</span
+                    >
+                    إضافة للسلة
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              class="group relative flex flex-col h-full bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-primary/50 p-4 min-h-[160px]">
+              <div class="flex-1 flex flex-col">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                  <h3
+                    class="text-text-main dark:text-white font-bold font-arabic text-lg leading-tight">
+                    حبهان حب
+                  </h3>
+                  <span
+                    class="text-[11px] text-text-secondary font-arabic bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-nowrap"
+                    >100 جم</span
+                  >
+                </div>
+                <div class="text-primary font-bold font-display text-xl mb-4">
+                  120 ج.م
+                </div>
+                <div
+                  class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <label
+                      class="text-xs font-bold text-text-secondary font-arabic"
+                      >الكمية:</label
+                    >
+                    <div
+                      class="flex items-center h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark overflow-hidden shadow-sm w-28"
+                      onclick="event.stopPropagation()">
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >add</span
+                        >
+                      </button>
+                      <input
+                        class="w-full h-full text-center bg-transparent border-none text-text-main dark:text-white font-bold font-display text-sm focus:ring-0 p-0"
+                        type="number"
+                        value="1" />
+                      <button
+                        class="w-8 h-full flex items-center justify-center text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        type="button">
+                        <span
+                          class="material-symbols-outlined text-sm font-bold"
+                          >remove</span
+                        >
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    class="w-full h-9 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-bold font-arabic shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                    onclick="event.stopPropagation()">
+                    <span class="material-symbols-outlined text-lg"
+                      >add_shopping_cart</span
+                    >
+                    إضافة للسلة
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer
+          class="flex items-center justify-between border-t border-[#e5e7eb] dark:border-[#332e2b] px-6 py-4 bg-surface-light dark:bg-surface-dark shrink-0 gap-4">
+          <div class="hidden sm:flex items-center gap-6">
+            <div class="flex flex-col">
+              <span class="text-xs text-text-secondary font-arabic"
+                >المنتج المحدد:</span
+              >
+              <span
+                class="text-sm font-bold text-text-main dark:text-white font-arabic"
+                >بن سادة وسط (1x)</span
+              >
+            </div>
+            <div class="w-px h-8 bg-[#e5e7eb] dark:bg-[#443e3a]"></div>
+            <div class="flex items-center gap-3">
+              <div
+                class="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary">
+                <span class="material-symbols-outlined text-xl"
+                  >shopping_cart_checkout</span
+                >
+              </div>
+              <div class="flex flex-col">
+                <span class="text-xs text-text-secondary font-arabic"
+                  >إجمالي العناصر</span
+                >
+                <span
+                  class="text-sm font-bold text-text-main dark:text-white font-arabic"
+                  >5 منتجات</span
+                >
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex gap-3 flex-1 sm:flex-none justify-end w-full sm:w-auto">
+            <button
+              class="flex-1 sm:flex-none min-w-[100px] h-11 px-6 rounded-lg bg-surface-light dark:bg-surface-dark border border-[#e5e7eb] dark:border-[#443e3a] text-text-main dark:text-white hover:bg-gray-100 dark:hover:bg-[#332e2b] text-base font-bold font-arabic transition-colors flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-xl">close</span>
+              إلغاء
+            </button>
+            <button
+              class="flex-1 sm:flex-none min-w-[140px] h-11 px-6 rounded-lg bg-primary hover:bg-primary-dark text-white text-base font-bold font-arabic shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-xl"
+                >add_shopping_cart</span
+              >
+              إضافة للفاتورة
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>
