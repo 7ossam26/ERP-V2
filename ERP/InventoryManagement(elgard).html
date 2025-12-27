@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>بن الغنيمي - إدارة المخزون</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6F4E37",
+              "primary-hover": "#5D4037",
+              "background-light": "#F5F5F0",
+              "background-dark": "#1F1B18",
+              "surface-light": "#FFFFFF",
+              "surface-dark": "#2C2522",
+              "text-main": "#3E2723",
+              "text-muted": "#795548",
+              "text-dark": "#EFEBE9",
+              accent: "#D7CCC8",
+              "border-light": "#E7E5E4",
+              "border-dark": "#44403C",
+            },
+            fontFamily: {
+              display: ["Cairo", "sans-serif"],
+              sans: ["Cairo", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Cairo", sans-serif;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f5f5f0;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d7ccc8;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #6f4e37;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light min-h-screen text-text-main overflow-hidden flex">
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <header
+        class="flex-shrink-0 border-b border-border-light bg-surface-light z-10">
+        <div class="px-6 py-5 flex flex-col gap-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div
+                class="bg-center bg-no-repeat bg-cover rounded-full size-12 shrink-0 border-2 border-primary"
+                data-alt="Coffee shop logo abstract"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDdgIyPoegrwJd7qWdy8nq62FE1SAuNgwBlxs-5IRPQzUFpop5fqAiRkJ7hz1pL3Cc12rUZQAAcEqnd6XeOLFgC5RQwp2BtxnGEnZDQlBIX1dcZwUSTYEsjQHn6oK-VY6-HML_qwqUVCfK6f961O1a_tJSCDYcPJGV9v-A4mEWvr7UWD0GiXBqgYNzwVsYw1cPhk8qGOZ48_hcNAZuoYS-XsJ6V4ISqXguw5HF9A0xOOp5uZS-q2guzcQOTXlz4LEvWtzKAhroQrIMv');
+                "></div>
+              <div class="flex flex-col">
+                <h1 class="text-text-main text-lg font-bold leading-tight">
+                  بن الغنيمي
+                </h1>
+                <p class="text-text-muted text-xs font-normal">
+                  نظام نقاط البيع v2.4
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2">
+                <label
+                  class="text-text-muted text-sm font-medium"
+                  for="branch-select"
+                  >اختر الفرع:</label
+                >
+                <select
+                  class="bg-white border border-border-light text-text-main text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 min-w-[200px]"
+                  id="branch-select">
+                  <option selected="">الفرع الرئيسي - وسط البلد</option>
+                  <option value="1">فرع مدينة نصر</option>
+                  <option value="2">فرع المهندسين</option>
+                  <option value="3">فرع الإسكندرية</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2
+                class="text-text-main text-3xl font-bold tracking-tight flex items-center gap-2">
+                إدارة المخزون
+                <span class="text-text-muted font-normal text-xl opacity-80"
+                  >- الجرد</span
+                >
+              </h2>
+              <p class="text-text-muted text-sm mt-1">
+                إدارة مستويات المخزون، الأسعار وتفاصيل المنتجات.
+              </p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" dir="rtl">
+            <div
+              class="bg-surface-light rounded-xl p-4 border border-border-light flex items-center justify-between group hover:border-primary transition-colors shadow-sm">
+              <div>
+                <p
+                  class="text-text-muted text-xs font-medium uppercase tracking-wider mb-1">
+                  إجمالي الأصناف
+                </p>
+                <div class="flex items-baseline gap-2">
+                  <h3 class="text-2xl font-bold text-text-main">145</h3>
+                  <span
+                    class="text-green-800 text-xs font-medium flex items-center bg-green-100 px-1.5 py-0.5 rounded">
+                    <span class="material-symbols-outlined text-[14px]"
+                      >trending_up</span
+                    >
+                    12%
+                  </span>
+                </div>
+              </div>
+              <div class="bg-[#EFEBE9] p-2.5 rounded-lg text-primary">
+                <span class="material-symbols-outlined">dataset</span>
+              </div>
+            </div>
+            <div
+              class="bg-surface-light rounded-xl p-4 border border-border-light flex items-center justify-between group hover:border-primary transition-colors shadow-sm">
+              <div>
+                <p
+                  class="text-text-muted text-xs font-medium uppercase tracking-wider mb-1">
+                  نواقص المخزون
+                </p>
+                <div class="flex items-baseline gap-2">
+                  <h3 class="text-2xl font-bold text-text-main">3</h3>
+                  <span
+                    class="text-red-800 text-xs font-medium flex items-center bg-red-100 px-1.5 py-0.5 rounded"
+                    >إجراء مطلوب</span
+                  >
+                </div>
+              </div>
+              <div class="bg-red-50 p-2.5 rounded-lg text-red-700">
+                <span class="material-symbols-outlined">warning</span>
+              </div>
+            </div>
+            <div
+              class="bg-surface-light rounded-xl p-4 border border-border-light flex items-center justify-between group hover:border-primary transition-colors shadow-sm">
+              <div>
+                <p
+                  class="text-text-muted text-xs font-medium uppercase tracking-wider mb-1">
+                  القيمة الإجمالية
+                </p>
+                <div class="flex items-baseline gap-2">
+                  <h3 class="text-2xl font-bold text-text-main">
+                    45 ألف<span class="text-sm font-normal text-text-muted mr-1"
+                      >ج.م</span
+                    >
+                  </h3>
+                  <span
+                    class="text-green-800 text-xs font-medium flex items-center bg-green-100 px-1.5 py-0.5 rounded"
+                    >+5%</span
+                  >
+                </div>
+              </div>
+              <div class="bg-green-50 p-2.5 rounded-lg text-green-700">
+                <span class="material-symbols-outlined">attach_money</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <div class="flex-1 overflow-auto bg-background-light p-6">
+        <div
+          class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          <div class="relative w-full lg:max-w-md group">
+            <div
+              class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <span
+                class="material-symbols-outlined text-text-muted group-focus-within:text-primary transition-colors"
+                >search</span
+              >
+            </div>
+            <input
+              class="block w-full pr-10 pl-3 py-2.5 rounded-lg leading-5 bg-surface-light text-text-main placeholder-text-muted/60 border border-border-light focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm shadow-sm text-right"
+              placeholder="ابحث بالاسم، الكود، أو التصنيف..."
+              type="text" />
+          </div>
+          <div
+            class="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
+            <button
+              class="whitespace-nowrap px-4 py-1.5 rounded-full bg-primary text-surface-light text-sm font-medium border border-transparent shadow-md shadow-[#3E2723]/10 hover:bg-primary-hover transition-colors">
+              الكل
+            </button>
+            <button
+              class="whitespace-nowrap px-4 py-1.5 rounded-full bg-surface-light text-text-muted hover:text-primary hover:bg-[#EFEBE9] text-sm font-medium border border-border-light transition-colors">
+              بن القهوة
+            </button>
+            <button
+              class="whitespace-nowrap px-4 py-1.5 rounded-full bg-surface-light text-text-muted hover:text-primary hover:bg-[#EFEBE9] text-sm font-medium border border-border-light transition-colors">
+              مخبوزات
+            </button>
+            <button
+              class="whitespace-nowrap px-4 py-1.5 rounded-full bg-surface-light text-text-muted hover:text-primary hover:bg-[#EFEBE9] text-sm font-medium border border-border-light transition-colors">
+              مشروبات
+            </button>
+            <button
+              class="whitespace-nowrap px-4 py-1.5 rounded-full bg-surface-light text-text-muted hover:text-primary hover:bg-[#EFEBE9] text-sm font-medium border border-border-light transition-colors">
+              مستلزمات
+            </button>
+          </div>
+        </div>
+        <div
+          class="bg-surface-light border border-border-light rounded-xl overflow-hidden shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-right border-collapse">
+              <thead>
+                <tr
+                  class="bg-[#F5F5F0] border-b border-border-light text-text-muted text-xs uppercase tracking-wider">
+                  <th class="px-6 py-4 font-medium">اسم الصنف</th>
+                  <th class="px-6 py-4 font-medium">التصنيف</th>
+                  <th class="px-6 py-4 font-medium text-center">
+                    الكمية المتاحة
+                  </th>
+                  <th class="px-6 py-4 font-medium text-left">سعر الشراء</th>
+                  <th class="px-6 py-4 font-medium text-left">سعر البيع</th>
+                  <th class="px-6 py-4 font-medium text-center">الحالة</th>
+                  <th class="px-6 py-4 font-medium text-left">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border-light text-sm">
+                <tr class="group hover:bg-[#EFEBE9]/50 transition-colors">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="h-10 w-10 rounded-lg bg-cover bg-center shrink-0 border border-border-light"
+                        data-alt="Bag of dark roast coffee beans"
+                        style="
+                          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAZAoZmkwZyH2TdUSGj3-yPf895fUr3F-u-s9LLWqaTONineDda9iXdLONis9YgeCYtotWHHDIZF1Ie8b7wCISWbURtKN7GWcSAmW6m3AuHsxSAGYnWxF59DzNtTs7E1-PKXhNnrBxTyQN1E8ZKUVdHPfcNaO0mt7rUQaMyckXYzvMP8Wn7CpZWdpH6t_KQj04mhA_M5uhpHcN5On3Dk7HKIaEhdCuQuanYi3gFUk6jXfdiTRPW4er9rDAUlJdFh_uGimu-gTpqIi4N');
+                        "></div>
+                      <div>
+                        <p class="text-text-main font-medium">اسبريسو غامق</p>
+                        <p class="text-text-muted text-xs">كود: CF-001</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFEBE9] text-text-muted text-xs font-medium border border-[#D7CCC8]">
+                      <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      بن القهوة
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="text-text-main font-bold">45</span>
+                    <span class="text-xs text-text-muted">كجم</span>
+                  </td>
+                  <td class="px-6 py-4 text-left text-text-muted">280 ج.م</td>
+                  <td class="px-6 py-4 text-left text-text-main font-medium">
+                    450 ج.م
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                      متوفر
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-left">
+                    <div
+                      class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        class="p-1.5 hover:bg-[#D7CCC8]/30 rounded-md text-text-muted hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >edit</span
+                        >
+                      </button>
+                      <button
+                        class="p-1.5 hover:bg-red-50 rounded-md text-red-400 hover:text-red-700 transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >delete</span
+                        >
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr
+                  class="group hover:bg-[#EFEBE9]/50 transition-colors bg-primary/5">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="h-10 w-10 rounded-lg bg-cover bg-center shrink-0 border border-border-light"
+                        data-alt="Vanilla syrup bottle"
+                        style="
+                          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB0d9jLSepehzP-XfUpMlaxyPFCK5yERbmAiXOFfSouYTiB39FlQkNNqiVc2QJ1IE5KW9Cgrbxv_i93IMKDfdNS2Ict03pi7fs3g5lnRCGJS77WBuusuMsNB57wTEKw6zQSh616lF79VNvBtFjC02ZawpiwCsTmy-y4uo4du3WGxx7yNT47kNs0G93VWxpxH83NVtufCYyHH4t2eHbxAi6lI-IxVwXr9-bUeWd6_78B_8i76gB6-EslV3ynjM4sNZ3H6maSUPPNCU57');
+                        "></div>
+                      <div>
+                        <p class="text-text-main font-medium">شراب الفانيليا</p>
+                        <p class="text-text-muted text-xs">كود: SY-042</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFEBE9] text-text-muted text-xs font-medium border border-[#D7CCC8]">
+                      <span class="w-1.5 h-1.5 rounded-full bg-blue-700"></span>
+                      مستلزمات
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <div class="flex flex-col items-center">
+                      <span class="text-primary font-bold">2</span>
+                      <span class="text-[10px] text-primary uppercase font-bold"
+                        >نقص بالمخزون</span
+                      >
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-left text-text-muted">120 ج.م</td>
+                  <td class="px-6 py-4 text-left text-text-main font-medium">
+                    180 ج.م
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                      نقص بالمخزون
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-left">
+                    <div
+                      class="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                      <button
+                        class="p-1.5 hover:bg-[#D7CCC8]/30 rounded-md text-text-muted hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >edit</span
+                        >
+                      </button>
+                      <button
+                        class="p-1.5 hover:bg-red-50 rounded-md text-red-400 hover:text-red-700 transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >delete</span
+                        >
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="group hover:bg-[#EFEBE9]/50 transition-colors">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="h-10 w-10 rounded-lg bg-cover bg-center shrink-0 border border-border-light"
+                        data-alt="Croissant on a plate"
+                        style="
+                          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA6iJfh0cXzI4NNeSoTl0uZI-O0OwgdbNf-6kmTBKZtoRrQIWRcFRb7Xz9v-Ut_30mTZAi8xIEZ0ZbMlMvmI7tx2gtca7Puo8ujDB7OGxkyx6PFiqZopLmB_tt5ci3224-1R1ZY73k-_xpW42siFyEDBirT99Z6DIteF_f2SD9W_uUe8nYtgYvqfOBcxXR_JQovfxxHVyF4X9VEggqgl8ls7zbiSo_XR5YYb5BR7BXnGaWSSF0SPLsk4HKqOs9nyJVE4FTyd1dp_nfN');
+                        "></div>
+                      <div>
+                        <p class="text-text-main font-medium">
+                          كرواسون بالزبدة
+                        </p>
+                        <p class="text-text-muted text-xs">كود: PA-105</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFEBE9] text-text-muted text-xs font-medium border border-[#D7CCC8]">
+                      <span
+                        class="w-1.5 h-1.5 rounded-full bg-yellow-600"></span>
+                      مخبوزات
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="text-text-main font-bold">12</span>
+                    <span class="text-xs text-text-muted">قطعة</span>
+                  </td>
+                  <td class="px-6 py-4 text-left text-text-muted">15 ج.م</td>
+                  <td class="px-6 py-4 text-left text-text-main font-medium">
+                    35 ج.م
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                      متوفر
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-left">
+                    <div
+                      class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        class="p-1.5 hover:bg-[#D7CCC8]/30 rounded-md text-text-muted hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >edit</span
+                        >
+                      </button>
+                      <button
+                        class="p-1.5 hover:bg-red-50 rounded-md text-red-400 hover:text-red-700 transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >delete</span
+                        >
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="group hover:bg-[#EFEBE9]/50 transition-colors">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="h-10 w-10 rounded-lg bg-cover bg-center shrink-0 border border-border-light"
+                        data-alt="Pack of paper cups"
+                        style="
+                          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB25LHJMYmjYVyTpzw6pENRhQ4_zihPoPWr0Giw8yELR_6cG05jkENK8qBkI0LntbFxCbTS48ILLgsySuIT-P6qXv2YhcluKHvg-RtoYaI6ODIOh7KfpW0Qt1M00Kizbej0uGLc6HO4FelPdo2YCl4dVpuRN4rNbT5wlbegr9T6DjKEjK-A8FmTLnvbU2K4zJxynJFsVgKpLI4r0lyc3YxnugwMCYS6RJamA7WYPZnWXLWx1eIcBkTDyfVmcNzM5lsQ7OteAumWiImc');
+                        "></div>
+                      <div>
+                        <p class="text-text-main font-medium">
+                          أكواب تيك أواي (12oz)
+                        </p>
+                        <p class="text-text-muted text-xs">كود: SU-882</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFEBE9] text-text-muted text-xs font-medium border border-[#D7CCC8]">
+                      <span class="w-1.5 h-1.5 rounded-full bg-blue-700"></span>
+                      مستلزمات
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="text-text-main font-bold">500</span>
+                    <span class="text-xs text-text-muted">قطعة</span>
+                  </td>
+                  <td class="px-6 py-4 text-left text-text-muted">2.5 ج.م</td>
+                  <td class="px-6 py-4 text-left text-text-main font-medium">
+                    -
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                      متوفر
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-left">
+                    <div
+                      class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        class="p-1.5 hover:bg-[#D7CCC8]/30 rounded-md text-text-muted hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >edit</span
+                        >
+                      </button>
+                      <button
+                        class="p-1.5 hover:bg-red-50 rounded-md text-red-400 hover:text-red-700 transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >delete</span
+                        >
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="group hover:bg-[#EFEBE9]/50 transition-colors">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="h-10 w-10 rounded-lg bg-cover bg-center shrink-0 border border-border-light"
+                        data-alt="Colombian coffee beans"
+                        style="
+                          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDuGUI0zrmKbp5GHC-q-0BghLmvY6XYEF41CYyu3YFZ329xs3tvlB0w4GW9yoZJpS6cJH5XgyClBxiEcUFxYASFx-vLOo_HoF_CjdGrA74Fd0CuKopL3Ok2g7ZcKNcBMkFxwoNP9swlYkc5I5Jp7hGHU8J7kgNxJcGa7v5uPwsrlruGHZvffco3J-91fBIZw5k4BAClA0rhUHNmkNK5OahW3Hqdk81p7bLK8YBW2nXnOZzZ2_Ax6I4WONgK-HHnyrsVZ5cVHZZ5Rf-y');
+                        "></div>
+                      <div>
+                        <p class="text-text-main font-medium">كولومبي وسط</p>
+                        <p class="text-text-muted text-xs">كود: CF-003</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFEBE9] text-text-muted text-xs font-medium border border-[#D7CCC8]">
+                      <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      بن القهوة
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="text-text-main font-bold">22</span>
+                    <span class="text-xs text-text-muted">كجم</span>
+                  </td>
+                  <td class="px-6 py-4 text-left text-text-muted">310 ج.م</td>
+                  <td class="px-6 py-4 text-left text-text-main font-medium">
+                    520 ج.م
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                      متوفر
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-left">
+                    <div
+                      class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        class="p-1.5 hover:bg-[#D7CCC8]/30 rounded-md text-text-muted hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >edit</span
+                        >
+                      </button>
+                      <button
+                        class="p-1.5 hover:bg-red-50 rounded-md text-red-400 hover:text-red-700 transition-colors">
+                        <span class="material-symbols-outlined text-[20px]"
+                          >delete</span
+                        >
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div
+            class="bg-[#F5F5F0] border-t border-border-light px-6 py-4 flex items-center justify-between">
+            <p class="text-sm text-text-muted">
+              عرض <span class="font-medium text-text-main">1</span> إلى
+              <span class="font-medium text-text-main">5</span> من
+              <span class="font-medium text-text-main">145</span> نتيجة
+            </p>
+            <div class="flex gap-2">
+              <button
+                class="px-3 py-1 rounded-md border border-border-light bg-surface-light text-text-muted hover:text-primary hover:bg-[#EFEBE9] disabled:opacity-50 transition-colors text-sm">
+                السابق
+              </button>
+              <button
+                class="px-3 py-1 rounded-md border border-border-light bg-surface-light text-text-muted hover:text-primary hover:bg-[#EFEBE9] transition-colors text-sm">
+                التالي
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
