@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>فاتورة مشتريات - بن الغنيمي</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: "#6F4E37", // Coffee brown
+              hover: "#5D4037", // Darker brown
+              light: "#8D6E57",
+            },
+            accent: {
+              DEFAULT: "#D7CCC8", // Light coffee/latte
+              light: "#F0EBE9",
+            },
+            background: {
+              light: "#F5F5F0", // Off-white/Beige
+              dark: "#1F1B18", // Very dark brown/black
+            },
+            surface: {
+              light: "#FFFFFF", // White
+              dark: "#2C2522", // Dark brown
+            },
+            text: {
+              light: "#3E2723", // Dark brown text
+              dark: "#EFEBE9", // Light beige text
+              muted: "#795548", // Muted brown
+            },
+            border: {
+              light: "#E6E0DD",
+              dark: "#453833",
+            },
+          },
+          fontFamily: {
+            display: ["Cairo", "sans-serif"],
+            body: ["Cairo", "sans-serif"],
+          },
+          borderRadius: {
+            DEFAULT: "0.5rem",
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      font-family: "Cairo", sans-serif;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #d7ccc8;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a1887f;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+      background: #5d4037;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #6f4e37;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body
+  class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark transition-colors duration-300 min-h-screen flex flex-col">
+  <header
+    class="bg-surface-light dark:bg-surface-dark shadow-md z-10 sticky top-0 border-b border-accent/20 dark:border-border-dark">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a class="flex items-center gap-3" href="Dashboard.html">
+        <span class="material-symbols-outlined text-primary text-3xl">coffee</span>
+        <h1 class="text-xl font-bold text-text-light dark:text-text-dark">
+          elghonemy - بن الغنيمي
+        </h1>
+      </a>
+      <div class="flex items-center gap-3">
+        <button
+          class="p-2 rounded-full hover:bg-background-light dark:hover:bg-background-dark transition-colors text-primary">
+          <span class="material-symbols-outlined">notifications</span>
+        </button>
+        <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+          A
+        </div>
+      </div>
+    </div>
+  </header>
+  <main class="flex-grow p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6">
+    <div
+      class="flex items-center justify-between bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-border-light dark:border-border-dark">
+      <h2 class="text-2xl font-bold text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined">receipt_long</span>
+        فاتورة مشتريات
+      </h2>
+      <a class="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm"
+        href="Dashboard.html">
+        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        <span>رجوع</span>
+      </a>
+    </div>
+    <section
+      class="bg-surface-light dark:bg-surface-dark p-6 rounded-xl shadow-sm border border-border-light dark:border-border-dark space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+        <div class="md:col-span-1">
+          <label class="block text-sm font-medium mb-1 text-text-muted dark:text-accent">الـ ID</label>
+          <input
+            class="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 transition-colors"
+            readonly="" type="text" value="1024" />
+        </div>
+        <div class="md:col-span-3">
+          <label class="block text-sm font-medium mb-1 text-text-muted dark:text-accent">الخزينه</label>
+          <div class="relative">
+            <select
+              class="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors">
+              <option>الرئيسي</option>
+              <option>الفرعي</option>
+            </select>
+            <span
+              class="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">expand_more</span>
+          </div>
+        </div>
+        <div class="md:col-span-3">
+          <label class="block text-sm font-medium mb-1 text-text-muted dark:text-accent">المخزن</label>
+          <div class="relative">
+            <select
+              class="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors">
+              <option>الرئيسي</option>
+              <option>المخزن 1</option>
+            </select>
+            <span
+              class="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">expand_more</span>
+          </div>
+        </div>
+        <div class="md:col-span-5">
+          <label class="block text-sm font-medium mb-1 text-text-muted dark:text-accent">رقم فاتورة المورد</label>
+          <input
+            class="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 transition-colors"
+            placeholder="مثال: INV-2023-001" type="text" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium mb-1 text-text-muted dark:text-accent">اسم المورد</label>
+          <div class="relative">
+            <select
+              class="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors">
+              <option>شركه العالميه للتوريدات</option>
+              <option>موردين متنوعين</option>
+            </select>
+            <span
+              class="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">expand_more</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1 text-text-muted dark:text-accent">كشف حساب المورد</label>
+          <div class="relative">
+            <input
+              class="w-full bg-accent/20 dark:bg-surface-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg block p-2.5 font-semibold text-center opacity-80 cursor-not-allowed"
+              disabled="" type="text" value="50,000 جنيه مصري" />
+            <span
+              class="material-symbols-outlined absolute left-3 top-2.5 text-primary pointer-events-none text-lg">account_balance_wallet</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section
+      class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
+      <div
+        class="p-4 bg-background-light dark:bg-background-dark/50 border-b border-border-light dark:border-border-dark flex justify-between items-center">
+        <h3 class="font-bold text-text-light dark:text-text-dark flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">inventory_2</span>
+          الأصناف
+        </h3>
+        <button type="button"
+          class="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-lg transition-colors font-bold text-sm">
+          <span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+          <span>تكويد سريع</span>
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-right text-text-muted dark:text-accent">
+          <thead
+            class="text-xs text-text-light uppercase bg-accent/20 dark:bg-surface-dark/80 dark:text-text-dark border-b border-border-light dark:border-border-dark">
+            <tr>
+              <th class="px-6 py-3" scope="col">اسم الصنف</th>
+              <th class="px-6 py-3 w-32" scope="col">قطعه / كيلو</th>
+              <th class="px-6 py-3 w-40" scope="col">سعر الشراء</th>
+              <th class="px-6 py-3 w-40" scope="col">سعر البيع</th>
+              <th class="px-6 py-3 w-16 text-center" scope="col">حذف</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              class="bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark/50 border-b border-border-light dark:border-border-dark transition-colors">
+              <td class="px-4 py-3">
+                <div class="relative">
+                  <input list="products-list" type="text" placeholder="بحث عن صنف..."
+                    class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pl-8 text-text-light dark:text-text-dark placeholder-gray-400 font-bold" />
+                  <span
+                    class="material-symbols-outlined absolute left-2 top-2.5 text-text-muted pointer-events-none text-base">search</span>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-center text-text-light dark:text-text-dark"
+                  type="number" value="1" />
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-text-light dark:text-text-dark"
+                  placeholder="0.00" type="number" />
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-text-light dark:text-text-dark"
+                  placeholder="0.00" type="number" />
+              </td>
+              <td class="px-4 py-3 text-center">
+                <button
+                  class="text-red-500 hover:text-red-700 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <span class="material-symbols-outlined text-base">delete</span>
+                </button>
+              </td>
+            </tr>
+            <tr
+              class="bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark/50 border-b border-border-light dark:border-border-dark transition-colors">
+              <td class="px-4 py-3">
+                <div class="relative">
+                  <input list="products-list" type="text" placeholder="بحث عن صنف..." value="بن برازيلي"
+                    class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pl-8 text-text-light dark:text-text-dark placeholder-gray-400 font-bold" />
+                  <span
+                    class="material-symbols-outlined absolute left-2 top-2.5 text-text-muted pointer-events-none text-base">search</span>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-center text-text-light dark:text-text-dark"
+                  type="number" value="5" />
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-text-light dark:text-text-dark"
+                  placeholder="0.00" type="number" />
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-text-light dark:text-text-dark"
+                  placeholder="0.00" type="number" />
+              </td>
+              <td class="px-4 py-3 text-center">
+                <button
+                  class="text-red-500 hover:text-red-700 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <span class="material-symbols-outlined text-base">delete</span>
+                </button>
+              </td>
+            </tr>
+            <tr
+              class="bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark/50 border-b border-border-light dark:border-border-dark transition-colors">
+              <td class="px-4 py-3">
+                <div class="relative">
+                  <input list="products-list" type="text" placeholder="بحث عن صنف..." value="بن كولومبي"
+                    class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pl-8 text-text-light dark:text-text-dark placeholder-gray-400 font-bold" />
+                  <span
+                    class="material-symbols-outlined absolute left-2 top-2.5 text-text-muted pointer-events-none text-base">search</span>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-center text-text-light dark:text-text-dark"
+                  type="number" value="10" />
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-text-light dark:text-text-dark"
+                  placeholder="0.00" type="number" />
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-text-light dark:text-text-dark"
+                  placeholder="0.00" type="number" />
+              </td>
+              <td class="px-4 py-3 text-center">
+                <button
+                  class="text-red-500 hover:text-red-700 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <span class="material-symbols-outlined text-base">delete</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+          <datalist id="products-list">
+            <option value="بن برازيلي"></option>
+            <option value="بن كولومبي"></option>
+            <option value="بن يمني"></option>
+            <option value="بن إثيوبي"></option>
+            <option value="هيل"></option>
+            <option value="تحويجة"></option>
+            <option value="بن محوج فاتح"></option>
+            <option value="بن محوج غامق"></option>
+          </datalist>
+        </table>
+      </div>
+      <div
+        class="p-3 bg-background-light dark:bg-background-dark/50 border-t border-border-light dark:border-border-dark">
+        <button
+          class="w-full py-3 bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark rounded-lg border border-dashed border-primary/40 dark:border-primary/60 flex justify-center items-center transition-all group">
+          <span
+            class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform text-primary">add_circle</span>
+          <span class="font-medium">إضافة صنف جديد</span>
+        </button>
+      </div>
+    </section>
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div
+        class="lg:col-span-2 bg-surface-light dark:bg-surface-dark p-6 rounded-xl shadow-sm border border-border-light dark:border-border-dark">
+        <div class="flex flex-col gap-6">
+          <div
+            class="bg-accent/20 dark:bg-accent/10 border-2 border-accent dark:border-accent/30 p-5 rounded-xl shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                  <div class="bg-primary text-white p-1.5 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-lg">local_offer</span>
+                  </div>
+                  <label class="text-lg font-bold text-primary dark:text-accent">الخصم الإضافي</label>
+                </div>
+                <div class="flex gap-4">
+                  <div
+                    class="flex items-center bg-white dark:bg-surface-dark px-3 py-1.5 rounded-lg border border-border-light dark:border-border-dark">
+                    <input checked=""
+                      class="w-4 h-4 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
+                      id="discount-percent" name="discount-type" type="radio" />
+                    <label class="ms-2 text-sm font-bold text-text-light dark:text-text-dark cursor-pointer"
+                      for="discount-percent">% نسبة</label>
+                  </div>
+                  <div
+                    class="flex items-center bg-white dark:bg-surface-dark px-3 py-1.5 rounded-lg border border-border-light dark:border-border-dark">
+                    <input
+                      class="w-4 h-4 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
+                      id="discount-value" name="discount-type" type="radio" />
+                    <label class="ms-2 text-sm font-bold text-text-light dark:text-text-dark cursor-pointer"
+                      for="discount-value">قيمة نقدية</label>
+                  </div>
+                </div>
+              </div>
+              <div class="w-full md:w-1/3">
+                <div class="relative">
+                  <input
+                    class="w-full bg-white dark:bg-surface-dark border-2 border-primary/20 dark:border-primary/40 text-primary dark:text-accent text-lg rounded-lg focus:ring-primary focus:border-primary block p-2.5 text-center font-bold"
+                    placeholder="0" type="number" />
+                  <span class="absolute left-3 top-3 text-primary/50 text-sm font-bold pointer-events-none">EGP</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 px-2">
+            <div class="space-y-4">
+              <div
+                class="flex items-center justify-between border-b border-dashed border-border-light dark:border-border-dark pb-2">
+                <label class="text-sm font-medium text-text-muted dark:text-accent w-1/3">إجمالي الفاتورة</label>
+                <input
+                  class="w-2/3 bg-background-light dark:bg-background-dark/50 border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg block p-2.5 font-bold"
+                  readonly="" type="text" value="0.00" />
+              </div>
+              <div
+                class="flex items-center justify-between border-b border-dashed border-border-light dark:border-border-dark pb-2">
+                <label class="text-sm font-medium text-text-muted dark:text-accent w-1/3">بعد الخصم</label>
+                <input
+                  class="w-2/3 bg-background-light dark:bg-background-dark/50 border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg block p-2.5 font-bold"
+                  readonly="" type="text" value="0.00" />
+              </div>
+            </div>
+            <div class="space-y-4">
+              <div
+                class="flex items-center justify-between border-b border-dashed border-border-light dark:border-border-dark pb-2">
+                <label class="text-sm font-medium text-text-muted dark:text-accent w-1/3">إجمالي البيع</label>
+                <input
+                  class="w-2/3 bg-background-light dark:bg-background-dark/50 border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg block p-2.5"
+                  readonly="" type="text" value="0.00" />
+              </div>
+              <div
+                class="flex items-center justify-between border-b border-dashed border-border-light dark:border-border-dark pb-2">
+                <label class="text-sm font-bold text-green-600 dark:text-green-400 w-1/3">المكسب</label>
+                <input
+                  class="w-2/3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm rounded-lg block p-2.5 font-bold"
+                  readonly="" type="text" value="0.00" />
+              </div>
+              <div class="flex items-center justify-between mt-4">
+                <label class="text-base font-bold text-primary dark:text-accent w-1/3">صافي المستحق</label>
+                <input
+                  class="w-2/3 bg-primary/10 dark:bg-primary/20 border-2 border-primary/30 dark:border-primary/50 text-primary dark:text-accent text-lg rounded-lg block p-3 font-bold shadow-sm"
+                  readonly="" type="text" value="0.00" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="lg:col-span-1 bg-surface-light dark:bg-surface-dark p-6 rounded-xl shadow-sm border border-border-light dark:border-border-dark flex flex-col justify-between relative overflow-hidden group">
+        <div class="hidden lg:block absolute right-0 top-0 bottom-0 w-1.5 bg-primary h-full"></div>
+        <div class="space-y-6">
+          <h3
+            class="text-lg font-bold text-text-light dark:text-text-dark border-b border-border-light dark:border-border-dark pb-3 flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">payments</span>
+            طريقة الدفع
+          </h3>
+          <div class="space-y-4">
+            <div
+              class="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer">
+              <input checked=""
+                class="w-5 h-5 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
+                id="payment-cash" name="payment-method" type="radio" value="" />
+              <label
+                class="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
+                for="payment-cash">
+                <span>نقد (Cash)</span>
+                <span class="material-symbols-outlined text-text-muted text-lg">monetization_on</span>
+              </label>
+            </div>
+            <div
+              class="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer">
+              <input
+                class="w-5 h-5 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
+                id="payment-credit" name="payment-method" type="radio" value="" />
+              <label
+                class="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
+                for="payment-credit">
+                <span>الآجل (Credit)</span>
+                <span class="material-symbols-outlined text-text-muted text-lg">credit_score</span>
+              </label>
+            </div>
+            <div
+              class="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer">
+              <input
+                class="w-5 h-5 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
+                id="payment-misc" name="payment-method" type="radio" value="" />
+              <label
+                class="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
+                for="payment-misc">
+                <span>متنوع (Mixed)</span>
+                <span class="material-symbols-outlined text-text-muted text-lg">account_balance</span>
+              </label>
+            </div>
+          </div>
+          <div
+            class="hidden group-has-[#payment-misc:checked]:block space-y-4 pt-4 border-t border-dashed border-border-light dark:border-border-dark animate-fade-in bg-background-light/50 dark:bg-background-dark/30 -mx-6 px-6 pb-2">
+            <div>
+              <label class="block text-sm font-medium mb-1 text-text-muted dark:text-accent">مدفوع</label>
+              <div class="relative">
+                <input
+                  class="w-full bg-surface-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5"
+                  placeholder="0.00" type="number" />
+                <span
+                  class="material-symbols-outlined absolute left-3 top-2.5 text-text-muted text-sm pointer-events-none">attach_money</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-text-muted dark:text-accent">متبقي</label>
+              <div class="relative">
+                <input
+                  class="w-full bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm rounded-lg block p-2.5 font-bold"
+                  placeholder="0.00" readonly="" type="number" />
+                <span
+                  class="material-symbols-outlined absolute left-3 top-2.5 text-red-400 text-sm pointer-events-none">money_off</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-6 pt-4 border-t border-border-light dark:border-border-dark">
+          <button
+            class="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-primary/30 transform hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2">
+            <span class="material-symbols-outlined">print</span>
+            <span>حفظ وطباعة</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+
+</html>
