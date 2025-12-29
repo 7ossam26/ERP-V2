@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>التقرير العام - الغنيمي</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6F4E37", // Coffee Brown
+                        "primary-hover": "#5D4037",
+                        "background-light": "#F5F5F0", // Creamy off-white
+                        "background-dark": "#1F1B18", // Dark Coffee
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#2C2522",
+                        "text-light": "#3E2723",
+                        "text-dark": "#EFEBE9",
+                        "accent": "#D7CCC8",
+                        "border-light": "#E7E5E4",
+                        "border-dark": "#44403C",
+                        "success": "#2E7D32",
+                        "warning": "#F57C00",
+                        "danger": "#C62828",
+                    },
+                    fontFamily: {
+                        display: ["Cairo", "sans-serif"],
+                        body: ["Cairo", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem", // 12px
+                    },
+                },
+            },
+        };
+    </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }.no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300">
+<nav class="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark sticky top-0 z-50">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex justify-between h-20 items-center">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-3">
+<div class="bg-[#EDE0D4] dark:bg-[#4E342E] p-2 rounded-xl">
+<span class="material-icons-round text-primary text-3xl">local_cafe</span>
+</div>
+<div>
+<h1 class="text-2xl font-bold text-primary">الغنيمي</h1>
+<p class="text-xs text-gray-500 dark:text-gray-400">لإدارة محامص البن</p>
+</div>
+</div>
+</div>
+
+<a class="flex items-center gap-2 text-gray-500 hover:text-primary transition-colors" href="../Dashboard.html">
+<span class="material-icons-round rtl:rotate-180">arrow_forward</span>
+<span class="hidden sm:inline">الصفحة الرئيسية</span>
+</a>
+</div>
+</div>
+</div>
+</nav>
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+<div>
+<h2 class="text-3xl font-bold text-primary mb-2">التقرير العام</h2>
+<p class="text-gray-500 dark:text-gray-400">ملخص أداء المبيعات والمخزون لليوم الحالي</p>
+</div>
+
+</div>
+<div class="bg-surface-light dark:bg-surface-dark p-4 rounded-2xl shadow-sm border border-border-light dark:border-border-dark mb-8">
+<div class="flex flex-wrap items-end gap-4">
+<div class="w-full sm:w-auto flex-1 min-w-[200px]">
+<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الفترة الزمنية</label>
+<div class="relative">
+<select class="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
+<option>اليوم (24 أكتوبر 2023)</option>
+<option>أمس</option>
+<option>آخر 7 أيام</option>
+<option>هذا الشهر</option>
+<option>مخصص</option>
+</select>
+<span class="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">calendar_today</span>
+</div>
+</div>
+<div class="w-full sm:w-auto flex-1 min-w-[200px]">
+<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الفرع</label>
+<div class="relative">
+<select class="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
+<option>الفرع الرئيسي -الدقي</option>
+<option>فرع مول مصر</option>
+<option>فرع مول العرب</option>
+<option>الكل</option>
+</select>
+<span class="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">store</span>
+</div>
+</div>
+<a href="#">
+<button class="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors font-medium shadow-md shadow-primary/20 flex items-center justify-center gap-2">
+<span class="material-icons-round text-lg">refresh</span>
+                    تحديث التقرير
+                </button>
+                </a>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+<div class="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-2 h-full bg-primary group-hover:w-3 transition-all"></div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">إجمالي المبيعات</p>
+<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">12,450 ج.م</h3>
+</div>
+<div class="p-2 bg-primary/10 rounded-lg">
+<span class="material-icons-round text-primary text-xl">payments</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-2 h-full bg-success group-hover:w-3 transition-all"></div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">صافي الربح</p>
+<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">4,200 ج.م</h3>
+</div>
+<div class="p-2 bg-success/10 rounded-lg">
+<span class="material-icons-round text-success text-xl">savings</span>
+</div>
+</div>
+
+</div>
+<div class="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-2 h-full bg-blue-500 group-hover:w-3 transition-all"></div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">عدد الفواتير</p>
+<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">145</h3>
+</div>
+<div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+<span class="material-icons-round text-blue-600 dark:text-blue-400 text-xl">receipt_long</span>
+</div>
+</div>
+
+</div>
+<div class="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-2 h-full bg-warning group-hover:w-3 transition-all"></div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">تنبيهات المخزون</p>
+<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">3 أصناف</h3>
+</div>
+<div class="p-2 bg-warning/10 rounded-lg">
+<span class="material-icons-round text-warning text-xl">inventory_2</span>
+</div>
+</div>
+
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+<div class="lg:col-span-2 bg-surface-light dark:bg-surface-dark p-6 rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-lg font-bold text-primary">حركة المبيعات (بالساعة)</h3>
+<button class="text-gray-400 hover:text-primary transition-colors"><span class="material-icons-round">more_horiz</span></button>
+</div>
+<div class="h-64 w-full">
+<canvas id="salesChart"></canvas>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-lg font-bold text-primary">توزيع المبيعات حسب الصنف</h3>
+<button class="text-gray-400 hover:text-primary transition-colors"><span class="material-icons-round">more_horiz</span></button>
+</div>
+<div class="h-48 w-full relative">
+<canvas id="pieChart"></canvas>
+</div>
+<div class="mt-4 space-y-2">
+<div class="flex justify-between text-sm">
+<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#6F4E37]"></span><span class="text-gray-600 dark:text-gray-300">بن برازيلي</span></div>
+<span class="font-bold text-gray-800 dark:text-white">45%</span>
+</div>
+<div class="flex justify-between text-sm">
+<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#A1887F]"></span><span class="text-gray-600 dark:text-gray-300">بن إثيوبي</span></div>
+<span class="font-bold text-gray-800 dark:text-white">30%</span>
+</div>
+<div class="flex justify-between text-sm">
+<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#D7CCC8]"></span><span class="text-gray-600 dark:text-gray-300">إضافات</span></div>
+<span class="font-bold text-gray-800 dark:text-white">25%</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8 overflow-hidden">
+<div class="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-[#3E332F]/50">
+<h3 class="text-lg font-bold text-primary flex items-center gap-2">
+<span class="material-icons-round">store</span>
+            تفاصيل المبيعات حسب الفرع
+        </h3>
+<a href="../BranchesSales.html">
+<button class="text-primary text-sm font-medium hover:underline flex items-center gap-1">
+<span>تقرير مفصل</span>
+<span class="material-icons-round text-sm rtl:rotate-180">arrow_forward</span>
+</button>
+</a>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-right">
+<thead class="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+<tr>
+<th class="px-6 py-3">اسم الفرع</th>
+<th class="px-6 py-3">المبيعات (ج.م)</th>
+<th class="px-6 py-3 w-1/4">نسبة الإنجاز</th>
+<th class="px-6 py-3">عدد الفواتير</th>
+<th class="px-6 py-3">متوسط الفاتورة</th>
+
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark">
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#6F4E37]/10 flex items-center justify-center text-[#6F4E37]">
+<span class="material-icons-round text-sm">apartment</span>
+</div>
+                        الفرع الرئيسي - الدقي
+                    </td>
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white">6,850</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="text-xs font-medium w-8">55%</span>
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+<div class="bg-[#6F4E37] h-2 rounded-full" style="width: 55%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">82</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">83.5 ر.س</td>
+
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#A1887F]/10 flex items-center justify-center text-[#A1887F]">
+<span class="material-icons-round text-sm">location_city</span>
+</div>
+                        فرع مول مصر
+                    </td>
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white">3,420</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="text-xs font-medium w-8">28%</span>
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+<div class="bg-[#A1887F] h-2 rounded-full" style="width: 28%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">38</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">90.0 ر.س</td>
+
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#D7CCC8]/20 flex items-center justify-center text-[#8D6E63]">
+<span class="material-icons-round text-sm">storefront</span>
+</div>
+                        فرع مول العرب
+                    </td>
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white">2,180</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="text-xs font-medium w-8">17%</span>
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+<div class="bg-[#D7CCC8] h-2 rounded-full" style="width: 17%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">25</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">87.2 ر.س</td>
+<td class="px-6 py-4 text-gray-400 flex items-center gap-1">
+
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden flex flex-col">
+<div class="p-6 border-b border-border-light dark:border-border-dark bg-gray-50/50 dark:bg-[#3E332F]/50 flex justify-between items-center">
+<h3 class="text-lg font-bold text-primary flex items-center gap-2">
+<span class="material-icons-round">analytics</span>
+                        تحليل الربحية
+                    </h3>
+</div>
+<div class="p-6 grid grid-cols-3 gap-4 border-b border-border-light dark:border-border-dark">
+<div class="text-center">
+<p class="text-xs text-gray-500 dark:text-gray-400 mb-1">الإيرادات</p>
+<p class="text-lg font-bold text-gray-900 dark:text-white">12,450</p>
+</div>
+<div class="text-center border-r border-l border-gray-100 dark:border-gray-700">
+<p class="text-xs text-gray-500 dark:text-gray-400 mb-1">تكلفة البضاعة (COGS)</p>
+<p class="text-lg font-bold text-danger">8,250</p>
+</div>
+<div class="text-center">
+<p class="text-xs text-gray-500 dark:text-gray-400 mb-1">صافي الربح</p>
+<p class="text-lg font-bold text-success">4,200</p>
+</div>
+</div>
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-sm text-right">
+<thead class="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+<tr>
+<th class="px-6 py-3">الصنف</th>
+<th class="px-6 py-3">المبيعات</th>
+<th class="px-6 py-3">الربح</th>
+<th class="px-6 py-3">% هامش</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark">
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">بن برازيلي (سانتوس)</td>
+<td class="px-6 py-4">5,400 ج.م</td>
+<td class="px-6 py-4 text-success font-medium">2,100 ج.م</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">38%</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">بن إثيوبي (يرقاشيف)</td>
+<td class="px-6 py-4">3,200 ج.م</td>
+<td class="px-6 py-4 text-success font-medium">950 ج.م</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">29%</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">خلطة الغنيمي الخاصة</td>
+<td class="px-6 py-4">2,800 ج.م</td>
+<td class="px-6 py-4 text-success font-medium">1,150 ج.م</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">41%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden flex flex-col">
+<div class="p-6 border-b border-border-light dark:border-border-dark bg-gray-50/50 dark:bg-[#3E332F]/50 flex justify-between items-center">
+<h3 class="text-lg font-bold text-primary flex items-center gap-2">
+<span class="material-icons-round">warehouse</span>
+                        حالة المخزون اليومية
+                    </h3>
+</div>
+<a href="../InventoryManagement(elgard).html">
+<button class="text-primary text-sm font-medium hover:underline flex items-center gap-1">
+<span>تقرير مفصل</span>
+<span class="material-icons-round text-sm rtl:rotate-180">arrow_forward</span>
+</button>
+</a>
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-sm text-right">
+<thead class="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+<tr>
+<th class="px-6 py-3">الصنف</th>
+<th class="px-6 py-3">الحالي (كجم)</th>
+<th class="px-6 py-3">وارد اليوم</th>
+<th class="px-6 py-3">منصرف اليوم</th>
+<th class="px-6 py-3">الحالة</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark">
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">بن برازيلي أخضر</td>
+<td class="px-6 py-4 font-bold">145 كجم</td>
+<td class="px-6 py-4 text-success">+50</td>
+<td class="px-6 py-4 text-danger">-22</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 rounded-full text-xs font-medium">متوفر</span>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">هيل أمريكي رقم 1</td>
+<td class="px-6 py-4 font-bold">4.5 كجم</td>
+<td class="px-6 py-4 text-gray-400">0</td>
+<td class="px-6 py-4 text-danger">-1.2</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 rounded-full text-xs font-medium flex items-center gap-1 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
+                                        منخفض
+                                    </span>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">أكواب ورقية 8oz</td>
+<td class="px-6 py-4 font-bold">0 كرتون</td>
+<td class="px-6 py-4 text-gray-400">0</td>
+<td class="px-6 py-4 text-danger">-5</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 rounded-full text-xs font-medium">نفذت</span>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">بن كولومبي</td>
+<td class="px-6 py-4 font-bold">60 كجم</td>
+<td class="px-6 py-4 text-success">+20</td>
+<td class="px-6 py-4 text-danger">-10</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 rounded-full text-xs font-medium">متوفر</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8">
+<div class="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center">
+<h3 class="text-lg font-bold text-primary flex items-center gap-2">
+<span class="material-icons-round">history</span>
+                    سجل العمليات اليومي
+                </h3>
+<button class="text-primary text-sm font-medium hover:underline">عرض الكل</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-right">
+<thead class="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+<tr>
+<th class="px-6 py-3">الوقت</th>
+<th class="px-6 py-3">نوع العملية</th>
+<th class="px-6 py-3">المنتج</th>
+<th class="px-6 py-3">الكمية</th>
+<th class="px-6 py-3">المبلغ</th>
+<th class="px-6 py-3">بواسطة</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark">
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">10:45 ص</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded text-xs font-medium">مبيعات</span>
+</td>
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">بن محمص - برازيلي</td>
+<td class="px-6 py-4">2 كجم</td>
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white">240 ج.م</td>
+<td class="px-6 py-4 text-gray-500 text-xs">أحمد المحمد</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">10:30 ص</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 rounded text-xs font-medium">توريد مخزون</span>
+</td>
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">بن أخضر - إثيوبي</td>
+<td class="px-6 py-4 text-success">+50 كجم</td>
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white">-</td>
+<td class="px-6 py-4 text-gray-500 text-xs">خالد المخزني</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">09:15 ص</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded text-xs font-medium">مبيعات</span>
+</td>
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">طاحونة بن يدوية</td>
+<td class="px-6 py-4">1 قطعة</td>
+<td class="px-6 py-4 font-bold text-gray-900 dark:text-white">150 ج.م</td>
+<td class="px-6 py-4 text-gray-500 text-xs">أحمد المحمد</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 border-t border-border-light dark:border-border-dark flex items-center justify-between">
+<span class="text-sm text-gray-500 dark:text-gray-400">عرض 1-10 من 54 عملية</span>
+<div class="flex gap-1">
+<button class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50">السابق</button>
+<button class="px-3 py-1 rounded bg-primary text-white border border-primary">1</button>
+<button class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">2</button>
+<button class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">3</button>
+<button class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">التالي</button>
+</div>
+</div>
+</div>
+<footer class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">
+<p>© 2023 بن الغنيمي. جميع الحقوق محفوظة.</p>
+</footer>
+</main>
+<script>
+        // --- Color Palette ---
+        const colors = {
+            primary: '#6F4E37',
+            secondary: '#A1887F',
+            accent: '#D7CCC8',
+            surface: '#FFFFFF',
+            text: '#3E2723',
+            gridLight: '#E7E5E4',
+            gridDark: '#44403C'
+        };
+        // --- Sales Line Chart ---
+        const ctxSales = document.getElementById('salesChart').getContext('2d');
+        const salesChart = new Chart(ctxSales, {
+            type: 'line',
+            data: {
+                labels: ['8:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+                datasets: [{
+                    label: 'المبيعات اليومية (ر.س)',
+                    data: [120, 450, 1200, 980, 2400, 3100, 2800, 1400],
+                    borderColor: colors.primary,
+                    backgroundColor: 'rgba(111, 78, 55, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: colors.surface,
+                    pointBorderColor: colors.primary,
+                    pointBorderWidth: 2,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? colors.gridDark : colors.gridLight,
+                            borderDash: [5, 5]
+                        },
+                        ticks: {
+                            color: '#9CA3AF'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#9CA3AF'
+                        }
+                    }
+                }
+            }
+        });
+        // --- Pie Chart ---
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        const pieChart = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['بن برازيلي', 'بن إثيوبي', 'إضافات'],
+                datasets: [{
+                    data: [45, 30, 25],
+                    backgroundColor: [
+                        colors.primary,
+                        colors.secondary,
+                        colors.accent
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        // --- Dark Mode Toggle Logic ---
+        const toggleBtn = document.getElementById('darkModeToggle');
+        const html = document.documentElement;
+        toggleBtn.addEventListener('click', () => {
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                toggleBtn.innerHTML = '<span class="material-icons-round">dark_mode</span>';
+                // Update chart grid colors for light mode
+                salesChart.options.scales.y.grid.color = colors.gridLight;
+                salesChart.update();
+            } else {
+                html.classList.add('dark');
+                toggleBtn.innerHTML = '<span class="material-icons-round">light_mode</span>';
+                // Update chart grid colors for dark mode
+                salesChart.options.scales.y.grid.color = colors.gridDark;
+                salesChart.update();
+            }
+        });
+    </script>
+</body></html>
