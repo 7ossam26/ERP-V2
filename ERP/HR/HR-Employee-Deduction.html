@@ -55,10 +55,14 @@
             background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            @apply bg-border-light dark:bg-border-dark rounded-full;
+            background-color: #E7E5E4;
+            border-radius: 9999px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #44403C;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            @apply bg-text-muted;
+            background-color: #8D6E63;
         }
     </style>
 </head>
