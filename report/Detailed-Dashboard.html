@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html class="light" dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>تقارير مفصلة - بن الغنيمي</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..900&amp;family=Inter:wght@400..900&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6F4E37",
+              "primary-hover": "#5D4037",
+              "background-light": "#F5F5F0",
+              "background-dark": "#1F1B18",
+              "surface-light": "#FFFFFF",
+              "surface-dark": "#2C2522",
+              "text-light": "#3E2723",
+              "text-dark": "#EFEBE9",
+              accent: "#D7CCC8",
+              "border-light": "#E7E5E4",
+              "border-dark": "#44403C",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              cairo: ["Cairo", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+            boxShadow: {
+              coffee: "0 4px 14px 0 rgba(111, 78, 55, 0.1)",
+              "coffee-hover": "0 6px 20px 0 rgba(111, 78, 55, 0.2)",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Cairo", "Inter", sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      }
+      .material-symbols-outlined.fill {
+        font-variation-settings: "FILL" 1;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark transition-colors duration-200 min-h-screen flex flex-col">
+    <header
+      class="w-full bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark px-6 py-4 sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto flex items-center gap-3">
+        <a
+          href="reportType.html"
+          class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-text-light/60 dark:text-text-dark/60 hover:text-primary dark:hover:text-primary transition-colors">
+          <span class="material-symbols-outlined">arrow_forward</span>
+        </a>
+        <div class="bg-primary rounded-lg p-2 text-white shadow-sm">
+          <span class="material-symbols-outlined">coffee</span>
+        </div>
+        <div>
+          <h1
+            class="font-bold text-xl text-text-light dark:text-text-dark leading-none">
+            بن الغنيمي
+          </h1>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">
+            نظام إدارة نقاط البيع
+          </p>
+        </div>
+      </div>
+    </header>
+    <main
+      class="flex-1 w-full max-w-7xl mx-auto p-6 md:p-8 flex flex-col gap-8">
+      <div
+        class="flex flex-col gap-2 border-b border-border-light dark:border-border-dark pb-6">
+        <h2
+          class="text-3xl md:text-4xl font-black text-text-light dark:text-text-dark tracking-tight">
+          تقارير مفصلة
+        </h2>
+        <p class="text-text-light/70 dark:text-text-dark/70 text-lg">
+          مركز الوصول لجميع سجلات النظام والتقارير التاريخية
+        </p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <a
+          href="RENAME!/Stock-Transfer-History.html"
+          class="group relative flex flex-col items-center justify-center p-8 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-2xl shadow-coffee hover:shadow-coffee-hover hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 gap-4 text-center overflow-hidden">
+          <div
+            class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300"></div>
+          <div
+            class="w-16 h-16 rounded-full bg-background-light dark:bg-background-dark flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform duration-300">
+            <span class="material-symbols-outlined text-[32px]"
+              >inventory_2</span
+            >
+          </div>
+          <div class="relative z-10">
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark mb-1">
+              سجل التحويلات المخزنية
+            </h3>
+            <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+              عرض حركة المخزون بين الفروع
+            </p>
+          </div>
+          <span
+            class="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity text-primary">
+            <span class="material-symbols-outlined">arrow_outward</span>
+          </span>
+        </a>
+        <a
+          href="RENAME!/PurchaseHistory.html"
+          class="group relative flex flex-col items-center justify-center p-8 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-2xl shadow-coffee hover:shadow-coffee-hover hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 gap-4 text-center overflow-hidden">
+          <div
+            class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300"></div>
+          <div
+            class="w-16 h-16 rounded-full bg-background-light dark:bg-background-dark flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform duration-300">
+            <span class="material-symbols-outlined text-[32px]"
+              >receipt_long</span
+            >
+          </div>
+          <div class="relative z-10">
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark mb-1">
+              سجل المشتريات
+            </h3>
+            <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+              مراجعة فواتير الشراء والموردين
+            </p>
+          </div>
+          <span
+            class="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity text-primary">
+            <span class="material-symbols-outlined">arrow_outward</span>
+          </span>
+        </a>
+        <a
+          href="RENAME!/DeductionHistory.html"
+          class="group relative flex flex-col items-center justify-center p-8 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-2xl shadow-coffee hover:shadow-coffee-hover hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 gap-4 text-center overflow-hidden">
+          <div
+            class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300"></div>
+          <div
+            class="w-16 h-16 rounded-full bg-background-light dark:bg-background-dark flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform duration-300">
+            <span class="material-symbols-outlined text-[32px]">percent</span>
+          </div>
+          <div class="relative z-10">
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark mb-1">
+              سجل الخصومات
+            </h3>
+            <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+              تتبع الخصومات والعروض المطبقة
+            </p>
+          </div>
+          <span
+            class="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity text-primary">
+            <span class="material-symbols-outlined">arrow_outward</span>
+          </span>
+        </a>
+        <a
+          href="RENAME!/CreatesHistory.html"
+          class="group relative flex flex-col items-center justify-center p-8 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-2xl shadow-coffee hover:shadow-coffee-hover hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 gap-4 text-center overflow-hidden">
+          <div
+            class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300"></div>
+          <div
+            class="w-16 h-16 rounded-full bg-background-light dark:bg-background-dark flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform duration-300">
+            <span class="material-symbols-outlined text-[32px]">post_add</span>
+          </div>
+          <div class="relative z-10">
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark mb-1">
+              سجل الإنشاءات
+            </h3>
+            <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+              سجل عمليات التكويد والإضافة
+            </p>
+          </div>
+          <span
+            class="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity text-primary">
+            <span class="material-symbols-outlined">arrow_outward</span>
+          </span>
+        </a>
+        <a
+          href="RENAME!/Cash-Transfer-History.html"
+          class="group relative flex flex-col items-center justify-center p-8 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-2xl shadow-coffee hover:shadow-coffee-hover hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 gap-4 text-center overflow-hidden">
+          <div
+            class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300"></div>
+          <div
+            class="w-16 h-16 rounded-full bg-background-light dark:bg-background-dark flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform duration-300">
+            <span class="material-symbols-outlined text-[32px]"
+              >currency_exchange</span
+            >
+          </div>
+          <div class="relative z-10">
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark mb-1">
+              سجل التحويلات النقدية
+            </h3>
+            <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+              حركة النقدية بين الخزائن
+            </p>
+          </div>
+          <span
+            class="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity text-primary">
+            <span class="material-symbols-outlined">arrow_outward</span>
+          </span>
+        </a>
+        <a
+          href="RENAME!/AdvancePaymentsHistory.html"
+          class="group relative flex flex-col items-center justify-center p-8 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-2xl shadow-coffee hover:shadow-coffee-hover hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 gap-4 text-center overflow-hidden">
+          <div
+            class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300"></div>
+          <div
+            class="w-16 h-16 rounded-full bg-background-light dark:bg-background-dark flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform duration-300">
+            <span class="material-symbols-outlined text-[32px]"
+              >account_balance_wallet</span
+            >
+          </div>
+          <div class="relative z-10">
+            <h3
+              class="text-xl font-bold text-text-light dark:text-text-dark mb-1">
+              سجل السلف
+            </h3>
+            <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+              متابعة السلف والمدفوعات المقدمة
+            </p>
+          </div>
+          <span
+            class="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity text-primary">
+            <span class="material-symbols-outlined">arrow_outward</span>
+          </span>
+        </a>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html class="light" dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>سجل التكويدات - Elghonemy POS</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;700;800&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#714e38",
+              "primary-light": "#8a6b57",
+              "background-light": "#fbfaf9",
+              "background-dark": "#1c1816",
+              surface: "#ffffff",
+              "border-color": "#e0dad7",
+              "text-main": "#171412",
+              "text-secondary": "#826f64",
+            },
+            fontFamily: {
+              display: ["Cairo", "Inter", "sans-serif"],
+              body: ["Cairo", "Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Cairo", "Inter", sans-serif;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d1cbc8;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #a89f99;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      }
+      .icon-filled {
+        font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light text-text-main h-screen overflow-hidden flex flex-col">
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+      <header
+        class="h-16 border-b border-border-color bg-surface flex items-center justify-between px-8 shrink-0">
+        <a
+          href="../Detailed-Dashboard.html"
+          class="flex items-center gap-2 text-text-secondary hover:text-primary transition-colors group">
+          <span
+            class="material-symbols-outlined text-[20px] group-hover:-translate-x-1 transition-transform"
+            >arrow_forward</span
+          >
+          <span class="text-sm font-medium">رجوع</span>
+        </a>
+        <div class="flex items-center gap-4">
+          <button
+            class="relative p-2 text-text-secondary hover:text-primary transition-colors rounded-full hover:bg-background-light">
+            <span class="material-symbols-outlined">notifications</span>
+            <span
+              class="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full border border-white"></span>
+          </button>
+          <button
+            class="p-2 text-text-secondary hover:text-primary transition-colors rounded-full hover:bg-background-light">
+            <span class="material-symbols-outlined">help</span>
+          </button>
+        </div>
+      </header>
+      <div class="flex-1 overflow-y-auto p-8">
+        <div class="max-w-7xl mx-auto flex flex-col gap-6">
+          <div
+            class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div class="flex flex-col gap-1">
+              <h2 class="text-3xl font-bold text-text-main">سجل التكويدات</h2>
+              <p class="text-text-secondary">
+                عرض سجل التعديلات على البيانات الرئيسية مثل العملاء والموردين
+                والأصناف
+              </p>
+            </div>
+          </div>
+          <div
+            class="bg-surface rounded-xl border border-border-color p-4 shadow-sm">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div class="md:col-span-4">
+                <label class="block text-sm font-medium text-text-main mb-1.5"
+                  >بحث</label
+                >
+                <div class="relative">
+                  <input
+                    class="w-full h-11 pr-11 pl-4 rounded-lg border-border-color bg-background-light text-text-main focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-text-secondary/70"
+                    placeholder="اسم الكيان، المستخدم، أو التفاصيل..."
+                    type="text" />
+                  <div
+                    class="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-text-secondary pointer-events-none">
+                    <span class="material-symbols-outlined">search</span>
+                  </div>
+                </div>
+              </div>
+              <div class="md:col-span-3">
+                <label class="block text-sm font-medium text-text-main mb-1.5"
+                  >الفترة الزمنية</label
+                >
+                <div class="relative">
+                  <input
+                    class="w-full h-11 pr-10 pl-4 rounded-lg border-border-color bg-background-light text-text-secondary focus:ring-1 focus:ring-primary focus:border-primary font-sans text-sm"
+                    type="date" />
+                  <div
+                    class="absolute right-0 top-0 h-full w-10 flex items-center justify-center text-text-secondary pointer-events-none">
+                    <span class="material-symbols-outlined text-[20px]"
+                      >calendar_today</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-text-main mb-1.5"
+                  >نوع الكيان</label
+                >
+                <div class="relative">
+                  <select
+                    class="w-full h-11 pr-4 pl-8 rounded-lg border-border-color bg-background-light text-text-main focus:ring-1 focus:ring-primary focus:border-primary appearance-none">
+                    <option value="">الكل</option>
+                    <option value="item">صنف</option>
+                    <option value="customer">عميل</option>
+                    <option value="supplier">مورد</option>
+                    <option value="user">مستخدم</option>
+                  </select>
+                  <div
+                    class="absolute left-0 top-0 h-full w-8 flex items-center justify-center text-text-secondary pointer-events-none">
+                    <span class="material-symbols-outlined">expand_more</span>
+                  </div>
+                </div>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-text-main mb-1.5"
+                  >نوع الإجراء</label
+                >
+                <div class="relative">
+                  <select
+                    class="w-full h-11 pr-4 pl-8 rounded-lg border-border-color bg-background-light text-text-main focus:ring-1 focus:ring-primary focus:border-primary appearance-none">
+                    <option value="">الكل</option>
+                    <option value="create">إضافة جديد</option>
+                    <option value="update">تعديل</option>
+                    <option value="delete">حذف</option>
+                  </select>
+                  <div
+                    class="absolute left-0 top-0 h-full w-8 flex items-center justify-center text-text-secondary pointer-events-none">
+                    <span class="material-symbols-outlined">expand_more</span>
+                  </div>
+                </div>
+              </div>
+              <div class="md:col-span-1">
+                <button
+                  class="w-full h-11 flex items-center justify-center bg-background-light border border-border-color rounded-lg text-text-secondary hover:text-primary hover:border-primary transition-colors">
+                  <span class="material-symbols-outlined">filter_list</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div
+            class="bg-surface rounded-xl border border-border-color shadow-sm flex flex-col">
+            <div class="overflow-x-auto">
+              <table class="w-full text-right">
+                <thead class="bg-background-light border-b border-border-color">
+                  <tr>
+                    <th
+                      class="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                      التاريخ والوقت
+                    </th>
+                    <th
+                      class="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                      المستخدم
+                    </th>
+                    <th
+                      class="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                      الكيان
+                    </th>
+                    <th
+                      class="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                      الإجراء
+                    </th>
+                    <th
+                      class="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider w-1/3">
+                      التفاصيل
+                    </th>
+                    <th
+                      class="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider"></th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border-color">
+                  <tr class="hover:bg-primary/5 transition-colors group">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span
+                          class="text-sm font-medium text-text-main font-sans"
+                          >2023-10-27</span
+                        >
+                        <span class="text-xs text-text-secondary font-sans"
+                          >10:45 AM</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="size-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+                          ع
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-sm font-medium text-text-main"
+                            >علي حسن</span
+                          >
+                          <span class="text-xs text-text-secondary">كاشير</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span class="text-sm font-bold text-text-main"
+                          >بن برازيلي وسط</span
+                        >
+                        <span class="text-xs text-text-secondary"
+                          >صنف (Item)</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                        <span class="size-1.5 rounded-full bg-amber-500"></span>
+                        تعديل
+                      </span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <p
+                        class="text-sm text-text-secondary truncate max-w-xs"
+                        title="تم تعديل سعر البيع من 50.00 إلى 55.00">
+                        تم تعديل سعر البيع من
+                        <span class="font-sans font-medium text-text-main"
+                          >50.00</span
+                        >
+                        إلى
+                        <span class="font-sans font-medium text-text-main"
+                          >55.00</span
+                        >
+                      </p>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-left">
+                      <button
+                        class="text-text-secondary hover:text-primary p-1 rounded-md hover:bg-background-light opacity-0 group-hover:opacity-100 transition-all">
+                        <span class="material-symbols-outlined"
+                          >more_horiz</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-primary/5 transition-colors group">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span
+                          class="text-sm font-medium text-text-main font-sans"
+                          >2023-10-26</span
+                        >
+                        <span class="text-xs text-text-secondary font-sans"
+                          >09:12 AM</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                          أ
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-sm font-medium text-text-main"
+                            >أحمد محمد</span
+                          >
+                          <span class="text-xs text-text-secondary">مدير</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span class="text-sm font-bold text-text-main"
+                          >شركة النور للتوريدات</span
+                        >
+                        <span class="text-xs text-text-secondary"
+                          >مورد (Supplier)</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span
+                          class="size-1.5 rounded-full bg-emerald-500"></span>
+                        إضافة جديد
+                      </span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <p class="text-sm text-text-secondary truncate max-w-xs">
+                        تم إنشاء سجل المورد الجديد وإضافة بيانات الاتصال
+                      </p>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-left">
+                      <button
+                        class="text-text-secondary hover:text-primary p-1 rounded-md hover:bg-background-light opacity-0 group-hover:opacity-100 transition-all">
+                        <span class="material-symbols-outlined"
+                          >more_horiz</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-primary/5 transition-colors group">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span
+                          class="text-sm font-medium text-text-main font-sans"
+                          >2023-10-25</span
+                        >
+                        <span class="text-xs text-text-secondary font-sans"
+                          >02:30 PM</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="size-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">
+                          س
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-sm font-medium text-text-main"
+                            >سارة محمود</span
+                          >
+                          <span class="text-xs text-text-secondary">مشرف</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span class="text-sm font-bold text-text-main"
+                          >خصم الموسم الشتوي</span
+                        >
+                        <span class="text-xs text-text-secondary"
+                          >عرض (Promotion)</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                        <span class="size-1.5 rounded-full bg-rose-500"></span>
+                        حذف
+                      </span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <p class="text-sm text-text-secondary truncate max-w-xs">
+                        تم حذف العرض الترويجي لانتهاء مدة الصلاحية
+                      </p>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-left">
+                      <button
+                        class="text-text-secondary hover:text-primary p-1 rounded-md hover:bg-background-light opacity-0 group-hover:opacity-100 transition-all">
+                        <span class="material-symbols-outlined"
+                          >more_horiz</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-primary/5 transition-colors group">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span
+                          class="text-sm font-medium text-text-main font-sans"
+                          >2023-10-25</span
+                        >
+                        <span class="text-xs text-text-secondary font-sans"
+                          >11:15 AM</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                          أ
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-sm font-medium text-text-main"
+                            >أحمد محمد</span
+                          >
+                          <span class="text-xs text-text-secondary">مدير</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span class="text-sm font-bold text-text-main"
+                          >مطعم السلطان</span
+                        >
+                        <span class="text-xs text-text-secondary"
+                          >عميل (Customer)</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                        <span class="size-1.5 rounded-full bg-amber-500"></span>
+                        تعديل
+                      </span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <p class="text-sm text-text-secondary truncate max-w-xs">
+                        تعديل حد الائتمان من
+                        <span class="font-sans">1000</span> إلى
+                        <span class="font-sans">2500</span>
+                      </p>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-left">
+                      <button
+                        class="text-text-secondary hover:text-primary p-1 rounded-md hover:bg-background-light opacity-0 group-hover:opacity-100 transition-all">
+                        <span class="material-symbols-outlined"
+                          >more_horiz</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-primary/5 transition-colors group">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span
+                          class="text-sm font-medium text-text-main font-sans"
+                          >2023-10-24</span
+                        >
+                        <span class="text-xs text-text-secondary font-sans"
+                          >05:20 PM</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="size-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+                          ع
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-sm font-medium text-text-main"
+                            >علي حسن</span
+                          >
+                          <span class="text-xs text-text-secondary">كاشير</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex flex-col">
+                        <span class="text-sm font-bold text-text-main"
+                          >إسبريسو دبل</span
+                        >
+                        <span class="text-xs text-text-secondary"
+                          >صنف (Item)</span
+                        >
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span
+                          class="size-1.5 rounded-full bg-emerald-500"></span>
+                        إضافة جديد
+                      </span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <p class="text-sm text-text-secondary truncate max-w-xs">
+                        إضافة صنف جديد للقائمة
+                      </p>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-left">
+                      <button
+                        class="text-text-secondary hover:text-primary p-1 rounded-md hover:bg-background-light opacity-0 group-hover:opacity-100 transition-all">
+                        <span class="material-symbols-outlined"
+                          >more_horiz</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div
+              class="px-6 py-4 border-t border-border-color flex items-center justify-between bg-surface rounded-b-xl">
+              <span class="text-sm text-text-secondary"
+                >عرض <span class="font-medium font-sans">1</span> إلى
+                <span class="font-medium font-sans">5</span> من أصل
+                <span class="font-medium font-sans">24</span> سجل</span
+              >
+              <div class="flex items-center gap-2">
+                <button
+                  class="size-9 flex items-center justify-center rounded-lg border border-border-color text-text-secondary hover:bg-background-light disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled="">
+                  <span class="material-symbols-outlined text-lg"
+                    >chevron_right</span
+                  >
+                </button>
+                <button
+                  class="size-9 flex items-center justify-center rounded-lg bg-primary text-white text-sm font-medium font-sans">
+                  1
+                </button>
+                <button
+                  class="size-9 flex items-center justify-center rounded-lg border border-border-color text-text-secondary hover:bg-background-light text-sm font-medium font-sans">
+                  2
+                </button>
+                <button
+                  class="size-9 flex items-center justify-center rounded-lg border border-border-color text-text-secondary hover:bg-background-light text-sm font-medium font-sans">
+                  3
+                </button>
+                <span class="text-text-secondary px-1">...</span>
+                <button
+                  class="size-9 flex items-center justify-center rounded-lg border border-border-color text-text-secondary hover:bg-background-light text-sm font-medium font-sans">
+                  8
+                </button>
+                <button
+                  class="size-9 flex items-center justify-center rounded-lg border border-border-color text-text-secondary hover:bg-background-light">
+                  <span class="material-symbols-outlined text-lg"
+                    >chevron_left</span
+                  >
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
