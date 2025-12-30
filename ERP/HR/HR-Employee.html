@@ -102,11 +102,18 @@
             class="block w-full h-10 pr-10 pl-4 rounded-lg bg-white dark:bg-surface-dark border-none ring-1 ring-border-light dark:ring-border-dark focus:ring-2 focus:ring-primary placeholder-gray-400 text-sm transition-shadow"
             placeholder="بحث بالاسم أو الرقم الوظيفي..." type="text" />
         </div>
-        <button
-          class="flex items-center gap-2 h-10 px-5 bg-primary hover:bg-primary-hover text-white rounded-lg shadow-sm transition-colors font-bold text-sm shrink-0">
-          <span class="material-symbols-outlined text-[20px]">payments</span>
-          <span>إضافة سلفة</span>
-        </button>
+        <div class="flex gap-2 shrink-0">
+          <a href="HR-Employee-Deduction.html"
+            class="flex items-center gap-2 h-10 px-5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm transition-colors font-bold text-sm">
+            <span class="material-symbols-outlined text-[20px]">remove_circle</span>
+            <span>إضافة خصم</span>
+          </a>
+          <a href="HR-Employee-Advance.html"
+            class="flex items-center gap-2 h-10 px-5 bg-primary hover:bg-primary-hover text-white rounded-lg shadow-sm transition-colors font-bold text-sm">
+            <span class="material-symbols-outlined text-[20px]">payments</span>
+            <span>إضافة سلفة</span>
+          </a>
+        </div>
       </div>
     </header>
     <div class="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
@@ -175,6 +182,9 @@
                   السلف</th>
                 <th
                   class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  الخصومات</th>
+                <th
+                  class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   المرتب المتبقي</th>
                 <th
                   class="px-6 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -204,6 +214,7 @@
                   101 234 5678</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-light dark:text-text-dark">8,000 ج.م
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500">-</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500">-</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-light dark:text-text-dark">8,000 ج.م
                 </td>
@@ -250,6 +261,7 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-orange-600 dark:text-orange-400">500 ج.م
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500">-</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-light dark:text-text-dark">5,500 ج.م
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
@@ -294,6 +306,7 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-light dark:text-text-dark">4,500 ج.م
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600 dark:text-red-400">1,200 ج.م</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500">-</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-light dark:text-text-dark">3,300 ج.م
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
@@ -339,6 +352,7 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-orange-600 dark:text-orange-400">200 ج.م
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500">-</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-light dark:text-text-dark">3,300 ج.م
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
@@ -382,6 +396,7 @@
                   109 999 9999</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-light dark:text-text-dark">4,000 ج.م
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500">-</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500">-</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-light dark:text-text-dark">4,000 ج.م
                 </td>
