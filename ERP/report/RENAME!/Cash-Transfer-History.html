@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html class="light" dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>سجل التحويلات - بن الغنيمي</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..900&amp;family=Inter:wght@400..900&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6F4E37",
+              "primary-hover": "#5D4037",
+              "background-light": "#F5F5F0",
+              "background-dark": "#1F1B18",
+              "surface-light": "#FFFFFF",
+              "surface-dark": "#2C2522",
+              "text-light": "#3E2723",
+              "text-dark": "#EFEBE9",
+              accent: "#D7CCC8",
+              "border-light": "#E7E5E4",
+              "border-dark": "#44403C",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              cairo: ["Cairo", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Cairo", "Inter", sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      }
+      .material-symbols-outlined.fill {
+        font-variation-settings: "FILL" 1;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark transition-colors duration-200">
+    <div class="relative flex min-h-screen w-full flex-row overflow-x-hidden">
+      <main class="flex-1 flex flex-col min-w-0">
+        <div
+          class="lg:hidden flex items-center justify-between p-4 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark">
+          <div class="flex items-center gap-3">
+            <a
+              href="../Detailed-Dashboard.html"
+              class="text-text-light dark:text-text-dark">
+              <span class="material-symbols-outlined">arrow_forward</span>
+            </a>
+            <div class="bg-primary rounded-lg p-2 text-white">
+              <span class="material-symbols-outlined">coffee</span>
+            </div>
+            <span class="font-bold text-lg text-text-light dark:text-text-dark"
+              >بن الغنيمي</span
+            >
+          </div>
+          <button class="text-text-light dark:text-text-dark">
+            <span class="material-symbols-outlined">menu</span>
+          </button>
+        </div>
+        <div class="p-4 md:p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+          <div
+            class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-start gap-4">
+              <a
+                href="../Detailed-Dashboard.html"
+                class="flex items-center gap-2 text-text-light dark:text-text-dark hover:text-primary transition-colors group mt-2 md:mt-1">
+                <span
+                  class="material-symbols-outlined text-[20px] group-hover:-translate-x-1 transition-transform"
+                  >arrow_forward</span
+                >
+                <span class="text-sm font-bold">رجوع</span>
+              </a>
+              <div class="flex flex-col gap-1">
+                <h1
+                  class="text-3xl md:text-4xl font-black text-text-light dark:text-text-dark tracking-tight">
+                  سجل تحويلات الخزائن
+                </h1>
+                <p class="text-text-light/70 dark:text-text-dark/70 text-base">
+                  عرض وإدارة سجلات تحويل النقد بين الخزائن ونقاط البيع
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div
+              class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-6 flex flex-col gap-1 shadow-sm relative overflow-hidden group">
+              <div class="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+              <div class="flex justify-between items-start">
+                <div>
+                  <p
+                    class="text-text-light/70 dark:text-text-dark/70 font-medium mb-2">
+                    إجمالي التحويلات اليوم
+                  </p>
+                  <p
+                    class="text-2xl md:text-3xl font-black text-text-light dark:text-text-dark">
+                    12,500
+                    <span
+                      class="text-lg text-text-light/70 dark:text-text-dark/70 font-bold"
+                      >ج.م</span
+                    >
+                  </p>
+                </div>
+                <div
+                  class="bg-green-50 dark:bg-green-900/20 p-2 rounded-lg text-green-600 dark:text-green-400">
+                  <span class="material-symbols-outlined">payments</span>
+                </div>
+              </div>
+              <div
+                class="mt-2 flex items-center gap-1 text-green-600 text-sm font-bold">
+                <span class="material-symbols-outlined text-[16px]"
+                  >trending_up</span
+                >
+                <span>+12% عن الأمس</span>
+              </div>
+            </div>
+            <div
+              class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-6 flex flex-col gap-1 shadow-sm relative overflow-hidden">
+              <div class="absolute top-0 left-0 w-1 h-full bg-yellow-500"></div>
+              <div class="flex justify-between items-start">
+                <div>
+                  <p
+                    class="text-text-light/70 dark:text-text-dark/70 font-medium mb-2">
+                    التحويلات المعلقة
+                  </p>
+                  <p
+                    class="text-2xl md:text-3xl font-black text-text-light dark:text-text-dark">
+                    3
+                  </p>
+                </div>
+                <div
+                  class="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded-lg text-yellow-600 dark:text-yellow-400">
+                  <span class="material-symbols-outlined">pending_actions</span>
+                </div>
+              </div>
+              <div
+                class="mt-2 flex items-center gap-1 text-text-light/70 dark:text-text-dark/70 text-sm">
+                <span>تنتظر الموافقة</span>
+              </div>
+            </div>
+            <div
+              class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-6 flex flex-col gap-1 shadow-sm relative overflow-hidden">
+              <div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+              <div class="flex justify-between items-start">
+                <div>
+                  <p
+                    class="text-text-light/70 dark:text-text-dark/70 font-medium mb-2">
+                    رصيد الخزينة الرئيسي
+                  </p>
+                  <p
+                    class="text-2xl md:text-3xl font-black text-text-light dark:text-text-dark">
+                    50,000
+                    <span
+                      class="text-lg text-text-light/70 dark:text-text-dark/70 font-bold"
+                      >ج.م</span
+                    >
+                  </p>
+                </div>
+                <div
+                  class="bg-primary/10 dark:bg-primary/20 p-2 rounded-lg text-primary">
+                  <span class="material-symbols-outlined">account_balance</span>
+                </div>
+              </div>
+              <div
+                class="mt-2 flex items-center gap-1 text-green-600 text-sm font-bold">
+                <span class="material-symbols-outlined text-[16px]"
+                  >trending_up</span
+                >
+                <span>مستقر</span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 shadow-sm">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div class="flex flex-col gap-2">
+                <label
+                  class="text-sm font-bold text-text-light dark:text-text-dark"
+                  >بحث برقم المرجع</label
+                >
+                <div class="relative">
+                  <input
+                    class="w-full bg-background-light dark:bg-black/20 border border-border-light dark:border-border-dark rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-text-light/50 dark:text-text-dark/80"
+                    placeholder="#REF-0000"
+                    type="text" />
+                  <span
+                    class="material-symbols-outlined absolute left-3 top-2.5 text-text-light/50 dark:text-text-dark/50"
+                    >search</span
+                  >
+                </div>
+              </div>
+              <div class="flex flex-col gap-2">
+                <label
+                  class="text-sm font-bold text-text-light dark:text-text-dark"
+                  >نطاق التاريخ</label
+                >
+                <div class="relative">
+                  <input
+                    class="w-full bg-background-light dark:bg-black/20 border border-border-light dark:border-border-dark rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-text-light/50 dark:text-text-dark/80"
+                    placeholder="DD/MM/YYYY - DD/MM/YYYY"
+                    type="text" />
+                  <span
+                    class="material-symbols-outlined absolute left-3 top-2.5 text-text-light/50 dark:text-text-dark/50"
+                    >calendar_today</span
+                  >
+                </div>
+              </div>
+              <div class="flex flex-col gap-2">
+                <label
+                  class="text-sm font-bold text-text-light dark:text-text-dark"
+                  >حالة التحويل</label
+                >
+                <div class="relative">
+                  <select
+                    class="w-full bg-background-light dark:bg-black/20 border border-border-light dark:border-border-dark rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none text-text-light dark:text-text-dark">
+                    <option>الكل</option>
+                    <option>مكتمل</option>
+                    <option>معلق</option>
+                    <option>مرفوض</option>
+                  </select>
+                  <span
+                    class="material-symbols-outlined absolute left-3 top-2.5 text-text-light/50 dark:text-text-dark/50 pointer-events-none"
+                    >expand_more</span
+                  >
+                </div>
+              </div>
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-bold text-transparent select-none"
+                  >بحث</label
+                >
+                <button
+                  class="w-full bg-text-light dark:bg-white/10 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-black/80 dark:hover:bg-white/20 transition-colors flex justify-center items-center gap-2">
+                  <span class="material-symbols-outlined">filter_list</span>
+                  <span>تطبيق الفلتر</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div
+            class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-sm overflow-hidden flex flex-col">
+            <div class="overflow-x-auto">
+              <table class="w-full text-right border-collapse">
+                <thead
+                  class="bg-background-light dark:bg-white/5 text-text-light dark:text-text-dark text-sm font-bold border-b border-border-light dark:border-border-dark">
+                  <tr>
+                    <th class="px-6 py-4 whitespace-nowrap">رقم المرجع</th>
+                    <th class="px-6 py-4 whitespace-nowrap">من الخزينة</th>
+                    <th class="px-6 py-4 whitespace-nowrap">إلى الخزينة</th>
+                    <th class="px-6 py-4 whitespace-nowrap">المبلغ</th>
+                    <th class="px-6 py-4 whitespace-nowrap">التاريخ</th>
+                    <th class="px-6 py-4 whitespace-nowrap">الحالة</th>
+                    <th class="px-6 py-4 whitespace-nowrap text-left w-20">
+                      إجراءات
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  class="divide-y divide-border-light dark:divide-border-dark text-sm">
+                  <tr
+                    class="group hover:bg-background-light dark:hover:bg-white/5 transition-colors">
+                    <td
+                      class="px-6 py-4 font-mono text-text-light/70 dark:text-text-dark/70">
+                      #REF-8823
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      الخزينة الرئيسية
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      نقطة بيع 1 (أحمد)
+                    </td>
+                    <td
+                      class="px-6 py-4 font-bold text-text-light dark:text-text-dark">
+                      2,500.00 ج.م
+                    </td>
+                    <td
+                      class="px-6 py-4 text-text-light/70 dark:text-text-dark/70">
+                      27 أكتوبر 2023
+                      <span class="text-xs block opacity-70">10:30 ص</span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        <span
+                          class="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-400"></span>
+                        مكتمل
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-left">
+                      <button
+                        class="text-text-light/70 dark:text-text-dark/70 hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                        <span class="material-symbols-outlined"
+                          >visibility</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <tr
+                    class="group hover:bg-background-light dark:hover:bg-white/5 transition-colors">
+                    <td
+                      class="px-6 py-4 font-mono text-text-light/70 dark:text-text-dark/70">
+                      #REF-8822
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      نقطة بيع 2 (سارة)
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      الخزينة الرئيسية
+                    </td>
+                    <td
+                      class="px-6 py-4 font-bold text-text-light dark:text-text-dark">
+                      5,150.00 ج.م
+                    </td>
+                    <td
+                      class="px-6 py-4 text-text-light/70 dark:text-text-dark/70">
+                      27 أكتوبر 2023
+                      <span class="text-xs block opacity-70">09:15 ص</span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                        <span
+                          class="w-1.5 h-1.5 rounded-full bg-yellow-600 dark:bg-yellow-400 animate-pulse"></span>
+                        معلق
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-left">
+                      <button
+                        class="text-text-light/70 dark:text-text-dark/70 hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                        <span class="material-symbols-outlined"
+                          >visibility</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <tr
+                    class="group hover:bg-background-light dark:hover:bg-white/5 transition-colors">
+                    <td
+                      class="px-6 py-4 font-mono text-text-light/70 dark:text-text-dark/70">
+                      #REF-8821
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      الخزينة الرئيسية
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      نقطة بيع 3 (خارجية)
+                    </td>
+                    <td
+                      class="px-6 py-4 font-bold text-text-light dark:text-text-dark">
+                      1,000.00 ج.م
+                    </td>
+                    <td
+                      class="px-6 py-4 text-text-light/70 dark:text-text-dark/70">
+                      26 أكتوبر 2023
+                      <span class="text-xs block opacity-70">11:45 م</span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        <span
+                          class="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-400"></span>
+                        مكتمل
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-left">
+                      <button
+                        class="text-text-light/70 dark:text-text-dark/70 hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                        <span class="material-symbols-outlined"
+                          >visibility</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <tr
+                    class="group hover:bg-background-light dark:hover:bg-white/5 transition-colors">
+                    <td
+                      class="px-6 py-4 font-mono text-text-light/70 dark:text-text-dark/70">
+                      #REF-8820
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      الخزينة الفرعية ب
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      الخزينة الرئيسية
+                    </td>
+                    <td
+                      class="px-6 py-4 font-bold text-text-light dark:text-text-dark">
+                      12,000.00 ج.م
+                    </td>
+                    <td
+                      class="px-6 py-4 text-text-light/70 dark:text-text-dark/70">
+                      26 أكتوبر 2023
+                      <span class="text-xs block opacity-70">04:20 م</span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                        <span
+                          class="w-1.5 h-1.5 rounded-full bg-red-600 dark:bg-red-400"></span>
+                        مرفوض
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-left">
+                      <button
+                        class="text-text-light/70 dark:text-text-dark/70 hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                        <span class="material-symbols-outlined"
+                          >visibility</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <tr
+                    class="group hover:bg-background-light dark:hover:bg-white/5 transition-colors">
+                    <td
+                      class="px-6 py-4 font-mono text-text-light/70 dark:text-text-dark/70">
+                      #REF-8819
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      الخزينة الرئيسية
+                    </td>
+                    <td
+                      class="px-6 py-4 font-medium text-text-light dark:text-text-dark">
+                      نقطة بيع 1 (أحمد)
+                    </td>
+                    <td
+                      class="px-6 py-4 font-bold text-text-light dark:text-text-dark">
+                      300.00 ج.م
+                    </td>
+                    <td
+                      class="px-6 py-4 text-text-light/70 dark:text-text-dark/70">
+                      26 أكتوبر 2023
+                      <span class="text-xs block opacity-70">08:00 ص</span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        <span
+                          class="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-400"></span>
+                        مكتمل
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-left">
+                      <button
+                        class="text-text-light/70 dark:text-text-dark/70 hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                        <span class="material-symbols-outlined"
+                          >visibility</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div
+              class="bg-surface-light dark:bg-surface-dark border-t border-border-light dark:border-border-dark p-4 flex items-center justify-between">
+              <span class="text-sm text-text-light/70 dark:text-text-dark/70"
+                >عرض 1 إلى 5 من أصل 45 سجل</span
+              >
+              <div class="flex items-center gap-2">
+                <button
+                  class="w-9 h-9 flex items-center justify-center rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-white/5 disabled:opacity-50 text-text-light/70 dark:text-text-dark/70 transition-colors"
+                  disabled="">
+                  <span class="material-symbols-outlined text-[20px]"
+                    >chevron_right</span
+                  >
+                </button>
+                <button
+                  class="w-9 h-9 flex items-center justify-center rounded-lg bg-primary text-white font-bold text-sm shadow-md shadow-primary/20">
+                  1
+                </button>
+                <button
+                  class="w-9 h-9 flex items-center justify-center rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-white/5 text-text-light dark:text-text-dark font-medium text-sm transition-colors">
+                  2
+                </button>
+                <button
+                  class="w-9 h-9 flex items-center justify-center rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-white/5 text-text-light dark:text-text-dark font-medium text-sm transition-colors">
+                  3
+                </button>
+                <span class="text-text-light/70 dark:text-text-dark/70 px-1"
+                  >...</span
+                >
+                <button
+                  class="w-9 h-9 flex items-center justify-center rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-white/5 text-text-light/70 dark:text-text-dark/70 transition-colors">
+                  <span class="material-symbols-outlined text-[20px]"
+                    >chevron_left</span
+                  >
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

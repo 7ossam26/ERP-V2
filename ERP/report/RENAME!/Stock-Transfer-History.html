@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+
+<html class="light" dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>سجل التحويلات المخزنية - Elghonemy POS</title>
+    <!-- Google Fonts: Cairo for Arabic text, Inter for numbers/English -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;700;800&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Tailwind Config -->
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#714d38",
+              "primary-hover": "#5a3d2c",
+              secondary: "#efedeb",
+              "background-light": "#fbfaf9",
+              "background-dark": "#1c1816",
+              "text-main": "#171412",
+              "text-sub": "#826f64",
+              "border-color": "#e0dad7",
+            },
+            fontFamily: {
+              display: ["Cairo", "Inter", "sans-serif"],
+              body: ["Cairo", "Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+              lg: "0.75rem",
+              xl: "1rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Cairo", "Inter", sans-serif;
+      }
+      /* Custom scrollbar for tables */
+      .custom-scrollbar::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light text-text-main h-full min-h-screen flex flex-col">
+    <!-- Top Navbar -->
+    <header
+      class="sticky top-0 z-50 w-full bg-[#fbfaf9] border-b border-border-color shadow-sm">
+      <div class="px-6 md:px-10 py-3 flex items-center justify-between">
+        <!-- Right Side: Logo & Search (RTL context: this is the start) -->
+        <div class="flex items-center gap-8">
+          <a
+            href="../Detailed-Dashboard.html"
+            class="flex items-center gap-2 text-text-main hover:text-primary transition-colors group">
+            <span
+              class="material-symbols-outlined text-[20px] group-hover:-translate-x-1 transition-transform"
+              >arrow_forward</span
+            >
+            <span class="text-sm font-bold">رجوع</span>
+          </a>
+          <div class="flex items-center gap-3 text-primary">
+            <div
+              class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+              <span class="material-symbols-outlined text-[20px]">coffee</span>
+            </div>
+            <h2
+              class="text-[#171412] text-xl font-bold leading-tight tracking-tight">
+              Elghonemy POS
+            </h2>
+          </div>
+          <!-- Search Bar -->
+          <label
+            class="hidden md:flex flex-col min-w-40 h-10 w-64 relative group">
+            <div
+              class="flex w-full flex-1 items-stretch rounded-lg h-full overflow-hidden border border-transparent focus-within:border-primary/30 transition-colors">
+              <div
+                class="text-[#826f64] flex bg-[#efedeb] items-center justify-center pr-3 pl-1">
+                <span class="material-symbols-outlined text-[20px]"
+                  >search</span
+                >
+              </div>
+              <input
+                class="flex w-full min-w-0 flex-1 resize-none bg-[#efedeb] text-[#171412] focus:outline-none h-full placeholder:text-[#826f64] px-2 text-sm font-medium leading-normal"
+                placeholder="بحث عام..." />
+            </div>
+          </label>
+        </div>
+        <!-- Left Side: Navigation & User (RTL context: this is the end) -->
+        <div class="flex items-center gap-6">
+          <nav class="hidden lg:flex items-center gap-8">
+            <a
+              class="text-text-sub hover:text-primary transition-colors text-sm font-bold"
+              href="#"
+              >الرئيسية</a
+            >
+            <a
+              class="text-text-sub hover:text-primary transition-colors text-sm font-bold"
+              href="#"
+              >المخزون</a
+            >
+            <a
+              class="text-primary text-sm font-bold border-b-2 border-primary pb-0.5"
+              href="#"
+              >المبيعات</a
+            >
+            <a
+              class="text-text-sub hover:text-primary transition-colors text-sm font-bold"
+              href="#"
+              >التقارير</a
+            >
+          </nav>
+          <div class="h-6 w-px bg-border-color mx-2 hidden lg:block"></div>
+          <div class="flex items-center gap-3">
+            <div class="flex flex-col items-end hidden sm:flex">
+              <span class="text-sm font-bold text-text-main">أحمد محمد</span>
+              <span class="text-xs text-text-sub">مدير الفرع</span>
+            </div>
+            <div class="relative cursor-pointer">
+              <div
+                class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-white shadow-sm"
+                data-alt="Portrait of a user"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAd2e2CIBapU3hgwX16F0tpwNFdE8TvVxROVkE4e7an9P6R5QNI5sa5kGd_0RADx0Akqr0Rj24x9C1hTxglq_25KiTTrMDT8hE1JraeI14U5V3WVEkalu1WDTEs0h0VZCxNLzHRvBzjysDc6Sehuu02UGwZvQu33MoZsh_ix9trJgXDXmKjG_n0lNkQEhVSNR4hRoluNm7UCZaBrvhWbtnA5RcqmshmeEyVQg1KR9TNKsceJfYOHRjCaD8u7KK_QMn1Uq8hwe56_PhA');
+                "></div>
+              <div
+                class="absolute bottom-0 left-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <!-- Main Content -->
+    <main class="flex-1 px-4 md:px-10 py-8 max-w-[1400px] mx-auto w-full">
+      <!-- Page Heading & Primary Action -->
+      <div
+        class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+        <div class="flex flex-col gap-2">
+          <h1
+            class="text-text-main text-3xl md:text-4xl font-extrabold tracking-tight">
+            سجل التحويلات المخزنية
+          </h1>
+          <p class="text-text-sub text-base">
+            عرض ومتابعة حركات نقل المخزون بين الفروع والمستودعات
+          </p>
+        </div>
+        <button
+          class="flex items-center justify-center gap-2 rounded-lg h-11 px-5 bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-md transition-all active:scale-95">
+          <span class="material-symbols-outlined text-[20px]">add_circle</span>
+          <span>نقل مخزون جديد</span>
+        </button>
+      </div>
+      <!-- Filters & Search Section -->
+      <div
+        class="bg-white rounded-xl border border-border-color shadow-sm p-5 mb-6">
+        <div class="flex flex-col gap-4">
+          <!-- Top Row: Search & Date -->
+          <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+              <label class="block text-text-main text-sm font-bold mb-1.5"
+                >بحث برقم المرجع</label
+              >
+              <div class="relative">
+                <input
+                  class="w-full rounded-lg border border-border-color bg-background-light h-11 px-4 pr-10 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                  placeholder="TRF-XXXX..." />
+                <span
+                  class="material-symbols-outlined absolute right-3 top-2.5 text-text-sub text-[20px]"
+                  >tag</span
+                >
+              </div>
+            </div>
+            <div class="flex-1 md:max-w-xs">
+              <label class="block text-text-main text-sm font-bold mb-1.5"
+                >من تاريخ</label
+              >
+              <input
+                class="w-full rounded-lg border border-border-color bg-background-light h-11 px-4 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none text-text-sub"
+                type="date" />
+            </div>
+            <div class="flex-1 md:max-w-xs">
+              <label class="block text-text-main text-sm font-bold mb-1.5"
+                >إلى تاريخ</label
+              >
+              <input
+                class="w-full rounded-lg border border-border-color bg-background-light h-11 px-4 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none text-text-sub"
+                type="date" />
+            </div>
+          </div>
+          <!-- Bottom Row: Dropdown Filters -->
+          <div
+            class="flex flex-wrap gap-3 pt-2 border-t border-dashed border-border-color mt-2">
+            <div
+              class="text-xs font-bold text-text-sub uppercase tracking-wider py-2 ml-2 self-center">
+              تصفية سريعة:
+            </div>
+            <button
+              class="group flex h-9 items-center gap-2 rounded-lg border border-border-color bg-white hover:bg-background-light px-3 transition-colors">
+              <span class="text-text-sub text-xs font-medium">من المخزن:</span>
+              <span class="text-text-main text-sm font-bold">الكل</span>
+              <span
+                class="material-symbols-outlined text-text-sub text-[18px] group-hover:text-primary transition-colors"
+                >keyboard_arrow_down</span
+              >
+            </button>
+            <button
+              class="group flex h-9 items-center gap-2 rounded-lg border border-border-color bg-white hover:bg-background-light px-3 transition-colors">
+              <span class="text-text-sub text-xs font-medium">إلى الفرع:</span>
+              <span class="text-text-main text-sm font-bold">الكل</span>
+              <span
+                class="material-symbols-outlined text-text-sub text-[18px] group-hover:text-primary transition-colors"
+                >keyboard_arrow_down</span
+              >
+            </button>
+            <button
+              class="group flex h-9 items-center gap-2 rounded-lg border border-border-color bg-white hover:bg-background-light px-3 transition-colors">
+              <span class="text-text-sub text-xs font-medium">الحالة:</span>
+              <span class="text-text-main text-sm font-bold">الكل</span>
+              <span
+                class="material-symbols-outlined text-text-sub text-[18px] group-hover:text-primary transition-colors"
+                >keyboard_arrow_down</span
+              >
+            </button>
+            <div class="mr-auto">
+              <button
+                class="text-primary text-sm font-bold hover:underline py-2">
+                مسح الكل
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Data Table -->
+      <div
+        class="bg-white border border-border-color rounded-xl shadow-sm overflow-hidden flex flex-col">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-right border-collapse">
+            <thead>
+              <tr class="bg-background-light border-b border-border-color">
+                <th
+                  class="px-6 py-4 text-xs font-bold text-text-sub uppercase tracking-wider whitespace-nowrap">
+                  رقم المرجع
+                </th>
+                <th
+                  class="px-6 py-4 text-xs font-bold text-text-sub uppercase tracking-wider whitespace-nowrap">
+                  من المخزن
+                </th>
+                <th
+                  class="px-6 py-4 text-xs font-bold text-text-sub uppercase tracking-wider whitespace-nowrap">
+                  إلى الفرع
+                </th>
+                <th
+                  class="px-6 py-4 text-xs font-bold text-text-sub uppercase tracking-wider whitespace-nowrap">
+                  التاريخ
+                </th>
+                <th
+                  class="px-6 py-4 text-xs font-bold text-text-sub uppercase tracking-wider whitespace-nowrap text-center">
+                  إجمالي الأصناف
+                </th>
+                <th
+                  class="px-6 py-4 text-xs font-bold text-text-sub uppercase tracking-wider whitespace-nowrap">
+                  الحالة
+                </th>
+                <th
+                  class="px-6 py-4 text-xs font-bold text-text-sub uppercase tracking-wider whitespace-nowrap text-left">
+                  الإجراءات
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border-color">
+              <!-- Row 1: Completed -->
+              <tr class="hover:bg-background-light/50 transition-colors group">
+                <td class="px-6 py-4">
+                  <span
+                    class="font-mono text-sm font-semibold text-text-main bg-secondary px-2 py-1 rounded"
+                    >TRF-1024</span
+                  >
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main font-medium">
+                  المخزن الرئيسي
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main">فرع وسط البلد</td>
+                <td class="px-6 py-4 text-sm text-text-sub font-mono">
+                  2023-11-01
+                </td>
+                <td
+                  class="px-6 py-4 text-sm text-text-main font-bold text-center">
+                  150
+                </td>
+                <td class="px-6 py-4">
+                  <span
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    مكتمل
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <div
+                    class="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="عرض التفاصيل">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >visibility</span
+                      >
+                    </button>
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="طباعة">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >print</span
+                      >
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 2: Pending -->
+              <tr class="hover:bg-background-light/50 transition-colors group">
+                <td class="px-6 py-4">
+                  <span
+                    class="font-mono text-sm font-semibold text-text-main bg-secondary px-2 py-1 rounded"
+                    >TRF-1025</span
+                  >
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main font-medium">
+                  المخزن الرئيسي
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main">فرع المول</td>
+                <td class="px-6 py-4 text-sm text-text-sub font-mono">
+                  2023-11-02
+                </td>
+                <td
+                  class="px-6 py-4 text-sm text-text-main font-bold text-center">
+                  50
+                </td>
+                <td class="px-6 py-4">
+                  <span
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    <span
+                      class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    قيد الانتظار
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <div
+                    class="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="تعديل">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >edit</span
+                      >
+                    </button>
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="عرض التفاصيل">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >visibility</span
+                      >
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 3: Completed -->
+              <tr class="hover:bg-background-light/50 transition-colors group">
+                <td class="px-6 py-4">
+                  <span
+                    class="font-mono text-sm font-semibold text-text-main bg-secondary px-2 py-1 rounded"
+                    >TRF-1026</span
+                  >
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main font-medium">
+                  مخزن التحميص
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main">فرع المطار</td>
+                <td class="px-6 py-4 text-sm text-text-sub font-mono">
+                  2023-11-03
+                </td>
+                <td
+                  class="px-6 py-4 text-sm text-text-main font-bold text-center">
+                  300
+                </td>
+                <td class="px-6 py-4">
+                  <span
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    مكتمل
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <div
+                    class="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="عرض التفاصيل">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >visibility</span
+                      >
+                    </button>
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="طباعة">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >print</span
+                      >
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 4: Cancelled -->
+              <tr class="hover:bg-background-light/50 transition-colors group">
+                <td class="px-6 py-4">
+                  <span
+                    class="font-mono text-sm font-semibold text-text-main bg-secondary px-2 py-1 rounded"
+                    >TRF-1027</span
+                  >
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main font-medium">
+                  المخزن الرئيسي
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main">فرع الزمالك</td>
+                <td class="px-6 py-4 text-sm text-text-sub font-mono">
+                  2023-11-04
+                </td>
+                <td
+                  class="px-6 py-4 text-sm text-text-main font-bold text-center">
+                  75
+                </td>
+                <td class="px-6 py-4">
+                  <span
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    ملغى
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <div
+                    class="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="عرض التفاصيل">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >visibility</span
+                      >
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 5: In Progress -->
+              <tr class="hover:bg-background-light/50 transition-colors group">
+                <td class="px-6 py-4">
+                  <span
+                    class="font-mono text-sm font-semibold text-text-main bg-secondary px-2 py-1 rounded"
+                    >TRF-1028</span
+                  >
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main font-medium">
+                  مخزن التحميص
+                </td>
+                <td class="px-6 py-4 text-sm text-text-main">فرع وسط البلد</td>
+                <td class="px-6 py-4 text-sm text-text-sub font-mono">
+                  2023-11-05
+                </td>
+                <td
+                  class="px-6 py-4 text-sm text-text-main font-bold text-center">
+                  120
+                </td>
+                <td class="px-6 py-4">
+                  <span
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    جاري التنفيذ
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <div
+                    class="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="تتبع الشحنة">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >local_shipping</span
+                      >
+                    </button>
+                    <button
+                      class="p-1.5 rounded-lg text-text-sub hover:text-primary hover:bg-primary/5 transition-colors"
+                      title="عرض التفاصيل">
+                      <span class="material-symbols-outlined text-[20px]"
+                        >visibility</span
+                      >
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div
+          class="px-6 py-4 border-t border-border-color bg-white flex flex-col md:flex-row items-center justify-between gap-4">
+          <span class="text-sm text-text-sub"
+            >عرض <span class="font-bold text-text-main">1-10</span> من
+            <span class="font-bold text-text-main">50</span> سجل</span
+          >
+          <div class="flex items-center gap-1" dir="ltr">
+            <button
+              class="p-2 rounded-lg border border-border-color text-text-sub hover:bg-background-light hover:text-text-main disabled:opacity-50 disabled:cursor-not-allowed">
+              <span class="material-symbols-outlined text-[18px]"
+                >chevron_left</span
+              >
+            </button>
+            <button
+              class="w-9 h-9 flex items-center justify-center rounded-lg border border-primary bg-primary text-white text-sm font-bold">
+              1
+            </button>
+            <button
+              class="w-9 h-9 flex items-center justify-center rounded-lg border border-border-color bg-white text-text-sub hover:bg-background-light text-sm font-medium">
+              2
+            </button>
+            <button
+              class="w-9 h-9 flex items-center justify-center rounded-lg border border-border-color bg-white text-text-sub hover:bg-background-light text-sm font-medium">
+              3
+            </button>
+            <span class="px-1 text-text-sub">...</span>
+            <button
+              class="w-9 h-9 flex items-center justify-center rounded-lg border border-border-color bg-white text-text-sub hover:bg-background-light text-sm font-medium">
+              5
+            </button>
+            <button
+              class="p-2 rounded-lg border border-border-color text-text-sub hover:bg-background-light hover:text-text-main">
+              <span class="material-symbols-outlined text-[18px]"
+                >chevron_right</span
+              >
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

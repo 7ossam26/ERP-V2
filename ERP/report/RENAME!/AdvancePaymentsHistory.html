@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html class="light" dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>سجل السلف - بن الغنيمي</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet" />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#714e38",
+              "primary-dark": "#5a3e2d",
+              secondary: "#a89083",
+              "background-light": "#fbfaf9",
+              "background-dark": "#1c1816",
+              "surface-light": "#ffffff",
+              "surface-dark": "#2d2623",
+              "text-primary-light": "#171412",
+              "text-secondary-light": "#826f64",
+              "text-primary-dark": "#e8e6e3",
+              "text-secondary-dark": "#ada096",
+              "border-light": "#efedeb",
+              "border-dark": "#423833",
+            },
+            fontFamily: {
+              sans: ["Cairo", "sans-serif"],
+              display: ["Cairo", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Cairo", sans-serif;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d1cbc8;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #a89083;
+      }
+      [dir="rtl"] .bg-left-center {
+        background-position: left center;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark transition-colors duration-200">
+    <div class="flex h-screen w-full overflow-hidden">
+      <div
+        class="flex flex-1 flex-col h-full relative overflow-hidden bg-background-light dark:bg-background-dark">
+        <header
+          class="flex items-center justify-between h-16 px-6 border-b border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark shrink-0 z-20">
+          <div class="flex items-center gap-4 md:hidden">
+            <button
+              class="p-2 -mr-2 text-text-primary-light dark:text-text-primary-dark">
+              <span class="material-symbols-outlined">menu</span>
+            </button>
+          </div>
+          <div class="flex flex-1 items-center justify-between">
+            <a
+              href="../Detailed-Dashboard.html"
+              class="flex items-center gap-2 text-text-primary-light dark:text-text-primary-dark hover:text-primary transition-colors group">
+              <span
+                class="material-symbols-outlined text-[20px] group-hover:-translate-x-1 transition-transform"
+                >arrow_forward</span
+              >
+              <span class="text-sm font-medium">رجوع</span>
+            </a>
+            <div class="flex items-center gap-4 mr-auto">
+              <button
+                class="flex items-center justify-center size-10 rounded-full hover:bg-border-light dark:hover:bg-border-dark transition-colors relative text-text-primary-light dark:text-text-primary-dark">
+                <span class="material-symbols-outlined text-[20px]"
+                  >notifications</span
+                >
+                <span
+                  class="absolute top-2 left-2 size-2 bg-red-500 rounded-full border-2 border-surface-light dark:border-surface-dark"></span>
+              </button>
+              <div
+                class="h-8 w-px bg-border-light dark:border-border-dark mx-2"></div>
+              <div class="flex items-center gap-3 cursor-pointer">
+                <div class="text-left hidden sm:block">
+                  <p
+                    class="text-sm font-bold text-text-primary-light dark:text-text-primary-dark">
+                    أحمد المدير
+                  </p>
+                  <p
+                    class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                    مسؤول الفرع
+                  </p>
+                </div>
+                <div
+                  class="bg-center bg-no-repeat bg-cover rounded-full size-10 border-2 border-white dark:border-surface-dark shadow-sm"
+                  data-alt="User Avatar"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuALGhkQpqpOnZhWMNETGJpUp1UoJigp5Yv6z5Go7vJ4ttos8gf50N6H3j6JFJx-IEF3zChsr8pg3sNaUTUsbR-wiTjzufWSSPeJXgH1kkeDW1KMHk-wH2Donh8RfbFq83DQjLTdnaP1A9494i-apZap2NEc0UVAaaZFxLp86LzDqSLmr2j3vLQ66Du_EUh4cQeJtKrdyh1YV7HOEGfvSqyiY9mX6dPsjG6trTvnyH6kMmjPozaHY1YrAAV25-cLmPOZ8ppGb_WybtNE');
+                  "></div>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-10">
+          <div class="max-w-7xl mx-auto flex flex-col gap-8">
+            <div class="flex flex-col gap-6">
+              <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex flex-col gap-1">
+                  <h1
+                    class="text-2xl md:text-3xl font-bold text-text-primary-light dark:text-text-primary-dark tracking-tight">
+                    سجل السلف
+                  </h1>
+                  <p
+                    class="text-text-secondary-light dark:text-text-secondary-dark">
+                    تتبع وإدارة السلف المالية للموظفين
+                  </p>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div
+                  class="bg-surface-light dark:bg-surface-dark p-5 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex flex-col gap-2 relative overflow-hidden group">
+                  <div
+                    class="absolute left-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <span
+                      class="material-symbols-outlined text-6xl text-primary"
+                      >payments</span
+                    >
+                  </div>
+                  <p
+                    class="text-text-secondary-light dark:text-text-secondary-dark text-sm font-medium uppercase tracking-wide">
+                    إجمالي السلف (أكتوبر)
+                  </p>
+                  <div class="flex items-baseline gap-2">
+                    <h3
+                      class="text-2xl font-bold text-text-primary-light dark:text-text-primary-dark">
+                      12,500
+                      <span
+                        class="text-base font-normal text-text-secondary-light dark:text-text-secondary-dark"
+                        >ج.م</span
+                      >
+                    </h3>
+                    <span
+                      class="text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded flex items-center"
+                      dir="ltr">
+                      <span class="material-symbols-outlined text-[12px] mr-0.5"
+                        >arrow_upward</span
+                      >
+                      12%
+                    </span>
+                  </div>
+                </div>
+                <div
+                  class="bg-surface-light dark:bg-surface-dark p-5 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex flex-col gap-2 relative overflow-hidden group">
+                  <div
+                    class="absolute left-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <span
+                      class="material-symbols-outlined text-6xl text-orange-600"
+                      >pending</span
+                    >
+                  </div>
+                  <p
+                    class="text-text-secondary-light dark:text-text-secondary-dark text-sm font-medium uppercase tracking-wide">
+                    الرصيد المستحق
+                  </p>
+                  <div class="flex items-baseline gap-2">
+                    <h3
+                      class="text-2xl font-bold text-text-primary-light dark:text-text-primary-dark">
+                      4,200
+                      <span
+                        class="text-base font-normal text-text-secondary-light dark:text-text-secondary-dark"
+                        >ج.م</span
+                      >
+                    </h3>
+                  </div>
+                </div>
+                <div
+                  class="bg-surface-light dark:bg-surface-dark p-5 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex flex-col gap-2 relative overflow-hidden group">
+                  <div
+                    class="absolute left-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <span
+                      class="material-symbols-outlined text-6xl text-green-600"
+                      >check_circle</span
+                    >
+                  </div>
+                  <p
+                    class="text-text-secondary-light dark:text-text-secondary-dark text-sm font-medium uppercase tracking-wide">
+                    تم سداده هذا الشهر
+                  </p>
+                  <div class="flex items-baseline gap-2">
+                    <h3
+                      class="text-2xl font-bold text-text-primary-light dark:text-text-primary-dark">
+                      8,300
+                      <span
+                        class="text-base font-normal text-text-secondary-light dark:text-text-secondary-dark"
+                        >ج.م</span
+                      >
+                    </h3>
+                    <span
+                      class="text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded flex items-center"
+                      dir="ltr">
+                      <span class="material-symbols-outlined text-[12px] mr-0.5"
+                        >arrow_upward</span
+                      >
+                      5%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="flex flex-col bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
+              <div
+                class="p-4 border-b border-border-light dark:border-border-dark flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center bg-gray-50/50 dark:bg-surface-dark">
+                <div
+                  class="flex flex-1 flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                  <div class="relative group flex-1 sm:max-w-xs">
+                    <span
+                      class="material-symbols-outlined absolute right-3 top-2.5 text-text-secondary-light dark:text-text-secondary-dark group-focus-within:text-primary transition-colors text-[20px]"
+                      >search</span
+                    >
+                    <input
+                      class="w-full pr-10 pl-4 py-2 bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm text-text-primary-light dark:text-text-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                      placeholder="بحث عن موظف..."
+                      type="text" />
+                  </div>
+                  <div class="relative group sm:w-48">
+                    <span
+                      class="material-symbols-outlined absolute right-3 top-2.5 text-text-secondary-light dark:text-text-secondary-dark group-focus-within:text-primary transition-colors text-[20px]"
+                      >calendar_today</span
+                    >
+                    <input
+                      class="w-full pr-10 pl-4 py-2 bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm text-text-primary-light dark:text-text-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm cursor-pointer"
+                      placeholder="أكتوبر 2023"
+                      type="text" />
+                  </div>
+                  <div class="relative group sm:w-40">
+                    <select
+                      class="w-full pr-3 pl-8 py-2 bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm text-text-primary-light dark:text-text-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm appearance-none cursor-pointer">
+                      <option value="">كل الحالات</option>
+                      <option value="pending">معلق</option>
+                      <option value="approved">موافق عليه</option>
+                      <option value="paid">مدفوع</option>
+                      <option value="deducted">مخصوم</option>
+                    </select>
+                    <span
+                      class="material-symbols-outlined absolute left-2 top-2.5 pointer-events-none text-text-secondary-light dark:text-text-secondary-dark text-[20px]"
+                      >expand_more</span
+                    >
+                  </div>
+                </div>
+                <div class="flex gap-2 self-end lg:self-center">
+                  <button
+                    class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm font-medium text-text-primary-light dark:text-text-primary-dark hover:bg-gray-50 dark:hover:bg-border-dark transition-colors shadow-sm">
+                    <span class="material-symbols-outlined text-[18px]"
+                      >filter_list</span
+                    >
+                    <span>تصفية</span>
+                  </button>
+                  <button
+                    class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm font-medium text-text-primary-light dark:text-text-primary-dark hover:bg-gray-50 dark:hover:bg-border-dark transition-colors shadow-sm">
+                    <span class="material-symbols-outlined text-[18px]"
+                      >download</span
+                    >
+                    <span class="hidden sm:inline">تصدير</span>
+                  </button>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-right border-collapse">
+                  <thead>
+                    <tr
+                      class="bg-gray-50 dark:bg-white/5 border-b border-border-light dark:border-border-dark">
+                      <th
+                        class="py-3 px-4 text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider w-24">
+                        المعرف
+                      </th>
+                      <th
+                        class="py-3 px-4 text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider">
+                        الموظف
+                      </th>
+                      <th
+                        class="py-3 px-4 text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider">
+                        التاريخ
+                      </th>
+                      <th
+                        class="py-3 px-4 text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider">
+                        السبب
+                      </th>
+                      <th
+                        class="py-3 px-4 text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider text-left">
+                        المبلغ
+                      </th>
+                      <th
+                        class="py-3 px-4 text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider text-center">
+                        الحالة
+                      </th>
+                      <th
+                        class="py-3 px-4 text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider text-left w-24">
+                        إجراءات
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    class="divide-y divide-border-light dark:divide-border-dark">
+                    <tr
+                      class="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark"
+                        dir="ltr">
+                        #ADV-024
+                      </td>
+                      <td class="py-4 px-4">
+                        <div class="flex items-center gap-3">
+                          <div
+                            class="size-8 rounded-full bg-cover bg-center"
+                            data-alt="Avatar"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCRnp88_QHCCN0QJohMj0sCuMJFID1J6wZkSFduPR657BxKbLqxeBDx-PEJUxeG-gMpmN5hsltkhsZmMFmxhCl5QT9H2_WUp0ZCJ2pbnorbzNUHbzgq25oLmQ6aBQI8R8h4ddCB2TOIYt-R-6G7hqJpUYUy16pAC4gbbClhteEXCGGQVbJWvzdrc-wuZTvUOBPbefhVp_fTuhaiNOf6SC2K8IXlbM7YeH_leUm21WFfdkVx3QCUeWFeYy2_zfWFmFWr8QvAbBmsRUIE');
+                            "></div>
+                          <div>
+                            <p
+                              class="text-sm font-medium text-text-primary-light dark:text-text-primary-dark">
+                              أحمد علي
+                            </p>
+                            <p
+                              class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                              باريستا
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-primary-light dark:text-text-primary-dark">
+                        24 أكتوبر 2023
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark max-w-xs truncate">
+                        ظرف عائلي - مصاريف طبية
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm font-bold text-text-primary-light dark:text-text-primary-dark text-left">
+                        500 ج.م
+                      </td>
+                      <td class="py-4 px-4 text-center">
+                        <span
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                          موافق عليه
+                        </span>
+                      </td>
+                      <td class="py-4 px-4 text-left">
+                        <button
+                          class="text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                          <span class="material-symbols-outlined text-[20px]"
+                            >more_vert</span
+                          >
+                        </button>
+                      </td>
+                    </tr>
+                    <tr
+                      class="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark"
+                        dir="ltr">
+                        #ADV-023
+                      </td>
+                      <td class="py-4 px-4">
+                        <div class="flex items-center gap-3">
+                          <div
+                            class="size-8 rounded-full bg-cover bg-center"
+                            data-alt="Avatar"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAT5wBpXzeXRdvaUH1PyEC30rtfCruKx6FDVQ__01HDo4kgyvWaRAwWfnUbijY9_Y3hp5LZ83THZTX12zfZvNgQLxyaNuXI7OxYq5RtoKewXVfPU3KwbO1qOAbg-Ti-Mo_WQgXdQjCp8Q0PjNvcD2hV0gm71c5xqOHY25hQLqJoq19rgEeuCJ17dEI8mKJ87AA52K0nnLjmEAsKvsH2kBUyb9xgDlMXqbUTy_V2AlEPadqGwyetnH086CsV7CVnKH4NBdwYwFYfBlng');
+                            "></div>
+                          <div>
+                            <p
+                              class="text-sm font-medium text-text-primary-light dark:text-text-primary-dark">
+                              سارة محمود
+                            </p>
+                            <p
+                              class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                              كاشير
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-primary-light dark:text-text-primary-dark">
+                        22 أكتوبر 2023
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark max-w-xs truncate">
+                        اشتراك مواصلات شهري
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm font-bold text-text-primary-light dark:text-text-primary-dark text-left">
+                        200 ج.م
+                      </td>
+                      <td class="py-4 px-4 text-center">
+                        <span
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">
+                          تم الخصم
+                        </span>
+                      </td>
+                      <td class="py-4 px-4 text-left">
+                        <button
+                          class="text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                          <span class="material-symbols-outlined text-[20px]"
+                            >more_vert</span
+                          >
+                        </button>
+                      </td>
+                    </tr>
+                    <tr
+                      class="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark"
+                        dir="ltr">
+                        #ADV-022
+                      </td>
+                      <td class="py-4 px-4">
+                        <div class="flex items-center gap-3">
+                          <div
+                            class="size-8 rounded-full bg-cover bg-center"
+                            data-alt="Avatar"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCy5X7t8XRpETFPGIELRCnNiFU3ERkGjIO4Hoky0XzeaoNX7x-KW_SmoUXJayhCUeCWp6aeIrylkajQyHPb4ctstWhKn4XZYFfrGu1Cd_drlVHHn4SueNFYRXenymVk9hSQRudWTJ5CZh9HRVRfVIX8tnDt7L_wmMqwO7vTWvrUM0q0GCYuMARjWtnmmN6dUmSHvmmO3j_82npVhGgk10maHE3K29BqKf4B4omljSM_EzpOmE1EZfmMjZyZzCgsVyUzzRXvxvyse2N3');
+                            "></div>
+                          <div>
+                            <p
+                              class="text-sm font-medium text-text-primary-light dark:text-text-primary-dark">
+                              عمر حسن
+                            </p>
+                            <p
+                              class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                              طاقم المطبخ
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-primary-light dark:text-text-primary-dark">
+                        20 أكتوبر 2023
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark max-w-xs truncate">
+                        إصلاحات عاجلة
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm font-bold text-text-primary-light dark:text-text-primary-dark text-left">
+                        1,200 ج.م
+                      </td>
+                      <td class="py-4 px-4 text-center">
+                        <span
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300">
+                          قيد الانتظار
+                        </span>
+                      </td>
+                      <td class="py-4 px-4 text-left">
+                        <button
+                          class="text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                          <span class="material-symbols-outlined text-[20px]"
+                            >more_vert</span
+                          >
+                        </button>
+                      </td>
+                    </tr>
+                    <tr
+                      class="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark"
+                        dir="ltr">
+                        #ADV-021
+                      </td>
+                      <td class="py-4 px-4">
+                        <div class="flex items-center gap-3">
+                          <div
+                            class="size-8 rounded-full bg-cover bg-center"
+                            data-alt="Avatar"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAlE9BPayBn5UaJ00aoO9X5ogiHAuc0BrJprnXqQZmjj_KV0e7OTqQlNdtpr5_w3mGCT32MUP1tI_Zfhe12bS0c50vLuVy9dcr6sWk4wHmP6UaELB_FkuD2sdgLm-uqpseWERKeW-3FQRA4mZ71E4_AbTu5TGpiPWsbh0_YZm_Q4AUguRRX3TesKX-KxGqNeXpvLsWGsKTIcPe7C5jCFDVnQ4iFSAI3F4SDw2Ck9yU33vYz-BULTt78yhVE91ik5g8YsbzKD68BaC7O');
+                            "></div>
+                          <div>
+                            <p
+                              class="text-sm font-medium text-text-primary-light dark:text-text-primary-dark">
+                              خالد إبراهيم
+                            </p>
+                            <p
+                              class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                              نادل
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-primary-light dark:text-text-primary-dark">
+                        18 أكتوبر 2023
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark max-w-xs truncate">
+                        قرض شخصي
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm font-bold text-text-primary-light dark:text-text-primary-dark text-left">
+                        300 ج.م
+                      </td>
+                      <td class="py-4 px-4 text-center">
+                        <span
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                          موافق عليه
+                        </span>
+                      </td>
+                      <td class="py-4 px-4 text-left">
+                        <button
+                          class="text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                          <span class="material-symbols-outlined text-[20px]"
+                            >more_vert</span
+                          >
+                        </button>
+                      </td>
+                    </tr>
+                    <tr
+                      class="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark"
+                        dir="ltr">
+                        #ADV-020
+                      </td>
+                      <td class="py-4 px-4">
+                        <div class="flex items-center gap-3">
+                          <div
+                            class="size-8 rounded-full bg-cover bg-center"
+                            data-alt="Avatar"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC5aeg4DoUJU-UN_3-H9O6kPUkHcjVacTl4oao4ojynn2ccg0mjt0HOiRLFGK6pYlH8ulYTU5K5YW4FNE3gllFsT8lRYtQU3y0gQE23skYL65A--xAQRtVUqj2dQ2ExhC8gZ4ahoM-Yx-1QCokJpTvlWyXghKqd61Lk1OOzsZoNbPmDet-nfQEuGA_wPPqTMKES6YY0FjzNQpJOW5CQzex99Fkl-Vd58Ulkc6kaRqu3py4Jsv-WTea942WA6w55PQul6rPjXG8DlrBQ');
+                            "></div>
+                          <div>
+                            <p
+                              class="text-sm font-medium text-text-primary-light dark:text-text-primary-dark">
+                              نور عمر
+                            </p>
+                            <p
+                              class="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                              مدير
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-primary-light dark:text-text-primary-dark">
+                        15 أكتوبر 2023
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm text-text-secondary-light dark:text-text-secondary-dark max-w-xs truncate">
+                        طبي
+                      </td>
+                      <td
+                        class="py-4 px-4 text-sm font-bold text-text-primary-light dark:text-text-primary-dark text-left">
+                        2,000 ج.م
+                      </td>
+                      <td class="py-4 px-4 text-center">
+                        <span
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                          مرفوض
+                        </span>
+                      </td>
+                      <td class="py-4 px-4 text-left">
+                        <button
+                          class="text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors p-1 rounded-md hover:bg-primary/10">
+                          <span class="material-symbols-outlined text-[20px]"
+                            >more_vert</span
+                          >
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div
+                class="px-4 py-3 border-t border-border-light dark:border-border-dark flex items-center justify-between bg-white dark:bg-surface-dark rounded-b-xl">
+                <div
+                  class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p
+                      class="text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                      عرض <span class="font-medium">1</span> إلى
+                      <span class="font-medium">5</span> من
+                      <span class="font-medium">42</span> نتيجة
+                    </p>
+                  </div>
+                  <div>
+                    <nav
+                      aria-label="Pagination"
+                      class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                      dir="ltr">
+                      <a
+                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-50 dark:hover:bg-white/5"
+                        href="#">
+                        <span class="sr-only">Previous</span>
+                        <span class="material-symbols-outlined text-[20px]"
+                          >chevron_left</span
+                        >
+                      </a>
+                      <a
+                        aria-current="page"
+                        class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark bg-primary/10 text-sm font-medium text-primary z-10"
+                        href="#">
+                        1
+                      </a>
+                      <a
+                        class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-50 dark:hover:bg-white/5"
+                        href="#">
+                        2
+                      </a>
+                      <a
+                        class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-50 dark:hover:bg-white/5"
+                        href="#">
+                        3
+                      </a>
+                      <span
+                        class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
+                        ...
+                      </span>
+                      <a
+                        class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-50 dark:hover:bg-white/5"
+                        href="#">
+                        8
+                      </a>
+                      <a
+                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-50 dark:hover:bg-white/5"
+                        href="#">
+                        <span class="sr-only">Next</span>
+                        <span class="material-symbols-outlined text-[20px]"
+                          >chevron_right</span
+                        >
+                      </a>
+                    </nav>
+                  </div>
+                </div>
+                <div class="sm:hidden flex w-full justify-between">
+                  <a
+                    class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark text-sm font-medium rounded-md text-text-secondary-light dark:text-text-secondary-dark bg-white dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-white/5"
+                    href="#">
+                    السابق
+                  </a>
+                  <a
+                    class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark text-sm font-medium rounded-md text-text-secondary-light dark:text-text-secondary-dark bg-white dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-white/5"
+                    href="#">
+                    التالي
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
