@@ -105,7 +105,9 @@
                 Please sign in to your POS terminal
               </p>
             </div>
-            <form class="space-y-6" onsubmit="event.preventDefault();">
+            <form
+              class="space-y-6"
+              onsubmit="event.preventDefault(); validateLogin();">
               <div class="space-y-2">
                 <label
                   class="block text-text-main-light dark:text-text-main-dark text-base font-medium"
@@ -120,10 +122,12 @@
                     >
                   </div>
                   <input
+                    id="username"
                     class="w-full pl-12 pr-4 h-14 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl text-text-main-light dark:text-text-main-dark placeholder-text-secondary-light focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
                     placeholder="Enter your ID or Email"
                     required=""
-                    type="text" />
+                    type="text"
+                    value="admin" />
                 </div>
               </div>
               <div class="space-y-2">
@@ -147,10 +151,12 @@
                     >
                   </div>
                   <input
+                    id="password"
                     class="w-full pl-12 pr-12 h-14 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl text-text-main-light dark:text-text-main-dark placeholder-text-secondary-light focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
                     placeholder="•••••••••"
                     required=""
-                    type="password" />
+                    type="password"
+                    value="admin" />
                   <button
                     class="absolute inset-y-0 right-0 pr-4 flex items-center cursor-pointer text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors"
                     type="button">
@@ -158,12 +164,12 @@
                   </button>
                 </div>
               </div>
-              <a
-                class="w-full h-14 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 mt-8"
-                href="Dashboard.html">
+              <button
+                type="submit"
+                class="w-full h-14 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 mt-8">
                 <span>Sign In</span>
                 <span class="material-symbols-outlined text-[20px]">login</span>
-              </a>
+              </button>
             </form>
             <div class="mt-8 text-center">
               <p
@@ -186,5 +192,17 @@
         </footer>
       </div>
     </div>
+    <script>
+      function validateLogin() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        if (username === "admin" && password === "admin") {
+          window.location.href = "Dashboard.html";
+        } else {
+          alert("Invalid credentials. Please try again.");
+        }
+      }
+    </script>
   </body>
 </html>
