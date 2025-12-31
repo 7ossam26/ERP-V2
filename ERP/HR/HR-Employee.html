@@ -13,6 +13,11 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
       rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..900&amp;family=Inter:wght@400..900&amp;display=swap"
+      rel="stylesheet" />
     <script>
       tailwind.config = {
         darkMode: "class",
@@ -73,73 +78,89 @@
   <body
     class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex overflow-hidden">
     <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
-      <header
-        class="bg-background-light dark:bg-background-dark sticky top-0 z-10 px-8 py-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div class="flex items-center gap-4">
-          <a
-            href="../Dashboard.html"
-            aria-label="back"
-            class="flex items-center justify-center w-11 h-11 rounded-xl bg-white dark:bg-surface-dark ring-1 ring-border-light dark:ring-border-dark text-gray-500 hover:text-primary hover:ring-primary dark:hover:ring-primary transition-all shadow-sm group">
-            <span
-              class="material-symbols-outlined transition-transform group-hover:translate-x-1"
-              >arrow_forward</span
-            >
-          </a>
-          <div class="flex flex-col gap-1">
-            <h1
-              class="text-3xl font-black text-text-light dark:text-text-dark tracking-tight">
-              إدارة الموظفين
-            </h1>
-            <p class="text-gray-500 dark:text-gray-400 text-sm">
-              نظرة عامة على الفريق والرواتب والسلف
-            </p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3 w-full md:w-auto">
-          <div class="relative w-full md:w-48 hidden md:block">
-            <div
-              class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
-              <span class="material-symbols-outlined text-sm"
-                >calendar_month</span
-              >
-            </div>
-            <input
-              class="block w-full h-10 pr-10 pl-4 rounded-lg bg-white dark:bg-surface-dark border-none ring-1 ring-border-light dark:ring-border-dark focus:ring-2 focus:ring-primary placeholder-gray-400 text-sm transition-shadow cursor-pointer"
-              placeholder="اختر الفترة..."
-              readonly=""
-              type="text"
-              value="نوفمبر 2023" />
-          </div>
-          <div class="relative w-full md:w-80">
-            <div
-              class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
-              <span class="material-symbols-outlined">search</span>
-            </div>
-            <input
-              class="block w-full h-10 pr-10 pl-4 rounded-lg bg-white dark:bg-surface-dark border-none ring-1 ring-border-light dark:ring-border-dark focus:ring-2 focus:ring-primary placeholder-gray-400 text-sm transition-shadow"
-              placeholder="بحث بالاسم أو الرقم الوظيفي..."
-              type="text" />
-          </div>
-          <div class="flex gap-2 shrink-0">
-            <a
-              href="HR-Employee-Deduction.html"
-              class="flex items-center gap-2 h-10 px-5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm transition-colors font-bold text-sm">
-              <span class="material-symbols-outlined text-[20px]"
-                >remove_circle</span
-              >
-              <span>إضافة خصم</span>
-            </a>
-            <a
-              href="HR-Employee-Advance.html"
-              class="flex items-center gap-2 h-10 px-5 bg-primary hover:bg-primary-hover text-white rounded-lg shadow-sm transition-colors font-bold text-sm">
-              <span class="material-symbols-outlined text-[20px]"
-                >payments</span
-              >
-              <span>إضافة سلفة</span>
-            </a>
-          </div>
-        </div>
-      </header>
+      <header class="w-full bg-surface-light  border-b border-border-light  shadow-sm h-20 px-4 md:px-8 flex items-center justify-between transition-colors duration-300 z-40 relative">
+<div class="flex items-center gap-3">
+<a href="../Dashboard.html"><button aria-label="رجوع" class="w-10 h-10 rounded-full flex items-center justify-center text-text-muted-light  hover:bg-gray-100  hover:text-primary  transition-all group">
+<span class="material-icons-outlined text-2xl transform group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button></a>
+<div class="h-8 w-px bg-border-light  hidden md:block"></div>
+<a href="../Dashboard.html"><div class="bg-primary text-white p-2 rounded-lg shadow-md flex items-center justify-center w-12 h-12">
+<span class="material-icons-outlined text-2xl">coffee</span>
+</div>
+<a href="../Dashboard.html"><div class="flex flex-col">
+<h1 class="text-lg font-bold text-primary leading-tight">بن الغنيمي</h1>
+<span class="text-xs text-text-muted-light ">نظام إدارة نقاط البيع</span>
+</div></a>
+</div>
+<div class="flex items-center gap-4 md:gap-6">
+<div class="relative z-50">
+<details class="group">
+<summary class="list-none cursor-pointer p-2 rounded-full text-text-muted-light  hover:bg-gray-100 transition-colors focus:outline-none relative [&amp;::-webkit-details-marker]:hidden">
+<span class="material-icons-outlined text-2xl">notifications</span>
+<span class="absolute top-2 left-2 block h-2.5 w-2.5 rounded-full ring-2 ring-surface-light  bg-red-500"></span>
+</summary>
+<div class="absolute left-0 mt-3 w-80 bg-surface-light rounded-xl shadow-lg border border-border-light overflow-hidden origin-top-left">
+<div class="p-4 border-b border-border-light  flex justify-between items-center bg-background-light/50 ">
+<h3 class="font-bold text-text-light ">التنبيهات</h3>
+<button class="text-xs text-primary hover:text-primary-hover font-bold transition-colors">تحديد الكل كمقروء</button>
+</div>
+<div class="max-h-[300px] overflow-y-auto">
+<div class="p-4 border-b border-border-light  hover:bg-background-light  transition-colors cursor-pointer bg-primary/5 ">
+<div class="flex gap-3">
+<div class="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+<span class="material-icons-outlined text-xl">inventory_2</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-light ">تنبيه المخزون</p>
+<p class="text-xs text-text-muted-light  mt-1">الكمية من "بن إثيوبي فاخر" وصلت للحد الأدنى.</p>
+<p class="text-[10px] text-text-muted-light mt-2">منذ 10 دقائق</p>
+</div>
+<div class="mr-auto self-center w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</div>
+<div class="p-4 border-b border-border-light  hover:bg-background-light  transition-colors cursor-pointer">
+<div class="flex gap-3">
+<img alt="أحمد محمد" class="h-10 w-10 rounded-full object-cover border border-border-light  flex-shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbkgJhv3KVc0NBGDQN12VB-vNi1zQ7EzP-t_mg55hXfGSI_AsJD7JQcvy9kd_UJeLuAcypYAYwt1nmg4wVOKEsNGlj_EXAEnlQtux77G_-7Lh0hfXEgT97Ghu4x7s1TsWXSBPN_wnCANaVLutB-c3NIEgCYO_rNaoDQD_qGeG6NVZqOFwCa0iUMgMCUeKPILfO6DdV_LENAMZAkOv-dTSHp_-pD5wErabMKXfEIVNW7uCJwEIu3RtxjTIdLvXKyZA681JXzFRB57o"/>
+<div>
+<p class="text-sm font-bold text-text-light ">رسالة جديدة</p>
+<p class="text-xs text-text-muted-light  mt-1">قام أحمد بإرفاق تقرير المبيعات اليومي.</p>
+<p class="text-[10px] text-text-muted-light  mt-2">منذ 45 دقيقة</p>
+</div>
+</div>
+</div>
+<div class="p-4 hover:bg-background-light  transition-colors cursor-pointer">
+<div class="flex gap-3">
+<div class="h-10 w-10 rounded-full bg-green-100  flex items-center justify-center flex-shrink-0">
+<span class="material-icons-outlined text-xl">verified</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-light ">اكتمال النسخ الاحتياطي</p>
+<p class="text-xs text-text-muted-light mt-1">تم حفظ بيانات النظام بنجاح.</p>
+<p class="text-[10px] text-text-muted-light  mt-2">أمس 02:00 ص</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-3 bg-background-light  text-center border-t border-border-light ">
+<a class="text-xs font-bold text-primary hover:text-primary-hover transition-colors" href="#">عرض كل التنبيهات</a>
+</div>
+</div>
+</details>
+</div>
+<div class="h-8 w-px bg-border-light hidden md:block"></div>
+<div class="flex items-center gap-3 cursor-pointer group">
+<div class="relative">
+<img alt="صورة الملف الشخصي" class="w-10 h-10 rounded-full object-cover border-2 border-surface-light  shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbkgJhv3KVc0NBGDQN12VB-vNi1zQ7EzP-t_mg55hXfGSI_AsJD7JQcvy9kd_UJeLuAcypYAYwt1nmg4wVOKEsNGlj_EXAEnlQtux77G_-7Lh0hfXEgT97Ghu4x7s1TsWXSBPN_wnCANaVLutB-c3NIEgCYO_rNaoDQD_qGeG6NVZqOFwCa0iUMgMCUeKPILfO6DdV_LENAMZAkOv-dTSHp_-pD5wErabMKXfEIVNW7uCJwEIu3RtxjTIdLvXKyZA681JXzFRB57o"/>
+<span class="absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-surface-light  bg-green-500"></span>
+</div>
+<div class="hidden md:flex flex-col items-start">
+<span class="text-sm font-bold text-text-light  group-hover:text-primary transition-colors">أحمد محمد</span>
+<span class="text-xs text-text-muted-light ">مدير الفرع</span>
+</div>
+<span class="material-icons-outlined text-text-muted-light text-lg hidden md:block">expand_more</span>
+</div>
+</div>
+</header>
       <div class="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div
