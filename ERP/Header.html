@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>شريط رأس النظام - بن الغنيمي</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6d4c41", // Brown color inspired by coffee beans/screenshot
+                        "primary-hover": "#5d4037",
+                        "background-light": "#f8f9fa",
+                        "background-dark": "#1a1a1a",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#2d2d2d",
+                        "text-light": "#333333",
+                        "text-dark": "#e0e0e0",
+                        "text-muted-light": "#666666",
+                        "text-muted-dark": "#a0a0a0",
+                        "border-light": "#e5e7eb",
+                        "border-dark": "#404040",
+                    },
+                    fontFamily: {
+                        display: ["Tajawal", "sans-serif"],
+                        body: ["Tajawal", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        "xl": "1rem",
+                    },
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex flex-col">
+<header class="w-full bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shadow-sm h-20 px-4 md:px-8 flex items-center justify-between transition-colors duration-300 z-40 relative">
+<div class="flex items-center gap-3">
+<button aria-label="رجوع" class="w-10 h-10 rounded-full flex items-center justify-center text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-surface-dark hover:text-primary dark:hover:text-primary transition-all group">
+<span class="material-icons-outlined text-2xl transform group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+<div class="h-8 w-px bg-border-light dark:bg-border-dark hidden md:block"></div>
+<div class="bg-primary text-white p-2 rounded-lg shadow-md flex items-center justify-center w-12 h-12">
+<span class="material-icons-outlined text-2xl">coffee</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-lg font-bold text-primary leading-tight">بن الغنيمي</h1>
+<span class="text-xs text-text-muted-light dark:text-text-muted-dark">نظام إدارة نقاط البيع</span>
+</div>
+</div>
+<div class="flex items-center gap-4 md:gap-6">
+<div class="relative z-50">
+<details class="group">
+<summary class="list-none cursor-pointer p-2 rounded-full text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none relative [&amp;::-webkit-details-marker]:hidden">
+<span class="material-icons-outlined text-2xl">notifications</span>
+<span class="absolute top-2 left-2 block h-2.5 w-2.5 rounded-full ring-2 ring-surface-light dark:ring-surface-dark bg-red-500"></span>
+</summary>
+<div class="absolute left-0 mt-3 w-80 bg-surface-light dark:bg-surface-dark rounded-xl shadow-lg border border-border-light dark:border-border-dark overflow-hidden origin-top-left">
+<div class="p-4 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-background-light/50 dark:bg-background-dark/50">
+<h3 class="font-bold text-text-light dark:text-text-dark">التنبيهات</h3>
+<button class="text-xs text-primary hover:text-primary-hover font-bold transition-colors">تحديد الكل كمقروء</button>
+</div>
+<div class="max-h-[300px] overflow-y-auto">
+<div class="p-4 border-b border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark transition-colors cursor-pointer bg-primary/5 dark:bg-primary/10">
+<div class="flex gap-3">
+<div class="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center flex-shrink-0">
+<span class="material-icons-outlined text-xl">inventory_2</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-light dark:text-text-dark">تنبيه المخزون</p>
+<p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">الكمية من "بن إثيوبي فاخر" وصلت للحد الأدنى.</p>
+<p class="text-[10px] text-text-muted-light dark:text-text-muted-dark mt-2">منذ 10 دقائق</p>
+</div>
+<div class="mr-auto self-center w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</div>
+<div class="p-4 border-b border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark transition-colors cursor-pointer">
+<div class="flex gap-3">
+<img alt="أحمد محمد" class="h-10 w-10 rounded-full object-cover border border-border-light dark:border-border-dark flex-shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbkgJhv3KVc0NBGDQN12VB-vNi1zQ7EzP-t_mg55hXfGSI_AsJD7JQcvy9kd_UJeLuAcypYAYwt1nmg4wVOKEsNGlj_EXAEnlQtux77G_-7Lh0hfXEgT97Ghu4x7s1TsWXSBPN_wnCANaVLutB-c3NIEgCYO_rNaoDQD_qGeG6NVZqOFwCa0iUMgMCUeKPILfO6DdV_LENAMZAkOv-dTSHp_-pD5wErabMKXfEIVNW7uCJwEIu3RtxjTIdLvXKyZA681JXzFRB57o"/>
+<div>
+<p class="text-sm font-bold text-text-light dark:text-text-dark">رسالة جديدة</p>
+<p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">قام أحمد بإرفاق تقرير المبيعات اليومي.</p>
+<p class="text-[10px] text-text-muted-light dark:text-text-muted-dark mt-2">منذ 45 دقيقة</p>
+</div>
+</div>
+</div>
+<div class="p-4 hover:bg-background-light dark:hover:bg-background-dark transition-colors cursor-pointer">
+<div class="flex gap-3">
+<div class="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center flex-shrink-0">
+<span class="material-icons-outlined text-xl">verified</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-light dark:text-text-dark">اكتمال النسخ الاحتياطي</p>
+<p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">تم حفظ بيانات النظام بنجاح.</p>
+<p class="text-[10px] text-text-muted-light dark:text-text-muted-dark mt-2">أمس 02:00 ص</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-3 bg-background-light dark:bg-background-dark text-center border-t border-border-light dark:border-border-dark">
+<a class="text-xs font-bold text-primary hover:text-primary-hover transition-colors" href="#">عرض كل التنبيهات</a>
+</div>
+</div>
+</details>
+</div>
+<div class="h-8 w-px bg-border-light dark:bg-border-dark hidden md:block"></div>
+<div class="flex items-center gap-3 cursor-pointer group">
+<div class="relative">
+<img alt="صورة الملف الشخصي" class="w-10 h-10 rounded-full object-cover border-2 border-surface-light dark:border-surface-dark shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbkgJhv3KVc0NBGDQN12VB-vNi1zQ7EzP-t_mg55hXfGSI_AsJD7JQcvy9kd_UJeLuAcypYAYwt1nmg4wVOKEsNGlj_EXAEnlQtux77G_-7Lh0hfXEgT97Ghu4x7s1TsWXSBPN_wnCANaVLutB-c3NIEgCYO_rNaoDQD_qGeG6NVZqOFwCa0iUMgMCUeKPILfO6DdV_LENAMZAkOv-dTSHp_-pD5wErabMKXfEIVNW7uCJwEIu3RtxjTIdLvXKyZA681JXzFRB57o"/>
+<span class="absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-surface-light dark:ring-surface-dark bg-green-500"></span>
+</div>
+<div class="hidden md:flex flex-col items-start">
+<span class="text-sm font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">أحمد محمد</span>
+<span class="text-xs text-text-muted-light dark:text-text-muted-dark">مدير الفرع</span>
+</div>
+<span class="material-icons-outlined text-text-muted-light dark:text-text-muted-dark text-lg hidden md:block">expand_more</span>
+</div>
+</div>
+</header>
+<main class="flex-grow p-8 bg-background-light dark:bg-background-dark">
+<div class="max-w-7xl mx-auto">
+<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-xl shadow-sm border border-border-light dark:border-border-dark h-64 flex items-center justify-center text-text-muted-light dark:text-text-muted-dark">
+<p>محتوى الصفحة الرئيسية يظهر هنا...</p>
+</div>
+</div>
+</main>
+<script>
+        const htmlElement = document.documentElement;
+        // Check local storage or system preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+        } else {
+            htmlElement.classList.remove('dark');
+        }
+    </script>
+
+</body></html>
