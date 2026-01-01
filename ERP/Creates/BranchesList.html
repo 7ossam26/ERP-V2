@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>إدارة الموظفين - بن الغنيمي</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&amp;display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6F4E37",
+              "primary-hover": "#5D4037",
+              "background-light": "#F5F5F0",
+              "background-dark": "#1F1B18",
+              "surface-light": "#FFFFFF",
+              "surface-dark": "#2C2522",
+              "text-light": "#3E2723",
+              "text-dark": "#EFEBE9",
+              accent: "#D7CCC8",
+              "border-light": "#E7E5E4",
+              "border-dark": "#44403C",
+            },
+            fontFamily: {
+              display: ["Cairo", "sans-serif"],
+              body: ["Cairo", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.75rem",
+              xl: "1rem",
+            },
+            boxShadow: {
+              soft: "0 4px 20px -2px rgba(111, 78, 55, 0.05)",
+              "soft-dark": "0 4px 20px -2px rgba(0, 0, 0, 0.4)",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d7ccc8;
+        border-radius: 4px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #5d4037;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 min-h-screen flex flex-col relative overflow-hidden">
+    <nav
+      class="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shadow-sm z-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-20 items-center">
+          <div class="flex items-center gap-3">
+            <div
+              class="bg-primary/10 dark:bg-primary/20 p-2 rounded-xl text-primary">
+              <span class="material-icons-round text-3xl">coffee</span>
+            </div>
+            <div>
+              <h1
+                class="text-xl font-bold text-primary dark:text-text-dark leading-tight">
+                بن الغنيمي
+              </h1>
+              <p
+                class="text-xs text-primary/80 font-semibold tracking-wide uppercase">
+                Elghonemy
+              </p>
+            </div>
+          </div>
+          <a
+            class="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent/10 dark:hover:bg-accent/5"
+            href="../Dashboard.html">
+            <span class="text-sm font-semibold">الصفحة الرئيسية</span>
+            <span class="material-icons-round text-xl transform rotate-180"
+              >arrow_back</span
+            >
+          </a>
+        </div>
+      </div>
+    </nav>
+    <main
+      class="flex-grow flex items-center justify-center p-6 blur-sm select-none pointer-events-none transition-all duration-300">
+      <div class="w-full max-w-5xl">
+        <div class="text-center mb-10">
+          <h2
+            class="text-3xl md:text-4xl font-extrabold text-primary dark:text-text-dark mb-2">
+            التكويدات
+          </h2>
+          <div
+            class="h-1.5 w-24 bg-primary mx-auto rounded-full opacity-80"></div>
+          <p
+            class="mt-4 text-text-light/70 dark:text-text-dark/70 max-w-lg mx-auto">
+            إدارة البيانات الأساسية للنظام، بما في ذلك الموظفين، المخازن،
+            والأصناف.
+          </p>
+        </div>
+        <div class="flex flex-wrap justify-center gap-6">
+          <div
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent">
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4">
+              <span class="material-icons-round text-4xl">badge</span>
+            </div>
+            <h3 class="text-xl font-bold text-text-light dark:text-text-dark">
+              الموظف
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              إدارة بيانات الموظفين
+            </p>
+          </div>
+          <div
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent">
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4">
+              <span class="material-icons-round text-4xl">local_shipping</span>
+            </div>
+            <h3 class="text-xl font-bold text-text-light dark:text-text-dark">
+              المورد
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              سجلات الموردين والشركاء
+            </p>
+          </div>
+          <div
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent">
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4">
+              <span class="material-icons-round text-4xl">groups</span>
+            </div>
+            <h3 class="text-xl font-bold text-text-light dark:text-text-dark">
+              العملاء
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              قاعدة بيانات العملاء
+            </p>
+          </div>
+          <div
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent">
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4">
+              <span class="material-icons-round text-4xl">category</span>
+            </div>
+            <h3 class="text-xl font-bold text-text-light dark:text-text-dark">
+              الاصناف
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              المنتجات والأسعار
+            </p>
+          </div>
+          <div
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent">
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4">
+              <span class="material-icons-round text-4xl">warehouse</span>
+            </div>
+            <h3 class="text-xl font-bold text-text-light dark:text-text-dark">
+              المخازن
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              الجرد والمستودعات
+            </p>
+          </div>
+          <div
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent">
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4">
+              <span class="material-icons-round text-4xl">savings</span>
+            </div>
+            <h3 class="text-xl font-bold text-text-light dark:text-text-dark">
+              الخزائن
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              المالية والنقدية
+            </p>
+          </div>
+          <div
+            class="group relative flex flex-col items-center justify-center w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent">
+            <div
+              class="w-16 h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-4">
+              <span class="material-icons-round text-4xl">storefront</span>
+            </div>
+            <h3 class="text-xl font-bold text-text-light dark:text-text-dark">
+              الفروع
+            </h3>
+            <p class="text-xs text-text-light/50 dark:text-text-dark/50 mt-1">
+              إعدادات فروع المتجر
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer
+      class="bg-surface-light dark:bg-surface-dark border-t border-border-light dark:border-border-dark py-6 blur-sm">
+      <div class="max-w-7xl mx-auto px-4 text-center">
+        <p class="text-sm text-text-light/60 dark:text-text-dark/60">
+          © 2023 <span class="font-bold text-primary">بن الغنيمي</span>. جميع
+          الحقوق محفوظة.
+        </p>
+      </div>
+    </footer>
+    <div
+      aria-modal="true"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      role="dialog">
+      <div
+        aria-hidden="true"
+        class="fixed inset-0 bg-background-dark/60 backdrop-blur-sm transition-opacity"></div>
+      <div
+        class="relative bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl w-full max-w-2xl transform transition-all flex flex-col max-h-[90vh] border border-white/10 dark:border-border-dark">
+
+
+       <div class="bg-surface-light dark:bg-surface-dark w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors duration-200">
+<div class="px-6 py-5 sm:px-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-surface-dark z-10 shrink-0">
+<div class="flex items-center gap-4">
+<div class="bg-primary text-white w-12 h-12 flex items-center justify-center rounded-xl shadow-lg">
+<span class="material-icons-round text-2xl">storefront</span>
+</div>
+<div>
+<h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">عرض الفروع</h1>
+<p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">قائمة بجميع الفروع المسجلة في نظام الغنيمي</p>
+</div>
+</div>
+<a href="../Creates.html">
+<button class="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+<span class="material-icons-round text-2xl">close</span>
+</button></a>
+</div>
+<div class="p-0 overflow-y-auto custom-scrollbar flex-grow bg-white dark:bg-surface-dark">
+<div class="overflow-x-auto">
+<table class="w-full text-right border-collapse">
+<thead class="bg-gray-50 dark:bg-gray-800/50 sticky top-0 z-10 border-b border-gray-100 dark:border-gray-700">
+<tr>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">اسم الفرع</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">المخزن</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">الخزينة</th>
+<th class="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">الرقم التعريفي</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                                        ال
+                                    </div>
+<div>
+<div class="text-sm font-bold text-gray-900 dark:text-white">الفرع الرئيسي</div>
+<div class="text-xs text-gray-500 dark:text-gray-400">وسط البلد، القاهرة</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                المخزن الرئيسي
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                الخزينة الرئيسية
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-mono">
+                                #BR-2024-001
+                            </td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">
+                                        مو
+                                    </div>
+<div>
+<div class="text-sm font-bold text-gray-900 dark:text-white">فرع مول العرب</div>
+<div class="text-xs text-gray-500 dark:text-gray-400">6 أكتوبر، الجيزة</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                مخزن المول
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                خزينة الكاشير 1
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-mono">
+                                #BR-2024-002
+                            </td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">
+                                        تج
+                                    </div>
+<div>
+<div class="text-sm font-bold text-gray-900 dark:text-white">فرع التجمع الخامس</div>
+<div class="text-xs text-gray-500 dark:text-gray-400">القاهرة الجديدة</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                مخزن التجمع
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                خزينة الكاشير 2
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-mono">
+                                #BR-2024-003
+                            </td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">
+                                        اس
+                                    </div>
+<div>
+<div class="text-sm font-bold text-gray-900 dark:text-white">فرع الإسكندرية</div>
+<div class="text-xs text-gray-500 dark:text-gray-400">سموحة، الإسكندرية</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                مخزن الساحل
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                خزينة فرعية
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-mono">
+                                #BR-2024-004
+                            </td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
+                                        شي
+                                    </div>
+<div>
+<div class="text-sm font-bold text-gray-900 dark:text-white">فرع الشيخ زايد</div>
+<div class="text-xs text-gray-500 dark:text-gray-400">الجيزة - زايد</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                مخزن زايد
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                خزينة الكاشير 3
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-mono">
+                                #BR-2024-005
+                            </td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="px-6 py-5 sm:px-8 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-surface-dark/50 flex flex-col sm:flex-row gap-3 shrink-0">
+<a href="./BranchDialogs.html"><button class="flex-1 sm:flex-none bg-primary hover:bg-primary-hover text-white font-bold py-3 px-8 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+<span class="material-icons-round text-lg">add_business</span>
+                إضافة فرع جديد
+            </button></a>
+<div class="flex-grow"></div>
+<a href="../Creates.html"><button class="flex-1 sm:flex-none bg-white dark:bg-transparent border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 font-bold py-3 px-8 rounded-xl transition-all">
+                إغلاق
+            </button></a>
+</div>
+</div>
+      </div>
+    </div>
+  </body>
+</html>

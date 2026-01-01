@@ -13,6 +13,8 @@
       href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
       rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
     <script>
       tailwind.config = {
         darkMode: "class",
@@ -226,170 +228,110 @@
       <div
         aria-hidden="true"
         class="fixed inset-0 bg-background-dark/60 backdrop-blur-sm transition-opacity"></div>
-      <div
-        class="relative bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl w-full max-w-2xl transform transition-all flex flex-col max-h-[90vh] border border-white/10 dark:border-border-dark">
-        <div
-          class="px-6 py-5 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-accent/5 dark:bg-primary/5 rounded-t-2xl">
-          <div class="flex items-center gap-3">
-            <div class="bg-primary text-white p-2 rounded-lg shadow-sm">
-              <span class="material-icons-round text-xl">person_add</span>
-            </div>
-            <h3 class="text-xl font-bold text-primary dark:text-text-dark">
-              إضافة / تعديل موظف
-            </h3>
-          </div>
-          <a
-            href="../Creates.html"
-            class="text-text-light/40 hover:text-red-500 dark:text-text-dark/40 dark:hover:text-red-400 transition-colors rounded-full p-1 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center">
-            <span class="material-icons-round text-2xl">close</span>
-          </a>
-        </div>
-        <div class="p-6 md:p-8 overflow-y-auto custom-scrollbar">
-          <form class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-            <div class="col-span-1">
-              <label
-                class="block text-sm font-bold text-text-light dark:text-text-dark mb-2"
-                for="employee_id"
-                >الرقم التعريفي</label
-              >
-              <div class="relative">
-                <span
-                  class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-                  <span class="material-icons-round text-lg">tag</span>
-                </span>
-                <input
-                  class="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow"
-                  id="employee_id"
-                  name="employee_id"
-                  placeholder="ID تلقائي"
-                  type="text" />
-              </div>
-            </div>
-            <div class="col-span-1">
-              <label
-                class="block text-sm font-bold text-text-light dark:text-text-dark mb-2"
-                for="branch"
-                >الفرع</label
-              >
-              <div class="relative">
-                <span
-                  class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-                  <span class="material-icons-round text-lg">store</span>
-                </span>
-                <select
-                  class="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark appearance-none transition-shadow"
-                  id="branch"
-                  name="branch">
-                  <option value="">اختر الفرع...</option>
-                  <option value="main">الفرع الرئيسي</option>
-                  <option value="north">فرع الشمال</option>
-                  <option value="mall">فرع المول</option>
-                </select>
-                <span
-                  class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-                  <span class="material-icons-round text-lg">expand_more</span>
-                </span>
-              </div>
-            </div>
-            <div class="col-span-1 md:col-span-2">
-              <label
-                class="block text-sm font-bold text-text-light dark:text-text-dark mb-2"
-                for="name"
-                >الاسم بالكامل</label
-              >
-              <div class="relative">
-                <span
-                  class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-                  <span class="material-icons-round text-lg">badge</span>
-                </span>
-                <input
-                  class="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow"
-                  id="name"
-                  name="name"
-                  placeholder="أدخل اسم الموظف"
-                  type="text" />
-              </div>
-            </div>
-            <div class="col-span-1">
-              <label
-                class="block text-sm font-bold text-text-light dark:text-text-dark mb-2"
-                for="phone"
-                >رقم الهاتف</label
-              >
-              <div class="relative">
-                <span
-                  class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-                  <span class="material-icons-round text-lg">phone</span>
-                </span>
-                <input
-                  class="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow"
-                  dir="ltr"
-                  id="phone"
-                  name="phone"
-                  placeholder="01xxxxxxxxx"
-                  style="text-align: right"
-                  type="tel" />
-              </div>
-            </div>
-            <div class="col-span-1">
-              <label
-                class="block text-sm font-bold text-text-light dark:text-text-dark mb-2"
-                for="national_id"
-                >رقم البطاقه</label
-              >
-              <div class="relative">
-                <span
-                  class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-                  <span class="material-icons-round text-lg">fingerprint</span>
-                </span>
-                <input
-                  class="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow"
-                  id="national_id"
-                  name="national_id"
-                  placeholder="رقم البطاقه"
-                  type="text" />
-              </div>
-            </div>
-            <div class="col-span-1 md:col-span-2">
-              <label
-                class="block text-sm font-bold text-text-light dark:text-text-dark mb-2"
-                for="salary"
-                >الراتب</label
-              >
-              <div class="relative">
-                <span
-                  class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-                  <span class="material-icons-round text-lg">payments</span>
-                </span>
-                <input
-                  class="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow"
-                  id="salary"
-                  name="salary"
-                  placeholder="0.00"
-                  type="number" />
-                <span
-                  class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-text-light/60 dark:text-text-dark/60 font-semibold text-xs">
-                  جنيه مصري
-                </span>
-              </div>
-            </div>
-          </form>
-        </div>
-        <div
-          class="px-6 py-4 bg-background-light/30 dark:bg-background-dark/30 border-t border-border-light dark:border-border-dark flex justify-end gap-3 rounded-b-2xl">
-          <a
-            href="../Creates.html"
-            class="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark hover:border-accent dark:hover:border-primary transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-accent flex items-center justify-center">
-            إلغاء
-          </a>
-          <button
-            class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary"
-            type="button">
-            <span class="material-icons-round text-lg">save</span>
-            <span>حفظ التغييرات</span>
-          </button>
-        </div>
-      </div>
+      <div class="relative z-20 w-full max-w-4xl bg-surface-light dark:bg-surface-dark rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-colors duration-300">
+<div class="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-surface-dark">
+<a href="../Creates.html"><button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+<span class="material-icons-outlined text-2xl">close</span>
+</button></a>
+<div class="flex items-center gap-3">
+<h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">إضافة / تعديل موظف</h2>
+<div class="bg-primary text-white p-2 rounded-lg flex items-center justify-center shadow-md">
+<span class="material-icons-outlined text-xl">person_add</span>
+</div>
+</div>
+</div>
+<div class="overflow-y-auto p-8 custom-scrollbar">
+<form class="grid grid-cols-1 md:grid-cols-2 gap-6" onsubmit="event.preventDefault();">
+<div class="space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">الفرع</label>
+<div class="relative">
+<select class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none cursor-pointer">
+<option disabled="" selected="" value="">اختر الفرع...</option>
+<option value="1">الفرع الرئيسي</option>
+<option value="2">فرع وسط المدينة</option>
+</select>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">store</span>
+<span class="material-icons-outlined absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none text-sm">expand_more</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">الرقم التعريفي</label>
+<div class="relative">
+<input class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-400 dark:text-gray-500 cursor-not-allowed focus:ring-0" readonly="" type="text" value="ID تلقائي"/>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">tag</span>
+</div>
+</div>
+<div class="md:col-span-2 space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">الاسم بالكامل</label>
+<div class="relative">
+<input class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow placeholder-gray-400" placeholder="أدخل اسم الموظف" type="text"/>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">badge</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">رقم الهاتف</label>
+<div class="relative">
+<input class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-right placeholder-gray-400" dir="ltr" placeholder="01xxxxxxxxx" type="tel"/>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">call</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">رقم البطاقه</label>
+<div class="relative">
+<input class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow placeholder-gray-400" placeholder="رقم البطاقه" type="text"/>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">fingerprint</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">عدد ساعات العمل</label>
+<div class="relative">
+<input class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow placeholder-gray-400" max="24" min="1" type="number" value="8"/>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">schedule</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">ايام الشغل في الشهر</label>
+<div class="relative">
+<input class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow placeholder-gray-400" max="31" min="1" type="number" value="24"/>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">calendar_month</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">الراتب</label>
+<div class="relative">
+<input class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-right placeholder-gray-400" dir="ltr" placeholder="0.00" step="0.01" type="number"/>
+<span class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm pointer-events-none">جنيه مصري</span>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">attach_money</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-bold text-gray-700 dark:text-gray-300">الاجازة الاسبوعية</label>
+<div class="relative">
+<select class="w-full bg-input-light dark:bg-input-dark border-gray-200 dark:border-gray-600 rounded-2xl py-3 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none cursor-pointer">
+<option value="Saturday">السبت</option>
+<option value="Sunday">الأحد</option>
+<option value="Monday">الاثنين</option>
+<option value="Tuesday">الثلاثاء</option>
+<option value="Wednesday">الأربعاء</option>
+<option value="Thursday">الخميس</option>
+<option selected="" value="Friday">الجمعة</option>
+</select>
+<span class="material-icons-outlined absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">weekend</span>
+<span class="material-icons-outlined absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none text-sm">expand_more</span>
+</div>
+</div>
+</form>
+</div>
+<div class="px-8 py-6 bg-white dark:bg-surface-dark border-t border-gray-100 dark:border-gray-700 flex flex-row-reverse gap-4">
+<button class="flex items-center gap-2 bg-primary hover:bg-[#5d4037] text-white font-bold py-3 px-8 rounded-2xl transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+<span class="material-icons-outlined text-sm">save</span>
+<span>حفظ التغييرات</span>
+</button>
+<a href="../Creates.html"><button class="bg-white dark:bg-transparent border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold py-3 px-8 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                إلغاء
+            </button></a>
+</div>
+</div>
     </div>
   </body>
 </html>
