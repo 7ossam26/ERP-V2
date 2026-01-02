@@ -1,0 +1,120 @@
+import React, { useState } from "react";
+import GenericPageManager from "../../components/shared/GenericPageManager";
+import { warehouseService } from "../../services/warehouseService";
+
+const WarehouseForm = ({ initialData, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    code: initialData?.code || "",
+    name: initialData?.name || "",
+  });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-y-6">
+      <div className="col-span-1">
+        <label
+          className="block text-sm font-bold text-text-light dark:text-text-dark mb-2"
+          htmlFor="code">
+          الرقم التعريفي
+        </label>
+        <div className="relative">
+          <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
+            <span className="material-icons-round text-lg">tag</span>
+          </span>
+          <input
+            className="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow opacity-70 cursor-not-allowed"
+            id="code"
+            name="code"
+            value={formData.code}
+            onChange={handleChange}
+            placeholder="ID تلقائي"
+            type="text"
+            readOnly
+            disabled
+          />
+        </div>
+      </div>
+      <div className="col-span-1">
+        <label
+          className="block text-sm font-bold text-text-light dark:text-text-dark mb-2"
+          htmlFor="name">
+          اسم المخزن
+        </label>
+        <div className="relative">
+          <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
+            <span className="material-icons-round text-lg">inventory_2</span>
+          </span>
+          <input
+            className="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow"
+            id="name"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="أدخل اسم المخزن"
+            type="text"
+            required
+          />
+        </div>
+      </div>
+      <div className="flex justify-end gap-3 mt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all">
+          إلغاء
+        </button>
+        <button
+          type="submit"
+          className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+          <span className="material-icons-round text-lg">save</span>
+          <span>حفظ التغييرات</span>
+        </button>
+      </div>
+    </form>
+  );
+};
+
+const WarehouseManager = () => {
+  const columns = [
+    {
+      header: "اسم المخزن",
+      accessor: "name",
+      render: (item) => (
+        <div className="font-bold text-gray-900 dark:text-white">
+          {item.name}
+        </div>
+      ),
+    },
+    {
+      header: "الرقم التعريفي",
+      accessor: "code",
+      render: (item) => (
+        <span className="font-mono text-gray-600 dark:text-gray-300">
+          {item.code || `#WRH-${item.id}`}
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <GenericPageManager
+      title="عرض المخازن"
+      subtitle="قائمة بجميع المخازن المسجلين في نظام الغنيمي"
+      icon="warehouse"
+      service={warehouseService}
+      columns={columns}
+      FormComponent={WarehouseForm}
+      emptyMessage="لا توجد مخازن مضافة بعد."
+    />
+  );
+};
+
+export default WarehouseManager;
