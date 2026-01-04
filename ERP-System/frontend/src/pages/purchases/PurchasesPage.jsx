@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { supplierService, itemService } from "../../services/domainServices";
+import Modal from "../../components/ui/Modal";
+import { ItemForm } from "../items/ItemManager";
 
 const PurchasesPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("cash"); // cash, credit, mixed
@@ -8,8 +11,24 @@ const PurchasesPage = () => {
     { id: 2, name: "بن كولومبي", quantity: 10, purchasePrice: 0, sellPrice: 0 },
   ]);
   const [discountType, setDiscountType] = useState("percent"); // percent, value
+
   const [discountValue, setDiscountValue] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
+  const [suppliers, setSuppliers] = useState([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const fetchedSuppliers = await supplierService.getAll();
+        setSuppliers(fetchedSuppliers);
+      } catch (error) {
+        console.error("Failed to fetch suppliers", error);
+      }
+    };
+    fetchSuppliers();
+  }, []);
 
   // Calculated totals
   const [totals, setTotals] = useState({
@@ -98,8 +117,32 @@ const PurchasesPage = () => {
     }
   }, [totals.net, paymentMethod]);
 
+  const handleSaveNewItem = async (formData) => {
+    try {
+      await itemService.create(formData);
+      setIsItemModalOpen(false);
+      alert("تم إضافة الصنف بنجاح");
+    } catch (error) {
+      console.error("Failed to save item", error);
+      alert("حدث خطأ أثناء حفظ الصنف");
+    }
+  };
+
   return (
     <div className="space-y-6" dir="rtl">
+      <Modal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        title="إضافة صنف جديد">
+        <ItemForm
+          onClose={() => setIsItemModalOpen(false)}
+          onSave={handleSaveNewItem}
+          initialData={{
+            suppliers: selectedSupplierId ? [selectedSupplierId] : [],
+          }}
+        />
+      </Modal>
+
       {/* Header / Title Section */}
       <div className="flex items-center justify-between bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-border-light dark:border-border-dark">
         <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -177,9 +220,16 @@ const PurchasesPage = () => {
               اسم المورد
             </label>
             <div className="relative">
-              <select className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors">
-                <option>شركه العالميه للتوريدات</option>
-                <option>موردين متنوعين</option>
+              <select
+                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors"
+                value={selectedSupplierId}
+                onChange={(e) => setSelectedSupplierId(e.target.value)}>
+                <option value="">اختر المورد...</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
               </select>
               <span className="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">
                 expand_more
@@ -217,6 +267,7 @@ const PurchasesPage = () => {
           </h3>
           <button
             type="button"
+            onClick={() => setIsItemModalOpen(true)}
             className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-lg transition-colors font-bold text-sm">
             <span className="material-symbols-outlined text-[20px]">
               qr_code_scanner

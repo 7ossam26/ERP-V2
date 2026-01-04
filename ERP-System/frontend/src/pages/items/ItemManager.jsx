@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
-import { itemService, supplierService } from "../../services/domainServices";
+import {
+  itemService,
+  supplierService,
+  categoryService,
+} from "../../services/domainServices";
 
-const ItemForm = ({ initialData, onClose, onSave }) => {
+export const ItemForm = ({ initialData, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     id: initialData?.id || "#",
     name: initialData?.name || "",
@@ -10,15 +14,21 @@ const ItemForm = ({ initialData, onClose, onSave }) => {
     price: initialData?.price || "",
     unit: initialData?.unit || "piece",
     suppliers: initialData?.suppliers || [],
+    categories: initialData?.categories || [],
   });
   const [availableSuppliers, setAvailableSuppliers] = useState([]);
+  const [availableCategories, setAvailableCategories] = useState([]);
 
   useEffect(() => {
-    const fetchSuppliers = async () => {
-      const suppliers = await supplierService.getAll();
+    const fetchData = async () => {
+      const [suppliers, categories] = await Promise.all([
+        supplierService.getAll(),
+        categoryService.getAll(),
+      ]);
       setAvailableSuppliers(suppliers);
+      setAvailableCategories(categories);
     };
-    fetchSuppliers();
+    fetchData();
   }, []);
 
   const handleChange = (e) => {
@@ -35,6 +45,20 @@ const ItemForm = ({ initialData, onClose, onSave }) => {
         };
       } else {
         return { ...prev, suppliers: [...currentSuppliers, supplierId] };
+      }
+    });
+  };
+
+  const handleCategoryChange = (categoryId) => {
+    setFormData((prev) => {
+      const currentCategories = prev.categories || [];
+      if (currentCategories.includes(categoryId)) {
+        return {
+          ...prev,
+          categories: currentCategories.filter((id) => id !== categoryId),
+        };
+      } else {
+        return { ...prev, categories: [...currentCategories, categoryId] };
       }
     });
   };
@@ -156,6 +180,37 @@ const ItemForm = ({ initialData, onClose, onSave }) => {
         </div>
       </div>
 
+      <div className="md:col-span-2 space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          التصنيفات
+        </label>
+        <div className="bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-600 rounded-xl p-4 max-h-48 overflow-y-auto">
+          {availableCategories.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {availableCategories.map((category) => (
+                <label
+                  key={category.id}
+                  className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={formData.categories.includes(category.id)}
+                    onChange={() => handleCategoryChange(category.id)}
+                    className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700"
+                  />
+                  <span className="text-gray-700 dark:text-gray-200 font-medium">
+                    {category.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-2">
+              لا توجد تصنيفات متاحة
+            </p>
+          )}
+        </div>
+      </div>
+
       <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <button
           type="button"
@@ -176,21 +231,32 @@ const ItemForm = ({ initialData, onClose, onSave }) => {
 
 const ItemManager = () => {
   const [suppliersMap, setSuppliersMap] = useState({});
+  const [categoriesMap, setCategoriesMap] = useState({});
 
   useEffect(() => {
-    const fetchSuppliers = async () => {
+    const fetchData = async () => {
       try {
-        const suppliers = await supplierService.getAll();
-        const map = suppliers.reduce((acc, supplier) => {
-          acc[supplier.id] = supplier.name;
+        const [suppliers, categories] = await Promise.all([
+          supplierService.getAll(),
+          categoryService.getAll(),
+        ]);
+
+        const sMap = suppliers.reduce((acc, s) => {
+          acc[s.id] = s.name;
           return acc;
         }, {});
-        setSuppliersMap(map);
+        setSuppliersMap(sMap);
+
+        const cMap = categories.reduce((acc, c) => {
+          acc[c.id] = c.name;
+          return acc;
+        }, {});
+        setCategoriesMap(cMap);
       } catch (error) {
-        console.error("Failed to fetch suppliers", error);
+        console.error("Failed to fetch data", error);
       }
     };
-    fetchSuppliers();
+    fetchData();
   }, []);
 
   const columns = [
@@ -239,6 +305,25 @@ const ItemManager = () => {
                 key={supplierId}
                 className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
                 {suppliersMap[supplierId] || "مورد غير معروف"}
+              </span>
+            ))
+          ) : (
+            <span className="text-gray-400 text-sm">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "التصنيفات",
+      accessor: "categories",
+      render: (item) => (
+        <div className="flex flex-wrap gap-1">
+          {item.categories && item.categories.length > 0 ? (
+            item.categories.map((catId) => (
+              <span
+                key={catId}
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                {categoriesMap[catId] || catId}
               </span>
             ))
           ) : (

@@ -11,6 +11,9 @@ const GenericPageManager = ({
   columns,
   FormComponent,
   emptyMessage,
+  backPath = "/creates",
+  hideAddButton = false,
+  headerActions,
 }) => {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
@@ -87,8 +90,9 @@ const GenericPageManager = ({
             </p>
           </div>
         </div>
+        <div className="flex-1 flex justify-center">{headerActions}</div>
         <button
-          onClick={() => navigate("/creates")}
+          onClick={() => navigate(backPath)}
           className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
           <span className="material-icons-round text-2xl">close</span>
         </button>
@@ -108,15 +112,17 @@ const GenericPageManager = ({
 
       {/* Footer Actions */}
       <div className="px-6 py-5 sm:px-8 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-surface-dark/50 flex flex-col sm:flex-row gap-3 shrink-0">
-        <button
-          onClick={openNewModal}
-          className="flex-1 sm:flex-none bg-primary hover:bg-primary-hover text-white font-bold py-3 px-8 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
-          <span className="material-icons-round text-lg">add</span>
-          إضافة جديد
-        </button>
+        {!hideAddButton && (
+          <button
+            onClick={openNewModal}
+            className="flex-1 sm:flex-none bg-primary hover:bg-primary-hover text-white font-bold py-3 px-8 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+            <span className="material-icons-round text-lg">add</span>
+            إضافة جديد
+          </button>
+        )}
         <div className="flex-grow"></div>
         <button
-          onClick={() => navigate("/creates")}
+          onClick={() => navigate(backPath)}
           className="flex-1 sm:flex-none bg-white dark:bg-transparent border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 font-bold py-3 px-8 rounded-xl transition-all">
           إغلاق
         </button>

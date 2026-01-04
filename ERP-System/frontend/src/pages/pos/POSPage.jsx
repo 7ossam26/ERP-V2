@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
+import Modal from "../../components/ui/Modal";
+import { ClientForm } from "../clients/ClientManager";
+import { clientService } from "../../services/domainServices";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -8,6 +11,39 @@ const POSPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [cartItems, setCartItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
+
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [clientSearchTerm, setClientSearchTerm] = useState("");
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const fetchedClients = await clientService.getAll();
+        setClients(fetchedClients);
+      } catch (error) {
+        console.error("Failed to fetch clients", error);
+      }
+    };
+    fetchClients();
+  }, [isClientModalOpen]);
+
+  const filteredClients = clients.filter((client) => {
+    const search = clientSearchTerm.toLowerCase();
+    return (
+      client.name.toLowerCase().includes(search) ||
+      (client.phone && client.phone.includes(search)) ||
+      (client.id && client.id.toString().includes(search))
+    );
+  });
+
+  const handleSelectClient = (client) => {
+    setSelectedClient(client);
+    setClientSearchTerm(client ? client.name : "");
+    setIsClientDropdownOpen(false);
+  };
 
   const categories = [
     { id: "All", name: "كل المنتجات" },
@@ -142,6 +178,17 @@ const POSPage = () => {
     navigate("/dashboard");
   };
 
+  const handleSaveClient = async (formData) => {
+    try {
+      await clientService.create(formData);
+      setIsClientModalOpen(false);
+      alert("تم إضافة العميل بنجاح");
+    } catch (error) {
+      console.error("Failed to save client", error);
+      alert("حدث خطأ أثناء حفظ العميل");
+    }
+  };
+
   return (
     <div
       className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark overflow-hidden h-screen flex flex-col text-sm font-sans"
@@ -152,6 +199,16 @@ const POSPage = () => {
         onConfirm={handleConfirmShift}
         totalSales={total.toFixed(2)}
       />
+
+      <Modal
+        isOpen={isClientModalOpen}
+        onClose={() => setIsClientModalOpen(false)}
+        title="تكويد عميل جديد">
+        <ClientForm
+          onClose={() => setIsClientModalOpen(false)}
+          onSave={handleSaveClient}
+        />
+      </Modal>
 
       {/* Header */}
       <div className="bg-primary dark:bg-primary text-white px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30">
@@ -193,7 +250,12 @@ const POSPage = () => {
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700">
           {/* Top Bar */}
           <div className="flex items-center justify-between p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0">
-            <div className="flex items-center text-gray-500 dark:text-gray-400">
+            <div className="flex items-center text-gray-500 dark:text-gray-400 gap-2">
+              <button
+                onClick={() => navigate(-1)}
+                className="hover:text-primary transition-colors flex items-center p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
               <button
                 onClick={() => navigate("/dashboard")}
                 className="hover:text-primary transition-colors flex items-center">
@@ -276,6 +338,79 @@ const POSPage = () => {
 
         {/* Cart/Sidebar Area */}
         <div className="w-[600px] flex flex-col h-full bg-card-light dark:bg-card-dark shadow-xl z-20 shrink-0">
+          {/* Client Selection */}
+          <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-card-dark shrink-0 z-20 relative">
+            <div className="relative">
+              <div
+                className="relative"
+                onClick={() =>
+                  !isClientDropdownOpen && setIsClientDropdownOpen(true)
+                }>
+                <input
+                  type="text"
+                  className="w-full bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 rounded-lg py-2.5 pr-10 pl-10 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-sm font-bold placeholder-gray-400"
+                  placeholder="بحث عن عميل (الاسم أو الرقم)..."
+                  value={
+                    isClientDropdownOpen
+                      ? clientSearchTerm
+                      : selectedClient
+                      ? selectedClient.name
+                      : ""
+                  }
+                  onChange={(e) => {
+                    setClientSearchTerm(e.target.value);
+                    setIsClientDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    setIsClientDropdownOpen(true);
+                    setClientSearchTerm(""); // Clear on focus to search
+                  }}
+                />
+                <span className="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                  {isClientDropdownOpen ? "search" : "expand_more"}
+                </span>
+                <span className="material-symbols-outlined absolute right-3 top-1/2 transform -translate-y-1/2 text-primary pointer-events-none">
+                  person
+                </span>
+              </div>
+
+              {isClientDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setIsClientDropdownOpen(false)}></div>
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
+                    <div
+                      className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-zinc-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-zinc-700/50 font-bold"
+                      onClick={() => handleSelectClient(null)}>
+                      عميل نقدي (Walk-in)
+                    </div>
+                    {filteredClients.length > 0 ? (
+                      filteredClients.map((client) => (
+                        <div
+                          key={client.id}
+                          className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-zinc-700 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0"
+                          onClick={() => handleSelectClient(client)}>
+                          <div className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                            {client.name}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 flex justify-between">
+                            <span>{client.phone || "لا يوجد رقم"}</span>
+                            <span>#{client.id}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-sm">
+                        لا توجد نتائج
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           <div className="flex-1 overflow-y-auto p-0 flex flex-col">
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
@@ -333,7 +468,7 @@ const POSPage = () => {
                 </div>
                 <div className="grid grid-cols-3 gap-0 border-b border-gray-200 dark:border-zinc-700 text-sm">
                   <button
-                    onClick={clearCart}
+                    onClick={() => setIsClientModalOpen(true)}
                     className="flex flex-col items-center justify-center p-2 text-primary dark:text-primary-dark hover:bg-gray-100 dark:hover:bg-zinc-700 border-l border-gray-200 dark:border-zinc-700">
                     <span className="material-symbols-outlined mb-1">
                       person_add
@@ -352,7 +487,7 @@ const POSPage = () => {
                     <span className="material-symbols-outlined mb-1">
                       assignment_return
                     </span>
-                    <span>استرجاع</span>
+                    <span>سجل واسترجاع</span>
                   </button>
                 </div>
 
@@ -417,16 +552,10 @@ const POSPage = () => {
                     سعر
                   </button>
 
-                  <button className="bg-amber-500 hover:bg-amber-600 text-white flex flex-col items-center justify-center p-1 border border-amber-600 dark:border-zinc-900 shadow-inner transition-colors">
-                    <span className="material-symbols-outlined text-3xl mb-1">
-                      edit
-                    </span>
-                    <span className="font-bold text-sm">تعديل</span>
-                  </button>
                   <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
                     +/-
                   </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
+                  <button className="col-span-2 border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
                     0
                   </button>
                   <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">

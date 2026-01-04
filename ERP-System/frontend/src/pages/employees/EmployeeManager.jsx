@@ -13,6 +13,7 @@ const EmployeeForm = ({ initialData, onClose, onSave }) => {
     workHours: initialData?.workHours || "8",
     weekend: initialData?.weekend || "الجمعة",
     salary: initialData?.salary || "",
+    title: initialData?.title || "",
   });
 
   const handleChange = (e) => {
@@ -69,7 +70,7 @@ const EmployeeForm = ({ initialData, onClose, onSave }) => {
         </div>
       </div>
 
-      <div className="space-y-2 col-span-1 md:col-span-2">
+      <div className="space-y-2 col-span-1 md:col-span-1">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
           الاسم بالكامل
         </label>
@@ -85,6 +86,25 @@ const EmployeeForm = ({ initialData, onClose, onSave }) => {
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             badge
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2 col-span-1 md:col-span-1">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          المسمى الوظيفي
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            placeholder="مثال: محاسب، باريستا"
+            type="text"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            work
           </span>
         </div>
       </div>
@@ -248,6 +268,15 @@ const EmployeeManager = () => {
             {item.branch || "الفرع الرئيسي"}
           </div>
         </div>
+      ),
+    },
+    {
+      header: "المسمى الوظيفي",
+      accessor: "title",
+      render: (item) => (
+        <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+          {item.title || "-"}
+        </span>
       ),
     },
     {
