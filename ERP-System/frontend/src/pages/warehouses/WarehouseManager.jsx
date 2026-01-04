@@ -85,21 +85,21 @@ const WarehouseForm = ({ initialData, onClose, onSave }) => {
 const WarehouseManager = () => {
   const columns = [
     {
-      header: "اسم المخزن",
-      accessor: "name",
-      render: (item) => (
-        <div className="font-bold text-gray-900 dark:text-white">
-          {item.name}
-        </div>
-      ),
-    },
-    {
       header: "الرقم التعريفي",
       accessor: "code",
       render: (item) => (
         <span className="font-mono text-gray-600 dark:text-gray-300">
           {item.code || `#WRH-${item.id}`}
         </span>
+      ),
+    },
+    {
+      header: "اسم المخزن",
+      accessor: "name",
+      render: (item) => (
+        <div className="font-bold text-gray-900 dark:text-white">
+          {item.name}
+        </div>
       ),
     },
   ];

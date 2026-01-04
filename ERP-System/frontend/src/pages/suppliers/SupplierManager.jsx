@@ -100,6 +100,15 @@ const SupplierForm = ({ initialData, onClose, onSave }) => {
 const SupplierManager = () => {
   const columns = [
     {
+      header: "الرقم التعريفي",
+      accessor: "code",
+      render: (item) => (
+        <span className="font-mono text-gray-900 dark:text-white font-bold text-sm">
+          {item.code || "-"}
+        </span>
+      ),
+    },
+    {
       header: "المورد",
       accessor: "name",
       render: (item) => (
@@ -115,13 +124,6 @@ const SupplierManager = () => {
         <span dir="ltr" className="text-gray-600 dark:text-gray-300">
           {item.phone}
         </span>
-      ),
-    },
-    {
-      header: "Code",
-      accessor: "code",
-      render: (item) => (
-        <span className="font-mono text-sm">{item.code || "-"}</span>
       ),
     },
   ];

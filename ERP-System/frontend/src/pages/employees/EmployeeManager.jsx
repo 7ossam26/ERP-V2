@@ -228,6 +228,15 @@ const EmployeeForm = ({ initialData, onClose, onSave }) => {
 const EmployeeManager = () => {
   const columns = [
     {
+      header: "الرقم التعريفي",
+      accessor: "id",
+      render: (item) => (
+        <span className="font-mono text-gray-900 dark:text-white font-bold text-sm">
+          {item.id}
+        </span>
+      ),
+    },
+    {
       header: "الموظف",
       accessor: "name",
       render: (item) => (

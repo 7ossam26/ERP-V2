@@ -1,86 +1,265 @@
-import React, { useState } from 'react';
-import GenericPageManager from '../../components/shared/GenericPageManager';
-import { itemService } from '../../services/domainServices';
+import React, { useState, useEffect } from "react";
+import GenericPageManager from "../../components/shared/GenericPageManager";
+import { itemService, supplierService } from "../../services/domainServices";
 
 const ItemForm = ({ initialData, onClose, onSave }) => {
-    const [formData, setFormData] = useState({
-        name: initialData?.name || '',
-        code: initialData?.code || '',
-        price: initialData?.price || '',
-        unit: initialData?.unit || 'piece'
+  const [formData, setFormData] = useState({
+    id: initialData?.id || "#",
+    name: initialData?.name || "",
+    code: initialData?.code || "",
+    price: initialData?.price || "",
+    unit: initialData?.unit || "piece",
+    suppliers: initialData?.suppliers || [],
+  });
+  const [availableSuppliers, setAvailableSuppliers] = useState([]);
+
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      const suppliers = await supplierService.getAll();
+      setAvailableSuppliers(suppliers);
+    };
+    fetchSuppliers();
+  }, []);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSupplierChange = (supplierId) => {
+    setFormData((prev) => {
+      const currentSuppliers = prev.suppliers || [];
+      if (currentSuppliers.includes(supplierId)) {
+        return {
+          ...prev,
+          suppliers: currentSuppliers.filter((id) => id !== supplierId),
+        };
+      } else {
+        return { ...prev, suppliers: [...currentSuppliers, supplierId] };
+      }
     });
+  };
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onSave(formData);
-    };
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          الرقم التعريفي
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-500 dark:text-gray-400 focus:ring-0 cursor-not-allowed"
+            name="id"
+            value={formData.id}
+            readOnly
+            placeholder="ID تلقائي"
+            type="text"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            tag
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          اسم الصنف
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="أدخل اسم الصنف"
+            type="text"
+            required
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            category
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          سعر البيع
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-right"
+            name="price"
+            value={formData.price}
+            onChange={handleChange}
+            dir="ltr"
+            placeholder="0.00"
+            type="number"
+            step="0.01"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            attach_money
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          الوحدة
+        </label>
+        <div className="relative">
+          <select
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+            name="unit"
+            value={formData.unit}
+            onChange={handleChange}>
+            <option value="piece">قطعة</option>
+            <option value="kg">كيلو جرام</option>
+            <option value="box">علبة</option>
+          </select>
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            scale
+          </span>
+        </div>
+      </div>
 
-    return (
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2 space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">اسم الصنف</label>
-                <div className="relative">
-                    <input className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow" 
-                        name="name" value={formData.name} onChange={handleChange} placeholder="أدخل اسم الصنف" type="text" required />
-                    <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">category</span>
-                </div>
+      <div className="md:col-span-2 space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          الموردين
+        </label>
+        <div className="bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-600 rounded-xl p-4 max-h-48 overflow-y-auto">
+          {availableSuppliers.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {availableSuppliers.map((supplier) => (
+                <label
+                  key={supplier.id}
+                  className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={formData.suppliers.includes(supplier.id)}
+                    onChange={() => handleSupplierChange(supplier.id)}
+                    className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700"
+                  />
+                  <span className="text-gray-700 dark:text-gray-200 font-medium">
+                    {supplier.name}
+                  </span>
+                </label>
+              ))}
             </div>
-             <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">سعر البيع</label>
-                <div className="relative">
-                    <input className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-right" 
-                        name="price" value={formData.price} onChange={handleChange} dir="ltr" placeholder="0.00" type="number" step="0.01" />
-                    <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">attach_money</span>
-                </div>
-            </div>
-            <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">الوحدة</label>
-                <div className="relative">
-                    <select className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                        name="unit" value={formData.unit} onChange={handleChange}>
-                        <option value="piece">قطعة</option>
-                        <option value="kg">كيلو جرام</option>
-                        <option value="box">علبة</option>
-                    </select>
-                    <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">scale</span>
-                </div>
-            </div>
-            
-            <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all">
-                    إلغاء
-                </button>
-                <button type="submit" className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-                    <span className="material-icons-round text-lg">save</span>
-                    <span>حفظ التغييرات</span>
-                </button>
-            </div>
-        </form>
-    );
+          ) : (
+            <p className="text-gray-500 text-center py-2">
+              لا يوجد موردين متاحين
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all">
+          إلغاء
+        </button>
+        <button
+          type="submit"
+          className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+          <span className="material-icons-round text-lg">save</span>
+          <span>حفظ التغييرات</span>
+        </button>
+      </div>
+    </form>
+  );
 };
 
 const ItemManager = () => {
-    const columns = [
-        { header: 'الصنف', accessor: 'name', render: (item) => <div className="font-bold text-gray-900 dark:text-white">{item.name}</div> },
-        { header: 'السعر', accessor: 'price', render: (item) => <span className="font-bold text-primary">{item.price} ج.م</span> },
-        { header: 'الوحدة', accessor: 'unit', render: (item) => <span className="text-gray-500">{item.unit === 'piece' ? 'قطعة' : item.unit === 'kg' ? 'كجم' : 'علبة'}</span> },
-    ];
+  const [suppliersMap, setSuppliersMap] = useState({});
 
-    return (
-        <GenericPageManager
-            title="إدارة الأصناف"
-            subtitle="المنتجات والأسعار والمخزون"
-            icon="category"
-            service={itemService}
-            columns={columns}
-            FormComponent={ItemForm}
-            emptyMessage="لا توجد أصناف مسجلة."
-        />
-    );
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const suppliers = await supplierService.getAll();
+        const map = suppliers.reduce((acc, supplier) => {
+          acc[supplier.id] = supplier.name;
+          return acc;
+        }, {});
+        setSuppliersMap(map);
+      } catch (error) {
+        console.error("Failed to fetch suppliers", error);
+      }
+    };
+    fetchSuppliers();
+  }, []);
+
+  const columns = [
+    {
+      header: "الرقم التعريفي",
+      accessor: "id",
+      render: (item) => (
+        <span className="font-mono text-gray-900 dark:text-white font-bold text-sm">
+          {item.id || "#"}
+        </span>
+      ),
+    },
+    {
+      header: "الصنف",
+      accessor: "name",
+      render: (item) => (
+        <div className="font-bold text-gray-900 dark:text-white">
+          {item.name}
+        </div>
+      ),
+    },
+    {
+      header: "السعر",
+      accessor: "price",
+      render: (item) => (
+        <span className="font-bold text-primary">{item.price} ج.م</span>
+      ),
+    },
+    {
+      header: "الوحدة",
+      accessor: "unit",
+      render: (item) => (
+        <span className="text-gray-500">
+          {item.unit === "piece" ? "قطعة" : item.unit === "kg" ? "كجم" : "علبة"}
+        </span>
+      ),
+    },
+    {
+      header: "الموردين",
+      accessor: "suppliers",
+      render: (item) => (
+        <div className="flex flex-wrap gap-1">
+          {item.suppliers && item.suppliers.length > 0 ? (
+            item.suppliers.map((supplierId) => (
+              <span
+                key={supplierId}
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                {suppliersMap[supplierId] || "مورد غير معروف"}
+              </span>
+            ))
+          ) : (
+            <span className="text-gray-400 text-sm">-</span>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <GenericPageManager
+      title="إدارة الأصناف"
+      subtitle="المنتجات والأسعار والمخزون"
+      icon="category"
+      service={itemService}
+      columns={columns}
+      FormComponent={ItemForm}
+      emptyMessage="لا توجد أصناف مسجلة."
+    />
+  );
 };
 
 export default ItemManager;
