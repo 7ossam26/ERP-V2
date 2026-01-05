@@ -199,8 +199,8 @@ const InventoryPage = () => {
           <div className="text-center">
             <span
               className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${isLowStock
-                  ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200"
-                  : "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200"
+                ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200"
+                : "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200"
                 }`}>
               {isLowStock ? "نقص بالمخزون" : "متوفر"}
             </span>
@@ -357,8 +357,8 @@ const InventoryPage = () => {
                 key={cat}
                 onClick={() => setFilter(cat)}
                 className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 ${filter === cat
-                    ? "bg-primary text-surface-light border-transparent shadow-md shadow-[#3E2723]/10 transform scale-105"
-                    : "bg-background-light dark:bg-background-dark text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-border-light dark:border-border-dark"
+                  ? "bg-primary text-surface-light border-transparent shadow-md shadow-[#3E2723]/10 transform scale-105"
+                  : "bg-background-light dark:bg-background-dark text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-border-light dark:border-border-dark"
                   }`}>
                 {cat}
               </button>
