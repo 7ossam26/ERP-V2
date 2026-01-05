@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const CashierTransferPage = () => {
+  const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const currentBalance = 12500;
@@ -136,7 +138,9 @@ const CashierTransferPage = () => {
                     </span>
                     تأكيد التحويل
                   </button>
-                  <button className="px-6 py-4 rounded-xl text-text-secondary dark:text-gray-400 font-bold hover:bg-background-light dark:hover:bg-background-dark transition-colors">
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="px-6 py-4 rounded-xl text-text-secondary dark:text-gray-400 font-bold hover:bg-background-light dark:hover:bg-background-dark transition-colors">
                     إلغاء
                   </button>
                 </div>

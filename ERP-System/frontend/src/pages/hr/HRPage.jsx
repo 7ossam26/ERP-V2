@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { branchService } from "../../services/domainServices";
 import Modal from "../../components/ui/Modal";
 
@@ -100,11 +101,10 @@ const TransactionForm = ({ type, employees, onClose, onSave }) => {
         </button>
         <button
           type="submit"
-          className={`flex-1 py-2.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg transition-all ${
-            type === "advance"
+          className={`flex-1 py-2.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg transition-all ${type === "advance"
               ? "bg-[#FF7043] hover:bg-[#F4511E]"
               : "bg-red-600 hover:bg-red-700"
-          }`}>
+            }`}>
           {type === "advance" ? "تأكيد السلفة" : "تأكيد الخصم"}
         </button>
       </div>
@@ -127,7 +127,7 @@ const HRPage = () => {
     console.log("Saving Transaction:", modalType, data);
     // Here you would call the API to save
     setIsModalOpen(false);
-    alert(
+    toast.success(
       `تم إضافة ${modalType === "advance" ? "السلفة" : "الخصم"} للموظف بنجاح`
     );
   };
@@ -403,11 +403,10 @@ const HRPage = () => {
                       {employee.salary} ج.م
                     </td>
                     <td
-                      className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
-                        employee.advances !== "-"
+                      className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${employee.advances !== "-"
                           ? "text-orange-600 dark:text-orange-400"
                           : "text-gray-400 dark:text-gray-500"
-                      }`}>
+                        }`}>
                       {employee.advances !== "-"
                         ? `${employee.advances} ج.م`
                         : "-"}

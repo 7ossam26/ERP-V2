@@ -1,4 +1,5 @@
 import React from "react";
+import { Toaster } from "react-hot-toast";
 import {
   BrowserRouter as Router,
   Routes,
@@ -28,6 +29,7 @@ import HRPage from "./pages/hr/HRPage";
 import DetailedReportsPage from "./pages/reports/DetailedReportsPage";
 import GeneralReportPage from "./pages/reports/GeneralReportPage"; // Import General Report
 import AdvancePaymentsHistory from "./pages/reports/history/AdvancePaymentsHistory";
+import ExpensesPage from "./pages/expenses/ExpensesPage";
 import CashTransferHistory from "./pages/reports/history/CashTransferHistory";
 import CreationHistory from "./pages/reports/history/CreationHistory";
 import DailyTransactions from "./pages/reports/history/DailyTransactions";
@@ -39,6 +41,7 @@ import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 function App() {
   return (
     <Router>
+      <Toaster position="top-center" reverseOrder={false} />
       <Routes>
         {/* Public Route: Login */}
         <Route path="/" element={<LoginPage />} />
@@ -73,10 +76,11 @@ function App() {
           <Route path="/cashier-transfer" element={<CashierTransferPage />} />
           <Route path="/branches-sales" element={<BranchesSalesPage />} />
           <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/inventory" element={<InventoryPage />} />
+
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/general" element={<GeneralReportPage />} />
           <Route path="/reports/detailed" element={<DetailedReportsPage />} />
+          <Route path="/expenses" element={<ExpensesPage />} />
 
           {/* Detailed History Reports */}
           <Route

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 import { supplierService, itemService } from "../../services/domainServices";
 import Modal from "../../components/ui/Modal";
@@ -121,10 +122,10 @@ const PurchasesPage = () => {
     try {
       await itemService.create(formData);
       setIsItemModalOpen(false);
-      alert("تم إضافة الصنف بنجاح");
+      toast.success("تم إضافة الصنف بنجاح");
     } catch (error) {
       console.error("Failed to save item", error);
-      alert("حدث خطأ أثناء حفظ الصنف");
+      toast.error("حدث خطأ أثناء حفظ الصنف");
     }
   };
 

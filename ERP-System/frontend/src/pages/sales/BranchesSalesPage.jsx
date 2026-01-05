@@ -1,12 +1,27 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { branchService } from "../../services/domainServices";
 
 const BranchesSalesPage = () => {
-  const branches = [
-    { id: 1, name: "فرع وسط البلد", balance: 12500 },
-    { id: 2, name: "فرع مدينة نصر", balance: 8200 },
-    { id: 3, name: "فرع التجمع الخامس", balance: 15100 },
-    { id: 4, name: "فرع مول العرب", balance: 22000 },
-  ];
+  const [branches, setBranches] = useState([]);
+  const [totalBalance, setTotalBalance] = useState(0);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const data = await branchService.getAll();
+        // Enrich with mock balance data for demo purposes since backend isn't real yet
+        const branchesWithBalance = data.map(branch => ({
+          ...branch,
+          balance: Math.floor(Math.random() * 50000) + 5000
+        }));
+        setBranches(branchesWithBalance);
+        setTotalBalance(branchesWithBalance.reduce((acc, curr) => acc + curr.balance, 0));
+      } catch (error) {
+        console.error("Failed to fetch branches", error);
+      }
+    };
+    fetchBranches();
+  }, []);
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">
@@ -57,7 +72,7 @@ const BranchesSalesPage = () => {
                     الرصيد الإجمالي الحالي
                   </p>
                   <h2 className="text-5xl md:text-6xl font-black tracking-tight text-white">
-                    154,200 جنيه مصري
+                    {totalBalance.toLocaleString()} جنيه مصري
                   </h2>
                 </div>
               </div>

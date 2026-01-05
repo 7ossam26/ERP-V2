@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
 import Modal from "../../components/ui/Modal";
@@ -17,6 +18,10 @@ const POSPage = () => {
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+
+  // Hold Cart State
+  const [heldCarts, setHeldCarts] = useState([]);
+  const [isHeldCartsModalOpen, setIsHeldCartsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -133,10 +138,10 @@ const POSPage = () => {
         return prevItems.map((item) =>
           item.id === product.id
             ? {
-                ...item,
-                quantity: item.quantity + 1,
-                total: (item.quantity + 1) * item.price,
-              }
+              ...item,
+              quantity: item.quantity + 1,
+              total: (item.quantity + 1) * item.price,
+            }
             : item
         );
       } else {
@@ -182,11 +187,50 @@ const POSPage = () => {
     try {
       await clientService.create(formData);
       setIsClientModalOpen(false);
-      alert("تم إضافة العميل بنجاح");
+      toast.success("تم إضافة العميل بنجاح");
     } catch (error) {
       console.error("Failed to save client", error);
-      alert("حدث خطأ أثناء حفظ العميل");
+      toast.error("حدث خطأ أثناء حفظ العميل");
     }
+  };
+
+  const handleHoldCart = () => {
+    if (cartItems.length === 0) {
+      toast.error("السلة فارغة");
+      return;
+    }
+    const newHeldCart = {
+      id: Date.now(),
+      items: cartItems,
+      customerName: selectedClient ? selectedClient.name : "عميل نقدي",
+      timestamp: new Date().toLocaleTimeString("ar-EG"),
+      total: total.toFixed(2),
+      itemsCount: cartItems.reduce((acc, item) => acc + item.quantity, 0),
+    };
+    setHeldCarts((prev) => [newHeldCart, ...prev]);
+    setCartItems([]);
+    setSelectedClient(null);
+    toast.success("تم تعليق الفاتورة بنجاح");
+  };
+
+  const handleRetrieveCart = (cartId) => {
+    const cartToRetrieve = heldCarts.find((c) => c.id === cartId);
+    if (!cartToRetrieve) return;
+
+    if (cartItems.length > 0) {
+      if (
+        !window.confirm(
+          "يوجد أصناف في السلة الحالية. هل تريد استبدالها بالفاتورة المعلقة؟"
+        )
+      ) {
+        return;
+      }
+    }
+
+    setCartItems(cartToRetrieve.items);
+    setHeldCarts((prev) => prev.filter((c) => c.id !== cartId));
+    setIsHeldCartsModalOpen(false);
+    toast.success("تم استرجاع الفاتورة");
   };
 
   return (
@@ -208,6 +252,53 @@ const POSPage = () => {
           onClose={() => setIsClientModalOpen(false)}
           onSave={handleSaveClient}
         />
+      </Modal>
+
+      <Modal
+        isOpen={isHeldCartsModalOpen}
+        onClose={() => setIsHeldCartsModalOpen(false)}
+        title="الفواتير المعلقة">
+        <div className="space-y-4">
+          {heldCarts.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">لا توجد فواتير معلقة</p>
+          ) : (
+            heldCarts.map((cart) => (
+              <div
+                key={cart.id}
+                className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex justify-between items-center group hover:border-primary/50 transition-colors">
+                <div>
+                  <div className="font-bold text-gray-800 dark:text-gray-200 mb-1">
+                    {cart.customerName || "عميل نقدي"}
+                  </div>
+                  <div className="text-xs text-gray-500 flex gap-3">
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">
+                        schedule
+                      </span>
+                      {cart.timestamp}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">
+                        shopping_cart
+                      </span>
+                      {cart.itemsCount} أصناف
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-lg text-primary">
+                    {cart.total} ج.م
+                  </span>
+                  <button
+                    onClick={() => handleRetrieveCart(cart.id)}
+                    className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all">
+                    استرجاع
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </Modal>
 
       {/* Header */}
@@ -293,11 +384,10 @@ const POSPage = () => {
                 <div
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-colors ${
-                    activeCategory === cat.id
-                      ? "bg-primary text-white shadow"
-                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                  }`}>
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-colors ${activeCategory === cat.id
+                    ? "bg-primary text-white shadow"
+                    : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                    }`}>
                   {cat.name}
                 </div>
               ))}
@@ -354,8 +444,8 @@ const POSPage = () => {
                     isClientDropdownOpen
                       ? clientSearchTerm
                       : selectedClient
-                      ? selectedClient.name
-                      : ""
+                        ? selectedClient.name
+                        : ""
                   }
                   onChange={(e) => {
                     setClientSearchTerm(e.target.value);
@@ -425,11 +515,10 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors ${
-                      selectedItemId === item.id
-                        ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
-                        : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
-                    }`}>
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors ${selectedItemId === item.id
+                      ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
+                      : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+                      }`}>
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-bold text-gray-800 dark:text-gray-100">
                         {item.name}
@@ -483,11 +572,25 @@ const POSPage = () => {
                     </span>
                     <span>إلغاء</span>
                   </button>
-                  <button className="flex flex-col items-center justify-center p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700">
+                  <button
+                    onClick={() => {
+                      if (cartItems.length > 0) {
+                        handleHoldCart();
+                      } else {
+                        setIsHeldCartsModalOpen(true);
+                      }
+                    }}
+                    className="flex flex-col items-center justify-center p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 relative">
                     <span className="material-symbols-outlined mb-1">
-                      assignment_return
+                      {cartItems.length > 0 ? "pause_circle" : "history"}
                     </span>
-                    <span>سجل واسترجاع</span>
+                    <span>{cartItems.length > 0 ? "تعليق" : "استرجاع"}</span>
+                    {heldCarts.length > 0 && cartItems.length > 0 && (
+                      <span className="absolute top-1 right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                      </span>
+                    )}
                   </button>
                 </div>
 
@@ -495,7 +598,9 @@ const POSPage = () => {
                 <div
                   className="grid grid-cols-5 h-[350px] bg-white dark:bg-zinc-800"
                   dir="ltr">
-                  <button className="col-span-1 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-700/50 hover:bg-gray-200 dark:hover:bg-zinc-600 text-gray-700 dark:text-gray-200 flex flex-col items-center justify-center p-1 transition-colors">
+                  <button
+                    onClick={() => window.print()}
+                    className="col-span-1 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-700/50 hover:bg-gray-200 dark:hover:bg-zinc-600 text-gray-700 dark:text-gray-200 flex flex-col items-center justify-center p-1 transition-colors">
                     <span className="material-symbols-outlined text-3xl mb-1">
                       print
                     </span>

@@ -1,5 +1,6 @@
 import React from "react";
 import GenericPageManager from "../../../components/shared/GenericPageManager";
+import ReportFilterForm from "../../../components/shared/ReportFilterForm";
 import { employeeService } from "../../../services/domainServices";
 
 const DeductionHistory = () => {
@@ -17,7 +18,7 @@ const DeductionHistory = () => {
       icon="money_off"
       service={employeeService}
       columns={columns}
-      FormComponent={() => <div>Form Placeholder</div>}
+      FormComponent={({ onFilter }) => <ReportFilterForm onFilter={onFilter} />}
       backPath="/reports/detailed"
       hideAddButton={true}
     />

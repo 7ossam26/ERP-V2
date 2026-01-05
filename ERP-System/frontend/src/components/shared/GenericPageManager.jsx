@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import GenericDataTable from "./GenericDataTable";
 import Modal from "../ui/Modal";
@@ -48,7 +49,7 @@ const GenericPageManager = ({
       loadData();
     } catch (error) {
       console.error("Failed to save data", error);
-      alert("حدث خطأ أثناء الحفظ");
+      toast.error("حدث خطأ أثناء الحفظ");
     }
   };
 
