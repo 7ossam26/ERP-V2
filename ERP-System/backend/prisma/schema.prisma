@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ============================================
+// Employee Management
+// ============================================
+
+model Employee {
+  id               Int       @id @default(autoincrement())
+  name             String
+  position         String
+  branch           String
+  phoneNumber      String    @map("phone_number")
+  nationalId       String?   @map("national_id")
+  workingDaysPerMonth Int    @default(26) @map("working_days_per_month")
+  workingHoursPerDay  Decimal @default(8) @db.Decimal(4, 2) @map("working_hours_per_day")
+  weeklyHoliday    String    @default("Friday") @map("weekly_holiday")
+  salary           Decimal   @db.Decimal(10, 2)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@map("employees")
+}
