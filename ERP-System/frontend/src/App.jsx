@@ -13,6 +13,7 @@ import WarehouseManager from "./pages/warehouses/WarehouseManager";
 import EmployeeManager from "./pages/employees/EmployeeManager";
 import SupplierManager from "./pages/suppliers/SupplierManager";
 import ClientManager from "./pages/clients/ClientManager";
+import CategoryManager from "./pages/categories/CategoryManager";
 import ItemManager from "./pages/items/ItemManager";
 import TreasuryManager from "./pages/treasuries/TreasuryManager";
 import BranchManager from "./pages/branches/BranchManager";
@@ -24,6 +25,15 @@ import BranchesSalesPage from "./pages/sales/BranchesSalesPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import HRPage from "./pages/hr/HRPage";
+import DetailedReportsPage from "./pages/reports/DetailedReportsPage";
+import GeneralReportPage from "./pages/reports/GeneralReportPage"; // Import General Report
+import AdvancePaymentsHistory from "./pages/reports/history/AdvancePaymentsHistory";
+import CashTransferHistory from "./pages/reports/history/CashTransferHistory";
+import CreationHistory from "./pages/reports/history/CreationHistory";
+import DailyTransactions from "./pages/reports/history/DailyTransactions";
+import DeductionHistory from "./pages/reports/history/DeductionHistory";
+import PurchaseHistory from "./pages/reports/history/PurchaseHistory";
+import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
 function App() {
@@ -51,6 +61,7 @@ function App() {
           <Route path="/employees" element={<EmployeeManager />} />
           <Route path="/suppliers" element={<SupplierManager />} />
           <Route path="/clients" element={<ClientManager />} />
+          <Route path="/categories" element={<CategoryManager />} />
           <Route path="/items" element={<ItemManager />} />
           <Route path="/treasuries" element={<TreasuryManager />} />
           <Route path="/branches" element={<BranchManager />} />
@@ -62,7 +73,40 @@ function App() {
           <Route path="/cashier-transfer" element={<CashierTransferPage />} />
           <Route path="/branches-sales" element={<BranchesSalesPage />} />
           <Route path="/inventory" element={<InventoryPage />} />
+          <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports/general" element={<GeneralReportPage />} />
+          <Route path="/reports/detailed" element={<DetailedReportsPage />} />
+
+          {/* Detailed History Reports */}
+          <Route
+            path="/reports/custom/advance-payments"
+            element={<AdvancePaymentsHistory />}
+          />
+          <Route
+            path="/reports/custom/cash-transfers"
+            element={<CashTransferHistory />}
+          />
+          <Route
+            path="/reports/custom/creations"
+            element={<CreationHistory />}
+          />
+          <Route
+            path="/reports/custom/daily-transactions"
+            element={<DailyTransactions />}
+          />
+          <Route
+            path="/reports/custom/deductions"
+            element={<DeductionHistory />}
+          />
+          <Route
+            path="/reports/custom/purchases"
+            element={<PurchaseHistory />}
+          />
+          <Route
+            path="/reports/custom/stock-transfers"
+            element={<StockTransferHistory />}
+          />
           <Route path="/hr" element={<HRPage />} />
         </Route>
       </Routes>

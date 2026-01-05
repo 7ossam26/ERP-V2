@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { clientService } from "../../services/domainServices";
 
-const ClientForm = ({ initialData, onClose, onSave }) => {
+export const ClientForm = ({ initialData, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     id: initialData?.id || "#",
     name: initialData?.name || "",

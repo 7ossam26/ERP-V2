@@ -40,8 +40,8 @@ const CreatesDashboard = () => {
       onClick: () => navigate("/clients"),
     },
     {
-      icon: "category",
-      title: "الاصناف",
+      icon: "inventory_2",
+      title: "الأصناف",
       description: "المنتجات والأسعار",
       onClick: () => navigate("/items"),
     },
@@ -50,6 +50,12 @@ const CreatesDashboard = () => {
       title: "المخازن",
       description: "الجرد والمستودعات",
       onClick: () => navigate("/warehouses"),
+    },
+    {
+      icon: "category",
+      title: "التصنيفات",
+      description: "إدارة فئات المنتجات",
+      onClick: () => navigate("/categories"),
     },
     {
       icon: "savings",
