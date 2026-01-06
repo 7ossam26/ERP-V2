@@ -81,7 +81,7 @@ const MainDashboard = () => {
       icon: "receipt_long",
       title: "مصروفات",
       subtitle: "إدارة المصروفات والفواتير",
-      onClick: () => alert("قريباً: المصروفات"),
+      onClick: () => navigate("/expenses"),
     },
     {
       icon: "groups",

@@ -4,6 +4,7 @@ import {
   treasuryService,
   branchService,
 } from "../../../services/domainServices";
+import ReportFilterForm from "../../../components/shared/ReportFilterForm";
 import { useState, useEffect } from "react";
 
 const DailyTransactions = () => {
@@ -56,7 +57,7 @@ const DailyTransactions = () => {
       icon="receipt_long"
       service={treasuryService}
       columns={columns}
-      FormComponent={() => <div>Form Placeholder</div>}
+      FormComponent={({ onFilter }) => <ReportFilterForm onFilter={onFilter} />}
       backPath="/reports/detailed"
       hideAddButton={true}
       headerActions={BranchFilter}

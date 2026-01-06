@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import GenericDataTable from "./GenericDataTable";
 import Modal from "../ui/Modal";

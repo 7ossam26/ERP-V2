@@ -1,109 +1,30 @@
 import React, { useState, useEffect } from "react";
 import GenericDataTable from "../../components/shared/GenericDataTable";
 
-import { warehouseService } from "../../services/domainServices";
+import { warehouseService, itemService } from "../../services/domainServices";
 
 const InventoryPage = () => {
   const [filter, setFilter] = useState("الكل");
   const [warehouses, setWarehouses] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState("all");
 
   useEffect(() => {
-    const fetchWarehouses = async () => {
+    const fetchData = async () => {
       try {
-        const data = await warehouseService.getAll();
-        setWarehouses(data);
+        const [warehousesData, itemsData] = await Promise.all([
+          warehouseService.getAll(),
+          itemService.getAll(),
+        ]);
+        setWarehouses(warehousesData);
+        setInventoryItems(itemsData);
       } catch (error) {
-        console.error("Failed to fetch warehouses:", error);
+        console.error("Failed to fetch data:", error);
       }
     };
-    fetchWarehouses();
+    fetchData();
   }, []);
 
-  // Mock Data
-  const inventoryItems = [
-    {
-      id: 1,
-      name: "اسبريسو غامق",
-      code: "CF-001",
-      category: "بن القهوة",
-      categoryColor: "bg-primary",
-      quantity: 45,
-      unit: "كجم",
-      purchasePrice: 280,
-      sellPrice: 450,
-      status: "متوفر",
-      statusColor:
-        "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuAZAoZmkwZyH2TdUSGj3-yPf895fUr3F-u-s9LLWqaTONineDda9iXdLONis9YgeCYtotWHHDIZF1Ie8b7wCISWbURtKN7GWcSAmW6m3AuHsxSAGYnWxF59DzNtTs7E1-PKXhNnrBxTyQN1E8ZKUVdHPfcNaO0mt7rUQaMyckXYzvMP8Wn7CpZWdpH6t_KQj04mhA_M5uhpHcN5On3Dk7HKIaEhdCuQuanYi3gFUk6jXfdiTRPW4er9rDAUlJdFh_uGimu-gTpqIi4N",
-    },
-    {
-      id: 2,
-      name: "شراب الفانيليا",
-      code: "SY-042",
-      category: "مستلزمات",
-      categoryColor: "bg-blue-700",
-      quantity: 2,
-      unit: "نقص بالمخزون",
-      unitIsAlert: true,
-      purchasePrice: 120,
-      sellPrice: 180,
-      status: "نقص بالمخزون",
-      statusColor:
-        "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuB0d9jLSepehzP-XfUpMlaxyPFCK5yERbmAiXOFfSouYTiB39FlQkNNqiVc2QJ1IE5KW9Cgrbxv_i93IMKDfdNS2Ict03pi7fs3g5lnRCGJS77WBuusuMsNB57wTEKw6zQSh616lF79VNvBtFjC02ZawpiwCsTmy-y4uo4du3WGxx7yNT47kNs0G93VWxpxH83NVtufCYyHH4t2eHbxAi6lI-IxVwXr9-bUeWd6_78B_8i76gB6-EslV3ynjM4sNZ3H6maSUPPNCU57",
-    },
-    {
-      id: 3,
-      name: "كرواسون بالزبدة",
-      code: "PA-105",
-      category: "مخبوزات",
-      categoryColor: "bg-yellow-600",
-      quantity: 12,
-      unit: "قطعة",
-      purchasePrice: 15,
-      sellPrice: 35,
-      status: "متوفر",
-      statusColor:
-        "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuA6iJfh0cXzI4NNeSoTl0uZI-O0OwgdbNf-6kmTBKZtoRrQIWRcFRb7Xz9v-Ut_30mTZAi8xIEZ0ZbMlMvmI7tx2gtca7Puo8ujDB7OGxkyx6PFiqZopLmB_tt5ci3224-1R1ZY73k-_xpW42siFyEDBirT99Z6DIteF_f2SD9W_uUe8nYtgYvqfOBcxXR_JQovfxxHVyF4X9VEggqgl8ls7zbiSo_XR5YYb5BR7BXnGaWSSF0SPLsk4HKqOs9nyJVE4FTyd1dp_nfN",
-    },
-    {
-      id: 4,
-      name: "أكواب تيك أواي (12oz)",
-      code: "SU-882",
-      category: "مستلزمات",
-      categoryColor: "bg-blue-700",
-      quantity: 500,
-      unit: "قطعة",
-      purchasePrice: 2.5,
-      sellPrice: "-",
-      status: "متوفر",
-      statusColor:
-        "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuB25LHJMYmjYVyTpzw6pENRhQ4_zihPoPWr0Giw8yELR_6cG05jkENK8qBkI0LntbFxCbTS48ILLgsySuIT-P6qXv2YhcluKHvg-RtoYaI6ODIOh7KfpW0Qt1M00Kizbej0uGLc6HO4FelPdo2YCl4dVpuRN4rNbT5wlbegr9T6DjKEjK-A8FmTLnvbU2K4zJxynJFsVgKpLI4r0lyc3YxnugwMCYS6RJamA7WYPZnWXLWx1eIcBkTDyfVmcNzM5lsQ7OteAumWiImc",
-    },
-    {
-      id: 5,
-      name: "كولومبي وسط",
-      code: "CF-003",
-      category: "بن القهوة",
-      categoryColor: "bg-primary",
-      quantity: 22,
-      unit: "كجم",
-      purchasePrice: 310,
-      sellPrice: 520,
-      status: "متوفر",
-      statusColor:
-        "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDuGUI0zrmKbp5GHC-q-0BghLmvY6XYEF41CYyu3YFZ329xs3tvlB0w4GW9yoZJpS6cJH5XgyClBxiEcUFxYASFx-vLOo_HoF_CjdGrA74Fd0CuKopL3Ok2g7ZcKNcBMkFxwoNP9swlYkc5I5Jp7hGHU8J7kgNxJcGa7v5uPwsrlruGHZvffco3J-91fBIZw5k4BAClA0rhUHNmkNK5OahW3Hqdk81p7bLK8YBW2nXnOZzZ2_Ax6I4WONgK-HHnyrsVZ5cVHZZ5Rf-y",
-    },
-  ];
 
   const categories = ["الكل", "بن القهوة", "مخبوزات", "مشروبات", "مستلزمات"];
 
@@ -144,27 +65,33 @@ const InventoryPage = () => {
     {
       header: "الكمية المتاحة",
       accessor: "quantity",
-      render: (item) => (
-        <div className="text-center">
-          {item.unitIsAlert ? (
-            <div className="flex flex-col items-center">
-              <span className="text-primary font-bold">{item.quantity}</span>
-              <span className="text-[10px] text-primary uppercase font-bold">
-                {item.unit}
-              </span>
-            </div>
-          ) : (
-            <>
-              <span className="text-text-main dark:text-text-dark font-bold">
-                {item.quantity}
-              </span>
-              <span className="text-xs text-text-muted dark:text-gray-400 mr-1">
-                {item.unit}
-              </span>
-            </>
-          )}
-        </div>
-      ),
+      render: (item) => {
+        const isLowStock = item.quantity <= 10;
+        return (
+          <div className="text-center">
+            {isLowStock ? (
+              <div className="flex flex-col items-center animate-pulse">
+                <span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
+                  {item.quantity}
+                  <span className="material-symbols-outlined text-[14px]">warning</span>
+                </span>
+                <span className="text-[10px] text-red-600 dark:text-red-400 uppercase font-bold">
+                  {item.unit}
+                </span>
+              </div>
+            ) : (
+              <>
+                <span className="text-text-main dark:text-text-dark font-bold">
+                  {item.quantity}
+                </span>
+                <span className="text-xs text-text-muted dark:text-gray-400 mr-1">
+                  {item.unit}
+                </span>
+              </>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "سعر الشراء",
@@ -187,14 +114,20 @@ const InventoryPage = () => {
     {
       header: "الحالة",
       accessor: "status",
-      render: (item) => (
-        <div className="text-center">
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${item.statusColor}`}>
-            {item.status}
-          </span>
-        </div>
-      ),
+      render: (item) => {
+        const isLowStock = item.quantity <= 10;
+        return (
+          <div className="text-center">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${isLowStock
+                ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200"
+                : "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200"
+                }`}>
+              {isLowStock ? "نقص بالمخزون" : "متوفر"}
+            </span>
+          </div>
+        );
+      },
     },
   ];
 
@@ -344,11 +277,10 @@ const InventoryPage = () => {
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}
-                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 ${
-                  filter === cat
-                    ? "bg-primary text-surface-light border-transparent shadow-md shadow-[#3E2723]/10 transform scale-105"
-                    : "bg-background-light dark:bg-background-dark text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-border-light dark:border-border-dark"
-                }`}>
+                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 ${filter === cat
+                  ? "bg-primary text-surface-light border-transparent shadow-md shadow-[#3E2723]/10 transform scale-105"
+                  : "bg-background-light dark:bg-background-dark text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-border-light dark:border-border-dark"
+                  }`}>
                 {cat}
               </button>
             ))}

@@ -1,6 +1,7 @@
 import React from "react";
 import GenericPageManager from "../../../components/shared/GenericPageManager";
 import { supplierService } from "../../../services/domainServices";
+import ReportFilterForm from "../../../components/shared/ReportFilterForm";
 
 const PurchaseHistory = () => {
   const columns = [
@@ -18,7 +19,7 @@ const PurchaseHistory = () => {
       icon="shopping_cart"
       service={supplierService}
       columns={columns}
-      FormComponent={() => <div>Form Placeholder</div>}
+      FormComponent={({ onFilter }) => <ReportFilterForm onFilter={onFilter} />}
       backPath="/reports/detailed"
       hideAddButton={true}
     />

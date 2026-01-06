@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { branchService } from "../../services/domainServices";
+import toast from "react-hot-toast";
+import { branchService, employeeService } from "../../services/domainServices";
 import Modal from "../../components/ui/Modal";
 
 const TransactionForm = ({ type, employees, onClose, onSave }) => {
@@ -100,11 +101,10 @@ const TransactionForm = ({ type, employees, onClose, onSave }) => {
         </button>
         <button
           type="submit"
-          className={`flex-1 py-2.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg transition-all ${
-            type === "advance"
-              ? "bg-[#FF7043] hover:bg-[#F4511E]"
-              : "bg-red-600 hover:bg-red-700"
-          }`}>
+          className={`flex-1 py-2.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg transition-all ${type === "advance"
+            ? "bg-[#FF7043] hover:bg-[#F4511E]"
+            : "bg-red-600 hover:bg-red-700"
+            }`}>
           {type === "advance" ? "تأكيد السلفة" : "تأكيد الخصم"}
         </button>
       </div>
@@ -112,119 +112,88 @@ const TransactionForm = ({ type, employees, onClose, onSave }) => {
   );
 };
 
+
 const HRPage = () => {
+  const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null); // 'advance' or 'deduction'
+
+  const fetchData = async () => {
+    try {
+      const [branchesData, employeesData] = await Promise.all([
+        branchService.getAll(),
+        employeeService.getAll(),
+      ]);
+      setBranches(branchesData);
+      setEmployees(employeesData);
+    } catch (error) {
+      console.error("Failed to fetch data", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const openModal = (type) => {
     setModalType(type);
     setIsModalOpen(true);
   };
 
-  const handleSaveTransaction = (data) => {
-    console.log("Saving Transaction:", modalType, data);
-    // Here you would call the API to save
-    setIsModalOpen(false);
-    alert(
-      `تم إضافة ${modalType === "advance" ? "السلفة" : "الخصم"} للموظف بنجاح`
-    );
+  const handleSaveTransaction = async (data) => {
+    try {
+      const employee = employees.find((emp) => emp.id === data.employeeId);
+      if (!employee) return;
+
+      const amount = parseFloat(data.amount);
+      let updates = {};
+
+      if (modalType === "advance") {
+        const currentAdvances =
+          employee.advances === "-" ? 0 : parseFloat(employee.advances.toString().replace(/,/g, ""));
+        const newAdvances = currentAdvances + amount;
+
+        // Calculate remaining
+        const salary = parseFloat(employee.salary.toString().replace(/,/g, ""));
+        const currentDeductions =
+          employee.deductions === "-" ? 0 : parseFloat(employee.deductions.toString().replace(/,/g, ""));
+
+        updates = {
+          advances: newAdvances,
+          remaining: salary - newAdvances - currentDeductions
+        };
+      } else {
+        const currentDeductions =
+          employee.deductions === "-" ? 0 : parseFloat(employee.deductions.toString().replace(/,/g, ""));
+        const newDeductions = currentDeductions + amount;
+
+        // Calculate remaining
+        const salary = parseFloat(employee.salary.toString().replace(/,/g, ""));
+        const currentAdvances =
+          employee.advances === "-" ? 0 : parseFloat(employee.advances.toString().replace(/,/g, ""));
+
+        updates = {
+          deductions: newDeductions,
+          remaining: salary - currentAdvances - newDeductions
+        };
+      }
+
+      await employeeService.update(employee.id, updates);
+      await fetchData(); // Refresh data
+
+      setIsModalOpen(false);
+      toast.success(
+        `تم إضافة ${modalType === "advance" ? "السلفة" : "الخصم"} للموظف بنجاح`
+      );
+    } catch (error) {
+      console.error("Failed to save transaction", error);
+      toast.error("حدث خطأ أثناء حفظ المعاملة");
+    }
   };
 
-  useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        const data = await branchService.getAll();
-        setBranches(data);
-      } catch (error) {
-        console.error("Failed to fetch branches", error);
-      }
-    };
-    fetchBranches();
-  }, []);
-  const employees = [
-    {
-      id: 1,
-      name: "أحمد محمد",
-      role: "مدير فرع",
-      code: "EMP-001",
-      phone: "+20 101 234 5678",
-      salary: "8,000",
-      advances: "-",
-      deductions: "-",
-      remaining: "8,000",
-      status: "نشط",
-      statusColor:
-        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCOPfWWWsWaHp3fUBScVZJLURjbDbIy3CGfqsP0NC9GP0dVWGfrL8MyCSJ4hbKqBCVMSQh5RDg-nFIwJ1a0HhvFDJUjGtKA9G1sFOURpzYbKjwNQzAixZncslP5BOdGCL1Pe5BRxXfix9NPlR5OmGg_UtveCqYUYtezAknVFWULQbv8XVa_J9gZm4osT9Pf0h-vjMEGcG9JxSKt5rvmp814zN9jIPaKJHlPwkTAYsgt_z-lDjPovK5v8ceBayfuUHjD6qu_ARzcjB9T",
-    },
-    {
-      id: 2,
-      name: "سارة علي",
-      role: "محاسب",
-      code: "EMP-002",
-      phone: "+20 112 345 6789",
-      salary: "6,000",
-      advances: "500",
-      deductions: "-",
-      remaining: "5,500",
-      status: "نشط",
-      statusColor:
-        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBnQmwZAVuFwTfAZXF_6Lx3DqeL5TYGO5WFLjGH_iVfPnxuqlrDboHSEvIH3fmuGoO_zeL-uWnFFhEp2zQxwf_3cqpXUFcurjqlKbgPnXPXnefYcdRzqZnzGVQ4hMgCFHp_Fxj5sOIa1ZTOWeufQ6yaLDM_jxAkm31Z3ZwIcF8aLfmBdz4v41_pkoEtU_eaYj4O-_x5YkzvihACQ26aRJxMN-eIYFcPoQN2w-hJewJ5ucRyg6BFzf_o_s_1oO8TwE3Ic0RbxUP4l-Mq",
-    },
-    {
-      id: 3,
-      name: "محمد ابراهيم",
-      role: "باريستا",
-      code: "EMP-003",
-      phone: "+20 123 456 7890",
-      salary: "4,500",
-      advances: "1,200",
-      deductions: "-",
-      remaining: "3,300",
-      status: "نشط",
-      statusColor:
-        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCy8TFAkz4QAq1iZhWKW_0inxs6Oz6sH80w8abhTmaY9Eci9oDqb_r-BKhDOZKMCZCwbYden5Sylvzf-240wqDpx_HLRq0ej67AV4mErCguRJ9X_TiMtFVsG4ZX0rUXKDMRJWS4iAeuK-9euG3yV-pjsU4imXSzmBqQc0z3Y4GOzx66UmMKkfpjXYwdoThz670lfwWmIM3oN2M23DjjGpjsLvBnt9iyq13ZFECTEq13fAkfEt1_-BBA0PmZhd1ezwXNt-WxGwBZ9Y_T",
-    },
-    {
-      id: 4,
-      name: "محمود حسن",
-      role: "ويتر",
-      code: "EMP-004",
-      phone: "+20 155 555 5555",
-      salary: "3,500",
-      advances: "200",
-      deductions: "-",
-      remaining: "3,300",
-      status: "إجازة",
-      statusColor:
-        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuD6GRmjro93q-zGCE-oOX2h4E3VLBVuXOLT00Sume17yj0f56qnrdLuiUQg4CA9gFklDRlRTXeaVKiZuc8y7uD3NQo3DiI8SGmyltESXmhQLHdyX9d-mvMKQugb17mWRrObH2HkbM8kig9q2iYNyQyVfwyr7lR4h7HjzxZWP7kCq0cPrsdf_WHX5WMyooTxDDe47jpVlDtnys83DtVezOmWAv1R-qrmqPr9OWTFJSzHYLMCT6YImqDsoyY7zpmgtCkStGABVODtJJAW",
-    },
-    {
-      id: 5,
-      name: "يوسف كمال",
-      role: "كاشير",
-      code: "EMP-005",
-      phone: "+20 109 999 9999",
-      salary: "4,000",
-      advances: "-",
-      deductions: "-",
-      remaining: "4,000",
-      status: "نشط",
-      statusColor:
-        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      image:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDdwoFZ9lRBlMVHRNrAoucX2lfsdolIBk41-HafPjbwIeFC79gPzNcaA-3SoTCSu_XvHz-zRemVDTn4BBTZgVeWzDykXgUwS-N8qeUOWj2_hbe-WMqy0CUe-zWxL4ZinmEXMSq81YRvNaDcpvY14wbwgxTNmeGsay19LkjfQvulmrWcNZ4o7-x2-UNv6xdL-27iDMhvxuMh8yh1LIaGhBqDi4dAUQSi7JjTQGebznLF5I2GgwLMYYTBdKl-B9SZfoK54qaupUPyR3bh",
-    },
-  ];
+
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-[calc(100vh-6rem)] flex flex-col overflow-hidden">
@@ -403,11 +372,10 @@ const HRPage = () => {
                       {employee.salary} ج.م
                     </td>
                     <td
-                      className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
-                        employee.advances !== "-"
-                          ? "text-orange-600 dark:text-orange-400"
-                          : "text-gray-400 dark:text-gray-500"
-                      }`}>
+                      className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${employee.advances !== "-"
+                        ? "text-orange-600 dark:text-orange-400"
+                        : "text-gray-400 dark:text-gray-500"
+                        }`}>
                       {employee.advances !== "-"
                         ? `${employee.advances} ج.م`
                         : "-"}
