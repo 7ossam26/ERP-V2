@@ -2,11 +2,22 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { warehouseService } from "../../services/warehouseService";
 
-const WarehouseForm = ({ initialData, onClose, onSave }) => {
+const WarehouseForm = ({ initialData, onClose, onSave, data = [] }) => {
   const [formData, setFormData] = useState({
-    code: initialData?.code || "",
     name: initialData?.name || "",
   });
+
+  // Calculate next ID for new warehouse
+  const getNextId = () => {
+    if (initialData?.id) {
+      return initialData.id; // Editing existing warehouse
+    }
+    if (data.length === 0) {
+      return 1; // First warehouse
+    }
+    const maxId = Math.max(...data.map((item) => item.id || 0));
+    return maxId + 1;
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -33,8 +44,7 @@ const WarehouseForm = ({ initialData, onClose, onSave }) => {
             className="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow opacity-70 cursor-not-allowed"
             id="code"
             name="code"
-            value={formData.code}
-            onChange={handleChange}
+            value={getNextId()}
             placeholder="ID تلقائي"
             type="text"
             readOnly
@@ -89,7 +99,7 @@ const WarehouseManager = () => {
       accessor: "code",
       render: (item) => (
         <span className="font-mono text-gray-600 dark:text-gray-300">
-          {item.code || `#WRH-${item.id}`}
+          {item.code || `${item.id}`}
         </span>
       ),
     },

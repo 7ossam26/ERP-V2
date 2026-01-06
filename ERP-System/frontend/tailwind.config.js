@@ -33,6 +33,15 @@ export default {
         soft: "0 4px 20px -2px rgba(111, 78, 55, 0.05)",
         "soft-dark": "0 4px 20px -2px rgba(0, 0, 0, 0.4)",
       },
+      keyframes: {
+        "slide-down": {
+          "0%": { transform: "translateY(-100%)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+      },
+      animation: {
+        "slide-down": "slide-down 0.3s ease-out",
+      },
     },
   },
   plugins: [],

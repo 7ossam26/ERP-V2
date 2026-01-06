@@ -6,7 +6,12 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -21,12 +26,16 @@ app.get("/api/health", (req, res) => {
 
 // Import routes
 const employeesRouter = require("./routes/employees");
+const warehousesRouter = require("./routes/warehouses");
+const treasuriesRouter = require("./routes/treasuries");
 
 // Database connection
 const prisma = require("./config/database");
 
 // API Routes
 app.use("/api/employees", employeesRouter);
+app.use("/api/warehouses", warehousesRouter);
+app.use("/api/treasuries", treasuriesRouter);
 // TODO: Add more routes as needed
 // app.use('/api/suppliers', require('./routes/suppliers'));
 // app.use('/api/clients', require('./routes/clients'));

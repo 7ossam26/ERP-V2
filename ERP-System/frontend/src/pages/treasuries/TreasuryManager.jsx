@@ -2,11 +2,22 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { treasuryService } from "../../services/domainServices";
 
-const TreasuryForm = ({ initialData, onClose, onSave }) => {
+const TreasuryForm = ({ initialData, onClose, onSave, data = [] }) => {
   const [formData, setFormData] = useState({
-    id: initialData?.id || "#",
     name: initialData?.name || "",
   });
+
+  // Calculate next ID for new treasury
+  const getNextId = () => {
+    if (initialData?.id) {
+      return initialData.id; // Editing existing treasury
+    }
+    if (data.length === 0) {
+      return 1; // First treasury
+    }
+    const maxId = Math.max(...data.map((item) => item.id || 0));
+    return maxId + 1;
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,7 +38,7 @@ const TreasuryForm = ({ initialData, onClose, onSave }) => {
           <input
             className="w-full bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-500 dark:text-gray-400 focus:ring-0 cursor-not-allowed"
             name="id"
-            value={formData.id}
+            value={getNextId()}
             readOnly
             placeholder="ID تلقائي"
             type="text"

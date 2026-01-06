@@ -32,7 +32,12 @@ const GenericDataTable = ({
           {loading ? (
             <tr>
               <td colSpan={columns.length + 1} className="text-center p-10">
-                جاري التحميل...
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4"></div>
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">
+                    جاري التحميل...
+                  </p>
+                </div>
               </td>
             </tr>
           ) : data.length === 0 ? (

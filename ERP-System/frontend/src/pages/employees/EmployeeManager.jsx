@@ -2,9 +2,15 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { employeeService } from "../../services/domainServices";
 
-const EmployeeForm = ({ initialData, onClose, onSave }) => {
+const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
+  // Calculate next ID if creating new employee
+  const nextId =
+    data && data.length > 0
+      ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
+      : 1;
+
   const [formData, setFormData] = useState({
-    id: initialData?.id || "#",
+    id: initialData?.id || nextId,
     name: initialData?.name || "",
     branch: initialData?.branch || "",
     phone: initialData?.phone || "",
@@ -102,6 +108,7 @@ const EmployeeForm = ({ initialData, onClose, onSave }) => {
             onChange={handleChange}
             placeholder="مثال: محاسب، باريستا"
             type="text"
+            required
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             work
@@ -231,14 +238,27 @@ const EmployeeForm = ({ initialData, onClose, onSave }) => {
         <button
           type="button"
           onClick={onClose}
-          className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all">
+          disabled={isSaving}
+          className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed">
           إلغاء
         </button>
         <button
           type="submit"
-          className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-          <span className="material-icons-round text-lg">save</span>
-          <span>حفظ التغييرات</span>
+          disabled={isSaving}
+          className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          {isSaving ? (
+            <>
+              <span className="material-icons-round text-lg animate-spin">
+                refresh
+              </span>
+              <span>جاري الحفظ...</span>
+            </>
+          ) : (
+            <>
+              <span className="material-icons-round text-lg">save</span>
+              <span>حفظ التغييرات</span>
+            </>
+          )}
         </button>
       </div>
     </form>

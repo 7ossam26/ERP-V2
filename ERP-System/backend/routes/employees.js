@@ -6,7 +6,7 @@ const prisma = require("../config/database");
 router.get("/", async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     });
     res.json(employees);
   } catch (error) {

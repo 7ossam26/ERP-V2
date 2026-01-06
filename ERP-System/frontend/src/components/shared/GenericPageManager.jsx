@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GenericDataTable from "./GenericDataTable";
 import Modal from "../ui/Modal";
+import Toast, { useToast } from "../ui/Toast";
 
 const GenericPageManager = ({
   title,
@@ -20,6 +21,9 @@ const GenericPageManager = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const { toast, showToast, hideToast } = useToast();
 
   const loadData = async () => {
     setLoading(true);
@@ -28,6 +32,7 @@ const GenericPageManager = ({
       setData(result);
     } catch (error) {
       console.error("Failed to load data", error);
+      showToast(`فشل تحميل البيانات: ${error.message || "حدث خطأ"}`, "error");
     }
     setLoading(false);
   };
@@ -37,18 +42,23 @@ const GenericPageManager = ({
   }, []);
 
   const handleSave = async (formData) => {
+    setIsSaving(true);
     try {
       if (editingItem) {
         await service.update(editingItem.id, formData);
+        showToast("تم التحديث بنجاح", "success");
       } else {
         await service.create(formData);
+        showToast("تمت الإضافة بنجاح", "success");
       }
       setIsModalOpen(false);
       setEditingItem(null);
-      loadData();
+      await loadData();
     } catch (error) {
       console.error("Failed to save data", error);
-      alert("حدث خطأ أثناء الحفظ");
+      showToast(`فشل الحفظ: ${error.message || "حدث خطأ"}`, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -59,11 +69,16 @@ const GenericPageManager = ({
 
   const handleDelete = async (id) => {
     if (window.confirm("هل أنت متأكد من الحذف؟")) {
+      setDeletingId(id);
       try {
         await service.delete(id);
-        loadData();
+        showToast("تم الحذف بنجاح", "success");
+        await loadData();
       } catch (error) {
         console.error("Failed to delete", error);
+        showToast(`فشل الحذف: ${error.message || "حدث خطأ"}`, "error");
+      } finally {
+        setDeletingId(null);
       }
     }
   };
@@ -136,8 +151,15 @@ const GenericPageManager = ({
           initialData={editingItem}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSave}
+          isSaving={isSaving}
+          data={data}
         />
       </Modal>
+
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={hideToast} />
+      )}
     </div>
   );
 };
