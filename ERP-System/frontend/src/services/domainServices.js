@@ -8,3 +8,4 @@ export const treasuryService = createMockService("erp_treasuries");
 export const branchService = createMockService("erp_branches");
 export const categoryService = createMockService("erp_categories");
 export const warehouseService = createMockService("erp_warehouses");
+export const expenseService = createMockService("erp_expenses");

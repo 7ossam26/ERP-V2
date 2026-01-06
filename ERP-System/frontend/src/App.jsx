@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import {
   BrowserRouter as Router,
@@ -38,7 +38,20 @@ import PurchaseHistory from "./pages/reports/history/PurchaseHistory";
 import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
+
+import { seedData } from "./services/seedData";
+
 function App() {
+  useEffect(() => {
+    // Seeding Logic
+    Object.keys(seedData).forEach((key) => {
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, JSON.stringify(seedData[key]));
+        console.log(`Seeded ${key}`);
+      }
+    });
+  }, []);
+
   return (
     <Router>
       <Toaster position="top-center" reverseOrder={false} />

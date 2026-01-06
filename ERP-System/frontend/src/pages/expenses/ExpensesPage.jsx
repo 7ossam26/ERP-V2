@@ -1,62 +1,53 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AddExpenseModal from "./AddExpenseModal";
+import { expenseService } from "../../services/domainServices";
+import toast from "react-hot-toast";
 
 const ExpensesPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [expenses, setExpenses] = useState([
-        {
-            id: 1,
-            date: "2024-01-25",
-            description: "شراء حبوب بن (برازيلي - أرابيكا)",
-            paymentMethod: "نقدي",
-            amount: 5400,
-        },
-        {
-            id: 2,
-            date: "2024-01-24",
-            description: "فاتورة كهرباء شهر ديسمبر",
-            paymentMethod: "تحويل بنكي",
-            amount: 1200,
-        },
-        {
-            id: 3,
-            date: "2024-01-24",
-            description: "سلفة - محمد أحمد (باريستا)",
-            paymentMethod: "نقدي",
-            amount: 500,
-        },
-        {
-            id: 4,
-            date: "2024-01-23",
-            description: "أكواب ورقية (1000 قطعة)",
-            paymentMethod: "نقدي",
-            amount: 850,
-        },
-        {
-            id: 5,
-            date: "2024-01-22",
-            description: "صيانة ماكينة الإسبريسو",
-            paymentMethod: "تحويل بنكي",
-            amount: 2200,
-        },
-    ]);
+    const [expenses, setExpenses] = useState([]);
 
-    const handleAddExpense = (newExpense) => {
-        setExpenses((prev) => [
-            {
-                id: Date.now(),
-                ...newExpense,
-                paymentMethod: "نقدي", // Defaulting for now as dialog doesn't have payment method selector in basic form
-            },
-            ...prev,
-        ]);
-    };
-
-    const handleDelete = (id) => {
-        if (window.confirm("هل أنت متأكد من حذف هذا المصروف؟")) {
-            setExpenses((prev) => prev.filter((item) => item.id !== id));
+    const fetchExpenses = async () => {
+        try {
+            const data = await expenseService.getAll();
+            setExpenses(data);
+        } catch (error) {
+            console.error("Failed to fetch expenses", error);
         }
     };
+
+    useEffect(() => {
+        fetchExpenses();
+    }, []);
+
+    const handleAddExpense = async (newExpense) => {
+        try {
+            await expenseService.create({
+                ...newExpense,
+                paymentMethod: "نقدي", // Defaulting as before
+                date: new Date().toISOString().split('T')[0] // Ensure date is set if not provided
+            });
+            await fetchExpenses();
+            toast.success("تم إضافة المصروف بنجاح");
+        } catch (error) {
+            console.error("Failed to add expense", error);
+            toast.error("فشل إضافة المصروف");
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (window.confirm("هل أنت متأكد من حذف هذا المصروف؟")) {
+            try {
+                await expenseService.delete(id);
+                setExpenses((prev) => prev.filter((item) => item.id !== id));
+                toast.success("تم حذف المصروف بنجاح");
+            } catch (error) {
+                console.error("Failed to delete expense", error);
+                toast.error("فشل حذف المصروف");
+            }
+        }
+    };
+
 
     return (
         <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden">

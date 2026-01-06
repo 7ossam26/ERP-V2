@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
 import Modal from "../../components/ui/Modal";
 import { ClientForm } from "../clients/ClientManager";
-import { clientService } from "../../services/domainServices";
+import { clientService, itemService } from "../../services/domainServices";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -37,10 +37,14 @@ const POSPage = () => {
 
   const filteredClients = clients.filter((client) => {
     const search = clientSearchTerm.toLowerCase();
+    const name = client.name ? client.name.toLowerCase() : "";
+    const phone = client.phone ? client.phone : "";
+    const id = client.id ? client.id.toString() : "";
+
     return (
-      client.name.toLowerCase().includes(search) ||
-      (client.phone && client.phone.includes(search)) ||
-      (client.id && client.id.toString().includes(search))
+      name.includes(search) ||
+      phone.includes(search) ||
+      id.includes(search)
     );
   });
 
@@ -50,88 +54,50 @@ const POSPage = () => {
     setIsClientDropdownOpen(false);
   };
 
-  const categories = [
-    { id: "All", name: "كل المنتجات" },
-    { id: "HotDrinks", name: "مشروبات ساخنة" },
-    { id: "ColdDrinks", name: "مشروبات باردة" },
-    { id: "Pastries", name: "معجنات" },
-    { id: "CoffeeBeans", name: "حبوب بن" },
-    { id: "Accessories", name: "اكسسوارات" },
-  ];
 
-  const products = [
-    { id: 1, name: "كابتشينو (وسط)", price: 65.0, category: "HotDrinks" },
-    { id: 2, name: "لاتيه", price: 70.0, category: "HotDrinks" },
-    {
-      id: 3,
-      name: "اسبريسو سنجل",
-      price: 40.0,
-      unit: "فنجان",
-      category: "HotDrinks",
-    },
-    { id: 4, name: "قهوة تركي", price: 35.0, category: "HotDrinks" },
-    {
-      id: 5,
-      name: "ماكينة قهوة منزلية",
-      price: 2240.0,
-      category: "Accessories",
-    },
-    {
-      id: 6,
-      name: "مياه معدنية صغيرة",
-      price: 10.0,
-      unit: "زجاجة",
-      category: "ColdDrinks",
-    },
-    {
-      id: 7,
-      name: "كرواسون سادة",
-      price: 35.0,
-      unit: "قطعة",
-      category: "Pastries",
-    },
-    {
-      id: 8,
-      name: "بار شوكولاتة داكنة",
-      price: 25.0,
-      unit: "قطعة",
-      category: "Pastries",
-    },
-    {
-      id: 9,
-      name: "قهوة أمريكي",
-      price: 50.0,
-      unit: "كوب",
-      category: "HotDrinks",
-    },
-    { id: 10, name: "حامل مجلات خشبي", price: 120.0, category: "Accessories" },
-    { id: 11, name: "موكا مثلج", price: 85.0, category: "ColdDrinks" },
-    {
-      id: 12,
-      name: "بن برازيلي (250 جرام)",
-      price: 110.0,
-      category: "CoffeeBeans",
-    },
-    {
-      id: 13,
-      name: "شاي إيرل جراي",
-      price: 30.0,
-      unit: "كوب",
-      category: "HotDrinks",
-    },
-    { id: 14, name: "علبة حفظ بن", price: 150.0, category: "Accessories" },
-  ];
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const items = await itemService.getAll();
+        // Transform items to match POS structure if needed, or just use as is
+        // Mapping sellPrice to price for compatibility if we don't change all references, 
+        // but better to use sellPrice in code. For now, let's just use items and update references.
+        setProducts(items);
+
+        // Derive categories
+        const uniqueCategories = [
+          { id: "All", name: "كل المنتجات" },
+          ...Array.from(new Set(items.map(i => i.category))).map(cat => ({
+            id: cat,
+            name: cat
+          }))
+        ];
+        setCategories(uniqueCategories);
+      } catch (error) {
+        console.error("Failed to fetch products", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+
+
+
 
   const filteredProducts = products.filter((product) => {
     const matchesCategory =
       activeCategory === "All" || product.category === activeCategory;
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+    const productName = product.name ? product.name.toLowerCase() : "";
+    const matchesSearch = productName.includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   const addToCart = (product) => {
+    const rawPrice = product.sellPrice || product.price || 0;
+    const price = Number(rawPrice);
     setCartItems((prevItems) => {
       const existingItem = prevItems.find((item) => item.id === product.id);
       if (existingItem) {
@@ -140,7 +106,7 @@ const POSPage = () => {
             ? {
               ...item,
               quantity: item.quantity + 1,
-              total: (item.quantity + 1) * item.price,
+              total: (item.quantity + 1) * price,
             }
             : item
         );
@@ -150,12 +116,14 @@ const POSPage = () => {
           {
             ...product,
             quantity: 1,
-            total: product.price,
+            total: price,
+            price: price, // Ensure price is set
           },
         ];
       }
     });
   };
+
 
   const clearCart = () => {
     setCartItems([]);
@@ -411,7 +379,7 @@ const POSPage = () => {
                     </h3>
                     <div className="mt-auto">
                       <span className="block text-primary dark:text-primary/90 font-bold text-base">
-                        {product.price.toFixed(2)} ج.م
+                        {Number(product.sellPrice || product.price || 0).toFixed(2)} ج.م
                         {product.unit && (
                           <span className="text-[10px] text-gray-500 font-normal">
                             /{product.unit}
