@@ -6,9 +6,15 @@ import {
   categoryService,
 } from "../../services/domainServices";
 
-export const ItemForm = ({ initialData, onClose, onSave }) => {
+export const ItemForm = ({ initialData, onClose, onSave, data }) => {
+  // Calculate next ID if creating new item
+  const nextId =
+    data && data.length > 0
+      ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
+      : 1;
+
   const [formData, setFormData] = useState({
-    id: initialData?.id || "#",
+    id: initialData?.id || nextId,
     name: initialData?.name || "",
     code: initialData?.code || "",
     price: initialData?.price || "",

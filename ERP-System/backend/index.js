@@ -28,6 +28,12 @@ app.get("/api/health", (req, res) => {
 const employeesRouter = require("./routes/employees");
 const warehousesRouter = require("./routes/warehouses");
 const treasuriesRouter = require("./routes/treasuries");
+const branchesRouter = require("./routes/branches");
+const clientsRouter = require("./routes/clients");
+const suppliersRouter = require("./routes/suppliers");
+const categoriesRouter = require("./routes/categories");
+const itemsRouter = require("./routes/items");
+const purchasesRouter = require("./routes/purchases");
 
 // Database connection
 const prisma = require("./config/database");
@@ -36,9 +42,12 @@ const prisma = require("./config/database");
 app.use("/api/employees", employeesRouter);
 app.use("/api/warehouses", warehousesRouter);
 app.use("/api/treasuries", treasuriesRouter);
-// TODO: Add more routes as needed
-// app.use('/api/suppliers', require('./routes/suppliers'));
-// app.use('/api/clients', require('./routes/clients'));
+app.use("/api/branches", branchesRouter);
+app.use("/api/clients", clientsRouter);
+app.use("/api/suppliers", suppliersRouter);
+app.use("/api/categories", categoriesRouter);
+app.use("/api/items", itemsRouter);
+app.use("/api/purchases", purchasesRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

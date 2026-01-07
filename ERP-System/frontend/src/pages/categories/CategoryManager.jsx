@@ -2,8 +2,16 @@ import React from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { categoryService } from "../../services/domainServices";
 
-const CategoryForm = ({ initialData, onSave, onClose }) => {
-  const [formData, setFormData] = React.useState(initialData || { name: "" });
+const CategoryForm = ({ initialData, onSave, onClose, data }) => {
+  // Calculate next ID if creating new category
+  const nextId =
+    data && data.length > 0
+      ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
+      : 1;
+
+  const [formData, setFormData] = React.useState(
+    initialData || { name: "", id: nextId }
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,7 +31,7 @@ const CategoryForm = ({ initialData, onSave, onClose }) => {
         </label>
         <input
           type="text"
-          value={initialData ? initialData.id : ""}
+          value={formData.id}
           disabled
           className="w-full px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
         />

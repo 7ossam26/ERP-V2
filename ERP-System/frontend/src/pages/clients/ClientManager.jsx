@@ -2,9 +2,15 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { clientService } from "../../services/domainServices";
 
-export const ClientForm = ({ initialData, onClose, onSave }) => {
+export const ClientForm = ({ initialData, onClose, onSave, data }) => {
+  // Calculate next ID if creating new client
+  const nextId =
+    data && data.length > 0
+      ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
+      : 1;
+
   const [formData, setFormData] = useState({
-    id: initialData?.id || "#",
+    id: initialData?.id || nextId,
     name: initialData?.name || "",
     phone: initialData?.phone || "",
   });

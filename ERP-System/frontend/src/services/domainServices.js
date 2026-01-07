@@ -1,15 +1,26 @@
 import { createMockService } from "./mockServiceFactory";
 import { employeeService } from "./employeeApi";
 import { treasuryService } from "./treasuryService";
+import { branchService } from "./branchService";
+import { warehouseService } from "./warehouseService";
+import { clientService } from "./clientService";
+import { supplierService } from "./supplierService";
+import { categoryService } from "./categoryService";
+import { itemService } from "./itemService";
+import { purchaseService } from "./purchaseService";
 
-// Employee and Treasury services use real API
-export { employeeService, treasuryService };
+// Employee, Treasury, Branch, Warehouse, Client, Supplier, Category, Item, and Purchase services use real API
+export {
+  employeeService,
+  treasuryService,
+  branchService,
+  warehouseService,
+  clientService,
+  supplierService,
+  categoryService,
+  itemService,
+  purchaseService,
+};
 
 // Other services still use mock data (for now)
-export const supplierService = createMockService("erp_suppliers");
-export const clientService = createMockService("erp_clients");
-export const itemService = createMockService("erp_items");
-export const branchService = createMockService("erp_branches");
-export const categoryService = createMockService("erp_categories");
-export const warehouseService = createMockService("erp_warehouses");
 export const expenseService = createMockService("erp_expenses");

@@ -10,7 +10,7 @@ const toBackend = (frontendData) => {
   const backendData = {
     name: frontendData.name,
     position: frontendData.title || frontendData.position,
-    branch: frontendData.branch,
+    branchId: frontendData.branchId,
     phoneNumber: frontendData.phone || frontendData.phoneNumber,
     nationalId: frontendData.nationalId || null,
     workingDaysPerMonth: parseInt(
@@ -38,6 +38,7 @@ const toFrontend = (backendData) => {
     id: backendData.id,
     name: backendData.name,
     title: backendData.position,
+    branchId: backendData.branchId,
     branch: backendData.branch,
     phone: backendData.phoneNumber,
     nationalId: backendData.nationalId || "",

@@ -2,11 +2,17 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { supplierService } from "../../services/domainServices";
 
-const SupplierForm = ({ initialData, onClose, onSave }) => {
+const SupplierForm = ({ initialData, onClose, onSave, data }) => {
+  // Calculate next ID if creating new supplier
+  const nextId =
+    data && data.length > 0
+      ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
+      : 1;
+
   const [formData, setFormData] = useState({
+    id: initialData?.id || nextId,
     name: initialData?.name || "",
     phone: initialData?.phone || "",
-    code: initialData?.code || "",
   });
 
   const handleChange = (e) => {
@@ -20,6 +26,25 @@ const SupplierForm = ({ initialData, onClose, onSave }) => {
 
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6">
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          الرقم التعريفي
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-500 dark:text-gray-400 focus:ring-0 cursor-not-allowed"
+            name="id"
+            value={formData.id}
+            readOnly
+            disabled
+            placeholder="ID تلقائي"
+            type="text"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            tag
+          </span>
+        </div>
+      </div>
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
           اسم المورد
@@ -58,26 +83,6 @@ const SupplierForm = ({ initialData, onClose, onSave }) => {
           </span>
         </div>
       </div>
-      <div className="space-y-2">
-        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-          الرقم التعريفي (اختياري)
-        </label>
-        <div className="relative">
-          <input
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow opacity-70 cursor-not-allowed"
-            name="code"
-            value={formData.code}
-            onChange={handleChange}
-            placeholder="مثال: 1001"
-            type="text"
-            readOnly
-            disabled
-          />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            tag
-          </span>
-        </div>
-      </div>
 
       <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <button
@@ -101,10 +106,10 @@ const SupplierManager = () => {
   const columns = [
     {
       header: "الرقم التعريفي",
-      accessor: "code",
+      accessor: "id",
       render: (item) => (
         <span className="font-mono text-gray-900 dark:text-white font-bold text-sm">
-          {item.code || "-"}
+          {item.id || "-"}
         </span>
       ),
     },

@@ -19,7 +19,11 @@ const adapter = new PrismaMariaDb({
   user: url.username,
   password: url.password,
   database: url.pathname.slice(1), // Remove leading '/'
-  connectionLimit: 10,
+  connectionLimit: 20,
+  acquireTimeout: 20000,
+  connectTimeout: 20000,
+  waitForConnections: true,
+  queueLimit: 0,
 });
 
 // Initialize Prisma with adapter

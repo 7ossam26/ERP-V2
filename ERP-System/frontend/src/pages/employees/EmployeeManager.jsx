@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
-import { employeeService } from "../../services/domainServices";
+import { employeeService, branchService } from "../../services/domainServices";
 
 const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   // Calculate next ID if creating new employee
@@ -9,10 +9,11 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
       ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
       : 1;
 
+  const [branches, setBranches] = useState([]);
   const [formData, setFormData] = useState({
     id: initialData?.id || nextId,
     name: initialData?.name || "",
-    branch: initialData?.branch || "",
+    branchId: initialData?.branchId || "",
     phone: initialData?.phone || "",
     nationalId: initialData?.nationalId || "",
     workDays: initialData?.workDays || "26",
@@ -22,8 +23,24 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     title: initialData?.title || "",
   });
 
+  React.useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const data = await branchService.getAll();
+        setBranches(data);
+      } catch (error) {
+        console.error("Failed to fetch branches", error);
+      }
+    };
+    fetchBranches();
+  }, []);
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: name === "branchId" ? parseInt(value) || "" : value,
+    });
   };
 
   const handleSubmit = (e) => {
@@ -60,12 +77,16 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
         <div className="relative">
           <select
             className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
-            name="branch"
-            value={formData.branch}
-            onChange={handleChange}>
+            name="branchId"
+            value={formData.branchId}
+            onChange={handleChange}
+            required>
             <option value="">اختر الفرع...</option>
-            <option value="الفرع الرئيسي">الفرع الرئيسي</option>
-            <option value="فرع وسط البلد">فرع وسط البلد</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
           </select>
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             store
@@ -285,7 +306,7 @@ const EmployeeManager = () => {
             {item.name}
           </div>
           <div className="text-xs text-gray-500">
-            {item.branch || "الفرع الرئيسي"}
+            {item.branch?.name || "-"}
           </div>
         </div>
       ),

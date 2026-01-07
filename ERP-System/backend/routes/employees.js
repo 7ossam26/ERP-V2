@@ -6,7 +6,10 @@ const prisma = require("../config/database");
 router.get("/", async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        branch: true,
+      },
     });
     res.json(employees);
   } catch (error) {
@@ -21,6 +24,9 @@ router.get("/:id", async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: parseInt(req.params.id) },
+      include: {
+        branch: true,
+      },
     });
     if (!employee) {
       return res.status(404).json({ error: "Employee not found" });
@@ -36,8 +42,44 @@ router.get("/:id", async (req, res) => {
 // POST create new employee
 router.post("/", async (req, res) => {
   try {
+    const {
+      name,
+      position,
+      branchId,
+      branch, // Ignore legacy field
+      phoneNumber,
+      nationalId,
+      workingDaysPerMonth,
+      workingHoursPerDay,
+      weeklyHoliday,
+      salary,
+    } = req.body;
+
+    console.log("POST /api/employees - Request Body:", req.body);
+    console.log("branchId received:", branchId, "Type:", typeof branchId);
+
+    if (!branchId || isNaN(parseInt(branchId))) {
+      return res.status(400).json({
+        error: "Branch is required",
+        message: "Please select a valid branch",
+      });
+    }
+
     const employee = await prisma.employee.create({
-      data: req.body,
+      data: {
+        name,
+        position,
+        branchId: parseInt(branchId),
+        phoneNumber,
+        nationalId,
+        workingDaysPerMonth: parseInt(workingDaysPerMonth),
+        workingHoursPerDay: parseFloat(workingHoursPerDay),
+        weeklyHoliday,
+        salary: parseFloat(salary),
+      },
+      include: {
+        branch: true,
+      },
     });
     res.status(201).json(employee);
   } catch (error) {
@@ -50,9 +92,42 @@ router.post("/", async (req, res) => {
 // PUT update employee
 router.put("/:id", async (req, res) => {
   try {
+    const {
+      name,
+      position,
+      branchId,
+      branch, // Ignore legacy field
+      phoneNumber,
+      nationalId,
+      workingDaysPerMonth,
+      workingHoursPerDay,
+      weeklyHoliday,
+      salary,
+    } = req.body;
+
+    if (branchId && isNaN(parseInt(branchId))) {
+      return res.status(400).json({
+        error: "Invalid Branch ID",
+        message: "Branch ID must be a number",
+      });
+    }
+
     const employee = await prisma.employee.update({
       where: { id: parseInt(req.params.id) },
-      data: req.body,
+      data: {
+        name,
+        position,
+        branchId: parseInt(branchId),
+        phoneNumber,
+        nationalId,
+        workingDaysPerMonth: parseInt(workingDaysPerMonth),
+        workingHoursPerDay: parseFloat(workingHoursPerDay),
+        weeklyHoliday,
+        salary: parseFloat(salary),
+      },
+      include: {
+        branch: true,
+      },
     });
     res.json(employee);
   } catch (error) {

@@ -4,7 +4,11 @@ import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
 import Modal from "../../components/ui/Modal";
 import { ClientForm } from "../clients/ClientManager";
-import { clientService, itemService } from "../../services/domainServices";
+import {
+  clientService,
+  itemService,
+  categoryService,
+} from "../../services/domainServices";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -42,9 +46,7 @@ const POSPage = () => {
     const id = client.id ? client.id.toString() : "";
 
     return (
-      name.includes(search) ||
-      phone.includes(search) ||
-      id.includes(search)
+      name.includes(search) || phone.includes(search) || id.includes(search)
     );
   });
 
@@ -54,42 +56,41 @@ const POSPage = () => {
     setIsClientDropdownOpen(false);
   };
 
-
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const items = await itemService.getAll();
-        // Transform items to match POS structure if needed, or just use as is
-        // Mapping sellPrice to price for compatibility if we don't change all references, 
-        // but better to use sellPrice in code. For now, let's just use items and update references.
+        const [items, dbCategories] = await Promise.all([
+          itemService.getAll(),
+          categoryService.getAll(),
+        ]);
+
         setProducts(items);
 
-        // Derive categories
-        const uniqueCategories = [
+        // Build categories from database with "All" option
+        const allCategories = [
           { id: "All", name: "كل المنتجات" },
-          ...Array.from(new Set(items.map(i => i.category))).map(cat => ({
-            id: cat,
-            name: cat
-          }))
+          ...dbCategories.map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+          })),
         ];
-        setCategories(uniqueCategories);
+        setCategories(allCategories);
       } catch (error) {
-        console.error("Failed to fetch products", error);
+        console.error("Failed to fetch products and categories", error);
       }
     };
     fetchData();
   }, []);
 
-
-
-
-
   const filteredProducts = products.filter((product) => {
+    // Check if product belongs to selected category (many-to-many)
     const matchesCategory =
-      activeCategory === "All" || product.category === activeCategory;
+      activeCategory === "All" ||
+      (product.categories && product.categories.includes(activeCategory));
+
     const productName = product.name ? product.name.toLowerCase() : "";
     const matchesSearch = productName.includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -104,10 +105,10 @@ const POSPage = () => {
         return prevItems.map((item) =>
           item.id === product.id
             ? {
-              ...item,
-              quantity: item.quantity + 1,
-              total: (item.quantity + 1) * price,
-            }
+                ...item,
+                quantity: item.quantity + 1,
+                total: (item.quantity + 1) * price,
+              }
             : item
         );
       } else {
@@ -123,7 +124,6 @@ const POSPage = () => {
       }
     });
   };
-
 
   const clearCart = () => {
     setCartItems([]);
@@ -217,6 +217,7 @@ const POSPage = () => {
         onClose={() => setIsClientModalOpen(false)}
         title="تكويد عميل جديد">
         <ClientForm
+          data={clients}
           onClose={() => setIsClientModalOpen(false)}
           onSave={handleSaveClient}
         />
@@ -228,7 +229,9 @@ const POSPage = () => {
         title="الفواتير المعلقة">
         <div className="space-y-4">
           {heldCarts.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">لا توجد فواتير معلقة</p>
+            <p className="text-center text-gray-500 py-8">
+              لا توجد فواتير معلقة
+            </p>
           ) : (
             heldCarts.map((cart) => (
               <div
@@ -352,10 +355,11 @@ const POSPage = () => {
                 <div
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-colors ${activeCategory === cat.id
-                    ? "bg-primary text-white shadow"
-                    : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                    }`}>
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-colors ${
+                    activeCategory === cat.id
+                      ? "bg-primary text-white shadow"
+                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                  }`}>
                   {cat.name}
                 </div>
               ))}
@@ -379,7 +383,10 @@ const POSPage = () => {
                     </h3>
                     <div className="mt-auto">
                       <span className="block text-primary dark:text-primary/90 font-bold text-base">
-                        {Number(product.sellPrice || product.price || 0).toFixed(2)} ج.م
+                        {Number(
+                          product.sellPrice || product.price || 0
+                        ).toFixed(2)}{" "}
+                        ج.م
                         {product.unit && (
                           <span className="text-[10px] text-gray-500 font-normal">
                             /{product.unit}
@@ -412,8 +419,8 @@ const POSPage = () => {
                     isClientDropdownOpen
                       ? clientSearchTerm
                       : selectedClient
-                        ? selectedClient.name
-                        : ""
+                      ? selectedClient.name
+                      : ""
                   }
                   onChange={(e) => {
                     setClientSearchTerm(e.target.value);
@@ -483,10 +490,11 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors ${selectedItemId === item.id
-                      ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
-                      : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
-                      }`}>
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors ${
+                      selectedItemId === item.id
+                        ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
+                        : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+                    }`}>
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-bold text-gray-800 dark:text-gray-100">
                         {item.name}

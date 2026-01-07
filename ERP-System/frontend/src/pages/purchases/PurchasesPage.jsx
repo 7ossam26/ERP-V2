@@ -1,34 +1,78 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-import { supplierService, itemService } from "../../services/domainServices";
+import {
+  supplierService,
+  itemService,
+  treasuryService,
+  warehouseService,
+  purchaseService,
+} from "../../services/domainServices";
 import Modal from "../../components/ui/Modal";
 import { ItemForm } from "../items/ItemManager";
 
 const PurchasesPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("cash"); // cash, credit, mixed
-  const [items, setItems] = useState([
-    { id: 1, name: "بن برازيلي", quantity: 5, purchasePrice: 0, sellPrice: 0 },
-    { id: 2, name: "بن كولومبي", quantity: 10, purchasePrice: 0, sellPrice: 0 },
-  ]);
+  const [items, setItems] = useState([]);
   const [discountType, setDiscountType] = useState("percent"); // percent, value
 
   const [discountValue, setDiscountValue] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
   const [suppliers, setSuppliers] = useState([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [treasuries, setTreasuries] = useState([]);
+  const [selectedTreasuryId, setSelectedTreasuryId] = useState("");
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
+  const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [allItems, setAllItems] = useState([]);
+  const [purchases, setPurchases] = useState([]);
 
   useEffect(() => {
-    const fetchSuppliers = async () => {
+    const fetchData = async () => {
       try {
-        const fetchedSuppliers = await supplierService.getAll();
+        // Fetch essential data (suppliers, items, treasuries, warehouses)
+        const [
+          fetchedSuppliers,
+          fetchedItems,
+          fetchedTreasuries,
+          fetchedWarehouses,
+        ] = await Promise.all([
+          supplierService.getAll(),
+          itemService.getAll(),
+          treasuryService.getAll(),
+          warehouseService.getAll(),
+        ]);
         setSuppliers(fetchedSuppliers);
+        setAllItems(fetchedItems);
+        setTreasuries(fetchedTreasuries);
+        setWarehouses(fetchedWarehouses);
+
+        // Auto-select first treasury and warehouse if available
+        if (fetchedTreasuries.length > 0) {
+          setSelectedTreasuryId(fetchedTreasuries[0].id);
+        }
+        if (fetchedWarehouses.length > 0) {
+          setSelectedWarehouseId(fetchedWarehouses[0].id);
+        }
+
+        // Fetch purchases separately (non-blocking if it fails)
+        try {
+          const fetchedPurchases = await purchaseService.getAll();
+          setPurchases(fetchedPurchases);
+        } catch (purchaseError) {
+          console.error(
+            "Failed to fetch purchases (ID will start from 1):",
+            purchaseError
+          );
+          // Don't block - just start from ID 1
+        }
       } catch (error) {
-        console.error("Failed to fetch suppliers", error);
+        console.error("Failed to fetch data", error);
       }
     };
-    fetchSuppliers();
+    fetchData();
   }, []);
 
   // Calculated totals
@@ -78,10 +122,20 @@ const PurchasesPage = () => {
     });
   };
 
+  // Filter items by selected supplier
+  const availableItems = selectedSupplierId
+    ? allItems.filter(
+        (item) =>
+          item.suppliers &&
+          item.suppliers.includes(parseInt(selectedSupplierId))
+      )
+    : allItems;
+
   const addItem = () => {
     const newItem = {
       id: Date.now(),
       name: "",
+      itemId: null, // Track the actual item from database
       quantity: 1,
       purchasePrice: 0,
       sellPrice: 0,
@@ -97,6 +151,27 @@ const PurchasesPage = () => {
     setItems(
       items.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );
+  };
+
+  // Handle item selection from database
+  const handleItemSelect = (rowId, selectedItemId) => {
+    const selectedItem = availableItems.find(
+      (item) => item.id === parseInt(selectedItemId)
+    );
+    if (selectedItem) {
+      setItems(
+        items.map((item) =>
+          item.id === rowId
+            ? {
+                ...item,
+                itemId: selectedItem.id,
+                name: selectedItem.name,
+                sellPrice: selectedItem.price || 0,
+              }
+            : item
+        )
+      );
+    }
   };
 
   const handlePaymentMethodChange = (method) => {
@@ -123,9 +198,80 @@ const PurchasesPage = () => {
       await itemService.create(formData);
       setIsItemModalOpen(false);
       toast.success("تم إضافة الصنف بنجاح");
+      // Refresh items
+      const fetchedItems = await itemService.getAll();
+      setAllItems(fetchedItems);
     } catch (error) {
       console.error("Failed to save item", error);
       toast.error("حدث خطأ أثناء حفظ الصنف");
+    }
+  };
+
+  const handleSavePurchase = async () => {
+    try {
+      if (!selectedSupplierId) {
+        toast.error("يرجى اختيار المورد");
+        return;
+      }
+      if (!selectedTreasuryId) {
+        toast.error("يرجى اختيار الخزينة");
+        return;
+      }
+      if (!selectedWarehouseId) {
+        toast.error("يرجى اختيار المخزن");
+        return;
+      }
+      if (items.length === 0) {
+        toast.error("يرجى إضافة أصناف للفاتورة");
+        return;
+      }
+
+      // Validate that all items have itemId (selected from dropdown)
+      const invalidItems = items.filter((item) => !item.itemId);
+      if (invalidItems.length > 0) {
+        toast.error("يرجى اختيار جميع الأصناف من القائمة");
+        return;
+      }
+
+      const purchaseData = {
+        supplierId: selectedSupplierId,
+        treasuryId: selectedTreasuryId,
+        warehouseId: selectedWarehouseId,
+        supplierInvoiceNo,
+        paymentMethod,
+        subtotal: totals.subtotal,
+        discountType,
+        discountValue,
+        discountAmount: totals.discountAmount,
+        netTotal: totals.net,
+        paidAmount,
+        remaining: totals.remaining,
+        items: items.map((item) => ({
+          itemId: item.itemId,
+          quantity: Number(item.quantity),
+          purchasePrice: Number(item.purchasePrice),
+          sellPrice: Number(item.sellPrice),
+          total: Number(item.quantity) * Number(item.purchasePrice),
+        })),
+      };
+
+      await purchaseService.create(purchaseData);
+      toast.success("تم حفظ فاتورة المشتريات بنجاح");
+
+      // Refresh purchases list to update next ID
+      const fetchedPurchases = await purchaseService.getAll();
+      setPurchases(fetchedPurchases);
+
+      // Reset form
+      setItems([]);
+      setSelectedSupplierId("");
+      setSupplierInvoiceNo("");
+      setDiscountType("percent");
+      setDiscountValue(0);
+      setPaidAmount(0);
+    } catch (error) {
+      console.error("Failed to save purchase", error);
+      toast.error("حدث خطأ أثناء حفظ الفاتورة");
     }
   };
 
@@ -136,6 +282,7 @@ const PurchasesPage = () => {
         onClose={() => setIsItemModalOpen(false)}
         title="إضافة صنف جديد">
         <ItemForm
+          data={allItems}
           onClose={() => setIsItemModalOpen(false)}
           onSave={handleSaveNewItem}
           initialData={{
@@ -175,7 +322,7 @@ const PurchasesPage = () => {
               className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 transition-colors"
               readOnly
               type="text"
-              value="1024"
+              value={purchases.length > 0 ? purchases.length + 1 : 1}
             />
           </div>
           <div className="md:col-span-3">
@@ -184,10 +331,15 @@ const PurchasesPage = () => {
             </label>
             <div className="relative">
               <select
-                disabled
-                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors opacity-70 cursor-not-allowed">
-                <option>الرئيسي</option>
-                <option>الفرعي</option>
+                value={selectedTreasuryId}
+                onChange={(e) => setSelectedTreasuryId(e.target.value)}
+                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors">
+                <option value="">اختر الخزينة...</option>
+                {treasuries.map((treasury) => (
+                  <option key={treasury.id} value={treasury.id}>
+                    {treasury.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -197,10 +349,15 @@ const PurchasesPage = () => {
             </label>
             <div className="relative">
               <select
-                disabled
-                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors opacity-70 cursor-not-allowed">
-                <option>الرئيسي</option>
-                <option>المخزن 1</option>
+                value={selectedWarehouseId}
+                onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors">
+                <option value="">اختر المخزن...</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -212,47 +369,30 @@ const PurchasesPage = () => {
               className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 transition-colors"
               placeholder="مثال: INV-2023-001"
               type="text"
+              value={supplierInvoiceNo}
+              onChange={(e) => setSupplierInvoiceNo(e.target.value)}
             />
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium mb-1 text-text-muted dark:text-accent">
-              اسم المورد
-            </label>
-            <div className="relative">
-              <select
-                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors"
-                value={selectedSupplierId}
-                onChange={(e) => setSelectedSupplierId(e.target.value)}>
-                <option value="">اختر المورد...</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-              <span className="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">
-                expand_more
-              </span>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 text-text-muted dark:text-accent">
-              كشف حساب المورد
-            </label>
-            <div className="relative">
-              <input
-                className="w-full bg-accent/20 dark:bg-surface-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg block p-2.5 font-semibold text-center opacity-80 cursor-not-allowed"
-                disabled
-                type="text"
-                value="50,000 جنيه مصري"
-                readOnly
-              />
-              <span className="material-symbols-outlined absolute left-3 top-2.5 text-primary pointer-events-none text-lg">
-                account_balance_wallet
-              </span>
-            </div>
+        <div>
+          <label className="block text-sm font-medium mb-1 text-text-muted dark:text-accent">
+            اسم المورد
+          </label>
+          <div className="relative">
+            <select
+              className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors"
+              value={selectedSupplierId}
+              onChange={(e) => setSelectedSupplierId(e.target.value)}>
+              <option value="">اختر المورد...</option>
+              {suppliers.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </select>
+            <span className="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">
+              expand_more
+            </span>
           </div>
         </div>
       </section>
@@ -304,18 +444,26 @@ const PurchasesPage = () => {
                   className="bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark/50 border-b border-border-light dark:border-border-dark transition-colors">
                   <td className="px-4 py-3">
                     <div className="relative">
-                      <input
-                        list="products-list"
-                        type="text"
-                        placeholder="بحث عن صنف..."
-                        value={item.name}
+                      <select
+                        value={item.itemId || ""}
                         onChange={(e) =>
-                          updateItem(item.id, "name", e.target.value)
+                          handleItemSelect(item.id, e.target.value)
                         }
-                        className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pl-8 text-text-light dark:text-text-dark placeholder-gray-400 font-bold"
-                      />
+                        className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pl-8 text-text-light dark:text-text-dark font-bold appearance-none"
+                        disabled={!selectedSupplierId}>
+                        <option value="">
+                          {selectedSupplierId
+                            ? "اختر صنف..."
+                            : "اختر مورد أولاً"}
+                        </option>
+                        {availableItems.map((availItem) => (
+                          <option key={availItem.id} value={availItem.id}>
+                            {availItem.name}
+                          </option>
+                        ))}
+                      </select>
                       <span className="material-symbols-outlined absolute left-2 top-2.5 text-text-muted pointer-events-none text-base">
-                        search
+                        expand_more
                       </span>
                     </div>
                   </td>
@@ -343,13 +491,11 @@ const PurchasesPage = () => {
                   </td>
                   <td className="px-4 py-3">
                     <input
-                      className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-text-light dark:text-text-dark"
+                      className="w-full bg-gray-100 dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-md p-2 text-text-light dark:text-text-dark text-center cursor-not-allowed opacity-75"
                       placeholder="0.00"
                       type="number"
                       value={item.sellPrice || ""}
-                      onChange={(e) =>
-                        updateItem(item.id, "sellPrice", e.target.value)
-                      }
+                      readOnly
                     />
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -364,22 +510,17 @@ const PurchasesPage = () => {
                 </tr>
               ))}
             </tbody>
-            <datalist id="products-list">
-              <option value="بن برازيلي"></option>
-              <option value="بن كولومبي"></option>
-              <option value="بن يمني"></option>
-              <option value="بن إثيوبي"></option>
-              <option value="هيل"></option>
-              <option value="تحويجة"></option>
-              <option value="بن محوج فاتح"></option>
-              <option value="بن محوج غامق"></option>
-            </datalist>
           </table>
         </div>
         <div className="p-3 bg-background-light dark:bg-background-dark/50 border-t border-border-light dark:border-border-dark">
           <button
             onClick={addItem}
-            className="w-full py-3 bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark rounded-lg border border-dashed border-primary/40 dark:border-primary/60 flex justify-center items-center transition-all group">
+            disabled={!selectedSupplierId}
+            className={`w-full py-3 rounded-lg border border-dashed flex justify-center items-center transition-all group ${
+              selectedSupplierId
+                ? "bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark border-primary/40 dark:border-primary/60 cursor-pointer"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
+            }`}>
             <span className="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform text-primary">
               add_circle
             </span>
@@ -646,7 +787,9 @@ const PurchasesPage = () => {
             )}
           </div>
           <div className="mt-6 pt-4 border-t border-border-light dark:border-border-dark">
-            <button className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-primary/30 transform hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2">
+            <button
+              onClick={handleSavePurchase}
+              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-primary/30 transform hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2">
               <span className="material-symbols-outlined">print</span>
               <span>حفظ وطباعة</span>
             </button>

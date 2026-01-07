@@ -14,7 +14,7 @@ model Employee {
   id               Int       @id @default(autoincrement())
   name             String
   position         String
-  branch           String
+  branchId         Int       @map("branch_id")
   phoneNumber      String    @map("phone_number")
   nationalId       String?   @map("national_id")
   workingDaysPerMonth Int    @default(26) @map("working_days_per_month")
@@ -23,6 +23,9 @@ model Employee {
   salary           Decimal   @db.Decimal(10, 2)
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  branch           Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
 
   @@map("employees")
 }
@@ -36,6 +39,10 @@ model Warehouse {
   name      String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  branch    Branch?
+  purchases Purchase[]
 
   @@map("warehouses")
 }
@@ -49,6 +56,172 @@ model Treasury {
   name      String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  branch    Branch?
+  purchases Purchase[]
 
   @@map("treasuries")
+}
+
+// ============================================
+// Branch Management
+// ============================================
+
+model Branch {
+  id          Int       @id @default(autoincrement())
+  name        String
+  address     String
+  warehouseId Int       @unique @map("warehouse_id")
+  treasuryId  Int       @unique @map("treasury_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  treasury    Treasury  @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  employees   Employee[]
+
+  @@map("branches")
+}
+
+// ============================================
+// Client Management
+// ============================================
+
+model Client {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phoneNumber String   @map("phone_number")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("clients")
+}
+
+// ============================================
+// Supplier Management
+// ============================================
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phoneNumber String   @map("phone_number")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("suppliers")
+  items     ItemSupplier[]
+  purchases Purchase[]
+}
+
+// ============================================
+// Category Management
+// ============================================
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("categories")
+  items     ItemCategory[]
+}
+
+// ============================================
+// Item Management
+// ============================================
+
+model Item {
+  id        Int        @id @default(autoincrement())
+  name      String
+  price     Decimal    @db.Decimal(10, 2)
+  unit      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  suppliers     ItemSupplier[]
+  categories    ItemCategory[]
+  purchaseItems PurchaseItem[]
+
+  @@map("items")
+}
+
+model ItemSupplier {
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId     Int      @map("item_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierId Int      @map("supplier_id")
+
+  @@id([itemId, supplierId])
+  @@map("item_suppliers")
+}
+
+model ItemCategory {
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId     Int      @map("item_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId Int      @map("category_id")
+
+  @@id([itemId, categoryId])
+  @@map("item_categories")
+}
+
+// ============================================
+// Purchase Management
+// ============================================
+
+enum PaymentMethod {
+  CASH
+  CREDIT
+  MIXED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  VALUE
+}
+
+model Purchase {
+  id                Int            @id @default(autoincrement())
+  supplierId        Int            @map("supplier_id")
+  treasuryId        Int            @map("treasury_id")
+  warehouseId       Int            @map("warehouse_id")
+  supplierInvoiceNo String?        @map("supplier_invoice_no")
+  paymentMethod     PaymentMethod  @default(CASH) @map("payment_method")
+  subtotal          Decimal        @db.Decimal(10, 2)
+  discountType      DiscountType   @default(PERCENTAGE) @map("discount_type")
+  discountValue     Decimal        @default(0) @db.Decimal(10, 2) @map("discount_value")
+  discountAmount    Decimal        @default(0) @db.Decimal(10, 2) @map("discount_amount")
+  netTotal          Decimal        @db.Decimal(10, 2) @map("net_total")
+  paidAmount        Decimal        @default(0) @db.Decimal(10, 2) @map("paid_amount")
+  remaining         Decimal        @default(0) @db.Decimal(10, 2)
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  supplier          Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  treasury          Treasury       @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  warehouse         Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  items             PurchaseItem[]
+
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  purchaseId    Int      @map("purchase_id")
+  itemId        Int      @map("item_id")
+  quantity      Decimal  @db.Decimal(10, 2)
+  purchasePrice Decimal  @db.Decimal(10, 2) @map("purchase_price")
+  sellPrice     Decimal  @db.Decimal(10, 2) @map("sell_price")
+  total         Decimal  @db.Decimal(10, 2)
+
+  // Relations
+  purchase      Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  item          Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@id([purchaseId, itemId])
+  @@map("purchase_items")
 }

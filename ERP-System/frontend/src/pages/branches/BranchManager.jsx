@@ -3,11 +3,17 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { branchService, treasuryService } from "../../services/domainServices";
 import { warehouseService } from "../../services/warehouseService";
 
-const BranchForm = ({ initialData, onClose, onSave }) => {
+const BranchForm = ({ initialData, onClose, onSave, data }) => {
+  // Calculate next ID if creating new branch
+  const nextId =
+    data && data.length > 0
+      ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
+      : 1;
+
   const [formData, setFormData] = useState({
-    id: initialData?.id || "#",
+    id: initialData?.id || nextId,
     name: initialData?.name || "",
-    location: initialData?.location || "",
+    address: initialData?.address || "",
     warehouseId: initialData?.warehouseId || "",
     treasuryId: initialData?.treasuryId || "",
   });
@@ -88,8 +94,8 @@ const BranchForm = ({ initialData, onClose, onSave }) => {
         <div className="relative">
           <input
             className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-            name="location"
-            value={formData.location}
+            name="address"
+            value={formData.address}
             onChange={handleChange}
             placeholder="عنوان الفرع"
             type="text"
@@ -221,9 +227,9 @@ const BranchManager = () => {
     },
     {
       header: "العنوان",
-      accessor: "location",
+      accessor: "address",
       render: (item) => (
-        <span className="text-gray-500">{item.location || "-"}</span>
+        <span className="text-gray-500">{item.address || "-"}</span>
       ),
     },
     {
