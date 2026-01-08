@@ -1,16 +1,46 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import AuthService from "../services/authService";
+import { toast } from "react-hot-toast";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  // Get return URL if exists
+  const from = location.state?.from?.pathname || "/dashboard";
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Mock login logic
-    if (email && password) {
-      navigate("/dashboard");
+
+    if (!email || !password) {
+      toast.error("Please enter both username and password");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await AuthService.login(email, password);
+
+      toast.success(`Welcome back, ${response.user.username}!`);
+
+      // Redirect based on role
+      if (response.user.role === "Superadmin") {
+        navigate("/superadmin/users");
+      } else {
+        navigate(from, { replace: true });
+      }
+
+    } catch (error) {
+      console.error("Login error:", error);
+      const message = error.response?.data?.error || "Login failed. Please check your credentials.";
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -32,14 +62,6 @@ const LoginPage = () => {
                 </h2>
               </div>
             </div>
-            <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-primary transition-colors cursor-pointer group">
-              <span className="material-icons-round text-gray-500 dark:text-gray-400 group-hover:text-primary text-xl">
-                language
-              </span>
-              <span className="text-gray-900 dark:text-gray-100 text-sm font-bold">
-                EN | AR
-              </span>
-            </button>
           </header>
 
           <main className="flex-1 flex flex-col justify-center">
@@ -49,28 +71,29 @@ const LoginPage = () => {
                   Welcome Back
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-base font-normal">
-                  Please sign in to your POS terminal
+                  Please sign in to access the system
                 </p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
                   <label className="block text-gray-900 dark:text-gray-100 text-base font-medium">
-                    Employee ID / Email
+                    Username
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <span className="material-icons-round text-gray-400 dark:text-gray-500">
-                        badge
+                        person
                       </span>
                     </div>
                     <input
                       className="w-full pl-12 pr-4 h-14 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
-                      placeholder="Enter your ID or Email"
+                      placeholder="Enter your username"
                       required
                       type="text"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -80,11 +103,6 @@ const LoginPage = () => {
                     <label className="block text-gray-900 dark:text-gray-100 text-base font-medium">
                       Password
                     </label>
-                    <a
-                      className="text-sm font-bold text-primary hover:text-primary-hover transition-colors"
-                      href="#">
-                      Forgot Password?
-                    </a>
                   </div>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -99,41 +117,27 @@ const LoginPage = () => {
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      disabled={isLoading}
                     />
-                    <button
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-primary transition-colors"
-                      type="button">
-                      <span className="material-icons-round">visibility</span>
-                    </button>
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full h-14 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 mt-8">
-                  <span>Sign In</span>
-                  <span className="material-icons-round text-xl">login</span>
+                  disabled={isLoading}
+                  className="w-full h-14 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 mt-8 disabled:opacity-70 disabled:cursor-not-allowed">
+                  {isLoading ? (
+                    <span className="material-icons-round animate-spin">refresh</span>
+                  ) : (
+                    <>
+                      <span>Sign In</span>
+                      <span className="material-icons-round text-xl">login</span>
+                    </>
+                  )}
                 </button>
               </form>
-
-              <div className="mt-8 text-center">
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  Having trouble?
-                  <a
-                    className="text-primary hover:text-primary-hover font-bold ml-1 transition-colors"
-                    href="#">
-                    Contact Support
-                  </a>
-                </p>
-              </div>
             </div>
           </main>
-
-          <footer className="mt-8 text-center">
-            <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">
-              POS System v2.4.0 © 2024 elghonemy Coffee.
-            </p>
-          </footer>
         </div>
       </div>
     </div>

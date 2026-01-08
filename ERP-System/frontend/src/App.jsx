@@ -7,6 +7,12 @@ import {
   Outlet,
 } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import SuperadminLayout from "./layouts/SuperadminLayout";
+import UserManagement from "./pages/superadmin/UserManagement";
+import RoleManagement from "./pages/superadmin/RoleManagement";
+import PermissionConfig from "./pages/superadmin/PermissionConfig";
+import AuditLogs from "./pages/superadmin/AuditLogs";
 import LoginPage from "./pages/LoginPage";
 import MainDashboard from "./pages/MainDashboard";
 import CreatesDashboard from "./pages/CreatesDashboard";
@@ -60,37 +66,113 @@ function App() {
         <Route path="/" element={<LoginPage />} />
 
         {/* Standalone Route: POS (No MainLayout) */}
-        <Route path="/pos" element={<POSPage />} />
+        <Route path="/pos" element={
+          <ProtectedRoute requiredPermission={{ module: "POS", action: "view" }}>
+            <POSPage />
+          </ProtectedRoute>
+        } />
+
+        {/* Superadmin Routes */}
+        <Route
+          path="/superadmin"
+          element={
+            <ProtectedRoute requiredRole="superadmin">
+              <SuperadminLayout />
+            </ProtectedRoute>
+          }>
+          <Route path="users" element={<UserManagement />} />
+          <Route path="roles" element={<RoleManagement />} />
+          <Route path="roles/:id/permissions" element={<PermissionConfig />} />
+          <Route path="audit-logs" element={<AuditLogs />} />
+        </Route>
 
         {/* Protected Routes: Wrapped in MainLayout */}
         <Route
           element={
-            <MainLayout>
-              <Outlet />
-            </MainLayout>
+            <ProtectedRoute>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </ProtectedRoute>
           }>
           <Route path="/dashboard" element={<MainDashboard />} />
           <Route path="/creates" element={<CreatesDashboard />} />
 
           {/* Modules under Creates */}
-          <Route path="/warehouses" element={<WarehouseManager />} />
-          <Route path="/employees" element={<EmployeeManager />} />
-          <Route path="/suppliers" element={<SupplierManager />} />
-          <Route path="/clients" element={<ClientManager />} />
-          <Route path="/categories" element={<CategoryManager />} />
-          <Route path="/items" element={<ItemManager />} />
-          <Route path="/treasuries" element={<TreasuryManager />} />
-          <Route path="/branches" element={<BranchManager />} />
+          <Route path="/warehouses" element={
+            <ProtectedRoute requiredPermission={{ module: "WAREHOUSES", action: "view" }}>
+              <WarehouseManager />
+            </ProtectedRoute>
+          } />
+          <Route path="/employees" element={
+            <ProtectedRoute requiredPermission={{ module: "EMPLOYEES", action: "view" }}>
+              <EmployeeManager />
+            </ProtectedRoute>
+          } />
+          <Route path="/suppliers" element={
+            <ProtectedRoute requiredPermission={{ module: "SUPPLIERS", action: "view" }}>
+              <SupplierManager />
+            </ProtectedRoute>
+          } />
+          <Route path="/clients" element={
+            <ProtectedRoute requiredPermission={{ module: "CLIENTS", action: "view" }}>
+              <ClientManager />
+            </ProtectedRoute>
+          } />
+          <Route path="/categories" element={
+            <ProtectedRoute requiredPermission={{ module: "CATEGORIES", action: "view" }}>
+              <CategoryManager />
+            </ProtectedRoute>
+          } />
+          <Route path="/items" element={
+            <ProtectedRoute requiredPermission={{ module: "ITEMS", action: "view" }}>
+              <ItemManager />
+            </ProtectedRoute>
+          } />
+          <Route path="/treasuries" element={
+            <ProtectedRoute requiredPermission={{ module: "TREASURIES", action: "view" }}>
+              <TreasuryManager />
+            </ProtectedRoute>
+          } />
+          <Route path="/branches" element={
+            <ProtectedRoute requiredPermission={{ module: "BRANCHES", action: "view" }}>
+              <BranchManager />
+            </ProtectedRoute>
+          } />
 
           {/* Main Dashboard Modules */}
-          <Route path="/purchases" element={<PurchasesPage />} />
+          <Route path="/purchases" element={
+            <ProtectedRoute requiredPermission={{ module: "PURCHASES", action: "view" }}>
+              <PurchasesPage />
+            </ProtectedRoute>
+          } />
           {/* <Route path="/pos" element={<POSPage />} /> Moved to standalone */}
-          <Route path="/stock-transfer" element={<StockTransferPage />} />
-          <Route path="/cashier-transfer" element={<CashierTransferPage />} />
-          <Route path="/branches-sales" element={<BranchesSalesPage />} />
-          <Route path="/inventory" element={<InventoryPage />} />
+          <Route path="/stock-transfer" element={
+            <ProtectedRoute requiredPermission={{ module: "INVENTORY", action: "view" }}>
+              <StockTransferPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/cashier-transfer" element={
+            <ProtectedRoute requiredPermission={{ module: "TREASURIES", action: "view" }}>
+              <CashierTransferPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/branches-sales" element={
+            <ProtectedRoute requiredPermission={{ module: "BRANCHES", action: "view" }}>
+              <BranchesSalesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/inventory" element={
+            <ProtectedRoute requiredPermission={{ module: "INVENTORY", action: "view" }}>
+              <InventoryPage />
+            </ProtectedRoute>
+          } />
 
-          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports" element={
+            <ProtectedRoute requiredPermission={{ module: "REPORTS", action: "view" }}>
+              <ReportsPage />
+            </ProtectedRoute>
+          } />
           <Route path="/reports/general" element={<GeneralReportPage />} />
           <Route path="/reports/detailed" element={<DetailedReportsPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
@@ -124,7 +206,11 @@ function App() {
             path="/reports/custom/stock-transfers"
             element={<StockTransferHistory />}
           />
-          <Route path="/hr" element={<HRPage />} />
+          <Route path="/hr" element={
+            <ProtectedRoute requiredPermission={{ module: "HR", action: "view" }}>
+              <HRPage />
+            </ProtectedRoute>
+          } />
         </Route>
       </Routes>
     </Router>

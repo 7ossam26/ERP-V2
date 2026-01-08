@@ -4,6 +4,92 @@ generator client {
 
 datasource db {
   provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Auth & Access Control
+// ============================================
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  username  String   @unique
+  password  String
+  roleId    Int      @map("role_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  role      Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users       User[]
+  permissions Permission[]
+
+  @@map("roles")
+}
+
+enum Module {
+  HR
+  INVENTORY
+  POS
+  PURCHASES
+  SALES
+  REPORTS
+  TREASURIES
+  BRANCHES
+  EMPLOYEES
+  CLIENTS
+  SUPPLIERS
+  CATEGORIES
+  ITEMS
+  WAREHOUSES
+  SETTINGS
+}
+
+model Permission {
+  id        Int     @id @default(autoincrement())
+  roleId    Int     @map("role_id")
+  module    Module
+  canView   Boolean @default(false) @map("can_view")
+  canCreate Boolean @default(false) @map("can_create")
+  canEdit   Boolean @default(false) @map("can_edit")
+  canDelete Boolean @default(false) @map("can_delete")
+
+  // Relations
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, module])
+  @@map("permissions")
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int?     @map("user_id")
+  action       String
+  targetEntity String   @map("target_entity")
+  targetId     String?  @map("target_id")
+  details      Json?
+  ipAddress    String?  @map("ip_address")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
 }
 
 // ============================================

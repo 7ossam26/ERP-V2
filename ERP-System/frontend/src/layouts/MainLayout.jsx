@@ -1,7 +1,15 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import AuthService from "../services/authService";
 
 const MainLayout = ({ children }) => {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await AuthService.logout();
+    navigate("/");
+  };
+
   return (
     <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 min-h-screen flex flex-col relative overflow-hidden">
       {/* Navigation */}
@@ -29,6 +37,13 @@ const MainLayout = ({ children }) => {
                 arrow_back
               </span>
             </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-text-light/70 hover:text-red-600 dark:text-text-dark/70 dark:hover:text-red-400 transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 ml-2"
+            >
+              <span className="text-sm font-semibold">تسجيل خروج</span>
+              <span className="material-icons-round text-xl">logout</span>
+            </button>
           </div>
         </div>
       </nav>

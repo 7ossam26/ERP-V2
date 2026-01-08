@@ -1,6 +1,6 @@
 // API Client configuration and base utilities
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+  "/api"; // Use relative path to leverage Vite proxy
 
 class APIError extends Error {
   constructor(message, status, data) {
@@ -28,6 +28,12 @@ export const apiClient = async (endpoint, options = {}) => {
     ...options,
   };
 
+  // Add Auth Token if available
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers["Authorization"] = `Bearer ${token}`;
+  }
+
   try {
     const response = await fetch(url, config);
 
@@ -43,6 +49,14 @@ export const apiClient = async (endpoint, options = {}) => {
 
     // Check if response is successful
     if (!response.ok) {
+      if (response.status === 401) {
+        // Unauthorized - clear token and redirect if needed
+        // Avoid loop if already on login page
+        if (!window.location.pathname.endsWith("/")) {
+          // Optional: localStorage.removeItem("token");
+          // window.location.href = "/";
+        }
+      }
       throw new APIError(
         data.message || data.error || "An error occurred",
         response.status,

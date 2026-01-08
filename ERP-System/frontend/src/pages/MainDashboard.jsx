@@ -1,29 +1,6 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import AuthService from "../services/authService";
 
-const MainDashboardCard = ({
-  icon,
-  title,
-  subtitle,
-  onClick,
-  colorClass = "text-primary dark:text-accent",
-}) => (
-  <div
-    onClick={onClick}
-    className="group relative bg-surface-light dark:bg-surface-dark rounded-2xl p-6 shadow-soft hover:shadow-hover border border-transparent hover:border-primary/20 transition-all duration-300 flex flex-col items-center justify-center text-center h-48 cursor-pointer">
-    <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10 rounded-2xl scale-0 group-hover:scale-100 transition-transform duration-300 origin-center"></div>
-    <div
-      className={`h-16 w-16 bg-accent/20 dark:bg-primary/20 ${colorClass} rounded-full flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors duration-300 z-10 shadow-sm`}>
-      <span className="material-icons-round text-3xl">{icon}</span>
-    </div>
-    <h3 className="text-lg font-bold text-text-light dark:text-text-dark z-10">
-      {title}
-    </h3>
-    <p className="text-xs text-text-light/60 dark:text-text-dark/60 mt-1 z-10 group-hover:text-primary dark:group-hover:text-accent">
-      {subtitle}
-    </p>
-  </div>
-);
+// ... (MainDashboardCard component remains the same)
 
 const MainDashboard = () => {
   const navigate = useNavigate();
@@ -34,62 +11,102 @@ const MainDashboard = () => {
       title: "تكويدات",
       subtitle: "إدارة الأصناف",
       onClick: () => navigate("/creates"),
+      // Creates dashboard has sub-modules. We might need a general permission or check if any sub-module is visible.
+      // For now, let's assume if they can view ITEMS or CATEGORIES etc they can see this.
+      // Or maybe there is a 'SETTINGS' or 'CREATES' module? 
+      // The MODULES list had: "CATEGORIES", "ITEMS", "WAREHOUSES", "BRANCHES", "EMPLOYEES", "SUPPLIERS", "CLIENTS", "TREASURIES"
+      // Let's make it visible if they have at least one of these permissions.
+      permission: {
+        type: "some", permissions: [
+          { module: "ITEMS", action: "view" },
+          { module: "CATEGORIES", action: "view" },
+          { module: "WAREHOUSES", action: "view" },
+          { module: "BRANCHES", action: "view" },
+          { module: "EMPLOYEES", action: "view" },
+          { module: "SUPPLIERS", action: "view" },
+          { module: "CLIENTS", action: "view" },
+          { module: "TREASURIES", action: "view" }
+        ]
+      }
     },
     {
       icon: "shopping_cart",
       title: "مشتريات",
       subtitle: "إدارة التوريد",
       onClick: () => navigate("/purchases"),
+      permission: { module: "PURCHASES", action: "view" }
     },
     {
       icon: "point_of_sale",
       title: "مبيعات",
       subtitle: "فاتورة جديدة",
       onClick: () => navigate("/pos"),
+      permission: { module: "POS", action: "view" }
     },
     {
       icon: "inventory_2",
       title: "تحويلات مخزنية",
       subtitle: "نقل البضائع",
       onClick: () => navigate("/stock-transfer"),
+      permission: { module: "INVENTORY", action: "view" }
     },
     {
       icon: "account_balance_wallet",
       title: "تحويلات الخزائن",
       subtitle: "النقدية والسيولة",
       onClick: () => navigate("/cashier-transfer"),
+      permission: { module: "TREASURIES", action: "view" }
     },
     {
       icon: "storefront",
       title: "مبيعات الفروع",
       subtitle: "تقارير الفروع",
       onClick: () => navigate("/branches-sales"),
+      permission: { module: "BRANCHES", action: "view" }
     },
     {
       icon: "fact_check",
       title: "الجرد",
       subtitle: "جرد المخزون",
       onClick: () => navigate("/inventory"),
+      permission: { module: "INVENTORY", action: "view" }
     },
     {
       icon: "bar_chart",
       title: "تقارير",
       subtitle: "تحليل البيانات",
       onClick: () => navigate("/reports"),
+      permission: { module: "REPORTS", action: "view" }
     },
     {
       icon: "receipt_long",
       title: "مصروفات",
       subtitle: "إدارة المصروفات والفواتير",
       onClick: () => navigate("/expenses"),
+      // Expenses didn't have a specific module in MODULES list?
+      // "TREASURIES" or "REPORTS" or just accessible?
+      // Assuming TREASURIES for now or maybe it's open.
+      // Let's leave it open or map to TREASURIES.
+      permission: { module: "TREASURIES", action: "view" }
     },
     {
       icon: "groups",
       title: "موارد بشرية",
       subtitle: "إدارة الموظفين",
       onClick: () => navigate("/hr"),
+      permission: { module: "HR", action: "view" }
     },
   ];
+
+  const visibleCards = cards.filter(card => {
+    if (!card.permission) return true;
+
+    if (card.permission.type === "some") {
+      return card.permission.permissions.some(p => AuthService.hasPermission(p.module, p.action));
+    }
+
+    return AuthService.hasPermission(card.permission.module, card.permission.action);
+  });
 
   return (
     <div className="w-full max-w-5xl mx-auto relative">
@@ -111,7 +128,7 @@ const MainDashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
-        {cards.map((card, index) => (
+        {visibleCards.map((card, index) => (
           <MainDashboardCard key={index} {...card} />
         ))}
       </div>

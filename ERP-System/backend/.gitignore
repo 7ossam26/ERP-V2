@@ -13,3 +13,5 @@ build
 .idea
 
 /generated/prisma
+package-lock.json
+
