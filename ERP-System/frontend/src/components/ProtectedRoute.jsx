@@ -25,7 +25,7 @@ const ProtectedRoute = ({ requiredRole, requiredPermission, children }) => {
         const hasPerm = AuthService.hasPermission(requiredPermission.module, requiredPermission.action);
         if (!hasPerm) {
             // User doesn't have specific permission for this module
-            return <Navigate to="/dashboard" replace />;
+            return <Navigate to="/forbidden" replace />;
         }
     }
 

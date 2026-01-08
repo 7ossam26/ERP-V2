@@ -1,6 +1,24 @@
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
 
-// ... (MainDashboardCard component remains the same)
+const MainDashboardCard = ({ icon, title, subtitle, onClick }) => (
+  <div
+    onClick={onClick}
+    className="bg-surface-light dark:bg-surface-dark p-6 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-border-light dark:border-border-dark group flex flex-col items-center text-center h-full hover:-translate-y-1 relative overflow-hidden"
+  >
+    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    <div className="bg-primary/10 dark:bg-primary/20 p-4 rounded-full text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-colors duration-300 relative z-10">
+      <span className="material-icons-round text-3xl">{icon}</span>
+    </div>
+    <h3 className="text-xl font-bold text-text-light dark:text-text-dark mb-2 group-hover:text-primary transition-colors relative z-10">
+      {title}
+    </h3>
+    <p className="text-sm text-text-light/60 dark:text-text-dark/60 relative z-10">
+      {subtitle}
+    </p>
+  </div>
+);
 
 const MainDashboard = () => {
   const navigate = useNavigate();
@@ -11,11 +29,6 @@ const MainDashboard = () => {
       title: "تكويدات",
       subtitle: "إدارة الأصناف",
       onClick: () => navigate("/creates"),
-      // Creates dashboard has sub-modules. We might need a general permission or check if any sub-module is visible.
-      // For now, let's assume if they can view ITEMS or CATEGORIES etc they can see this.
-      // Or maybe there is a 'SETTINGS' or 'CREATES' module? 
-      // The MODULES list had: "CATEGORIES", "ITEMS", "WAREHOUSES", "BRANCHES", "EMPLOYEES", "SUPPLIERS", "CLIENTS", "TREASURIES"
-      // Let's make it visible if they have at least one of these permissions.
       permission: {
         type: "some", permissions: [
           { module: "ITEMS", action: "view" },
@@ -83,10 +96,6 @@ const MainDashboard = () => {
       title: "مصروفات",
       subtitle: "إدارة المصروفات والفواتير",
       onClick: () => navigate("/expenses"),
-      // Expenses didn't have a specific module in MODULES list?
-      // "TREASURIES" or "REPORTS" or just accessible?
-      // Assuming TREASURIES for now or maybe it's open.
-      // Let's leave it open or map to TREASURIES.
       permission: { module: "TREASURIES", action: "view" }
     },
     {
@@ -97,16 +106,6 @@ const MainDashboard = () => {
       permission: { module: "HR", action: "view" }
     },
   ];
-
-  const visibleCards = cards.filter(card => {
-    if (!card.permission) return true;
-
-    if (card.permission.type === "some") {
-      return card.permission.permissions.some(p => AuthService.hasPermission(p.module, p.action));
-    }
-
-    return AuthService.hasPermission(card.permission.module, card.permission.action);
-  });
 
   return (
     <div className="w-full max-w-5xl mx-auto relative">
@@ -128,7 +127,7 @@ const MainDashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
-        {visibleCards.map((card, index) => (
+        {cards.map((card, index) => (
           <MainDashboardCard key={index} {...card} />
         ))}
       </div>

@@ -42,6 +42,7 @@ import DailyTransactions from "./pages/reports/history/DailyTransactions";
 import DeductionHistory from "./pages/reports/history/DeductionHistory";
 import PurchaseHistory from "./pages/reports/history/PurchaseHistory";
 import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
+import ForbiddenPage from "./pages/ForbiddenPage";
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
 
@@ -64,6 +65,7 @@ function App() {
       <Routes>
         {/* Public Route: Login */}
         <Route path="/" element={<LoginPage />} />
+        <Route path="/forbidden" element={<ForbiddenPage />} />
 
         {/* Standalone Route: POS (No MainLayout) */}
         <Route path="/pos" element={
