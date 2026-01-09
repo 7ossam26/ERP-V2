@@ -56,6 +56,9 @@ router.get("/:id", async (req, res) => {
 // POST create new purchase
 router.post("/", async (req, res) => {
   try {
+    console.log("📦 Received purchase creation request");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+
     const {
       supplierId,
       treasuryId,
@@ -73,17 +76,23 @@ router.post("/", async (req, res) => {
     } = req.body;
 
     if (!supplierId) {
+      console.error("❌ Validation failed: Supplier is required");
       return res.status(400).json({ error: "Supplier is required" });
     }
     if (!treasuryId) {
+      console.error("❌ Validation failed: Treasury is required");
       return res.status(400).json({ error: "Treasury is required" });
     }
     if (!warehouseId) {
+      console.error("❌ Validation failed: Warehouse is required");
       return res.status(400).json({ error: "Warehouse is required" });
     }
     if (!items || items.length === 0) {
+      console.error("❌ Validation failed: At least one item is required");
       return res.status(400).json({ error: "At least one item is required" });
     }
+
+    console.log("✅ Validations passed, creating purchase...");
 
     const purchase = await prisma.purchase.create({
       data: {
@@ -120,8 +129,16 @@ router.post("/", async (req, res) => {
         },
       },
     });
+
+    console.log("✅ Purchase created successfully:", purchase.id);
     res.status(201).json(purchase);
   } catch (error) {
+    console.error("❌ Error creating purchase:");
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error code:", error.code);
+    console.error("Full error:", error);
+
     res
       .status(500)
       .json({ error: "Failed to create purchase", message: error.message });

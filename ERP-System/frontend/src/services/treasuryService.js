@@ -32,4 +32,28 @@ export const treasuryService = {
   delete: async (id) => {
     await axios.delete(`${BASE_URL}/${id}`);
   },
+
+  // Transfer funds
+  transfer: async (data) => {
+    const response = await axios.post(`${BASE_URL}/transfer`, data);
+    return response.data;
+  },
+
+  // Get all transfers
+  getTransfers: async () => {
+    const response = await axios.get(`${BASE_URL}/transfers`);
+    return response.data;
+  },
+
+  // Approve transfer
+  approveTransfer: async (id) => {
+    const response = await axios.post(`${BASE_URL}/transfer/${id}/approve`);
+    return response.data;
+  },
+
+  // Reject transfer
+  rejectTransfer: async (id) => {
+    const response = await axios.post(`${BASE_URL}/transfer/${id}/reject`);
+    return response.data;
+  },
 };

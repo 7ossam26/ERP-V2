@@ -17,11 +17,13 @@
 
 @layer utilities {
   /* Hide scrollbar for Chrome, Safari and Opera */
-  .no-scrollbar::-webkit-scrollbar {
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
   /* Hide scrollbar for IE, Edge and Firefox */
-  .no-scrollbar {
+  .no-scrollbar,
+  .scrollbar-hide {
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
   }
@@ -31,5 +33,19 @@
     width: 0px;
     height: 0px;
     background: transparent;
+  }
+
+  /* Add smooth scroll behavior */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+
+  /* Add scale transforms */
+  .scale-102 {
+    transform: scale(1.02);
+  }
+
+  .scale-105 {
+    transform: scale(1.05);
   }
 }

@@ -16,6 +16,8 @@ const GenericPageManager = ({
   backPath = "/creates",
   hideAddButton = false,
   headerActions,
+  customActions,
+  FilterComponent,
 }) => {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
@@ -90,7 +92,7 @@ const GenericPageManager = ({
   };
 
   return (
-    <div className="bg-surface-light dark:bg-surface-dark w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-140px)] transition-colors duration-200">
+    <div className="bg-surface-light dark:bg-surface-dark w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-100px)] transition-colors duration-200">
       {/* Header */}
       <div className="px-6 py-5 sm:px-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-surface-dark z-10 shrink-0">
         <div className="flex items-center gap-4">
@@ -114,13 +116,21 @@ const GenericPageManager = ({
         </button>
       </div>
 
+      {/* Filters Section */}
+      {FilterComponent && (
+        <div className="px-6 py-4 sm:px-8 bg-gray-50 dark:bg-gray-800/30 border-b border-gray-100 dark:border-gray-700 shrink-0">
+          <FilterComponent />
+        </div>
+      )}
+
       {/* Table */}
       <div className="p-0 overflow-y-auto custom-scrollbar flex-grow bg-white dark:bg-surface-dark">
         <GenericDataTable
           columns={columns}
           data={data}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+          onEdit={customActions ? null : handleEdit}
+          onDelete={customActions ? null : handleDelete}
+          customActions={customActions}
           loading={loading}
           emptyMessage={emptyMessage}
         />

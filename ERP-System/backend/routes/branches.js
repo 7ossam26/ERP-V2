@@ -20,6 +20,80 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET Financial Summary (Total Balance & Daily Change)
+router.get("/summary", async (req, res) => {
+  try {
+    // 1. Get all branches with treasuries to calculate current total balance
+    const branches = await prisma.branch.findMany({
+      include: { treasury: true },
+    });
+
+    const totalBalance = branches.reduce(
+      (sum, branch) => sum + Number(branch.treasury?.balance || 0),
+      0
+    );
+
+    // 2. Calculate Today's Net Change (Income - Expense) to derive Yesterday's Balance
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // Income: Sum of 'paidAmount' from Sales created today
+    // Note: Assuming Sales affect treasury directly via paidAmount
+    const todaySales = await prisma.sale.aggregate({
+      _sum: {
+        paidAmount: true,
+      },
+      where: {
+        createdAt: {
+          gte: startOfDay,
+        },
+        status: { not: "CANCELLED" },
+      },
+    });
+
+    const income = Number(todaySales._sum.paidAmount || 0);
+
+    // Expense: Sum of 'paidAmount' from Purchases created today
+    const todayPurchases = await prisma.purchase.aggregate({
+      _sum: {
+        paidAmount: true,
+      },
+      where: {
+        createdAt: {
+          gte: startOfDay,
+        },
+      },
+    });
+
+    const expense = Number(todayPurchases._sum.paidAmount || 0);
+
+    const netChange = income - expense;
+
+    // 3. Calculate Yesterday's Balance and Percentage Change
+    // CurrentBalance = YesterdayBalance + NetChange
+    // YesterdayBalance = CurrentBalance - NetChange
+    const yesterdayBalance = totalBalance - netChange;
+
+    let percentageChange = 0;
+    if (yesterdayBalance !== 0) {
+      percentageChange = (netChange / yesterdayBalance) * 100;
+    } else if (netChange > 0) {
+      percentageChange = 100; // 0 to something is 100% growth effectively
+    }
+
+    res.json({
+      totalBalance,
+      percentageChange: percentageChange.toFixed(1), // Returns string "12.5"
+      netChange,
+    });
+  } catch (error) {
+    console.error("Summary Error:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch summary", message: error.message });
+  }
+});
+
 // GET branch by ID
 router.get("/:id", async (req, res) => {
   try {

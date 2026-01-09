@@ -1,11 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { treasuryService } from "../../services/domainServices";
+import toast from "react-hot-toast";
 
 const CashierTransferPage = () => {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
-  const currentBalance = 12500;
+  const [treasuries, setTreasuries] = useState([]);
+  const [sourceTreasuryId, setSourceTreasuryId] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchTreasuries = async () => {
+      try {
+        const data = await treasuryService.getAll();
+        setTreasuries(data);
+
+        // Auto-select first non-main treasury as source
+        // Assuming Main is ID 1 or has 'Main'/'رئيسية' in name
+        const main = data.find(
+          (t) =>
+            t.id === 1 || t.name.includes("رئيسية") || t.name.includes("Main")
+        );
+        const firstSource = data.find((t) => t.id !== main?.id);
+        if (firstSource) setSourceTreasuryId(firstSource.id);
+      } catch (error) {
+        toast.error("فشل في تحميل بيانات الخزائن");
+      }
+    };
+    fetchTreasuries();
+  }, []);
+
+  const selectedSource = treasuries.find(
+    (t) => t.id === parseInt(sourceTreasuryId)
+  );
+  const currentBalance = selectedSource ? Number(selectedSource.balance) : 0;
+
+  const handleTransfer = async () => {
+    if (!amount || Number(amount) <= 0) {
+      toast.error("يرجى إدخال مبلغ صحيح");
+      return;
+    }
+    if (Number(amount) > currentBalance) {
+      toast.error("رصيد الخزينة غير كافٍ");
+      return;
+    }
+    if (!sourceTreasuryId) {
+      toast.error("يرجى تحديد الخزينة المحول منها");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await treasuryService.transfer({
+        fromTreasuryId: parseInt(sourceTreasuryId),
+        amount: Number(amount),
+        notes,
+      });
+      toast.success("تم إرسال طلب التحويل إلى الخزينة الرئيسية بنجاح");
+      navigate("/dashboard");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.error || "فشل في عملية التحويل");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden bg-background-light dark:bg-background-dark text-text-primary dark:text-text-dark">
@@ -16,10 +77,10 @@ const CashierTransferPage = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-black text-text-primary dark:text-text-dark mb-2">
-                تحويل الخزينة
+                تورد نقدية
               </h1>
               <p className="text-text-secondary dark:text-gray-400 text-lg">
-                نقل السيولة من الفرع إلى الخزينة الرئيسية
+                إرسال النقدية من الفرع إلى الخزينة الرئيسية (طلب استلام)
               </p>
             </div>
             <div className="bg-surface-light dark:bg-surface-dark border border-primary/20 rounded-xl p-5 shadow-sm min-w-[280px] flex items-center justify-between">
@@ -47,6 +108,7 @@ const CashierTransferPage = () => {
             <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark p-6 md:p-8">
               {/* Route Visualizer */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10 relative">
+                {/* Source Select */}
                 <div className="flex-1 w-full bg-background-light dark:bg-background-dark/50 rounded-xl p-4 border border-border-light dark:border-border-dark relative group hover:border-primary/30 transition-colors">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-white dark:bg-surface-dark rounded-lg text-primary shadow-sm">
@@ -58,11 +120,30 @@ const CashierTransferPage = () => {
                       من
                     </p>
                   </div>
-                  <p className="text-lg font-bold text-text-primary dark:text-text-dark">
-                    الخزينة الفرعية
-                  </p>
-                  <p className="text-sm text-text-secondary dark:text-gray-400">
-                    كاشير #102 - أحمد محمد
+                  <select
+                    className="w-full bg-transparent font-bold text-lg text-text-primary dark:text-text-dark focus:outline-none cursor-pointer"
+                    value={sourceTreasuryId}
+                    onChange={(e) => setSourceTreasuryId(e.target.value)}>
+                    <option value="" disabled>
+                      اختر الخزينة
+                    </option>
+                    {treasuries
+                      .filter(
+                        (t) =>
+                          t.id !== 1 &&
+                          !t.name.includes("رئيسية") &&
+                          !t.name.includes("Main")
+                      )
+                      .map((t) => (
+                        <option key={t.id} value={t.id} className="text-black">
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
+                    {selectedSource
+                      ? `${Number(selectedSource.balance).toLocaleString()} ج.م`
+                      : "حدد المصدر"}
                   </p>
                 </div>
 
@@ -72,7 +153,8 @@ const CashierTransferPage = () => {
                   </span>
                 </div>
 
-                <div className="flex-1 w-full bg-background-light dark:bg-background-dark/50 rounded-xl p-4 border border-border-light dark:border-border-dark relative group hover:border-primary/30 transition-colors">
+                {/* Destination (Static Main) */}
+                <div className="flex-1 w-full bg-background-light dark:bg-background-dark/50 rounded-xl p-4 border border-border-light dark:border-border-dark relative group">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-white dark:bg-surface-dark rounded-lg text-primary shadow-sm">
                       <span className="material-symbols-outlined">
@@ -83,11 +165,11 @@ const CashierTransferPage = () => {
                       إلى
                     </p>
                   </div>
-                  <p className="text-lg font-bold text-text-primary dark:text-text-dark">
+                  <div className="w-full bg-transparent font-bold text-lg text-text-primary dark:text-text-dark flex items-center h-[28px]">
                     الخزينة الرئيسية
-                  </p>
-                  <p className="text-sm text-text-secondary dark:text-gray-400">
-                    الإدارة المركزية
+                  </div>
+                  <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
+                    يتم التحويل كطلب معلق
                   </p>
                 </div>
               </div>
@@ -96,7 +178,7 @@ const CashierTransferPage = () => {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
-                    المبلغ المراد تحويله
+                    المبلغ المراد توريده
                   </label>
                   <div className="relative">
                     <input
@@ -106,17 +188,12 @@ const CashierTransferPage = () => {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       max={currentBalance}
+                      disabled={loading}
                     />
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary dark:text-gray-400 font-medium text-lg pointer-events-none">
                       ج.م
                     </span>
                   </div>
-                  <p className="text-xs text-text-secondary dark:text-gray-400 mt-2 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">
-                      info
-                    </span>
-                    الحد الأقصى للتحويل هو الرصيد الحالي
-                  </p>
                 </div>
 
                 <div>
@@ -125,21 +202,32 @@ const CashierTransferPage = () => {
                   </label>
                   <textarea
                     className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-3 text-base text-text-primary dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all resize-none"
-                    placeholder="أضف أي تفاصيل إضافية عن عملية التحويل..."
+                    placeholder="أضف أي تفاصيل إضافية عن عملية التوريد..."
                     rows="3"
                     value={notes}
-                    onChange={(e) => setNotes(e.target.value)}></textarea>
+                    onChange={(e) => setNotes(e.target.value)}
+                    disabled={loading}></textarea>
                 </div>
 
                 <div className="pt-4 flex items-center gap-4">
-                  <button className="flex-1 bg-primary hover:bg-primary-hover text-white py-4 px-6 rounded-xl text-lg font-bold shadow-lg shadow-primary/20 transition-all hover:translate-y-[-2px] flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined">
-                      check_circle
-                    </span>
-                    تأكيد التحويل
+                  <button
+                    onClick={handleTransfer}
+                    disabled={loading}
+                    className="flex-1 bg-primary hover:bg-primary-hover text-white py-4 px-6 rounded-xl text-lg font-bold shadow-lg shadow-primary/20 transition-all hover:translate-y-[-2px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {loading ? (
+                      <span className="material-symbols-outlined animate-spin">
+                        progress_activity
+                      </span>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined">send</span>
+                        إرسال طلب التوريد
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => navigate(-1)}
+                    disabled={loading}
                     className="px-6 py-4 rounded-xl text-text-secondary dark:text-gray-400 font-bold hover:bg-background-light dark:hover:bg-background-dark transition-colors">
                     إلغاء
                   </button>

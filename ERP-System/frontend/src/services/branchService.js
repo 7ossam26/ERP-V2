@@ -14,6 +14,18 @@ export const branchService = {
     }
   },
 
+  async getSummary() {
+    try {
+      const response = await axios.get(`${BRANCHES_URL}/summary`);
+      console.log("Summary response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching branch summary:", error);
+      // Return fallback if fails
+      return { totalBalance: 0, percentageChange: 0, netChange: 0 };
+    }
+  },
+
   async getById(id) {
     try {
       const response = await axios.get(`${BRANCHES_URL}/${id}`);

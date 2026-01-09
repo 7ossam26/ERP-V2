@@ -112,6 +112,7 @@ model Employee {
   
   // Relations
   branch           Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales            Sale[]
 
   @@map("employees")
 }
@@ -129,6 +130,10 @@ model Warehouse {
   // Relations
   branch    Branch?
   purchases Purchase[]
+  sales     Sale[]
+  
+  // Config Relations
+  systemConfigAsMain  SystemConfiguration[] 
 
   @@map("warehouses")
 }
@@ -140,12 +145,20 @@ model Warehouse {
 model Treasury {
   id        Int      @id @default(autoincrement())
   name      String
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   
   // Relations
   branch    Branch?
   purchases Purchase[]
+  sales     Sale[]
+  transfersOut CashTransfer[] @relation("TransfersFrom")
+  transfersIn  CashTransfer[] @relation("TransfersTo")
+  
+  // Config Relations
+  systemConfigAsMain SystemConfiguration[] @relation("ConfigMainTreasury")
+  systemConfigAsBank SystemConfiguration[] @relation("ConfigBankTreasury")
 
   @@map("treasuries")
 }
@@ -167,6 +180,7 @@ model Branch {
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   treasury    Treasury  @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   employees   Employee[]
+  sales       Sale[]
 
   @@map("branches")
 }
@@ -181,6 +195,9 @@ model Client {
   phoneNumber String   @map("phone_number")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  sales       Sale[]
 
   @@map("clients")
 }
@@ -231,6 +248,7 @@ model Item {
   suppliers     ItemSupplier[]
   categories    ItemCategory[]
   purchaseItems PurchaseItem[]
+  saleItems     SaleItem[]
 
   @@map("items")
 }
@@ -310,4 +328,123 @@ model PurchaseItem {
 
   @@id([purchaseId, itemId])
   @@map("purchase_items")
+}
+
+// ============================================
+// POS (Point of Sale) Management
+// ============================================
+
+enum SalePaymentMethod {
+  CASH
+  CARD
+}
+
+enum SaleStatus {
+  COMPLETED
+  HELD
+  CANCELLED
+}
+
+model Sale {
+  id             Int                @id @default(autoincrement())
+  saleNumber     String             @unique @map("sale_number")
+  clientId       Int                @map("client_id")
+  employeeId     Int                @map("employee_id")
+  branchId       Int                @map("branch_id")
+  treasuryId     Int                @map("treasury_id")
+  warehouseId    Int?               @map("warehouse_id")
+  subtotal       Decimal            @db.Decimal(10, 2)
+  taxRate        Decimal            @default(0.14) @db.Decimal(5, 4) @map("tax_rate")
+  taxAmount      Decimal            @db.Decimal(10, 2) @map("tax_amount")
+  total          Decimal            @db.Decimal(10, 2)
+  paymentMethod  SalePaymentMethod  @default(CASH) @map("payment_method")
+  paidAmount     Decimal            @db.Decimal(10, 2) @map("paid_amount")
+  changeAmount   Decimal            @default(0) @db.Decimal(10, 2) @map("change_amount")
+  status         SaleStatus         @default(COMPLETED)
+  notes          String?            @db.Text
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  client         Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  employee       Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  branch         Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  treasury       Treasury           @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  warehouse      Warehouse?         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  items          SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id        Int      @id @default(autoincrement())
+  saleId    Int      @map("sale_id")
+  itemId    Int      @map("item_id")
+  quantity  Decimal  @db.Decimal(10, 2)
+  unitPrice Decimal  @db.Decimal(10, 2) @map("unit_price")
+  total     Decimal  @db.Decimal(10, 2)
+
+  // Relations
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@map("sale_items")
+}
+
+// ============================================
+// Financial Transactions
+// ============================================
+
+model CashTransfer {
+  id            Int      @id @default(autoincrement())
+  amount        Decimal  @db.Decimal(10, 2)
+  notes         String?  @db.Text
+  fromTreasuryId Int     @map("from_treasury_id")
+  toTreasuryId   Int     @map("to_treasury_id")
+  status        TransferStatus @default(PENDING)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  fromTreasury  Treasury @relation("TransfersFrom", fields: [fromTreasuryId], references: [id], onDelete: Restrict)
+  toTreasury    Treasury @relation("TransfersTo", fields: [toTreasuryId], references: [id], onDelete: Restrict)
+
+  @@map("cash_transfers")
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ============================================
+// System Configuration
+// ============================================
+
+model SystemConfiguration {
+  id              Int      @id @default(1)
+  companyName     String   @default("ERP System") @map("company_name")
+  
+  // Operational Defaults
+  mainWarehouseId Int?     @map("main_warehouse_id")
+  mainTreasuryId  Int?     @map("main_treasury_id")
+  bankTreasuryId  Int?     @map("bank_treasury_id")
+  
+  // Financial Defaults
+  taxRate         Decimal  @default(14.0) @db.Decimal(5, 2) @map("tax_rate")
+  
+  // HR Defaults
+  salaryStartDay  Int      @default(1) @map("salary_start_day")
+  salaryEndDay    Int      @default(30) @map("salary_end_day")
+  shiftStartTime  String   @default("09:00") @map("shift_start_time")
+  shiftEndTime    String   @default("17:00") @map("shift_end_time")
+  
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  mainWarehouse   Warehouse? @relation(fields: [mainWarehouseId], references: [id])
+  mainTreasury    Treasury?  @relation("ConfigMainTreasury", fields: [mainTreasuryId], references: [id])
+  bankTreasury    Treasury?  @relation("ConfigBankTreasury", fields: [bankTreasuryId], references: [id])
+
+  @@map("system_configuration")
 }

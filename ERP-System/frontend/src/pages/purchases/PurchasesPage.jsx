@@ -234,20 +234,20 @@ const PurchasesPage = () => {
       }
 
       const purchaseData = {
-        supplierId: selectedSupplierId,
-        treasuryId: selectedTreasuryId,
-        warehouseId: selectedWarehouseId,
+        supplierId: parseInt(selectedSupplierId),
+        treasuryId: parseInt(selectedTreasuryId),
+        warehouseId: parseInt(selectedWarehouseId),
         supplierInvoiceNo,
         paymentMethod,
-        subtotal: totals.subtotal,
+        subtotal: Number(totals.subtotal),
         discountType,
-        discountValue,
-        discountAmount: totals.discountAmount,
-        netTotal: totals.net,
-        paidAmount,
-        remaining: totals.remaining,
+        discountValue: Number(discountValue) || 0,
+        discountAmount: Number(totals.discountAmount),
+        netTotal: Number(totals.net),
+        paidAmount: Number(paidAmount) || 0,
+        remaining: Number(totals.remaining),
         items: items.map((item) => ({
-          itemId: item.itemId,
+          itemId: parseInt(item.itemId),
           quantity: Number(item.quantity),
           purchasePrice: Number(item.purchasePrice),
           sellPrice: Number(item.sellPrice),
@@ -255,6 +255,7 @@ const PurchasesPage = () => {
         })),
       };
 
+      console.log("Sending purchase data:", purchaseData);
       await purchaseService.create(purchaseData);
       toast.success("تم حفظ فاتورة المشتريات بنجاح");
 
@@ -271,7 +272,15 @@ const PurchasesPage = () => {
       setPaidAmount(0);
     } catch (error) {
       console.error("Failed to save purchase", error);
-      toast.error("حدث خطأ أثناء حفظ الفاتورة");
+
+      // Extract error message from response if available
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        "حدث خطأ غير معروف";
+
+      toast.error(`حدث خطأ أثناء حفظ الفاتورة: ${errorMessage}`);
     }
   };
 

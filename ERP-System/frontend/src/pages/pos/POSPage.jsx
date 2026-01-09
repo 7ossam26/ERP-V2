@@ -8,6 +8,7 @@ import {
   clientService,
   itemService,
   categoryService,
+  salesService,
 } from "../../services/domainServices";
 
 const POSPage = () => {
@@ -26,6 +27,20 @@ const POSPage = () => {
   // Hold Cart State
   const [heldCarts, setHeldCarts] = useState([]);
   const [isHeldCartsModalOpen, setIsHeldCartsModalOpen] = useState(false);
+  const [isPaymentConfirmOpen, setIsPaymentConfirmOpen] = useState(false);
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState(null);
+  const [cashPaidAmount, setCashPaidAmount] = useState(""); // For cash payment input
+
+  // Quantity/Weight Selection State
+  const [keypadMode, setKeypadMode] = useState("default"); // 'default', 'piece', 'weight', 'payment'
+  const [selectedProductForQuantity, setSelectedProductForQuantity] =
+    useState(null);
+
+  // Custom input state
+  const [customInputValue, setCustomInputValue] = useState("");
+
+  // Print Modal State - NOT USED, keeping for now
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -96,9 +111,43 @@ const POSPage = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const addToCart = (product) => {
+  // Handle product clicks - check unit type and show appropriate selector
+  const handleProductClick = (product) => {
+    const unit = product.unit?.toLowerCase();
+
+    setSelectedProductForQuantity(product);
+    setCustomInputValue(""); // Clear custom input
+
+    if (unit === "kg" || unit === "kilo" || unit === "kilogram") {
+      // Show weight selector inline
+      setKeypadMode("weight");
+    } else {
+      // Show piece quantity selector inline
+      setKeypadMode("piece");
+    }
+  };
+
+  // Handle custom input submission
+  const handleCustomInputSubmit = () => {
+    const value = parseFloat(customInputValue);
+    if (isNaN(value) || value <= 0) {
+      toast.error("الرجاء إدخال قيمة صحيحة");
+      return;
+    }
+
+    if (keypadMode === "piece") {
+      handleQuantitySelected(value);
+    } else if (keypadMode === "weight") {
+      handleWeightSelected(value);
+    }
+    setCustomInputValue("");
+  };
+
+  // Add product to cart with specified quantity
+  const addToCartWithQuantity = (product, quantity) => {
     const rawPrice = product.sellPrice || product.price || 0;
     const price = Number(rawPrice);
+
     setCartItems((prevItems) => {
       const existingItem = prevItems.find((item) => item.id === product.id);
       if (existingItem) {
@@ -106,8 +155,8 @@ const POSPage = () => {
           item.id === product.id
             ? {
                 ...item,
-                quantity: item.quantity + 1,
-                total: (item.quantity + 1) * price,
+                quantity: item.quantity + quantity,
+                total: (item.quantity + quantity) * price,
               }
             : item
         );
@@ -116,13 +165,18 @@ const POSPage = () => {
           ...prevItems,
           {
             ...product,
-            quantity: 1,
-            total: price,
-            price: price, // Ensure price is set
+            quantity: quantity,
+            total: price * quantity,
+            price: price,
           },
         ];
       }
     });
+  };
+
+  // Legacy function kept for compatibility - defaults to quantity 1
+  const addToCart = (product) => {
+    addToCartWithQuantity(product, 1);
   };
 
   const clearCart = () => {
@@ -134,16 +188,167 @@ const POSPage = () => {
     setSelectedItemId(id === selectedItemId ? null : id);
   };
 
+  // Remove item from cart
+  const removeFromCart = (itemId) => {
+    setCartItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+    setSelectedItemId(null);
+    toast.success("تم حذف الصنف من السلة");
+  };
+
+  // Helper function to round amounts for cash payments only
+  const roundForCash = (amount, paymentMethod) => {
+    if (paymentMethod === "cash") {
+      return Math.round(amount);
+    }
+    return amount;
+  };
+
   // Calculations
   const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
   const taxRate = 0.14;
   const tax = subtotal * taxRate;
-  const total = subtotal + tax;
+  const total = subtotal + tax; // Total NEVER rounds - always exact decimals
 
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   const handleEndShift = () => {
     setIsReportOpen(true);
+  };
+
+  // Handle quantity selection for piece items
+  const handleQuantitySelected = (quantity) => {
+    if (selectedProductForQuantity) {
+      addToCartWithQuantity(selectedProductForQuantity, quantity);
+      toast.success(
+        `تمت إضافة ${quantity} ${selectedProductForQuantity.name} إلى السلة`
+      );
+      setKeypadMode("default");
+      setSelectedProductForQuantity(null);
+    }
+  };
+
+  // Handle weight selection for kg items
+  const handleWeightSelected = (weight) => {
+    if (selectedProductForQuantity) {
+      addToCartWithQuantity(selectedProductForQuantity, weight);
+      toast.success(
+        `تمت إضافة ${weight} كجم من ${selectedProductForQuantity.name} إلى السلة`
+      );
+      setKeypadMode("default");
+      setSelectedProductForQuantity(null);
+    }
+  };
+
+  // Helper function to convert unit to Arabic
+  const getArabicUnit = (unit) => {
+    if (!unit) return "";
+    const unitLower = unit.toLowerCase();
+    if (unitLower === "piece" || unitLower === "pc" || unitLower === "pcs") {
+      return "قطعة";
+    }
+    if (
+      unitLower === "kg" ||
+      unitLower === "kilo" ||
+      unitLower === "kilogram"
+    ) {
+      return "كيلو";
+    }
+    return unit; // Return original if not recognized
+  };
+
+  // Handle print button - only print
+  const handlePrintClick = () => {
+    window.print();
+  };
+
+  // Handle payment method selection
+  const handlePaymentSelected = (method) => {
+    toast.success(`تم اختيار الدفع ${method === "cash" ? "نقدي" : "بالبطاقة"}`);
+    setKeypadMode("default");
+    // Optionally clear cart after payment
+    clearCart();
+  };
+
+  // Handle quick payment with confirmation
+  const handleQuickPayment = (method) => {
+    if (!selectedClient) {
+      toast.error("يرجى اختيار العميل أولاً");
+      return;
+    }
+    if (cartItems.length === 0) {
+      toast.error("السلة فارغة");
+      return;
+    }
+    setPendingPaymentMethod(method);
+    setCashPaidAmount(""); // Reset cash paid amount
+    setIsPaymentConfirmOpen(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    const methodName = pendingPaymentMethod === "cash" ? "نقدي" : "بطاقة";
+
+    // For cash, validate paid amount
+    if (pendingPaymentMethod === "cash") {
+      const paid = parseFloat(cashPaidAmount);
+      if (isNaN(paid) || paid < total) {
+        toast.error("المبلغ المدفوع أقل من الإجمالي");
+        return;
+      }
+    }
+
+    // Calculate final amounts with rounding for cash only
+    let finalPaidAmount, finalChangeAmount;
+
+    if (pendingPaymentMethod === "cash") {
+      const paid = parseFloat(cashPaidAmount);
+      finalPaidAmount = Math.round(paid);
+      finalChangeAmount = Math.round(paid - total);
+    } else {
+      finalPaidAmount = parseFloat(total.toFixed(2));
+      finalChangeAmount = 0;
+    }
+
+    // Prepare sale data for backend
+    // Normalize payment method: if not CASH, treat as CARD (covers VISA, MASTERCARD, etc.)
+    const normalizedPaymentMethod =
+      pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "CARD";
+
+    const saleData = {
+      clientId: selectedClient ? selectedClient.id : 1, // Default to walk-in client (ID: 1)
+      employeeId: 7, // Using employee #7 (has branch assigned) - TODO: Get from logged-in user
+      paymentMethod: normalizedPaymentMethod,
+      subtotal: parseFloat(subtotal.toFixed(2)),
+      taxRate: taxRate,
+      taxAmount: parseFloat(tax.toFixed(2)),
+      total: parseFloat(total.toFixed(2)),
+      paidAmount: finalPaidAmount,
+      changeAmount: finalChangeAmount,
+      status: "COMPLETED",
+      items: cartItems.map((item) => ({
+        itemId: item.id,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        total: item.total,
+      })),
+    };
+
+    try {
+      // Create sale via API
+      const createdSale = await salesService.create(saleData);
+      console.log("✅ Sale created successfully:", createdSale);
+
+      toast.success(
+        `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`
+      );
+      setIsPaymentConfirmOpen(false);
+      setPendingPaymentMethod(null);
+      setCashPaidAmount("");
+      clearCart();
+      setSelectedClient(null);
+    } catch (error) {
+      console.error("❌ Error creating sale:", error);
+      toast.error("حدث خطأ أثناء حفظ الفاتورة");
+    }
   };
 
   const handleConfirmShift = () => {
@@ -272,6 +477,109 @@ const POSPage = () => {
         </div>
       </Modal>
 
+      {/* Payment Confirmation Modal */}
+      <Modal
+        isOpen={isPaymentConfirmOpen}
+        onClose={() => setIsPaymentConfirmOpen(false)}
+        title="تأكيد الدفع">
+        <div className="space-y-6">
+          <div className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-xl p-6 border border-primary/20">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-gray-600 dark:text-gray-400 text-lg">
+                طريقة الدفع:
+              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`material-symbols-outlined text-3xl ${
+                    pendingPaymentMethod === "cash"
+                      ? "text-green-500"
+                      : "text-blue-500"
+                  }`}>
+                  {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
+                </span>
+                <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                  {pendingPaymentMethod === "cash" ? "نقدي" : "بطاقة"}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-4 border-t border-primary/20">
+              <span className="text-gray-600 dark:text-gray-400 text-lg">
+                المبلغ الإجمالي:
+              </span>
+              <span className="text-3xl font-bold text-primary">
+                {total.toFixed(2)} ج.م
+              </span>
+            </div>
+          </div>
+
+          {/* Cash Payment Input Fields */}
+          {pendingPaymentMethod === "cash" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                  المبلغ المدفوع:
+                </label>
+                <input
+                  type="number"
+                  step="1"
+                  value={cashPaidAmount}
+                  onChange={(e) => setCashPaidAmount(e.target.value)}
+                  className="w-full px-4 py-3 text-xl font-bold text-center border-2 border-primary/30 rounded-lg focus:outline-none focus:border-primary dark:bg-zinc-800 dark:text-gray-100"
+                  placeholder="أدخل المبلغ المدفوع"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                  الباقي:
+                </label>
+                <div className="w-full px-4 py-3 text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
+                  {cashPaidAmount &&
+                  !isNaN(parseFloat(cashPaidAmount)) &&
+                  parseFloat(cashPaidAmount) >= total
+                    ? Math.round(parseFloat(cashPaidAmount) - total)
+                    : 0}{" "}
+                  ج.م
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">
+                info
+              </span>
+              <div className="text-sm text-blue-800 dark:text-blue-200">
+                <p className="font-bold mb-1">
+                  العميل: {selectedClient?.name || "عميل نقدي"}
+                </p>
+                <p>عدد الأصناف: {cartItems.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsPaymentConfirmOpen(false)}
+              className="flex-1 px-6 py-3 bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 text-gray-800 dark:text-gray-200 rounded-lg font-bold transition-colors flex items-center justify-center gap-2">
+              <span className="material-symbols-outlined">close</span>
+              <span>إلغاء</span>
+            </button>
+            <button
+              onClick={handleConfirmPayment}
+              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+                pendingPaymentMethod === "cash"
+                  ? "bg-green-500 hover:bg-green-600"
+                  : "bg-blue-500 hover:bg-blue-600"
+              }`}>
+              <span className="material-symbols-outlined">check_circle</span>
+              <span>تأكيد الدفع</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Header */}
       <div className="bg-primary dark:bg-primary text-white px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30">
         <div className="flex items-center gap-6">
@@ -349,20 +657,52 @@ const POSPage = () => {
 
           {/* Products Content */}
           <div className="flex-1 overflow-y-auto p-4">
-            {/* Categories */}
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin">
-              {categories.map((cat) => (
-                <div
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-colors ${
-                    activeCategory === cat.id
-                      ? "bg-primary text-white shadow"
-                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                  }`}>
-                  {cat.name}
-                </div>
-              ))}
+            {/* Categories Slider */}
+            <div className="flex items-center gap-2 mb-4">
+              {/* Left Arrow */}
+              <button
+                onClick={() => {
+                  const container =
+                    document.getElementById("categories-slider");
+                  container.scrollBy({ left: 200, behavior: "smooth" });
+                }}
+                className="flex-shrink-0 bg-white dark:bg-zinc-800 rounded-lg p-2 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-zinc-700 transition-all border border-gray-200 dark:border-zinc-700">
+                <span className="material-symbols-outlined text-primary text-xl">
+                  chevron_right
+                </span>
+              </button>
+
+              {/* Categories Container */}
+              <div
+                id="categories-slider"
+                className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                {categories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
+                      activeCategory === cat.id
+                        ? "bg-primary text-white shadow-md"
+                        : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                    }`}>
+                    {cat.name}
+                  </div>
+                ))}
+              </div>
+
+              {/* Right Arrow */}
+              <button
+                onClick={() => {
+                  const container =
+                    document.getElementById("categories-slider");
+                  container.scrollBy({ left: -200, behavior: "smooth" });
+                }}
+                className="flex-shrink-0 bg-white dark:bg-zinc-800 rounded-lg p-2 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-zinc-700 transition-all border border-gray-200 dark:border-zinc-700">
+                <span className="material-symbols-outlined text-primary text-xl">
+                  chevron_left
+                </span>
+              </button>
             </div>
 
             {/* Product Grid */}
@@ -371,7 +711,7 @@ const POSPage = () => {
                 <div
                   key={product.id}
                   className="bg-card-light dark:bg-card-dark rounded shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-24 group relative active:scale-95 transition-transform"
-                  onClick={() => addToCart(product)}>
+                  onClick={() => handleProductClick(product)}>
                   <span className="absolute top-1 left-1 text-gray-300 hover:text-gray-500 dark:text-gray-500 cursor-help">
                     <span className="material-symbols-outlined text-sm">
                       info
@@ -389,7 +729,7 @@ const POSPage = () => {
                         ج.م
                         {product.unit && (
                           <span className="text-[10px] text-gray-500 font-normal">
-                            /{product.unit}
+                            / {getArabicUnit(product.unit)}
                           </span>
                         )}
                       </span>
@@ -476,7 +816,10 @@ const POSPage = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-0 flex flex-col">
+          <div
+            className={`${
+              keypadMode === "default" ? "flex-1" : "h-[45%]"
+            } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 h-64">
@@ -490,22 +833,41 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors ${
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${
                       selectedItemId === item.id
                         ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
                         : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
                     }`}>
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-bold text-gray-800 dark:text-gray-100">
-                        {item.name}
-                      </span>
-                      <span className="font-bold text-gray-800 dark:text-gray-100">
-                        {item.total.toFixed(2)} ج.م
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {item.quantity.toFixed(2)} وحدة x {item.price.toFixed(2)}{" "}
-                      ج.م / وحدة
+                    {/* Delete icon - appears when selected */}
+                    {selectedItemId === item.id ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFromCart(item.id);
+                        }}
+                        className="flex-shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded-full transition-colors"
+                        title="حذف من السلة">
+                        <span className="material-symbols-outlined text-xl">
+                          delete
+                        </span>
+                      </button>
+                    ) : (
+                      <div className="w-9"></div>
+                    )}
+
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-bold text-gray-800 dark:text-gray-100">
+                          {item.name}
+                        </span>
+                        <span className="font-bold text-gray-800 dark:text-gray-100">
+                          {item.total.toFixed(2)} ج.م
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {item.quantity.toFixed(2)} وحدة x{" "}
+                        {item.price.toFixed(2)} ج.م / وحدة
+                      </div>
                     </div>
                   </div>
                 ))
@@ -514,6 +876,36 @@ const POSPage = () => {
 
             <div className="mt-auto">
               <div className="bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700">
+                {/* Payment Action Buttons - Only show when keypad is closed */}
+                {keypadMode === "default" && (
+                  <div className="grid grid-cols-3 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
+                    <button
+                      onClick={handlePrintClick}
+                      className="flex flex-col items-center justify-center p-3 bg-gray-500 hover:bg-gray-600 text-white transition-colors">
+                      <span className="material-symbols-outlined mb-1">
+                        print
+                      </span>
+                      <span className="font-bold">طباعة</span>
+                    </button>
+                    <button
+                      onClick={() => handleQuickPayment("cash")}
+                      className="flex flex-col items-center justify-center p-3 bg-green-500 hover:bg-green-600 text-white transition-colors">
+                      <span className="material-symbols-outlined mb-1">
+                        payments
+                      </span>
+                      <span className="font-bold">نقدي</span>
+                    </button>
+                    <button
+                      onClick={() => handleQuickPayment("visa")}
+                      className="flex flex-col items-center justify-center p-3 bg-blue-500 hover:bg-blue-600 text-white transition-colors">
+                      <span className="material-symbols-outlined mb-1">
+                        credit_card
+                      </span>
+                      <span className="font-bold">بطاقة</span>
+                    </button>
+                  </div>
+                )}
+
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50">
                   <div className="flex justify-between items-end mb-1">
                     <span className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -569,88 +961,204 @@ const POSPage = () => {
                     )}
                   </button>
                 </div>
-
-                {/* Keypad */}
-                <div
-                  className="grid grid-cols-5 h-[350px] bg-white dark:bg-zinc-800"
-                  dir="ltr">
-                  <button
-                    onClick={() => window.print()}
-                    className="col-span-1 border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-700/50 hover:bg-gray-200 dark:hover:bg-zinc-600 text-gray-700 dark:text-gray-200 flex flex-col items-center justify-center p-1 transition-colors">
-                    <span className="material-symbols-outlined text-3xl mb-1">
-                      print
-                    </span>
-                    <span className="font-bold text-sm">طباعة</span>
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    1
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    2
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    3
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-700/50 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-600">
-                    الكمية
-                  </button>
-
-                  <button className="bg-emerald-600 hover:bg-emerald-700 text-white flex flex-col items-center justify-center p-1 border border-emerald-700 dark:border-zinc-900 shadow-inner transition-colors">
-                    <span className="material-symbols-outlined text-3xl mb-1">
-                      payments
-                    </span>
-                    <span className="font-bold text-sm">نقد</span>
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    4
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    5
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    6
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-700/50 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-600">
-                    خصم
-                  </button>
-
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white flex flex-col items-center justify-center p-1 border border-blue-700 dark:border-zinc-900 shadow-inner transition-colors">
-                    <span className="material-symbols-outlined text-3xl mb-1">
-                      credit_card
-                    </span>
-                    <span className="font-bold text-sm">فيزا</span>
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    7
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    8
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    9
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-700/50 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-600">
-                    سعر
-                  </button>
-
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    +/-
-                  </button>
-                  <button className="col-span-2 border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    0
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100 font-sans">
-                    .
-                  </button>
-                  <button className="border border-gray-200 dark:border-zinc-700 text-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 active:bg-gray-100">
-                    <span className="material-symbols-outlined text-xl">
-                      backspace
-                    </span>
-                  </button>
-                </div>
               </div>
             </div>
           </div>
+
+          {/* Keypad Panel - Shows at bottom when mode is piece/weight/payment */}
+          {keypadMode !== "default" && (
+            <div className="h-[55%] flex flex-col bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 transition-all duration-300">
+              {/* Dynamic Keypad Area - Changes based on mode */}
+              <div
+                className={`grid h-full bg-white dark:bg-zinc-800 ${
+                  keypadMode === "piece"
+                    ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
+                    : keypadMode === "weight"
+                    ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
+                    : "grid-cols-5"
+                }`}
+                dir="ltr">
+                {/* PIECE QUANTITY SELECTOR MODE */}
+                {keypadMode === "piece" && selectedProductForQuantity && (
+                  <>
+                    {/* Header */}
+                    <div className="col-span-3 bg-primary/10 dark:bg-primary/20 p-3 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between">
+                      <div className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                        {selectedProductForQuantity.name} - اختر الكمية (قطعة)
+                      </div>
+                      <button
+                        onClick={() => setKeypadMode("default")}
+                        className="text-red-500 hover:text-red-700">
+                        <span className="material-icons-round">close</span>
+                      </button>
+                    </div>
+
+                    {/* Number Pad for pieces - Rows 1-3 */}
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => handleQuantitySelected(num)}
+                        className="border border-gray-200 dark:border-zinc-700 text-2xl font-bold text-gray-800 dark:text-gray-200 hover:bg-primary hover:text-white transition-all">
+                        {num}
+                      </button>
+                    ))}
+
+                    {/* Row 4: Button 10 + Custom Input */}
+                    <button
+                      onClick={() => handleQuantitySelected(10)}
+                      className="border border-gray-200 dark:border-zinc-700 text-2xl font-bold text-gray-800 dark:text-gray-200 hover:bg-primary hover:text-white transition-all">
+                      10
+                    </button>
+                    <div className="col-span-2 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2 flex items-center">
+                      <input
+                        type="number"
+                        value={customInputValue}
+                        onChange={(e) => setCustomInputValue(e.target.value)}
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && handleCustomInputSubmit()
+                        }
+                        placeholder="كمية"
+                        className="w-full bg-transparent text-center text-lg font-bold text-gray-800 dark:text-gray-200 outline-none"
+                        min="0"
+                        step="any"
+                      />
+                    </div>
+
+                    {/* Row 5: Cancel + Confirm */}
+                    <button
+                      onClick={() => setKeypadMode("default")}
+                      className="bg-red-100 dark:bg-red-900/30 hover:bg-red-500 hover:text-white text-red-600 dark:text-red-400 font-bold text-sm transition-all border border-gray-200 dark:border-zinc-700">
+                      إلغاء
+                    </button>
+                    <button
+                      onClick={handleCustomInputSubmit}
+                      className="col-span-2 bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all flex items-center justify-center border border-gray-200 dark:border-zinc-700">
+                      <span className="material-icons-round text-sm">done</span>
+                    </button>
+                  </>
+                )}
+
+                {/* WEIGHT SELECTOR MODE */}
+                {keypadMode === "weight" && selectedProductForQuantity && (
+                  <>
+                    {/* Header */}
+                    <div className="col-span-2 bg-primary/10 dark:bg-primary/20 p-3 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between">
+                      <div className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                        {selectedProductForQuantity.name} - اختر الوزن (كيلو)
+                      </div>
+                      <button
+                        onClick={() => setKeypadMode("default")}
+                        className="text-red-500 hover:text-red-700">
+                        <span className="material-icons-round">close</span>
+                      </button>
+                    </div>
+
+                    {/* Row 1: 1/8, 1/4 */}
+                    <button
+                      onClick={() => handleWeightSelected(0.125)}
+                      className="border border-gray-200 dark:border-zinc-700 hover:bg-primary hover:text-white transition-all flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold">1/8</span>
+                      <span className="text-xs opacity-70">كيلو</span>
+                    </button>
+                    <button
+                      onClick={() => handleWeightSelected(0.25)}
+                      className="border border-gray-200 dark:border-zinc-700 hover:bg-primary hover:text-white transition-all flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold">1/4</span>
+                      <span className="text-xs opacity-70">كيلو</span>
+                    </button>
+
+                    {/* Row 2: 1/2, 1 */}
+                    <button
+                      onClick={() => handleWeightSelected(0.5)}
+                      className="border border-gray-200 dark:border-zinc-700 hover:bg-primary hover:text-white transition-all flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold">1/2</span>
+                      <span className="text-xs opacity-70">كيلو</span>
+                    </button>
+                    <button
+                      onClick={() => handleWeightSelected(1)}
+                      className="border border-gray-200 dark:border-zinc-700 hover:bg-primary hover:text-white transition-all flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold">1</span>
+                      <span className="text-xs opacity-70">كيلو</span>
+                    </button>
+
+                    {/* Row 3: Custom Input */}
+                    <div className="col-span-2 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2 flex items-center">
+                      <input
+                        type="number"
+                        value={customInputValue}
+                        onChange={(e) => setCustomInputValue(e.target.value)}
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && handleCustomInputSubmit()
+                        }
+                        placeholder="وزن (كيلو)"
+                        className="w-full bg-transparent text-center text-lg font-bold text-gray-800 dark:text-gray-200 outline-none"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+
+                    {/* Row 4: Cancel + Confirm */}
+                    <button
+                      onClick={() => setKeypadMode("default")}
+                      className="bg-red-100 dark:bg-red-900/30 hover:bg-red-500 hover:text-white text-red-600 dark:text-red-400 font-bold text-sm transition-all border border-gray-200 dark:border-zinc-700">
+                      إلغاء
+                    </button>
+                    <button
+                      onClick={handleCustomInputSubmit}
+                      className="bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all flex items-center justify-center border border-gray-200 dark:border-zinc-700">
+                      <span className="material-icons-round text-sm">done</span>
+                    </button>
+                  </>
+                )}
+
+                {/* PAYMENT SELECTION MODE */}
+                {keypadMode === "payment" && (
+                  <>
+                    {/* Header */}
+                    <div className="col-span-5 bg-primary/10 dark:bg-primary/20 p-3 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between">
+                      <div className="text-lg font-bold text-gray-800 dark:text-gray-200">
+                        اختر طريقة الدفع
+                      </div>
+                      <button
+                        onClick={() => setKeypadMode("default")}
+                        className="text-red-500 hover:text-red-700">
+                        <span className="material-icons-round">close</span>
+                      </button>
+                    </div>
+
+                    {/* Total Display */}
+                    <div className="col-span-5 bg-gray-50 dark:bg-zinc-700/50 p-4 flex justify-between items-center border-b border-gray-200 dark:border-zinc-700">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        الإجمالي:
+                      </span>
+                      <span className="text-3xl font-bold text-primary">
+                        {total.toFixed(2)} ج.م
+                      </span>
+                    </div>
+
+                    {/* Payment Buttons */}
+                    <button
+                      onClick={() => handlePaymentSelected("cash")}
+                      className="col-span-5 row-span-2 bg-green-500 hover:bg-green-600 text-white font-bold text-xl transition-all flex flex-col items-center justify-center gap-2 border border-gray-200 dark:border-zinc-700">
+                      <span className="material-icons-round text-4xl">
+                        payments
+                      </span>
+                      <span>نقدي (Cash)</span>
+                    </button>
+
+                    <button
+                      onClick={() => handlePaymentSelected("visa")}
+                      className="col-span-5 row-span-2 bg-blue-500 hover:bg-blue-600 text-white font-bold text-xl transition-all flex flex-col items-center justify-center gap-2 border border-gray-200 dark:border-zinc-700">
+                      <span className="material-icons-round text-4xl">
+                        credit_card
+                      </span>
+                      <span>بطاقة (Visa)</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -44,6 +44,8 @@ const suppliersRouter = require("./routes/suppliers");
 const categoriesRouter = require("./routes/categories");
 const itemsRouter = require("./routes/items");
 const purchasesRouter = require("./routes/purchases");
+const salesRouter = require("./routes/sales");
+const settingsRouter = require("./routes/settings");
 
 // Database connection
 const prisma = require("./config/database");
@@ -58,6 +60,8 @@ app.use("/api/suppliers", suppliersRouter);
 app.use("/api/categories", categoriesRouter);
 app.use("/api/items", itemsRouter);
 app.use("/api/purchases", purchasesRouter);
+app.use("/api/sales", salesRouter);
+app.use("/api/settings", settingsRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -67,6 +71,9 @@ app.use((err, req, res, next) => {
     message: err.message,
   });
 });
+
+// Force restart trigger
+console.log("🔄 Server updated");
 
 // Start server
 console.log("Calling app.listen...");

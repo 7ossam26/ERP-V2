@@ -7,6 +7,7 @@ const GenericDataTable = ({
   onDelete,
   loading,
   emptyMessage = "لا توجد بيانات مضافة بعد.",
+  customActions,
 }) => {
   return (
     <div className="overflow-x-auto">
@@ -20,10 +21,10 @@ const GenericDataTable = ({
                 {col.header}
               </th>
             ))}
-            {/* Actions Header - Render only if onEdit or onDelete provided */}
-            {(onEdit || onDelete) && (
+            {/* Actions Header - Render only if onEdit or onDelete or customActions provided */}
+            {(onEdit || onDelete || customActions) && (
               <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">
-                إجراءات
+                {customActions ? "عرض" : "إجراءات"}
               </th>
             )}
           </tr>
@@ -66,22 +67,45 @@ const GenericDataTable = ({
                     )}
                   </td>
                 ))}
-                {/* Actions Cell - Render only if onEdit or onDelete provided */}
-                {(onEdit || onDelete) && (
+                {/* Actions Cell - Render custom actions or default edit/delete */}
+                {(onEdit || onDelete || customActions) && (
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                    {onEdit && (
-                      <button
-                        onClick={() => onEdit(item)}
-                        className="text-blue-500 hover:text-blue-700 ml-2 transition-colors">
-                        <span className="material-icons-round">edit</span>
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button
-                        onClick={() => onDelete(item.id)}
-                        className="text-red-500 hover:text-red-700 transition-colors">
-                        <span className="material-icons-round">delete</span>
-                      </button>
+                    {customActions ? (
+                      /* Render custom actions */
+                      <div className="flex justify-center gap-2">
+                        {customActions(item).map((action, idx) => (
+                          <button
+                            key={idx}
+                            onClick={action.onClick}
+                            className={`${action.color || "text-blue-600"} ${
+                              action.hoverColor ||
+                              "hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            } p-2 rounded-lg transition-all flex items-center gap-1`}
+                            title={action.label}>
+                            <span className="material-symbols-outlined text-lg">
+                              {action.icon}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Render default edit/delete actions */
+                      <>
+                        {onEdit && (
+                          <button
+                            onClick={() => onEdit(item)}
+                            className="text-blue-500 hover:text-blue-700 ml-2 transition-colors">
+                            <span className="material-icons-round">edit</span>
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            onClick={() => onDelete(item.id)}
+                            className="text-red-500 hover:text-red-700 transition-colors">
+                            <span className="material-icons-round">delete</span>
+                          </button>
+                        )}
+                      </>
                     )}
                   </td>
                 )}

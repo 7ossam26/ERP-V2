@@ -105,6 +105,18 @@ const MainDashboard = () => {
       onClick: () => navigate("/hr"),
       permission: { module: "HR", action: "view" }
     },
+    {
+      icon: "settings",
+      title: "الإعدادات",
+      subtitle: "إعدادات النظام",
+      onClick: () => navigate("/settings"),
+    },
+    {
+      icon: "manage_accounts",
+      title: "إدارة التحويلات",
+      subtitle: "قبول ورفض التحويلات",
+      onClick: () => navigate("/transfer-management"),
+    },
   ];
 
   return (

@@ -1,26 +1,57 @@
 import React, { useState, useEffect } from "react";
-import { branchService } from "../../services/domainServices";
+import {
+  branchService,
+  settingsService,
+  treasuryService,
+} from "../../services/domainServices";
 
 const BranchesSalesPage = () => {
   const [branches, setBranches] = useState([]);
-  const [totalBalance, setTotalBalance] = useState(0);
+  const [mainTreasury, setMainTreasury] = useState(null);
+  const [bankTreasury, setBankTreasury] = useState(null);
+  const [percentageChange, setPercentageChange] = useState(0);
+  const [isPositive, setIsPositive] = useState(true);
 
   useEffect(() => {
-    const fetchBranches = async () => {
+    const fetchData = async () => {
       try {
-        const data = await branchService.getAll();
-        // Enrich with mock balance data for demo purposes since backend isn't real yet
-        const branchesWithBalance = data.map(branch => ({
+        // Fetch System Configuration
+        const settings = await settingsService.get();
+
+        // Fetch Main Treasury if configured
+        if (settings.mainTreasuryId) {
+          const mainTreasuryData = await treasuryService.getById(
+            settings.mainTreasuryId
+          );
+          setMainTreasury(mainTreasuryData);
+        }
+
+        // Fetch Bank Treasury if configured
+        if (settings.bankTreasuryId) {
+          const bankTreasuryData = await treasuryService.getById(
+            settings.bankTreasuryId
+          );
+          setBankTreasury(bankTreasuryData);
+        }
+
+        // Fetch All Branches
+        const branchesData = await branchService.getAll();
+        const branchesWithBalance = branchesData.map((branch) => ({
           ...branch,
-          balance: Math.floor(Math.random() * 50000) + 5000
+          balance: branch.treasury?.balance || 0,
         }));
         setBranches(branchesWithBalance);
-        setTotalBalance(branchesWithBalance.reduce((acc, curr) => acc + curr.balance, 0));
+
+        // Fetch Financial Summary for percentage change
+        const summaryData = await branchService.getSummary();
+        const pct = parseFloat(summaryData.percentageChange);
+        setPercentageChange(Math.abs(pct));
+        setIsPositive(pct >= 0);
       } catch (error) {
-        console.error("Failed to fetch branches", error);
+        console.error("Failed to fetch branch data", error);
       }
     };
-    fetchBranches();
+    fetchData();
   }, []);
 
   return (
@@ -39,7 +70,9 @@ const BranchesSalesPage = () => {
               </p>
             </div>
             <div className="flex gap-3">
-              <button className="flex items-center gap-2 h-10 px-4 bg-primary text-white hover:bg-primary-hover rounded-lg text-sm font-bold shadow-md shadow-primary/20 transition-all">
+              <button
+                onClick={() => window.location.reload()}
+                className="flex items-center gap-2 h-10 px-4 bg-primary text-white hover:bg-primary-hover rounded-lg text-sm font-bold shadow-md shadow-primary/20 transition-all">
                 <span className="material-symbols-outlined text-[18px]">
                   sync
                 </span>
@@ -64,7 +97,7 @@ const BranchesSalesPage = () => {
                     lock
                   </span>
                   <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-                    الخزينة الرئيسية
+                    {mainTreasury?.name || "الخزينة الرئيسية"}
                   </span>
                 </div>
                 <div>
@@ -72,25 +105,70 @@ const BranchesSalesPage = () => {
                     الرصيد الإجمالي الحالي
                   </p>
                   <h2 className="text-5xl md:text-6xl font-black tracking-tight text-white">
-                    {totalBalance.toLocaleString()} جنيه مصري
+                    {mainTreasury
+                      ? Number(mainTreasury.balance).toLocaleString()
+                      : "0"}{" "}
+                    جنيه مصري
                   </h2>
                 </div>
               </div>
               <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
-                <div className="flex items-center gap-2 text-green-400 bg-green-400/10 px-3 py-1.5 rounded-lg border border-green-400/20">
+                <div
+                  className={`flex items-center gap-2 ${
+                    isPositive
+                      ? "text-green-400 bg-green-400/10 border-green-400/20"
+                      : "text-red-400 bg-red-400/10 border-red-400/20"
+                  } px-3 py-1.5 rounded-lg border`}>
                   <span className="material-symbols-outlined text-[18px]">
-                    trending_up
+                    {isPositive ? "trending_up" : "trending_down"}
                   </span>
                   <span className="text-sm font-bold font-['Inter']">
-                    +12.5%
+                    {isPositive ? "+" : "-"}
+                    {percentageChange}%
                   </span>
-                  <span className="text-xs text-green-400/80">
+                  <span
+                    className={`text-xs ${
+                      isPositive ? "text-green-400/80" : "text-red-400/80"
+                    }`}>
                     مقارنة بالأمس
                   </span>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Bank Treasury Card */}
+          {bankTreasury && (
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] text-white p-6 md:p-8 shadow-lg">
+              <div
+                className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(#93c5fd 1px, transparent 1px)",
+                  backgroundSize: "20px 20px",
+                }}></div>
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-accent bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
+                    <span className="material-symbols-outlined text-[18px]">
+                      account_balance
+                    </span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-white/90">
+                      {bankTreasury.name}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-white/60 text-sm mb-1">
+                      الرصيد البنكي الحالي
+                    </p>
+                    <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white">
+                      {Number(bankTreasury.balance).toLocaleString()} جنيه مصري
+                    </h2>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Branches Section */}
           <div className="flex flex-col gap-4">

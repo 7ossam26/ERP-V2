@@ -8,8 +8,10 @@ import { supplierService } from "./supplierService";
 import { categoryService } from "./categoryService";
 import { itemService } from "./itemService";
 import { purchaseService } from "./purchaseService";
+import { salesService } from "./salesService";
+import { settingsService } from "./settingsService";
 
-// Employee, Treasury, Branch, Warehouse, Client, Supplier, Category, Item, and Purchase services use real API
+// Employee, Treasury, Branch, Warehouse, Client, Supplier, Category, Item, Purchase, and Sales services use real API
 export {
   employeeService,
   treasuryService,
@@ -20,6 +22,8 @@ export {
   categoryService,
   itemService,
   purchaseService,
+  salesService,
+  settingsService,
 };
 
 // Other services still use mock data (for now)
