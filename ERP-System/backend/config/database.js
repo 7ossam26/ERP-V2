@@ -7,8 +7,6 @@ if (!process.env.DATABASE_URL) {
 
 console.log("🔌 Connecting to database...");
 
-const prisma = new PrismaClient({
-  log: ["warn", "error"],
-});
+const prisma = new PrismaClient();
 
 module.exports = prisma;
