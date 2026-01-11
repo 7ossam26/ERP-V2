@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
+import StartShiftModal from "./StartShiftModal";
 import Modal from "../../components/ui/Modal";
 import { ClientForm } from "../clients/ClientManager";
 import {
@@ -11,6 +12,7 @@ import {
   salesService,
   inventoryService,
   settingsService,
+  shiftService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 
@@ -23,6 +25,8 @@ const POSPage = () => {
 
   // User & Shift State
   const [currentUser, setCurrentUser] = useState(null);
+  const [currentShiftId, setCurrentShiftId] = useState(null);
+  const [isStartShiftModalOpen, setIsStartShiftModalOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState("صباحية");
   const [currentDate, setCurrentDate] = useState(
     new Date().toLocaleDateString("en-CA")
@@ -35,6 +39,7 @@ const POSPage = () => {
     const user = AuthService.getCurrentUser();
     if (user) {
       setCurrentUser(user);
+      checkActiveShift(user);
     }
 
     // Initial calculation
@@ -61,6 +66,47 @@ const POSPage = () => {
     const interval = setInterval(calculateTimeData, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const checkActiveShift = async (user) => {
+    try {
+      // 1. Check for active shift
+      const activeShift = await shiftService.checkActive(user.id);
+
+      if (activeShift) {
+        console.log("Found active shift:", activeShift);
+        setCurrentShiftId(activeShift.id);
+      } else {
+        // 2. No active shift, open modal to start one manually
+        console.log("No active shift, opening start modal...");
+        setIsStartShiftModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error checking shift:", error);
+      toast.error("حدث خطأ في التحقق من الورديات");
+    }
+  };
+
+  const handleStartShift = async (startCash) => {
+    if (!currentUser || !currentUser.branch) {
+      toast.error("خطأ: المستخدم غير مرتبط بفرع");
+      return;
+    }
+
+    try {
+      const newShift = await shiftService.start({
+        userId: currentUser.id,
+        branchId: currentUser.branch.id,
+        startCash: startCash
+      });
+      console.log("Started new shift:", newShift);
+      setCurrentShiftId(newShift.id);
+      setIsStartShiftModalOpen(false);
+      toast.success("تم بدء الوردية بنجاح");
+    } catch (error) {
+      console.error("Error starting shift:", error);
+      toast.error("فشل بدء الوردية");
+    }
+  };
 
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clients, setClients] = useState([]);
@@ -251,10 +297,10 @@ const POSPage = () => {
         return prevItems.map((item) =>
           item.id === product.id
             ? {
-                ...item,
-                quantity: item.quantity + quantity,
-                total: (item.quantity + quantity) * price,
-              }
+              ...item,
+              quantity: item.quantity + quantity,
+              total: (item.quantity + quantity) * price,
+            }
             : item
         );
       } else {
@@ -309,9 +355,21 @@ const POSPage = () => {
   const total = subtotal + tax; // Total NEVER rounds - always exact decimals
 
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [shiftReportData, setShiftReportData] = useState(null);
 
-  const handleEndShift = () => {
-    setIsReportOpen(true);
+  const handleEndShift = async () => {
+    if (!currentShiftId) {
+      toast.error("لا توجد وردية مفتوحة حالياً");
+      return;
+    }
+    try {
+      const report = await shiftService.getReport(currentShiftId);
+      setShiftReportData(report);
+      setIsReportOpen(true);
+    } catch (error) {
+      console.error("Failed to get shift report", error);
+      toast.error("فشل تحميل تقرير الوردية");
+    }
   };
 
   // Handle quantity selection for piece items
@@ -472,9 +530,21 @@ const POSPage = () => {
     }
   };
 
-  const handleConfirmShift = () => {
-    setIsReportOpen(false);
-    navigate("/dashboard");
+  const handleConfirmShift = async () => {
+    if (!currentShiftId) return;
+
+    try {
+      await shiftService.end({
+        shiftId: currentShiftId,
+        endCash: 0
+      });
+      toast.success("تم إغلاق الوردية بنجاح");
+      setIsReportOpen(false);
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Failed to end shift", error);
+      toast.error("فشل إغلاق الوردية");
+    }
   };
 
   const handleSaveClient = async (formData) => {
@@ -531,12 +601,23 @@ const POSPage = () => {
     <div
       className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark overflow-hidden h-screen flex flex-col text-sm font-sans"
       dir="rtl">
-      <POSReportModal
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        onConfirm={handleConfirmShift}
-        totalSales={total.toFixed(2)}
+
+      <StartShiftModal
+        isOpen={isStartShiftModalOpen}
+        onConfirm={handleStartShift}
+        branchName={currentUser?.branch?.name}
+        user={currentUser}
       />
+
+      {shiftReportData && (
+        <POSReportModal
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+          onConfirm={handleConfirmShift}
+          reportData={shiftReportData}
+        />
+      )
+      }
 
       <Modal
         isOpen={isClientModalOpen}
@@ -611,11 +692,10 @@ const POSPage = () => {
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`material-symbols-outlined text-3xl ${
-                    pendingPaymentMethod === "cash"
-                      ? "text-green-500"
-                      : "text-blue-500"
-                  }`}>
+                  className={`material-symbols-outlined text-3xl ${pendingPaymentMethod === "cash"
+                    ? "text-green-500"
+                    : "text-blue-500"
+                    }`}>
                   {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
                 </span>
                 <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -656,8 +736,8 @@ const POSPage = () => {
                 </label>
                 <div className="w-full px-4 py-3 text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
                   {cashPaidAmount &&
-                  !isNaN(parseFloat(cashPaidAmount)) &&
-                  parseFloat(cashPaidAmount) >= total
+                    !isNaN(parseFloat(cashPaidAmount)) &&
+                    parseFloat(cashPaidAmount) >= total
                     ? Math.round(parseFloat(cashPaidAmount) - total)
                     : 0}{" "}
                   ج.م
@@ -689,11 +769,10 @@ const POSPage = () => {
             </button>
             <button
               onClick={handleConfirmPayment}
-              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
-                pendingPaymentMethod === "cash"
-                  ? "bg-green-500 hover:bg-green-600"
-                  : "bg-blue-500 hover:bg-blue-600"
-              }`}>
+              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${pendingPaymentMethod === "cash"
+                ? "bg-green-500 hover:bg-green-600"
+                : "bg-blue-500 hover:bg-blue-600"
+                }`}>
               <span className="material-symbols-outlined">check_circle</span>
               <span>تأكيد الدفع</span>
             </button>
@@ -807,11 +886,10 @@ const POSPage = () => {
                   <div
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
-                      activeCategory === cat.id
-                        ? "bg-primary text-white shadow-md"
-                        : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                    }`}>
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
+                      ? "bg-primary text-white shadow-md"
+                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                      }`}>
                     {cat.name}
                   </div>
                 ))}
@@ -885,8 +963,8 @@ const POSPage = () => {
                     isClientDropdownOpen
                       ? clientSearchTerm
                       : selectedClient
-                      ? selectedClient.name
-                      : ""
+                        ? selectedClient.name
+                        : ""
                   }
                   onChange={(e) => {
                     setClientSearchTerm(e.target.value);
@@ -943,9 +1021,8 @@ const POSPage = () => {
           </div>
 
           <div
-            className={`${
-              keypadMode === "default" ? "flex-1" : "h-[45%]"
-            } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
+            className={`${keypadMode === "default" ? "flex-1" : "h-[45%]"
+              } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 h-64">
@@ -959,11 +1036,10 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${
-                      selectedItemId === item.id
-                        ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
-                        : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
-                    }`}>
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${selectedItemId === item.id
+                      ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
+                      : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+                      }`}>
                     {/* Delete icon - appears when selected */}
                     {selectedItemId === item.id ? (
                       <button
@@ -1096,13 +1172,12 @@ const POSPage = () => {
             <div className="h-[55%] flex flex-col bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 transition-all duration-300">
               {/* Dynamic Keypad Area - Changes based on mode */}
               <div
-                className={`grid h-full bg-white dark:bg-zinc-800 ${
-                  keypadMode === "piece"
-                    ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
-                    : keypadMode === "weight"
+                className={`grid h-full bg-white dark:bg-zinc-800 ${keypadMode === "piece"
+                  ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
+                  : keypadMode === "weight"
                     ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
                     : "grid-cols-5"
-                }`}
+                  }`}
                 dir="ltr">
                 {/* PIECE QUANTITY SELECTOR MODE */}
                 {keypadMode === "piece" && selectedProductForQuantity && (
@@ -1287,7 +1362,7 @@ const POSPage = () => {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

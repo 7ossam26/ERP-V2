@@ -28,6 +28,7 @@ model User {
   sales          Sale[]
   auditLogs      AuditLog[]
   stockTransfers StockTransfer[]
+  shifts         Shift[]
 
   @@map("users")
 }
@@ -191,6 +192,7 @@ model Branch {
   employees Employee[]
   users     User[]
   sales     Sale[]
+  shifts    Shift[]
 
   @@map("branches")
 }
@@ -362,6 +364,29 @@ model PurchaseItem {
 // POS (Point of Sale) Management
 // ============================================
 
+model Shift {
+  id           Int         @id @default(autoincrement())
+  userId       Int         @map("user_id")
+  branchId     Int         @map("branch_id")
+  startTime    DateTime    @default(now()) @map("start_time")
+  endTime      DateTime?   @map("end_time")
+  startCash    Decimal     @default(0) @db.Decimal(10, 2) @map("start_cash")
+  endCash      Decimal?    @db.Decimal(10, 2) @map("end_cash")
+  status       ShiftStatus @default(OPEN)
+  
+  // Relations
+  user         User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch       Branch      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales        Sale[]
+
+  @@map("shifts")
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
 enum SalePaymentMethod {
   CASH
   CARD
@@ -382,6 +407,7 @@ model Sale {
   branchId      Int               @map("branch_id")
   treasuryId    Int               @map("treasury_id")
   warehouseId   Int?              @map("warehouse_id")
+  shiftId       Int?              @map("shift_id")
   subtotal      Decimal           @db.Decimal(10, 2)
   taxRate       Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
   taxAmount     Decimal           @map("tax_amount") @db.Decimal(10, 2)
@@ -401,6 +427,7 @@ model Sale {
   branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
   treasury  Treasury   @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   warehouse Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  shift     Shift?     @relation(fields: [shiftId], references: [id], onDelete: Restrict)
   items     SaleItem[]
 
   @@map("sales")

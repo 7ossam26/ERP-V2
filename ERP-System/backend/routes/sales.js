@@ -221,6 +221,36 @@ router.post("/", async (req, res) => {
     console.log(`  - Treasury ID: ${treasuryId}`);
     console.log(`  - Warehouse ID: ${warehouseId}`);
 
+    // --- CHECK ACTIVE SHIFT ---
+    console.log("💰 Step 3.5: Checking for Active Shift...");
+    let shiftId = null;
+    if (finalUserId) {
+      let activeShift = await prisma.shift.findFirst({
+        where: {
+          userId: finalUserId,
+          status: "OPEN",
+        },
+      });
+
+      if (!activeShift) {
+        console.log("⚠️ No active shift found. Auto-starting new shift...");
+        activeShift = await prisma.shift.create({
+          data: {
+            userId: finalUserId,
+            branchId: branchId, // Use resolved branchId
+            startTime: new Date(),
+            status: "OPEN",
+            startCash: 0, // Default 0 for auto-start
+          },
+        });
+        console.log(`✅ Auto-started Shift ID: ${activeShift.id}`);
+      } else {
+        console.log(`✅ Found Active Shift ID: ${activeShift.id}`);
+      }
+      shiftId = activeShift.id;
+    }
+    // ---------------------------
+
     console.log("💰 Step 4: Generating sale number...");
     // Generate unique sale number
     const saleNumber = await generateSaleNumber();
@@ -242,6 +272,7 @@ router.post("/", async (req, res) => {
           branchId,
           treasuryId,
           warehouseId,
+          shiftId, // Link Sale to Shift
           subtotal: parseFloat(subtotal),
           taxRate: taxRate !== undefined ? parseFloat(taxRate) : 0.14,
           taxAmount: parseFloat(taxAmount),
@@ -327,8 +358,7 @@ router.post("/", async (req, res) => {
 
         if (!inventory || inventory.quantity < item.quantity) {
           throw new Error(
-            `Insufficient stock for item ${item.itemId}. Available: ${
-              inventory ? inventory.quantity : 0
+            `Insufficient stock for item ${item.itemId}. Available: ${inventory ? inventory.quantity : 0
             }`
           );
         }

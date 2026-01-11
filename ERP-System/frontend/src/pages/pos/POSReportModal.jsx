@@ -1,27 +1,19 @@
 import React from "react";
 import { createPortal } from "react-dom";
 
-const POSReportModal = ({ isOpen, onClose, onConfirm, totalSales = 0 }) => {
+const POSReportModal = ({ isOpen, onClose, onConfirm, reportData }) => {
   if (!isOpen) return null;
 
-  // Mock Data for the design
-  const employeeName = "أحمد محمد";
-  const shiftName = "صباحية";
-  const date = "2023-10-27";
+  // Use real data from reportData prop
+  const employeeName = reportData?.employeeName || "غير معروف";
+  const shiftName = reportData?.shiftName || "وردية";
+  const date = reportData?.date ? new Date(reportData.date).toLocaleDateString("ar-EG") : new Date().toLocaleDateString("ar-EG");
 
-  const cardPayments = 2270.0;
-  const cashReceived = 3150.0;
-  const totalAmount =
-    typeof totalSales === "number"
-      ? totalSales
-      : parseFloat(totalSales) || 5420.0;
+  const cardPayments = reportData?.cardPayments || 0;
+  const cashReceived = reportData?.cashReceived || 0;
+  const totalAmount = reportData?.totalSales || 0;
 
-  const salesDetails = [
-    { type: "مشروبات ساخنة", count: 45, total: 2150.0 },
-    { type: "مشروبات باردة", count: 22, total: 1870.0 },
-    { type: "معجنات", count: 30, total: 950.0 },
-    { type: "حبوب بن", count: 5, total: 450.0 },
-  ];
+  const salesDetails = reportData?.salesDetails || [];
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
