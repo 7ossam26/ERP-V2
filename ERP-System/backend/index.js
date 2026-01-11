@@ -7,11 +7,14 @@ const PORT = process.env.PORT || 3001;
 
 console.log("Attempting to start server...");
 
-
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:3000",
+    ],
     credentials: true,
   })
 );
@@ -59,9 +62,11 @@ app.use("/api/clients", clientsRouter);
 app.use("/api/suppliers", suppliersRouter);
 app.use("/api/categories", categoriesRouter);
 app.use("/api/items", itemsRouter);
+app.use("/api/inventory", require("./routes/inventory"));
 app.use("/api/purchases", purchasesRouter);
 app.use("/api/sales", salesRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/stock-transfers", require("./routes/stockTransfer"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -19,6 +19,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
     code: initialData?.code || "",
     price: initialData?.price || "",
     unit: initialData?.unit || "piece",
+    reorderPoint: initialData?.reorderPoint || 10,
     suppliers: initialData?.suppliers || [],
     categories: initialData?.categories || [],
   });
@@ -151,6 +152,24 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
           </select>
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             scale
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          نقطة إعادة الطلب
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
+            name="reorderPoint"
+            value={formData.reorderPoint}
+            onChange={handleChange}
+            placeholder="10"
+            type="number"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            notification_important
           </span>
         </div>
       </div>
@@ -297,6 +316,15 @@ const ItemManager = () => {
       render: (item) => (
         <span className="text-gray-500">
           {item.unit === "piece" ? "قطعة" : item.unit === "kg" ? "كجم" : "علبة"}
+        </span>
+      ),
+    },
+    {
+      header: "نقطة إعادة الطلب",
+      accessor: "reorderPoint",
+      render: (item) => (
+        <span className="text-gray-900 dark:text-white font-medium">
+          {item.reorderPoint || 10}
         </span>
       ),
     },

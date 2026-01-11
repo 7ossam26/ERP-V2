@@ -7,6 +7,7 @@ import {
   treasuryService,
   warehouseService,
   purchaseService,
+  settingsService,
 } from "../../services/domainServices";
 import Modal from "../../components/ui/Modal";
 import { ItemForm } from "../items/ItemManager";
@@ -53,8 +54,21 @@ const PurchasesPage = () => {
         if (fetchedTreasuries.length > 0) {
           setSelectedTreasuryId(fetchedTreasuries[0].id);
         }
-        if (fetchedWarehouses.length > 0) {
-          setSelectedWarehouseId(fetchedWarehouses[0].id);
+
+        // Fetch Settings to set Main Warehouse
+        try {
+          const settings = await settingsService.get();
+          if (settings && settings.mainWarehouseId) {
+            setSelectedWarehouseId(settings.mainWarehouseId);
+          } else if (fetchedWarehouses.length > 0) {
+            // Fallback if no main warehouse configured
+            setSelectedWarehouseId(fetchedWarehouses[0].id);
+          }
+        } catch (settingsError) {
+          console.error("Failed to fetch settings", settingsError);
+          if (fetchedWarehouses.length > 0) {
+            setSelectedWarehouseId(fetchedWarehouses[0].id);
+          }
         }
 
         // Fetch purchases separately (non-blocking if it fails)
@@ -357,17 +371,19 @@ const PurchasesPage = () => {
               المخزن
             </label>
             <div className="relative">
-              <select
-                value={selectedWarehouseId}
-                onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors">
-                <option value="">اختر المخزن...</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
+              <input
+                className="w-full bg-gray-100 dark:bg-background-dark/50 border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 cursor-not-allowed opacity-75 font-bold"
+                value={
+                  selectedWarehouseId
+                    ? warehouses.find(
+                        (w) => w.id === parseInt(selectedWarehouseId)
+                      )?.name || "..."
+                    : "يرجى ضبط المخزن الرئيسي"
+                }
+                readOnly
+                type="text"
+              />
+              <input type="hidden" value={selectedWarehouseId} />
             </div>
           </div>
           <div className="md:col-span-5">

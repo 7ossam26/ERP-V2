@@ -9,7 +9,10 @@ import {
   itemService,
   categoryService,
   salesService,
+  inventoryService,
+  settingsService,
 } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -17,6 +20,47 @@ const POSPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [cartItems, setCartItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
+
+  // User & Shift State
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentShift, setCurrentShift] = useState("صباحية");
+  const [currentDate, setCurrentDate] = useState(
+    new Date().toLocaleDateString("en-CA")
+  ); // YYYY-MM-DD
+  const [currentTime, setCurrentTime] = useState(
+    new Date().toLocaleTimeString("en-US", { hour12: false })
+  );
+
+  useEffect(() => {
+    const user = AuthService.getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+    }
+
+    // Initial calculation
+    const calculateTimeData = () => {
+      const now = new Date();
+      const hour = now.getHours();
+
+      // Shift Logic:
+      // Morning: 06:00 - 14:00 (2 PM)
+      // Evening: 14:00 - 22:00 (10 PM)
+      // Night: 22:00 - 06:00
+      let shift = "صباحية";
+      if (hour >= 14 && hour < 22) shift = "مسائية";
+      if (hour >= 22 || hour < 6) shift = "ليلية";
+
+      setCurrentShift(shift);
+      setCurrentDate(now.toLocaleDateString("en-CA"));
+      setCurrentTime(now.toLocaleTimeString("en-US", { hour12: false }));
+    };
+
+    calculateTimeData();
+
+    // Update time every second
+    const interval = setInterval(calculateTimeData, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clients, setClients] = useState([]);
@@ -74,30 +118,58 @@ const POSPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [items, dbCategories] = await Promise.all([
-          itemService.getAll(),
-          categoryService.getAll(),
-        ]);
+  const loadInventory = async () => {
+    try {
+      // Fetch Settings to know which warehouse to check
+      let warehouseId = null;
 
-        setProducts(items);
-
-        // Build categories from database with "All" option
-        const allCategories = [
-          { id: "All", name: "كل المنتجات" },
-          ...dbCategories.map((cat) => ({
-            id: cat.id,
-            name: cat.name,
-          })),
-        ];
-        setCategories(allCategories);
-      } catch (error) {
-        console.error("Failed to fetch products and categories", error);
+      // PRIORITIZE: User's assigned branch warehouse
+      const user = AuthService.getCurrentUser();
+      if (user && user.branch && user.branch.warehouseId) {
+        warehouseId = user.branch.warehouseId;
+        console.log(
+          "🏭 Loading Inventory for Branch Warehouse ID:",
+          warehouseId
+        );
+      } else {
+        // FALLBACK: System Main Warehouse
+        try {
+          const settings = await settingsService.get();
+          if (settings && settings.mainWarehouseId) {
+            warehouseId = settings.mainWarehouseId;
+            console.log(
+              "🏭 Loading Inventory for Main Warehouse ID (Settings):",
+              warehouseId
+            );
+          }
+        } catch (e) {
+          console.error("Failed to load settings", e);
+        }
       }
-    };
-    fetchData();
+
+      const [inventoryItems, dbCategories] = await Promise.all([
+        inventoryService.getInventory({ warehouseId }),
+        categoryService.getAll(),
+      ]);
+
+      setProducts(inventoryItems);
+
+      // Build categories from database with "All" option
+      const allCategories = [
+        { id: "All", name: "كل المنتجات" },
+        ...dbCategories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+        })),
+      ];
+      setCategories(allCategories);
+    } catch (error) {
+      console.error("Failed to fetch products and categories", error);
+    }
+  };
+
+  useEffect(() => {
+    loadInventory();
   }, []);
 
   const filteredProducts = products.filter((product) => {
@@ -145,11 +217,36 @@ const POSPage = () => {
 
   // Add product to cart with specified quantity
   const addToCartWithQuantity = (product, quantity) => {
-    const rawPrice = product.sellPrice || product.price || 0;
+    const rawPrice =
+      product.sellPrice || product.purchasePrice || product.price || 0; // inventory.js returns purchasePrice currently, need to ensure sellPrice available or fallback
+    // Note: inventory.js returns purchasePrice. Frontend might need sellPrice.
+    // Ideally inventory API should return sellPrice.
+    // Fallback: Use purchasePrice if sellPrice is missing/placeholder for now to avoid nan.
+
+    // Validate Stock
+    const currentStock = product.quantity || 0;
+    const existingItem = cartItems.find((item) => item.id === product.id);
+    const existingQty = existingItem ? existingItem.quantity : 0;
+    const totalRequested = existingQty + quantity;
+
+    if (totalRequested > currentStock) {
+      toast.error(`الكمية غير متوفرة! المتاح: ${currentStock}`);
+      return false; // Return failure
+    }
+
+    // Warning for Reorder Point
+    const reorderPoint = product.reorderPoint || 0;
+    const remainingAfterSale = currentStock - totalRequested;
+
+    if (remainingAfterSale <= reorderPoint) {
+      toast(`تحذير: المخزون سيصبح منخفض (${remainingAfterSale})`, {
+        icon: "⚠️",
+      });
+    }
+
     const price = Number(rawPrice);
 
     setCartItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.id === product.id);
       if (existingItem) {
         return prevItems.map((item) =>
           item.id === product.id
@@ -164,14 +261,16 @@ const POSPage = () => {
         return [
           ...prevItems,
           {
-            ...product,
+            ...product, // product from inventory has updated fields
+            price: price, // Ensure price is set
             quantity: quantity,
             total: price * quantity,
-            price: price,
           },
         ];
       }
     });
+
+    return true; // Return success
   };
 
   // Legacy function kept for compatibility - defaults to quantity 1
@@ -218,10 +317,15 @@ const POSPage = () => {
   // Handle quantity selection for piece items
   const handleQuantitySelected = (quantity) => {
     if (selectedProductForQuantity) {
-      addToCartWithQuantity(selectedProductForQuantity, quantity);
-      toast.success(
-        `تمت إضافة ${quantity} ${selectedProductForQuantity.name} إلى السلة`
+      const success = addToCartWithQuantity(
+        selectedProductForQuantity,
+        quantity
       );
+      if (success) {
+        toast.success(
+          `تمت إضافة ${quantity} ${selectedProductForQuantity.name} إلى السلة`
+        );
+      }
       setKeypadMode("default");
       setSelectedProductForQuantity(null);
     }
@@ -230,10 +334,12 @@ const POSPage = () => {
   // Handle weight selection for kg items
   const handleWeightSelected = (weight) => {
     if (selectedProductForQuantity) {
-      addToCartWithQuantity(selectedProductForQuantity, weight);
-      toast.success(
-        `تمت إضافة ${weight} كجم من ${selectedProductForQuantity.name} إلى السلة`
-      );
+      const success = addToCartWithQuantity(selectedProductForQuantity, weight);
+      if (success) {
+        toast.success(
+          `تمت إضافة ${weight} كجم من ${selectedProductForQuantity.name} إلى السلة`
+        );
+      }
       setKeypadMode("default");
       setSelectedProductForQuantity(null);
     }
@@ -313,9 +419,11 @@ const POSPage = () => {
     const normalizedPaymentMethod =
       pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "CARD";
 
+    const currentUser = AuthService.getCurrentUser();
     const saleData = {
       clientId: selectedClient ? selectedClient.id : 1, // Default to walk-in client (ID: 1)
-      employeeId: 7, // Using employee #7 (has branch assigned) - TODO: Get from logged-in user
+      userId: currentUser ? currentUser.id : null,
+      // employeeId: 7, // REMOVED hardcoded employee
       paymentMethod: normalizedPaymentMethod,
       subtotal: parseFloat(subtotal.toFixed(2)),
       taxRate: taxRate,
@@ -340,6 +448,15 @@ const POSPage = () => {
       toast.success(
         `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`
       );
+      if (createdSale.warnings && createdSale.warnings.length > 0) {
+        createdSale.warnings.forEach((warning) =>
+          toast(warning, { icon: "⚠️", duration: 5000 })
+        );
+      }
+
+      // REFRESH INVENTORY
+      await loadInventory();
+
       setIsPaymentConfirmOpen(false);
       setPendingPaymentMethod(null);
       setCashPaidAmount("");
@@ -347,7 +464,11 @@ const POSPage = () => {
       setSelectedClient(null);
     } catch (error) {
       console.error("❌ Error creating sale:", error);
-      toast.error("حدث خطأ أثناء حفظ الفاتورة");
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "حدث خطأ أثناء حفظ الفاتورة";
+      toast.error(errorMessage);
     }
   };
 
@@ -586,24 +707,29 @@ const POSPage = () => {
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">person</span>
             <span className="font-bold">اسم الموظف:</span>
-            <span>أحمد محمد</span>
+            <span>{currentUser?.name || currentUser?.username || "Guest"}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">store</span>
             <span className="font-bold">اسم الفرع:</span>
-            <span>الفرع الرئيسي</span>
+            <span>{currentUser?.branch?.name || "غير محدد"}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">schedule</span>
             <span className="font-bold">الوردية:</span>
-            <span>صباحية</span>
+            <div className="flex flex-col leading-tight">
+              <span>{currentShift}</span>
+              <span className="text-xs font-mono opacity-80" dir="ltr">
+                {currentTime}
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">
               calendar_today
             </span>
             <span className="font-bold">التاريخ:</span>
-            <span>2024-05-20</span>
+            <span>{currentDate}</span>
           </div>
         </div>
         <button

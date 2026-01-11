@@ -62,7 +62,7 @@ router.post("/", async (req, res) => {
     const {
       supplierId,
       treasuryId,
-      warehouseId,
+      // warehouseId, // Ignored, using system config
       supplierInvoiceNo,
       paymentMethod,
       subtotal,
@@ -83,10 +83,20 @@ router.post("/", async (req, res) => {
       console.error("❌ Validation failed: Treasury is required");
       return res.status(400).json({ error: "Treasury is required" });
     }
-    if (!warehouseId) {
-      console.error("❌ Validation failed: Warehouse is required");
-      return res.status(400).json({ error: "Warehouse is required" });
+    // Fetch Main Warehouse from System Config
+    const systemConfig = await prisma.systemConfiguration.findUnique({
+      where: { id: 1 },
+      select: { mainWarehouseId: true },
+    });
+
+    if (!systemConfig || !systemConfig.mainWarehouseId) {
+      return res.status(400).json({
+        error: "Main Warehouse is not configured in System Settings.",
+      });
     }
+
+    const effectiveWarehouseId = systemConfig.mainWarehouseId;
+
     if (!items || items.length === 0) {
       console.error("❌ Validation failed: At least one item is required");
       return res.status(400).json({ error: "At least one item is required" });
@@ -94,40 +104,65 @@ router.post("/", async (req, res) => {
 
     console.log("✅ Validations passed, creating purchase...");
 
-    const purchase = await prisma.purchase.create({
-      data: {
-        supplierId: parseInt(supplierId),
-        treasuryId: parseInt(treasuryId),
-        warehouseId: parseInt(warehouseId),
-        supplierInvoiceNo,
-        paymentMethod: paymentMethod || "CASH",
-        subtotal,
-        discountType: discountType || "PERCENTAGE",
-        discountValue,
-        discountAmount,
-        netTotal,
-        paidAmount,
-        remaining,
-        items: {
-          create: items.map((item) => ({
-            itemId: parseInt(item.itemId),
-            quantity: item.quantity,
-            purchasePrice: item.purchasePrice,
-            sellPrice: item.sellPrice,
-            total: item.total,
-          })),
-        },
-      },
-      include: {
-        supplier: true,
-        treasury: true,
-        warehouse: true,
-        items: {
-          include: {
-            item: true,
+    const purchase = await prisma.$transaction(async (prisma) => {
+      // 1. Create Purchase Record
+      const newPurchase = await prisma.purchase.create({
+        data: {
+          supplierId: parseInt(supplierId),
+          treasuryId: parseInt(treasuryId),
+          warehouseId: effectiveWarehouseId,
+          supplierInvoiceNo,
+          paymentMethod: paymentMethod || "CASH",
+          subtotal,
+          discountType: discountType || "PERCENTAGE",
+          discountValue,
+          discountAmount,
+          netTotal,
+          paidAmount,
+          remaining,
+          items: {
+            create: items.map((item) => ({
+              itemId: parseInt(item.itemId),
+              quantity: item.quantity,
+              purchasePrice: item.purchasePrice,
+              sellPrice: item.sellPrice,
+              total: item.total,
+            })),
           },
         },
-      },
+        include: {
+          supplier: true,
+          treasury: true,
+          warehouse: true,
+          items: {
+            include: {
+              item: true,
+            },
+          },
+        },
+      });
+
+      // 2. Update Inventory for each item
+      for (const item of items) {
+        await prisma.inventory.upsert({
+          where: {
+            itemId_warehouseId: {
+              itemId: parseInt(item.itemId),
+              warehouseId: effectiveWarehouseId,
+            },
+          },
+          update: {
+            quantity: { increment: Number(item.quantity) },
+          },
+          create: {
+            itemId: parseInt(item.itemId),
+            warehouseId: effectiveWarehouseId,
+            quantity: Number(item.quantity),
+          },
+        });
+      }
+
+      return newPurchase;
     });
 
     console.log("✅ Purchase created successfully:", purchase.id);

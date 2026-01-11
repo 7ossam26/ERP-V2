@@ -60,7 +60,7 @@ router.get("/:id", async (req, res) => {
 // POST create new item
 router.post("/", async (req, res) => {
   try {
-    const { name, price, unit, suppliers, categories } = req.body;
+    const { name, price, unit, reorderPoint, suppliers, categories } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
@@ -71,6 +71,7 @@ router.post("/", async (req, res) => {
         name,
         price,
         unit: unit || "piece",
+        reorderPoint: parseInt(reorderPoint) || 10,
         // Explicit relations creation
         suppliers: {
           create:
@@ -101,7 +102,7 @@ router.post("/", async (req, res) => {
 // PUT update item
 router.put("/:id", async (req, res) => {
   try {
-    const { name, price, unit, suppliers, categories } = req.body;
+    const { name, price, unit, reorderPoint, suppliers, categories } = req.body;
     const itemId = parseInt(req.params.id);
 
     // Transaction to update relations safely
@@ -113,6 +114,7 @@ router.put("/:id", async (req, res) => {
           name,
           price,
           unit,
+          reorderPoint: parseInt(reorderPoint) || 10,
         },
       });
 

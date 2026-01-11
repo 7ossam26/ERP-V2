@@ -1,0 +1,283 @@
+const express = require("express");
+const router = express.Router();
+const prisma = require("../config/database");
+
+// Helper function to generate unique transfer number
+const generateTransferNumber = async () => {
+  try {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+
+    // Get the count of transfers for this month
+    const startOfMonth = new Date(year, now.getMonth(), 1);
+    const endOfMonth = new Date(year, now.getMonth() + 1, 0, 23, 59, 59);
+
+    const count = await prisma.stockTransfer.count({
+      where: {
+        createdAt: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+    });
+
+    const sequence = String(count + 1).padStart(5, "0");
+    return `STK-${year}${month}-${sequence}`;
+  } catch (error) {
+    console.error("Error generating transfer number:", error);
+    return `STK-${Date.now()}`;
+  }
+};
+
+// GET all stock transfers
+router.get("/", async (req, res) => {
+  try {
+    const transfers = await prisma.stockTransfer.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        fromWarehouse: true,
+        toWarehouse: true,
+        user: { select: { id: true, name: true, username: true } },
+        items: {
+          include: {
+            item: true,
+          },
+        },
+      },
+    });
+    res.json(transfers);
+  } catch (error) {
+    console.error("Error fetching stock transfers:", error);
+    res
+      .status(500)
+      .json({
+        error: "Failed to fetch stock transfers",
+        message: error.message,
+      });
+  }
+});
+
+// GET stock transfer by ID
+router.get("/:id", async (req, res) => {
+  try {
+    const transfer = await prisma.stockTransfer.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: {
+        fromWarehouse: true,
+        toWarehouse: true,
+        user: { select: { id: true, name: true, username: true } },
+        items: {
+          include: {
+            item: true,
+          },
+        },
+      },
+    });
+
+    if (!transfer) {
+      return res.status(404).json({ error: "Stock transfer not found" });
+    }
+
+    res.json(transfer);
+  } catch (error) {
+    console.error("Error fetching stock transfer:", error);
+    res
+      .status(500)
+      .json({
+        error: "Failed to fetch stock transfer",
+        message: error.message,
+      });
+  }
+});
+
+// POST create new stock transfer
+router.post("/", async (req, res) => {
+  try {
+    console.log("📦 ============ STOCK TRANSFER API CALLED ============");
+    console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
+
+    const { userId, toWarehouseId, notes, items } = req.body;
+
+    // Validation
+    if (!userId) {
+      console.error("❌ Validation failed: User ID is required");
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    if (!toWarehouseId) {
+      console.error("❌ Validation failed: Destination warehouse is required");
+      return res
+        .status(400)
+        .json({ error: "Destination warehouse is required" });
+    }
+
+    if (!items || items.length === 0) {
+      console.error("❌ Validation failed: At least one item is required");
+      return res.status(400).json({ error: "At least one item is required" });
+    }
+
+    console.log(
+      "📦 Step 1: Fetching main warehouse from system configuration..."
+    );
+    // Get main warehouse ID from system configuration
+    const config = await prisma.systemConfiguration.findFirst({
+      select: { mainWarehouseId: true },
+    });
+
+    if (!config || !config.mainWarehouseId) {
+      console.error("❌ Main warehouse not configured in system settings");
+      return res.status(400).json({
+        error:
+          "Main warehouse not configured. Please configure it in system settings.",
+      });
+    }
+
+    const fromWarehouseId = config.mainWarehouseId;
+    console.log(`✅ Main Warehouse ID: ${fromWarehouseId}`);
+
+    // Prevent transfer to same warehouse
+    if (fromWarehouseId === parseInt(toWarehouseId)) {
+      return res.status(400).json({
+        error: "Cannot transfer to the same warehouse",
+      });
+    }
+
+    console.log("📦 Step 2: Generating transfer number...");
+    const transferNumber = await generateTransferNumber();
+    console.log(`✅ Generated transfer number: ${transferNumber}`);
+
+    console.log(
+      "📦 Step 3: Executing Transaction (Create Transfer + Update Inventory)..."
+    );
+    // EXECUTE TRANSACTION
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Validate stock availability for all items
+      for (const item of items) {
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            itemId_warehouseId: {
+              itemId: parseInt(item.itemId),
+              warehouseId: fromWarehouseId,
+            },
+          },
+          include: { item: true },
+        });
+
+        if (!inventory || inventory.quantity < item.quantity) {
+          throw new Error(
+            `Insufficient stock for item ${
+              item.itemId
+            } in main warehouse. Available: ${
+              inventory ? inventory.quantity : 0
+            }, Requested: ${item.quantity}`
+          );
+        }
+      }
+
+      // 2. Create Stock Transfer
+      const transfer = await tx.stockTransfer.create({
+        data: {
+          transferNumber,
+          fromWarehouseId,
+          toWarehouseId: parseInt(toWarehouseId),
+          userId: parseInt(userId),
+          status: "COMPLETED", // Immediately complete as we're updating inventory
+          notes,
+          items: {
+            create: items.map((item) => ({
+              itemId: parseInt(item.itemId),
+              quantity: parseFloat(item.quantity),
+            })),
+          },
+        },
+        include: {
+          fromWarehouse: true,
+          toWarehouse: true,
+          user: { select: { id: true, name: true, username: true } },
+          items: {
+            include: {
+              item: true,
+            },
+          },
+        },
+      });
+
+      // 3. Update Inventory (Decrement from source, Increment to destination)
+      for (const item of items) {
+        //  Decrement from source warehouse
+        await tx.inventory.update({
+          where: {
+            itemId_warehouseId: {
+              itemId: parseInt(item.itemId),
+              warehouseId: fromWarehouseId,
+            },
+          },
+          data: {
+            quantity: { decrement: parseFloat(item.quantity) },
+          },
+        });
+
+        // Increment to destination warehouse (upsert in case it doesn't exist)
+        await tx.inventory.upsert({
+          where: {
+            itemId_warehouseId: {
+              itemId: parseInt(item.itemId),
+              warehouseId: parseInt(toWarehouseId),
+            },
+          },
+          create: {
+            itemId: parseInt(item.itemId),
+            warehouseId: parseInt(toWarehouseId),
+            quantity: parseFloat(item.quantity),
+          },
+          update: {
+            quantity: { increment: parseFloat(item.quantity) },
+          },
+        });
+      }
+
+      return transfer;
+    });
+
+    console.log(
+      "✅✅✅ Transaction completed successfully! Transfer ID:",
+      result.id
+    );
+    console.log("============================================");
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("❌❌❌ ERROR CREATING STOCK TRANSFER ❌❌❌");
+    console.error("Error message:", error.message);
+    console.error("Full error:", error);
+    console.error("============================================");
+
+    res.status(500).json({
+      error: "Failed to create stock transfer",
+      message: error.message,
+    });
+  }
+});
+
+// DELETE stock transfer
+router.delete("/:id", async (req, res) => {
+  try {
+    await prisma.stockTransfer.delete({
+      where: { id: parseInt(req.params.id) },
+    });
+    res.status(204).send();
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({ error: "Stock transfer not found" });
+    }
+    console.error("Error deleting stock transfer:", error);
+    res
+      .status(500)
+      .json({
+        error: "Failed to delete stock transfer",
+        message: error.message,
+      });
+  }
+});
+
+module.exports = router;

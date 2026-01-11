@@ -108,6 +108,7 @@ router.post("/", async (req, res) => {
     const {
       clientId,
       employeeId,
+      userId, // New field
       paymentMethod,
       subtotal,
       taxRate,
@@ -129,54 +130,91 @@ router.post("/", async (req, res) => {
     }
     console.log(`✅ Client ID: ${clientId}`);
 
-    if (!employeeId) {
-      console.error("❌ Validation failed: Employee is required");
-      return res.status(400).json({ error: "Employee is required" });
-    }
-    console.log(`✅ Employee ID: ${employeeId}`);
-
     if (!items || items.length === 0) {
       console.error("❌ Validation failed: At least one item is required");
       return res.status(400).json({ error: "At least one item is required" });
     }
     console.log(`✅ Items count: ${items.length}`);
 
-    console.log("💰 Step 2: Fetching employee with branch...");
-    // Fetch employee to get branch, treasury, and warehouse
-    const employee = await prisma.employee.findUnique({
-      where: { id: parseInt(employeeId) },
-      include: {
-        branch: {
-          include: {
-            treasury: true,
-            warehouse: true,
+    let branchId, treasuryId, warehouseId;
+    let finalEmployeeId = employeeId ? parseInt(employeeId) : null;
+    let finalUserId = userId ? parseInt(userId) : null;
+
+    console.log("💰 Step 2: Determining Sales Context (User vs Employee)...");
+
+    if (finalUserId) {
+      // --- USER BASED SALE ---
+      console.log(`👤 Processing as User-based Sale (User ID: ${finalUserId})`);
+      const user = await prisma.user.findUnique({
+        where: { id: finalUserId },
+        include: {
+          branch: {
+            include: {
+              treasury: true,
+              warehouse: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!employee) {
-      console.error(`❌ Employee not found with ID: ${employeeId}`);
-      return res
-        .status(404)
-        .json({ error: `Employee not found with ID: ${employeeId}` });
-    }
-    console.log(`✅ Employee found: ${employee.name}`);
+      if (!user) {
+        return res
+          .status(404)
+          .json({ error: `User not found with ID: ${finalUserId}` });
+      }
 
-    if (!employee.branch) {
-      console.error(`❌ Employee ${employeeId} has no branch assigned`);
-      console.error(`Employee data:`, JSON.stringify(employee, null, 2));
+      if (!user.branch) {
+        return res.status(400).json({
+          error: `User "${user.name}" is not assigned to any branch. Please contact superadmin.`,
+        });
+      }
+
+      branchId = user.branchId;
+      treasuryId = user.branch.treasuryId; // Default to branch treasury
+      warehouseId = user.branch.warehouseId; // Default to branch warehouse
+
+      console.log(`✅ User context resolved: Branch ${user.branch.name}`);
+    } else if (finalEmployeeId) {
+      // --- EMPLOYEE BASED SALE (Legacy) ---
+      console.log(
+        `👷 Processing as Employee-based Sale (Employee ID: ${finalEmployeeId})`
+      );
+      const employee = await prisma.employee.findUnique({
+        where: { id: finalEmployeeId },
+        include: {
+          branch: {
+            include: {
+              treasury: true,
+              warehouse: true,
+            },
+          },
+        },
+      });
+
+      if (!employee) {
+        return res
+          .status(404)
+          .json({ error: `Employee not found with ID: ${finalEmployeeId}` });
+      }
+
+      if (!employee.branch) {
+        return res.status(400).json({
+          error: `Employee "${employee.name}" must be assigned to a branch`,
+        });
+      }
+
+      branchId = employee.branchId;
+      treasuryId = employee.branch.treasuryId;
+      warehouseId = employee.branch.warehouseId;
+
+      console.log(
+        `✅ Employee context resolved: Branch ${employee.branch.name}`
+      );
+    } else {
       return res.status(400).json({
-        error: `Employee "${employee.name}" must be assigned to a branch`,
+        error: "Either User ID or Employee ID is required to process a sale",
       });
     }
-    console.log(
-      `✅ Branch found: ${employee.branch.name} (ID: ${employee.branchId})`
-    );
-
-    const branchId = employee.branchId;
-    const treasuryId = employee.branch.treasuryId; // Using the branch's linked treasury
-    const warehouseId = employee.branch.warehouseId;
 
     console.log(`💰 Step 3: Branch configuration:`);
     console.log(`  - Branch ID: ${branchId}`);
@@ -199,7 +237,8 @@ router.post("/", async (req, res) => {
         data: {
           saleNumber,
           clientId: parseInt(clientId),
-          employeeId: parseInt(employeeId),
+          employeeId: finalEmployeeId,
+          userId: finalUserId,
           branchId,
           treasuryId,
           warehouseId,
@@ -224,6 +263,7 @@ router.post("/", async (req, res) => {
         include: {
           client: true,
           employee: true,
+          user: true,
           branch: true,
           treasury: true,
           warehouse: true,
@@ -271,6 +311,50 @@ router.post("/", async (req, res) => {
         }
       } else {
         console.log(`ℹ️ Payment is ${paymentMethod}. Balances NOT updated.`);
+      }
+
+      // 3. Update Inventory & Check Stock
+      for (const item of items) {
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            itemId_warehouseId: {
+              itemId: parseInt(item.itemId),
+              warehouseId: warehouseId,
+            },
+          },
+          include: { item: true },
+        });
+
+        if (!inventory || inventory.quantity < item.quantity) {
+          throw new Error(
+            `Insufficient stock for item ${item.itemId}. Available: ${
+              inventory ? inventory.quantity : 0
+            }`
+          );
+        }
+
+        // Decrement stock
+        const updatedInventory = await tx.inventory.update({
+          where: {
+            itemId_warehouseId: {
+              itemId: parseInt(item.itemId),
+              warehouseId: warehouseId,
+            },
+          },
+          data: { quantity: { decrement: parseFloat(item.quantity) } },
+        });
+
+        // Check Low Stock Warning
+        if (updatedInventory.quantity <= (inventory.item.reorderPoint || 0)) {
+          // We can't easily return this from the transaction return value directly if we return 'sale'
+          // So we'll attach it to the sale object strictly for the response,
+          // or we handle warnings outside.
+          // Let's attach a temporary property to the result object.
+          if (!sale.warnings) sale.warnings = [];
+          sale.warnings.push(
+            `Low stock warning: ${inventory.item.name} is now at ${updatedInventory.quantity}`
+          );
+        }
       }
 
       return sale;

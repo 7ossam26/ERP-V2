@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import GenericDataTable from "../../components/shared/GenericDataTable";
 
-import { warehouseService, itemService } from "../../services/domainServices";
+import {
+  warehouseService,
+  categoryService,
+} from "../../services/domainServices";
+import { inventoryService } from "../../services/inventoryService";
 
 const InventoryPage = () => {
   const [filter, setFilter] = useState("الكل");
@@ -9,29 +13,59 @@ const InventoryPage = () => {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState("all");
 
+  const [stats, setStats] = useState({
+    totalItems: 0,
+    lowStockCount: 0,
+    totalValue: 0,
+  });
+
+  const [categories, setCategories] = useState(["الكل"]);
+
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
-        const [warehousesData, itemsData] = await Promise.all([
+        const [warehousesData, statsData, categoriesData] = await Promise.all([
           warehouseService.getAll(),
-          itemService.getAll(),
+          inventoryService.getStats(),
+          categoryService.getAll(),
         ]);
         setWarehouses(warehousesData);
-        setInventoryItems(itemsData);
+        setStats(statsData);
+        setCategories(["الكل", ...categoriesData.map((c) => c.name)]);
       } catch (error) {
-        console.error("Failed to fetch data:", error);
+        console.error("Failed to fetch initial data:", error);
       }
     };
-    fetchData();
+    fetchInitialData();
   }, []);
 
+  // Fetch when filters change
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        const filters = {};
+        if (selectedWarehouse !== "all")
+          filters.warehouseId = selectedWarehouse;
+        if (filter !== "الكل") filters.category = filter;
 
-  const categories = ["الكل", "بن القهوة", "مخبوزات", "مشروبات", "مستلزمات"];
+        const data = await inventoryService.getInventory(filters);
+        setInventoryItems(data);
+      } catch (error) {
+        console.error("Failed to fetch inventory:", error);
+      }
+    };
+    fetchInventory();
+  }, [filter, selectedWarehouse]);
 
-  const filteredItems =
-    filter === "الكل"
-      ? inventoryItems
-      : inventoryItems.filter((item) => item.category === filter);
+  // Data is now already filtered by backend, so we just use inventoryItems
+  // But searching is client side for now
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const displayedItems = inventoryItems.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.code && item.code.toString().includes(searchQuery))
+  );
 
   // Column Definitions for GenericDataTable
   const columns = [
@@ -39,7 +73,9 @@ const InventoryPage = () => {
       header: "اسم الصنف",
       accessor: "name",
       render: (item) => (
-        <div className="flex items-center gap-3">
+        <div
+          className="flex items-center gap-3 justify-end text-right"
+          dir="ltr">
           <div>
             <p className="text-text-main dark:text-text-dark font-medium">
               {item.name}
@@ -73,7 +109,9 @@ const InventoryPage = () => {
               <div className="flex flex-col items-center animate-pulse">
                 <span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
                   {item.quantity}
-                  <span className="material-symbols-outlined text-[14px]">warning</span>
+                  <span className="material-symbols-outlined text-[14px]">
+                    warning
+                  </span>
                 </span>
                 <span className="text-[10px] text-red-600 dark:text-red-400 uppercase font-bold">
                   {item.unit}
@@ -119,10 +157,11 @@ const InventoryPage = () => {
         return (
           <div className="text-center">
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${isLowStock
-                ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200"
-                : "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200"
-                }`}>
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+                isLowStock
+                  ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200"
+                  : "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200"
+              }`}>
               {isLowStock ? "نقص بالمخزون" : "متوفر"}
             </span>
           </div>
@@ -161,7 +200,7 @@ const InventoryPage = () => {
               </p>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  145
+                  {stats.totalItems || 0}
                 </h3>
                 <span className="text-green-800 text-xs font-medium flex items-center bg-green-100 px-1.5 py-0.5 rounded">
                   <span className="material-symbols-outlined text-[14px]">
@@ -188,7 +227,7 @@ const InventoryPage = () => {
               </p>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  3
+                  {stats.lowStockCount || 0}
                 </h3>
                 <span className="text-red-800 text-xs font-medium flex items-center bg-red-100 px-1.5 py-0.5 rounded">
                   إجراء مطلوب
@@ -212,13 +251,13 @@ const InventoryPage = () => {
               </p>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-2xl font-bold text-text-main dark:text-text-dark">
-                  45 ألف{" "}
+                  {stats.totalValue ? stats.totalValue.toLocaleString() : 0}{" "}
                   <span className="text-sm font-normal text-text-muted dark:text-gray-400 mr-1">
                     ج.م
                   </span>
                 </h3>
                 <span className="text-green-800 text-xs font-medium flex items-center bg-green-100 px-1.5 py-0.5 rounded">
-                  +5%
+                  +0%
                 </span>
               </div>
             </div>
@@ -245,6 +284,8 @@ const InventoryPage = () => {
               className="block w-full pr-10 pl-3 py-2.5 rounded-lg leading-5 bg-background-light dark:bg-background-dark text-text-main dark:text-text-dark placeholder-text-muted/60 dark:placeholder-gray-500 border border-border-light dark:border-border-dark focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm shadow-sm text-right transition-all"
               placeholder="ابحث بالاسم، الكود، أو التصنيف..."
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
@@ -253,7 +294,10 @@ const InventoryPage = () => {
             <div className="relative">
               <select
                 value={selectedWarehouse}
-                onChange={(e) => setSelectedWarehouse(e.target.value)}
+                onChange={(e) => {
+                  setSelectedWarehouse(e.target.value);
+                  // Trigger fetch with new warehouse
+                }}
                 className="appearance-none bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-2.5 pr-10 text-sm font-bold text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-transparent outline-none cursor-pointer">
                 <option value="all">كل المخازن</option>
                 {warehouses.map((warehouse) => (
@@ -272,25 +316,56 @@ const InventoryPage = () => {
           </div>
 
           {/* Category Filters */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setFilter(cat)}
-                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 ${filter === cat
-                  ? "bg-primary text-surface-light border-transparent shadow-md shadow-[#3E2723]/10 transform scale-105"
-                  : "bg-background-light dark:bg-background-dark text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-border-light dark:border-border-dark"
+          <div className="flex items-center gap-1 bg-background-light dark:bg-background-dark p-1 rounded-full border border-border-light dark:border-border-dark">
+            <button
+              onClick={() => {
+                const container = document.getElementById(
+                  "category-scroll-container"
+                );
+                if (container)
+                  container.scrollBy({ left: 100, behavior: "smooth" });
+              }}
+              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+              <span className="material-symbols-outlined text-sm">
+                chevron_right
+              </span>
+            </button>
+            <div
+              id="category-scroll-container"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-[200px] sm:max-w-xs">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilter(cat)}
+                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold border transition-all duration-200 ${
+                    filter === cat
+                      ? "bg-primary text-surface-light border-transparent shadow-sm"
+                      : "bg-transparent text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-transparent"
                   }`}>
-                {cat}
-              </button>
-            ))}
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                const container = document.getElementById(
+                  "category-scroll-container"
+                );
+                if (container)
+                  container.scrollBy({ left: -100, behavior: "smooth" });
+              }}
+              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+              <span className="material-symbols-outlined text-sm">
+                chevron_left
+              </span>
+            </button>
           </div>
         </div>
 
         {/* Generic Data Table */}
         <GenericDataTable
           columns={columns}
-          data={filteredItems}
+          data={displayedItems}
           loading={false}
           emptyMessage="لا توجد عناصر في المخزون"
         />
