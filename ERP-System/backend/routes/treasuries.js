@@ -60,54 +60,57 @@ router.get("/:id", async (req, res) => {
 // POST Transfer Request (Handshake Step 1)
 router.post("/transfer", async (req, res) => {
   try {
-    const { fromTreasuryId, amount, notes } = req.body;
+    const { fromTreasuryId, toTreasuryId, amount, notes } = req.body;
     const transferAmount = Number(amount);
 
     if (!fromTreasuryId || !transferAmount || transferAmount <= 0) {
       return res.status(400).json({ error: "Invalid transfer details" });
     }
 
-    // Get Main Treasury from System Configuration
-    const systemConfig = await prisma.systemConfiguration.findFirst({
-      where: { id: 1 },
-    });
+    let destinationTreasuryId = toTreasuryId;
 
-    let mainTreasuryId = null;
-
-    if (systemConfig && systemConfig.mainTreasuryId) {
-      // Use configured Main Treasury
-      mainTreasuryId = systemConfig.mainTreasuryId;
-    } else {
-      // Fallback: Find by ID 1 or name containing "Main" or "رئيسية"
-      const mainTreasury = await prisma.treasury.findFirst({
-        where: {
-          OR: [
-            { id: 1 },
-            { name: { contains: "رئيسية" } },
-            { name: "Main Treasury" },
-          ],
-        },
+    // IF destination not provided, fallback to Main Treasury (Backward compatibility)
+    if (!destinationTreasuryId) {
+      // Get Main Treasury from System Configuration
+      const systemConfig = await prisma.systemConfiguration.findFirst({
+        where: { id: 1 },
       });
 
-      if (!mainTreasury) {
-        throw new Error(
-          "Main Treasury not found. Please configure it in System Settings."
-        );
+      if (systemConfig && systemConfig.mainTreasuryId) {
+        // Use configured Main Treasury
+        destinationTreasuryId = systemConfig.mainTreasuryId;
+      } else {
+        // Fallback: Find by ID 1 or name containing "Main" or "رئيسية"
+        const mainTreasury = await prisma.treasury.findFirst({
+          where: {
+            OR: [
+              { id: 1 },
+              { name: { contains: "رئيسية" } },
+              { name: "Main Treasury" },
+            ],
+          },
+        });
+
+        if (!mainTreasury) {
+          throw new Error(
+            "Main Treasury not found. Please configure it in System Settings."
+          );
+        }
+        destinationTreasuryId = mainTreasury.id;
       }
-      mainTreasuryId = mainTreasury.id;
     }
 
     // Verify the treasury exists
-    const mainTreasury = await prisma.treasury.findUnique({
-      where: { id: mainTreasuryId },
+    const destinationTreasury = await prisma.treasury.findUnique({
+      where: { id: parseInt(destinationTreasuryId) },
     });
 
-    if (!mainTreasury) {
-      throw new Error("Configured Main Treasury does not exist");
+    if (!destinationTreasury) {
+      throw new Error("Destination Treasury does not exist");
     }
 
-    if (parseInt(fromTreasuryId) === mainTreasuryId) {
-      throw new Error("Cannot transfer from Main Treasury to itself");
+    if (parseInt(fromTreasuryId) === parseInt(destinationTreasuryId)) {
+      throw new Error("Cannot transfer from Treasury to itself");
     }
 
     // Use transaction to ensure data integrity
@@ -131,7 +134,7 @@ router.post("/transfer", async (req, res) => {
       return await tx.cashTransfer.create({
         data: {
           fromTreasuryId: parseInt(fromTreasuryId),
-          toTreasuryId: mainTreasuryId,
+          toTreasuryId: parseInt(destinationTreasuryId),
           amount: transferAmount,
           notes,
           status: "PENDING",

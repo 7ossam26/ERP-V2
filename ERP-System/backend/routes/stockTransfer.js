@@ -122,7 +122,7 @@ router.post("/", async (req, res) => {
     console.log("📦 ============ STOCK TRANSFER API CALLED ============");
     console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
 
-    const { userId, toWarehouseId, notes, items } = req.body;
+    const { userId, fromWarehouseId, toWarehouseId, notes, items } = req.body;
 
     // Validation
     if (!userId) {
@@ -142,27 +142,29 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "At least one item is required" });
     }
 
-    console.log(
-      "📦 Step 1: Fetching main warehouse from system configuration..."
-    );
-    // Get main warehouse ID from system configuration
-    const config = await prisma.systemConfiguration.findFirst({
-      select: { mainWarehouseId: true },
-    });
+    let sourceWarehouseId = fromWarehouseId;
 
-    if (!config || !config.mainWarehouseId) {
-      console.error("❌ Main warehouse not configured in system settings");
-      return res.status(400).json({
-        error:
-          "Main warehouse not configured. Please configure it in system settings.",
+    if (!sourceWarehouseId) {
+      console.log("📦 Source warehouse not provided, fetching main warehouse from system configuration...");
+      // Get main warehouse ID from system configuration
+      const config = await prisma.systemConfiguration.findFirst({
+        select: { mainWarehouseId: true },
       });
+
+      if (!config || !config.mainWarehouseId) {
+        console.error("❌ Main warehouse not configured in system settings");
+        return res.status(400).json({
+          error:
+            "Source warehouse is required and Main warehouse is not configured.",
+        });
+      }
+      sourceWarehouseId = config.mainWarehouseId;
     }
 
-    const fromWarehouseId = config.mainWarehouseId;
-    console.log(`✅ Main Warehouse ID: ${fromWarehouseId}`);
+    console.log(`✅ Source Warehouse ID: ${sourceWarehouseId}`);
 
     // Prevent transfer to same warehouse
-    if (fromWarehouseId === parseInt(toWarehouseId)) {
+    if (parseInt(sourceWarehouseId) === parseInt(toWarehouseId)) {
       return res.status(400).json({
         error: "Cannot transfer to the same warehouse",
       });
@@ -183,7 +185,7 @@ router.post("/", async (req, res) => {
           where: {
             itemId_warehouseId: {
               itemId: parseInt(item.itemId),
-              warehouseId: fromWarehouseId,
+              warehouseId: parseInt(sourceWarehouseId),
             },
           },
           include: { item: true },
@@ -191,10 +193,8 @@ router.post("/", async (req, res) => {
 
         if (!inventory || inventory.quantity < item.quantity) {
           throw new Error(
-            `Insufficient stock for item ${
-              item.itemId
-            } in main warehouse. Available: ${
-              inventory ? inventory.quantity : 0
+            `Insufficient stock for item ${item.itemId
+            } in source warehouse. Available: ${inventory ? inventory.quantity : 0
             }, Requested: ${item.quantity}`
           );
         }
@@ -204,7 +204,7 @@ router.post("/", async (req, res) => {
       const transfer = await tx.stockTransfer.create({
         data: {
           transferNumber,
-          fromWarehouseId,
+          fromWarehouseId: parseInt(sourceWarehouseId),
           toWarehouseId: parseInt(toWarehouseId),
           userId: parseInt(userId),
           status: "COMPLETED", // Immediately complete as we're updating inventory
@@ -235,7 +235,7 @@ router.post("/", async (req, res) => {
           where: {
             itemId_warehouseId: {
               itemId: parseInt(item.itemId),
-              warehouseId: fromWarehouseId,
+              warehouseId: parseInt(sourceWarehouseId),
             },
           },
           data: {

@@ -62,7 +62,7 @@ router.post("/", async (req, res) => {
     const {
       supplierId,
       treasuryId,
-      // warehouseId, // Ignored, using system config
+      warehouseId,
       supplierInvoiceNo,
       paymentMethod,
       subtotal,
@@ -83,19 +83,23 @@ router.post("/", async (req, res) => {
       console.error("❌ Validation failed: Treasury is required");
       return res.status(400).json({ error: "Treasury is required" });
     }
-    // Fetch Main Warehouse from System Config
-    const systemConfig = await prisma.systemConfiguration.findUnique({
-      where: { id: 1 },
-      select: { mainWarehouseId: true },
-    });
 
-    if (!systemConfig || !systemConfig.mainWarehouseId) {
-      return res.status(400).json({
-        error: "Main Warehouse is not configured in System Settings.",
+    let effectiveWarehouseId = warehouseId;
+
+    if (!effectiveWarehouseId) {
+      // Fallback to Main Warehouse from System Config if not provided
+      const systemConfig = await prisma.systemConfiguration.findUnique({
+        where: { id: 1 },
+        select: { mainWarehouseId: true },
       });
-    }
 
-    const effectiveWarehouseId = systemConfig.mainWarehouseId;
+      if (!systemConfig || !systemConfig.mainWarehouseId) {
+        return res.status(400).json({
+          error: "Warehouse is required and no Main Warehouse is configured.",
+        });
+      }
+      effectiveWarehouseId = systemConfig.mainWarehouseId;
+    }
 
     if (!items || items.length === 0) {
       console.error("❌ Validation failed: At least one item is required");
@@ -110,7 +114,7 @@ router.post("/", async (req, res) => {
         data: {
           supplierId: parseInt(supplierId),
           treasuryId: parseInt(treasuryId),
-          warehouseId: effectiveWarehouseId,
+          warehouseId: parseInt(effectiveWarehouseId),
           supplierInvoiceNo,
           paymentMethod: paymentMethod || "CASH",
           subtotal,

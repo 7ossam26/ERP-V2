@@ -9,6 +9,7 @@ const CashierTransferPage = () => {
   const [notes, setNotes] = useState("");
   const [treasuries, setTreasuries] = useState([]);
   const [sourceTreasuryId, setSourceTreasuryId] = useState("");
+  const [toTreasuryId, setToTreasuryId] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -50,15 +51,24 @@ const CashierTransferPage = () => {
       toast.error("يرجى تحديد الخزينة المحول منها");
       return;
     }
+    if (!toTreasuryId) {
+      toast.error("يرجى تحديد الخزينة المحول إليها");
+      return;
+    }
+    if (sourceTreasuryId === toTreasuryId) {
+      toast.error("لا يمكن التحويل لنفس الخزينة");
+      return;
+    }
 
     setLoading(true);
     try {
       await treasuryService.transfer({
         fromTreasuryId: parseInt(sourceTreasuryId),
+        toTreasuryId: parseInt(toTreasuryId),
         amount: Number(amount),
         notes,
       });
-      toast.success("تم إرسال طلب التحويل إلى الخزينة الرئيسية بنجاح");
+      toast.success("تم إرسال طلب التحويل بنجاح");
       navigate("/dashboard");
     } catch (error) {
       console.error(error);
@@ -153,8 +163,8 @@ const CashierTransferPage = () => {
                   </span>
                 </div>
 
-                {/* Destination (Static Main) */}
-                <div className="flex-1 w-full bg-background-light dark:bg-background-dark/50 rounded-xl p-4 border border-border-light dark:border-border-dark relative group">
+                {/* Destination Treasury Select */}
+                <div className="flex-1 w-full bg-background-light dark:bg-background-dark/50 rounded-xl p-4 border border-border-light dark:border-border-dark relative group hover:border-primary/30 transition-colors">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-white dark:bg-surface-dark rounded-lg text-primary shadow-sm">
                       <span className="material-symbols-outlined">
@@ -165,9 +175,21 @@ const CashierTransferPage = () => {
                       إلى
                     </p>
                   </div>
-                  <div className="w-full bg-transparent font-bold text-lg text-text-primary dark:text-text-dark flex items-center h-[28px]">
-                    الخزينة الرئيسية
-                  </div>
+                  <select
+                    className="w-full bg-transparent font-bold text-lg text-text-primary dark:text-text-dark focus:outline-none cursor-pointer"
+                    value={toTreasuryId}
+                    onChange={(e) => setToTreasuryId(e.target.value)}>
+                    <option value="" disabled>
+                      اختر الخزينة
+                    </option>
+                    {treasuries
+                      .filter((t) => t.id.toString() !== sourceTreasuryId.toString())
+                      .map((t) => (
+                        <option key={t.id} value={t.id} className="text-black">
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
                   <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
                     يتم التحويل كطلب معلق
                   </p>

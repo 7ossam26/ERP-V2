@@ -19,9 +19,9 @@ const StockTransferPage = () => {
   // Data states
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
-  const [mainWarehouseId, setMainWarehouseId] = useState(null);
-  const [mainWarehouseName, setMainWarehouseName] = useState("");
+  const [allWarehouses, setAllWarehouses] = useState([]); // Store all for selection
+  const [fromWarehouseId, setFromWarehouseId] = useState("");
+
 
   // Transfer state
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
@@ -33,28 +33,24 @@ const StockTransferPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch system settings to get main warehouse
+        // Fetch system settings to get main warehouse default
         const settings = await settingsService.get();
+        const warehousesList = await warehouseService.getAll();
+        setAllWarehouses(warehousesList);
+
+        let initialSourceId = "";
+
         if (settings && settings.mainWarehouseId) {
-          setMainWarehouseId(settings.mainWarehouseId);
+          initialSourceId = settings.mainWarehouseId.toString();
+        } else if (warehousesList.length > 0) {
+          initialSourceId = warehousesList[0].id.toString();
+        }
 
-          // Fetch main warehouse details
-          const allWarehouses = await warehouseService.getAll();
-          const mainWh = allWarehouses.find(
-            (w) => w.id === settings.mainWarehouseId
-          );
-          if (mainWh) {
-            setMainWarehouseName(mainWh.name);
-          }
-
-          // Filter out main warehouse from destination options
-          setWarehouses(
-            allWarehouses.filter((w) => w.id !== settings.mainWarehouseId)
-          );
-
-          // Fetch inventory from main warehouse
+        if (initialSourceId) {
+          setFromWarehouseId(initialSourceId);
+          // Fetch inventory from initial source
           const inventoryItems = await inventoryService.getInventory({
-            warehouseId: settings.mainWarehouseId,
+            warehouseId: initialSourceId,
           });
           setProducts(inventoryItems);
         }
@@ -134,6 +130,25 @@ const StockTransferPage = () => {
     );
   };
 
+  const handleFromWarehouseChange = async (newId) => {
+    setFromWarehouseId(newId);
+    setSelectedItems([]); // Clear selected items when changing source to limit confusion
+
+    if (newId) {
+      try {
+        const inventoryItems = await inventoryService.getInventory({
+          warehouseId: newId,
+        });
+        setProducts(inventoryItems);
+      } catch (error) {
+        console.error("Failed to update inventory", error);
+        toast.error("فشل تحديث المخزون");
+      }
+    } else {
+      setProducts([]);
+    }
+  };
+
   const handleConfirmTransfer = async () => {
     if (!selectedWarehouse) {
       toast.error("يرجى اختيار المخزن المستلم");
@@ -162,6 +177,7 @@ const StockTransferPage = () => {
 
       const transferData = {
         userId: user.id,
+        fromWarehouseId: parseInt(fromWarehouseId),
         toWarehouseId: parseInt(selectedWarehouse),
         notes,
         items: selectedItems.map((item) => ({
@@ -182,7 +198,7 @@ const StockTransferPage = () => {
 
       // Refresh inventory
       const inventoryItems = await inventoryService.getInventory({
-        warehouseId: mainWarehouseId,
+        warehouseId: fromWarehouseId,
       });
       setProducts(inventoryItems);
     } catch (error) {
@@ -218,7 +234,7 @@ const StockTransferPage = () => {
                   من المخزن:
                 </span>
                 <span className="font-bold text-gray-800 dark:text-gray-100">
-                  {mainWarehouseName}
+                  {allWarehouses.find(w => w.id === parseInt(fromWarehouseId))?.name || "..."}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -227,7 +243,7 @@ const StockTransferPage = () => {
                 </span>
                 <span className="font-bold text-primary">
                   {
-                    warehouses.find((w) => w.id === parseInt(selectedWarehouse))
+                    allWarehouses.find((w) => w.id === parseInt(selectedWarehouse))
                       ?.name
                   }
                 </span>
@@ -324,11 +340,10 @@ const StockTransferPage = () => {
                 <div
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
-                    activeCategory === cat.id
-                      ? "bg-primary text-white shadow-md"
-                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                  }`}>
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                    }`}>
                   {cat.name}
                 </div>
               ))}
@@ -366,13 +381,12 @@ const StockTransferPage = () => {
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-gray-500">متاح</span>
                       <span
-                        className={`font-bold px-1.5 py-0.5 rounded ${
-                          product.quantity <= product.reorderPoint
-                            ? "text-red-600 bg-red-50 dark:bg-red-900/20"
-                            : product.quantity < 50
+                        className={`font-bold px-1.5 py-0.5 rounded ${product.quantity <= product.reorderPoint
+                          ? "text-red-600 bg-red-50 dark:bg-red-900/20"
+                          : product.quantity < 50
                             ? "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
                             : "text-green-600 bg-green-50 dark:bg-green-900/20"
-                        }`}>
+                          }`}>
                         {product.quantity} {product.unit}
                       </span>
                     </div>
@@ -399,9 +413,17 @@ const StockTransferPage = () => {
               <label className="block text-xs font-semibold text-gray-500 mb-1">
                 من المخزن
               </label>
-              <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded p-2 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-zinc-600 cursor-not-allowed text-sm font-medium">
-                {mainWarehouseName || "المخزن الرئيسي"}
-              </div>
+              <select
+                className="w-full rounded p-2 text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-800 border border-primary focus:ring-primary focus:border-primary text-sm font-bold shadow-sm"
+                value={fromWarehouseId}
+                onChange={(e) => handleFromWarehouseChange(e.target.value)}>
+                <option value="">-- اختر المخزن --</option>
+                {allWarehouses.map((wh) => (
+                  <option key={wh.id} value={wh.id}>
+                    {wh.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="w-1/2">
               <label className="block text-xs font-semibold text-primary mb-1">
@@ -412,11 +434,13 @@ const StockTransferPage = () => {
                 value={selectedWarehouse}
                 onChange={(e) => setSelectedWarehouse(e.target.value)}>
                 <option value="">-- اختر المخزن --</option>
-                {warehouses.map((wh) => (
-                  <option key={wh.id} value={wh.id}>
-                    {wh.name}
-                  </option>
-                ))}
+                {allWarehouses
+                  .filter(wh => wh.id.toString() !== fromWarehouseId.toString())
+                  .map((wh) => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.name}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
