@@ -162,6 +162,33 @@ router.post("/", async (req, res) => {
         });
       }
 
+      // 3. Deduct from Treasury (User requested feature)
+      if (Number(paidAmount) > 0) {
+        // Decrease Balance
+        await prisma.treasury.update({
+          where: { id: parseInt(treasuryId) },
+          data: {
+            balance: { decrement: Number(paidAmount) },
+          },
+        });
+
+        // 4. Create Expense Record (Log only)
+        // Map payment method: CASH -> CASH, others -> CARD (as fallback or assume non-cash means bank/card)
+        const expenseMethod = paymentMethod === "CASH" ? "CASH" : "CARD";
+
+        await prisma.expense.create({
+          data: {
+            description: `Purchase Invocie #${supplierInvoiceNo || newPurchase.id}`,
+            amount: Number(paidAmount),
+            date: new Date(),
+            type: "PURCHASE",
+            treasuryId: parseInt(treasuryId),
+            purchaseId: newPurchase.id,
+            paymentMethod: expenseMethod,
+          },
+        });
+      }
+
       return newPurchase;
     });
 
@@ -201,7 +228,26 @@ router.put("/:id", async (req, res) => {
     const purchaseId = parseInt(req.params.id);
 
     const purchase = await prisma.$transaction(async (prisma) => {
-      // 1. Update basic fields
+      // 1. Get old purchase details for financial adjustment
+      const oldPurchase = await prisma.purchase.findUnique({
+        where: { id: purchaseId },
+      });
+
+      if (!oldPurchase) {
+        throw new Error("Purchase not found");
+      }
+
+      // 2. Refund Old Amount (User requested feature)
+      if (Number(oldPurchase.paidAmount) > 0) {
+        await prisma.treasury.update({
+          where: { id: oldPurchase.treasuryId },
+          data: {
+            balance: { increment: Number(oldPurchase.paidAmount) },
+          },
+        });
+      }
+
+      // 3. Update basic fields
       await prisma.purchase.update({
         where: { id: purchaseId },
         data: {
@@ -220,7 +266,7 @@ router.put("/:id", async (req, res) => {
         },
       });
 
-      // 2. Delete old items and create new ones
+      // 4. Delete old items and create new ones
       if (items) {
         await prisma.purchaseItem.deleteMany({
           where: { purchaseId },
@@ -240,7 +286,47 @@ router.put("/:id", async (req, res) => {
         }
       }
 
-      // 3. Return updated purchase with relations
+      // 5. Deduct New Amount (User requested feature)
+      if (Number(paidAmount) > 0) {
+        await prisma.treasury.update({
+          where: { id: parseInt(treasuryId) },
+          data: {
+            balance: { decrement: Number(paidAmount) },
+          },
+        });
+      }
+
+      // 6. Sync Expense Record
+      if (Number(paidAmount) > 0) {
+        const expenseMethod = paymentMethod === "CASH" ? "CASH" : "CARD";
+        await prisma.expense.upsert({
+          where: { purchaseId: purchaseId },
+          update: {
+            amount: Number(paidAmount),
+            treasuryId: parseInt(treasuryId),
+            paymentMethod: expenseMethod,
+            description: `Purchase Invocie #${supplierInvoiceNo || purchaseId}`,
+          },
+          create: {
+            description: `Purchase Invocie #${supplierInvoiceNo || purchaseId}`,
+            amount: Number(paidAmount),
+            date: oldPurchase.createdAt, // Keep original date
+            type: "PURCHASE",
+            treasuryId: parseInt(treasuryId),
+            purchaseId: purchaseId,
+            paymentMethod: expenseMethod,
+          },
+        });
+      } else {
+        // If paidAmount became 0, we should delete the expense record if it exists
+        // But upsert doesn't convert to delete.
+        // We can try deleteMany (safe if not exists)
+        await prisma.expense.deleteMany({
+          where: { purchaseId: purchaseId },
+        });
+      }
+
+      // 7. Return updated purchase with relations
       return await prisma.purchase.findUnique({
         where: { id: purchaseId },
         include: {
@@ -270,12 +356,37 @@ router.put("/:id", async (req, res) => {
 // DELETE purchase
 router.delete("/:id", async (req, res) => {
   try {
-    await prisma.purchase.delete({
-      where: { id: parseInt(req.params.id) },
+    const purchaseId = parseInt(req.params.id);
+
+    await prisma.$transaction(async (prisma) => {
+      // 1. Get purchase details before deletion
+      const purchase = await prisma.purchase.findUnique({
+        where: { id: purchaseId },
+      });
+
+      if (!purchase) {
+        throw new Error("Purchase not found");
+      }
+
+      // 2. Refund Treasury
+      if (Number(purchase.paidAmount) > 0) {
+        await prisma.treasury.update({
+          where: { id: purchase.treasuryId },
+          data: {
+            balance: { increment: Number(purchase.paidAmount) },
+          },
+        });
+      }
+
+      // 3. Delete Purchase (Cascade deletes Expense and Items)
+      await prisma.purchase.delete({
+        where: { id: purchaseId },
+      });
     });
+
     res.status(204).send();
   } catch (error) {
-    if (error.code === "P2025") {
+    if (error.message === "Purchase not found" || error.code === "P2025") {
       return res.status(404).json({ error: "Purchase not found" });
     }
     res

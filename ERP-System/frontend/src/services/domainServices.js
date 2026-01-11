@@ -31,4 +31,8 @@ export {
 };
 
 // Other services still use mock data (for now)
-export const expenseService = createMockService("erp_expenses");
+import { expenseService } from "./expenseService";
+
+// Other services still use mock data (for now)
+// export const expenseService = createMockService("erp_expenses");
+export { expenseService };

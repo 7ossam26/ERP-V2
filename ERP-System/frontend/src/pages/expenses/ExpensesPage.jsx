@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 const ExpensesPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [expenses, setExpenses] = useState([]);
+    const [editingExpense, setEditingExpense] = useState(null);
 
     const fetchExpenses = async () => {
         try {
@@ -22,17 +23,35 @@ const ExpensesPage = () => {
 
     const handleAddExpense = async (newExpense) => {
         try {
-            await expenseService.create({
-                ...newExpense,
-                paymentMethod: "نقدي", // Defaulting as before
-                date: new Date().toISOString().split('T')[0] // Ensure date is set if not provided
-            });
+            await expenseService.create(newExpense);
             await fetchExpenses();
             toast.success("تم إضافة المصروف بنجاح");
         } catch (error) {
             console.error("Failed to add expense", error);
             toast.error("فشل إضافة المصروف");
         }
+    };
+
+    const handleUpdateExpense = async (id, updatedExpense) => {
+        try {
+            await expenseService.update(id, updatedExpense);
+            await fetchExpenses();
+            toast.success("تم تحديث المصروف بنجاح");
+            setEditingExpense(null);
+        } catch (error) {
+            console.error("Failed to update expense", error);
+            toast.error("فشل تحديث المصروف");
+        }
+    };
+
+    const openEditModal = (expense) => {
+        setEditingExpense(expense);
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setEditingExpense(null);
     };
 
     const handleDelete = async (id) => {
@@ -90,7 +109,7 @@ const ExpensesPage = () => {
                             <span>تصدير تقرير</span>
                         </button>
                         <button
-                            onClick={() => setIsModalOpen(true)}
+                            onClick={() => setIsModalOpen(true)} // This is fine, editingExpense is null by default
                             className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-text-dark px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
                             <span className="material-symbols-outlined text-[20px]">add</span>
                             <span>إضافة مصروف</span>
@@ -142,6 +161,9 @@ const ExpensesPage = () => {
                                         طريقة الدفع
                                     </th>
                                     <th className="px-6 py-4" scope="col">
+                                        الخزينة
+                                    </th>
+                                    <th className="px-6 py-4" scope="col">
                                         المبلغ
                                     </th>
                                     <th
@@ -157,13 +179,23 @@ const ExpensesPage = () => {
                                         key={expense.id}
                                         className="hover:bg-accent/20 dark:hover:bg-accent/5 transition-colors group">
                                         <td className="px-6 py-3 font-medium text-text-light/70 dark:text-text-dark/70 font-numbers whitespace-nowrap">
-                                            {expense.date}
+                                            {new Date(expense.date).toLocaleDateString("en-CA")}
                                         </td>
                                         <td className="px-6 py-3 font-bold text-text-light dark:text-text-dark">
-                                            {expense.description}
+                                            <div className="flex items-center gap-2">
+                                                {expense.description}
+                                                {expense.type === "PURCHASE" && (
+                                                    <span className="px-2 py-0.5 rounded textxs font-normal bg-purple-100 text-purple-700 border border-purple-200">
+                                                        مشتريات
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-3 text-text-light/70 dark:text-text-dark/70">
-                                            {expense.paymentMethod}
+                                            {expense.paymentMethod === "CASH" ? "نقدي" : "بطاقة/أخرى"}
+                                        </td>
+                                        <td className="px-6 py-3 text-text-light/70 dark:text-text-dark/70">
+                                            {expense.treasury?.name || "-"}
                                         </td>
                                         <td className="px-6 py-3 font-bold text-text-light dark:text-text-dark font-numbers">
                                             {Number(expense.amount).toLocaleString()}{" "}
@@ -172,23 +204,26 @@ const ExpensesPage = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-3 text-center">
-                                            <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    className="text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-border-light dark:hover:border-border-dark rounded p-1"
-                                                    title="تعديل">
-                                                    <span className="material-symbols-outlined text-[18px]">
-                                                        edit
-                                                    </span>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(expense.id)}
-                                                    className="text-text-light/70 hover:text-red-600 dark:text-text-dark/70 dark:hover:text-red-400 transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-red-100 dark:hover:border-red-900/30 rounded p-1"
-                                                    title="حذف">
-                                                    <span className="material-symbols-outlined text-[18px]">
-                                                        delete
-                                                    </span>
-                                                </button>
-                                            </div>
+                                            {expense.type === "MANUAL" && (
+                                                <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => openEditModal(expense)}
+                                                        className="text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-border-light dark:hover:border-border-dark rounded p-1"
+                                                        title="تعديل">
+                                                        <span className="material-symbols-outlined text-[18px]">
+                                                            edit
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(expense.id)}
+                                                        className="text-text-light/70 hover:text-red-600 dark:text-text-dark/70 dark:hover:text-red-400 transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-red-100 dark:hover:border-red-900/30 rounded p-1"
+                                                        title="حذف">
+                                                        <span className="material-symbols-outlined text-[18px]">
+                                                            delete
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -240,8 +275,10 @@ const ExpensesPage = () => {
 
             {isModalOpen && (
                 <AddExpenseModal
-                    onClose={() => setIsModalOpen(false)}
+                    onClose={closeModal}
                     onAdd={handleAddExpense}
+                    onUpdate={handleUpdateExpense}
+                    expenseToEdit={editingExpense}
                 />
             )}
         </div>

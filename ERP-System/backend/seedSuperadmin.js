@@ -101,18 +101,49 @@ async function main() {
     const hashedPassword = await bcrypt.hash("246810@Ad", 10);
     console.log("   [DEBUG] Password hashed.");
 
+    // Create initial infrastructure (Warehouse, Treasury, Branch)
+    console.log("   [DEBUG] Creating initial warehouse...");
+    const warehouse = await prisma.warehouse.create({
+      data: {
+        name: "Main Warehouse",
+      },
+    });
+    console.log(`   [DEBUG] Warehouse created: ID ${warehouse.id}`);
+
+    console.log("   [DEBUG] Creating initial treasury...");
+    const treasury = await prisma.treasury.create({
+      data: {
+        name: "Main Treasury",
+        balance: 0,
+      },
+    });
+    console.log(`   [DEBUG] Treasury created: ID ${treasury.id}`);
+
+    console.log("   [DEBUG] Creating main branch...");
+    const branch = await prisma.branch.create({
+      data: {
+        name: "Main Branch",
+        address: "Headquarters",
+        warehouseId: warehouse.id,
+        treasuryId: treasury.id,
+      },
+    });
+    console.log(`   [DEBUG] Branch created: ID ${branch.id}`);
+
     console.log("   [DEBUG] Creating/Updating superadmin user...");
     const superadmin = await prisma.user.upsert({
       where: { username: "superadmin" },
       update: {
         password: hashedPassword,
         roleId: superadminRole.id,
+        branchId: branch.id,
       },
       create: {
         name: "Superadmin",
         username: "superadmin",
         password: hashedPassword,
         roleId: superadminRole.id,
+        branchId: branch.id,
         isActive: true,
       },
     });
