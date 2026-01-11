@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Chart as ChartJS,
@@ -13,6 +13,7 @@ import {
   Filler,
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
+import { reportService, branchService } from "../../services/domainServices";
 
 ChartJS.register(
   CategoryScale,
@@ -27,22 +28,98 @@ ChartJS.register(
 );
 
 const GeneralReportPage = () => {
-  // --- Chart Data & Options ---
-  const salesData = {
-    labels: [
-      "8:00",
-      "10:00",
-      "12:00",
-      "14:00",
-      "16:00",
-      "18:00",
-      "20:00",
-      "22:00",
-    ],
+  const [loading, setLoading] = useState(true);
+  const [reportData, setReportData] = useState(null);
+  const [error, setError] = useState(null);
+  const [branches, setBranches] = useState([]);
+  const [filters, setFilters] = useState({
+    period: "today", // today, yesterday, week, month, custom
+    branchId: "",
+  });
+
+  // Fetch branches on mount
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const data = await branchService.getAll();
+        setBranches(data || []);
+      } catch (err) {
+        console.error("Failed to load branches", err);
+      }
+    };
+    loadBranches();
+  }, []);
+
+  const fetchReport = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Calc dates based on period
+      let startDate = new Date();
+      let endDate = new Date(); // Defaults to now
+
+      // Set time to start/end of day to avoid timezone confusion during range selection
+      // But actually, let's keep it simple. `startDate` defaults to Today.
+
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+
+      if (filters.period === "today") {
+        // Already set to today's start and end
+      } else if (filters.period === "yesterday") {
+        startDate.setDate(startDate.getDate() - 1);
+        endDate.setDate(endDate.getDate() - 1);
+        // Ensure boundaries cover the full yesterday
+        endDate.setHours(23, 59, 59, 999);
+      } else if (filters.period === "week") {
+        startDate.setDate(startDate.getDate() - 7);
+        // endDate remains today end
+      } else if (filters.period === "month") {
+        startDate.setDate(1); // First day of current month
+        // endDate remains today end
+      }
+
+      // Convert to YYYY-MM-DD for API
+      // Note: toISOString uses UTC. If user is in +2, and it's 00:00 local, UTC is previous day 22:00.
+      // We should use local date string.
+      const toLocalISOString = (date) => {
+        const offset = date.getTimezoneOffset() * 60000; // offset in milliseconds
+        const localISOTime = (new Date(date - offset)).toISOString().slice(0, 10);
+        return localISOTime;
+      };
+
+      const formattedStart = toLocalISOString(startDate);
+      const formattedEnd = toLocalISOString(endDate);
+
+      console.log("Fetching report with:", { formattedStart, formattedEnd, branchId: filters.branchId });
+
+      const data = await reportService.getGeneralReport({
+        startDate: formattedStart,
+        endDate: formattedEnd,
+        branchId: filters.branchId,
+      });
+
+      setReportData(data);
+    } catch (err) {
+      console.error("Error loading report:", err);
+      setError("فشل تحميل البيانات. تأكد من اتصال الخادم.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReport();
+  }, [filters]);
+
+  // --- Chart Config ---
+  const salesChartData = {
+    labels: reportData?.charts?.salesOverTime?.labels || [],
     datasets: [
       {
-        label: "المبيعات اليومية (ر.س)",
-        data: [120, 450, 1200, 980, 2400, 3100, 2800, 1400],
+        label: "المبيعات (ر.س)",
+        data: reportData?.charts?.salesOverTime?.data || [],
         borderColor: "#6F4E37",
         backgroundColor: "rgba(111, 78, 55, 0.1)",
         tension: 0.4,
@@ -59,17 +136,12 @@ const GeneralReportPage = () => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false,
-      },
+      legend: { display: false },
     },
     scales: {
       y: {
         beginAtZero: true,
-        grid: {
-          color: "rgba(0, 0, 0, 0.05)",
-          borderDash: [5, 5],
-        },
+        grid: { color: "rgba(0, 0, 0, 0.05)", borderDash: [5, 5] },
         ticks: { color: "#9CA3AF" },
       },
       x: {
@@ -79,12 +151,12 @@ const GeneralReportPage = () => {
     },
   };
 
-  const pieData = {
-    labels: ["بن برازيلي", "بن إثيوبي", "إضافات"],
+  const pieChartData = {
+    labels: reportData?.charts?.salesByItem?.labels || [],
     datasets: [
       {
-        data: [45, 30, 25],
-        backgroundColor: ["#6F4E37", "#A1887F", "#D7CCC8"],
+        data: reportData?.charts?.salesByItem?.data || [],
+        backgroundColor: ["#6F4E37", "#A1887F", "#D7CCC8", "#8D6E63", "#5D4037"],
         borderWidth: 0,
         hoverOffset: 4,
       },
@@ -96,9 +168,17 @@ const GeneralReportPage = () => {
     maintainAspectRatio: false,
     cutout: "70%",
     plugins: {
-      legend: { display: false },
-    },
+      legend: { display: false }
+    }
   };
+
+  if (loading && !reportData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
+        <div className="text-primary text-xl font-bold animate-pulse">جاري تحميل التقرير...</div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -111,7 +191,7 @@ const GeneralReportPage = () => {
             التقرير العام
           </h2>
           <p className="text-gray-500 dark:text-gray-400">
-            ملخص أداء المبيعات والمخزون لليوم الحالي
+            ملخص أداء المبيعات والمخزون
           </p>
         </div>
         <Link
@@ -132,12 +212,14 @@ const GeneralReportPage = () => {
               الفترة الزمنية
             </label>
             <div className="relative">
-              <select className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
-                <option>اليوم (24 أكتوبر 2023)</option>
-                <option>أمس</option>
-                <option>آخر 7 أيام</option>
-                <option>هذا الشهر</option>
-                <option>مخصص</option>
+              <select
+                value={filters.period}
+                onChange={(e) => setFilters({ ...filters, period: e.target.value })}
+                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
+                <option value="today">اليوم</option>
+                <option value="yesterday">أمس</option>
+                <option value="week">آخر 7 أيام</option>
+                <option value="month">هذا الشهر</option>
               </select>
               <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
                 calendar_today
@@ -149,11 +231,14 @@ const GeneralReportPage = () => {
               الفرع
             </label>
             <div className="relative">
-              <select className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
-                <option>الفرع الرئيسي -الدقي</option>
-                <option>فرع مول مصر</option>
-                <option>فرع مول العرب</option>
-                <option>الكل</option>
+              <select
+                value={filters.branchId}
+                onChange={(e) => setFilters({ ...filters, branchId: e.target.value })}
+                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
+                <option value="">الكل</option>
+                {branches.map(branch => (
+                  <option key={branch.id} value={branch.id}>{branch.name}</option>
+                ))}
               </select>
               <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
                 store
@@ -161,13 +246,21 @@ const GeneralReportPage = () => {
             </div>
           </div>
           <div>
-            <button className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors font-medium shadow-md shadow-primary/20 flex items-center justify-center gap-2">
-              <span className="material-icons-round text-lg">refresh</span>
+            <button
+              onClick={fetchReport}
+              className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors font-medium shadow-md shadow-primary/20 flex items-center justify-center gap-2">
+              <span className={`material-icons-round text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
               تحديث التقرير
             </button>
           </div>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-8 border border-red-200">
+          {error}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -179,7 +272,7 @@ const GeneralReportPage = () => {
                 إجمالي المبيعات
               </p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                12,450 ج.م
+                {reportData?.summary?.totalSales?.toLocaleString()} ج.م
               </h3>
             </div>
             <div className="p-2 bg-primary/10 rounded-lg">
@@ -194,10 +287,10 @@ const GeneralReportPage = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                صافي الربح
+                صافي الربح (تقريبي)
               </p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                4,200 ج.م
+                {reportData?.summary?.netProfit?.toLocaleString()} ج.م
               </h3>
             </div>
             <div className="p-2 bg-success/10 rounded-lg">
@@ -215,7 +308,7 @@ const GeneralReportPage = () => {
                 عدد الفواتير
               </p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                145
+                {reportData?.summary?.invoiceCount}
               </h3>
             </div>
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -233,7 +326,7 @@ const GeneralReportPage = () => {
                 تنبيهات المخزون
               </p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                3 أصناف
+                {reportData?.summary?.stockAlerts} أصناف
               </h3>
             </div>
             <div className="p-2 bg-warning/10 rounded-lg">
@@ -250,14 +343,11 @@ const GeneralReportPage = () => {
         <div className="lg:col-span-2 bg-surface-light dark:bg-surface-dark p-6 rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-primary">
-              حركة المبيعات (بالساعة)
+              حركة المبيعات
             </h3>
-            <button className="text-gray-400 hover:text-primary transition-colors">
-              <span className="material-icons-round">more_horiz</span>
-            </button>
           </div>
           <div className="h-64 w-full">
-            <Line data={salesData} options={salesOptions} />
+            <Line data={salesChartData} options={salesOptions} />
           </div>
         </div>
         <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
@@ -265,45 +355,28 @@ const GeneralReportPage = () => {
             <h3 className="text-lg font-bold text-primary">
               توزيع المبيعات حسب الصنف
             </h3>
-            <button className="text-gray-400 hover:text-primary transition-colors">
-              <span className="material-icons-round">more_horiz</span>
-            </button>
           </div>
           <div className="h-48 w-full relative flex justify-center">
-            <Doughnut data={pieData} options={pieOptions} />
+            {/* If no data, show message */}
+            {reportData?.charts?.salesByItem?.data?.length > 0 ? (
+              <Doughnut data={pieChartData} options={pieOptions} />
+            ) : (
+              <div className="flex items-center justify-center text-gray-400">لا توجد بيانات</div>
+            )}
           </div>
-          <div className="mt-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#6F4E37]"></span>
-                <span className="text-gray-600 dark:text-gray-300">
-                  بن برازيلي
-                </span>
+          {/* Custom Legend */}
+          <div className="mt-4 space-y-2 max-h-40 overflow-y-auto">
+            {reportData?.charts?.salesByItem?.labels?.map((label, index) => (
+              <div key={index} className="flex justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: pieChartData.datasets[0].backgroundColor[index % 5] }}>
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-300">{label}</span>
+                </div>
               </div>
-              <span className="font-bold text-gray-800 dark:text-white">
-                45%
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#A1887F]"></span>
-                <span className="text-gray-600 dark:text-gray-300">
-                  بن إثيوبي
-                </span>
-              </div>
-              <span className="font-bold text-gray-800 dark:text-white">
-                30%
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#D7CCC8]"></span>
-                <span className="text-gray-600 dark:text-gray-300">إضافات</span>
-              </div>
-              <span className="font-bold text-gray-800 dark:text-white">
-                25%
-              </span>
-            </div>
+            ))}
           </div>
         </div>
       </div>
@@ -315,14 +388,6 @@ const GeneralReportPage = () => {
             <span className="material-icons-round">store</span>
             تفاصيل المبيعات حسب الفرع
           </h3>
-          <Link to="/branches-sales">
-            <button className="text-primary text-sm font-medium hover:underline flex items-center gap-1">
-              <span>تقرير مفصل</span>
-              <span className="material-icons-round text-sm rtl:rotate-180">
-                arrow_forward
-              </span>
-            </button>
-          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-right">
@@ -336,186 +401,87 @@ const GeneralReportPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-light dark:divide-border-dark">
-              <tr className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
-                <td className="px-6 py-4 font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#6F4E37]/10 flex items-center justify-center text-[#6F4E37]">
-                    <span className="material-icons-round text-sm">
-                      apartment
-                    </span>
-                  </div>
-                  الفرع الرئيسي - الدقي
-                </td>
-                <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">
-                  6,850
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium w-8">55%</span>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-[#6F4E37] h-2 rounded-full"
-                        style={{ width: "55%" }}></div>
+              {reportData?.tables?.salesByBranch?.map((branch, index) => (
+                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+                  <td className="px-6 py-4 font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#6F4E37]/10 flex items-center justify-center text-[#6F4E37]">
+                      <span className="material-icons-round text-sm">apartment</span>
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                  82
-                </td>
-                <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                  83.5 ر.س
-                </td>
-              </tr>
-              {/* Additional rows here would be dynamic or repeated */}
+                    {branch.name}
+                  </td>
+                  <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">
+                    {branch.totalSales?.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium w-8">{Math.round(branch.percentage)}%</span>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div
+                          className="bg-[#6F4E37] h-2 rounded-full"
+                          style={{ width: `${branch.percentage}%` }}></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                    {branch.invoiceCount}
+                  </td>
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                    {Math.round(branch.averageInvoice)} ر.س
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Profitability & Inventory grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
-        {/* Profitability */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-border-light dark:border-border-dark bg-gray-50/50 dark:bg-[#3E332F]/50 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-              <span className="material-icons-round">analytics</span>
-              تحليل الربحية
-            </h3>
-          </div>
-          <div className="p-6 grid grid-cols-3 gap-4 border-b border-border-light dark:border-border-dark">
-            <div className="text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                الإيرادات
-              </p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">
-                12,450
-              </p>
-            </div>
-            <div className="text-center border-r border-l border-gray-100 dark:border-gray-700">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                تكلفة البضاعة (COGS)
-              </p>
-              <p className="text-lg font-bold text-danger">8,250</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                صافي الربح
-              </p>
-              <p className="text-lg font-bold text-success">4,200</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-sm text-right">
-              <thead className="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
-                <tr>
-                  <th className="px-6 py-3">الصنف</th>
-                  <th className="px-6 py-3">المبيعات</th>
-                  <th className="px-6 py-3">الربح</th>
-                  <th className="px-6 py-3">% هامش</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-light dark:divide-border-dark">
-                <tr className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                    بن برازيلي (سانتوس)
-                  </td>
-                  <td className="px-6 py-4">5,400 ج.م</td>
-                  <td className="px-6 py-4 text-success font-medium">
-                    2,100 ج.م
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                    38%
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                    بن إثيوبي (يرقاشيف)
-                  </td>
-                  <td className="px-6 py-4">3,200 ج.م</td>
-                  <td className="px-6 py-4 text-success font-medium">
-                    950 ج.م
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                    29%
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                    خلطة الغنيمي الخاصة
-                  </td>
-                  <td className="px-6 py-4">2,800 ج.م</td>
-                  <td className="px-6 py-4 text-success font-medium">
-                    1,150 ج.م
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                    41%
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+      {/* Inventory Alerts List */}
+      <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8 overflow-hidden">
+        <div className="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-[#3E332F]/50">
+          <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+            <span className="material-icons-round">warning</span>
+            تنبيهات المخزون (أقل من حد الطلب)
+          </h3>
         </div>
-
-        {/* Inventory Status */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-border-light dark:border-border-dark bg-gray-50/50 dark:bg-[#3E332F]/50 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-              <span className="material-icons-round">warehouse</span>
-              حالة المخزون اليومية
-            </h3>
-            <Link to="/inventory">
-              <button className="text-primary text-sm font-medium hover:underline flex items-center gap-1">
-                <span>تقرير مفصل</span>
-                <span className="material-icons-round text-sm rtl:rotate-180">
-                  arrow_forward
-                </span>
-              </button>
-            </Link>
-          </div>
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-sm text-right">
-              <thead className="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-right">
+            <thead className="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+              <tr>
+                <th className="px-6 py-3">الصنف</th>
+                <th className="px-6 py-3">الكمية الحالية</th>
+                <th className="px-6 py-3">حد الطلب</th>
+                <th className="px-6 py-3">الحالة</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-light dark:divide-border-dark">
+              {reportData?.tables?.stockAlertsList?.map((item, index) => (
+                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+                  <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">
+                    {item.itemName}
+                  </td>
+                  <td className="px-6 py-4 font-bold text-danger">
+                    {item.quantity}
+                  </td>
+                  <td className="px-6 py-4 text-gray-600">
+                    {item.reorderPoint}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">منخفض جدًا</span>
+                  </td>
+                </tr>
+              ))}
+              {(!reportData?.tables?.stockAlertsList || reportData.tables.stockAlertsList.length === 0) && (
                 <tr>
-                  <th className="px-6 py-3">الصنف</th>
-                  <th className="px-6 py-3">الحالي (كجم)</th>
-                  <th className="px-6 py-3">وارد اليوم</th>
-                  <th className="px-6 py-3">منصرف اليوم</th>
-                  <th className="px-6 py-3">الحالة</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-light dark:divide-border-dark">
-                <tr className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                    بن برازيلي أخضر
-                  </td>
-                  <td className="px-6 py-4 font-bold">145 كجم</td>
-                  <td className="px-6 py-4 text-success">+50</td>
-                  <td className="px-6 py-4 text-danger">-22</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 rounded-full text-xs font-medium">
-                      متوفر
-                    </span>
+                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                    لا توجد تنبيهات مخزون حالياً
                   </td>
                 </tr>
-                <tr className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                    هيل أمريكي رقم 1
-                  </td>
-                  <td className="px-6 py-4 font-bold">4.5 كجم</td>
-                  <td className="px-6 py-4 text-gray-400">0</td>
-                  <td className="px-6 py-4 text-danger">-1.2</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 rounded-full text-xs font-medium flex items-center gap-1 w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
-                      منخفض
-                    </span>
-                  </td>
-                </tr>
-                {/* More rows... */}
-              </tbody>
-            </table>
-          </div>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
+
     </div>
   );
 };

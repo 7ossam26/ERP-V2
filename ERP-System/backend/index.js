@@ -66,6 +66,7 @@ app.use("/api/items", itemsRouter);
 app.use("/api/inventory", require("./routes/inventory"));
 app.use("/api/purchases", purchasesRouter);
 app.use("/api/sales", salesRouter);
+app.use("/api/reports", require("./routes/reports"));
 app.use("/api/settings", settingsRouter);
 app.use("/api/stock-transfers", require("./routes/stockTransfer"));
 app.use("/api/shifts", require("./routes/shifts"));
