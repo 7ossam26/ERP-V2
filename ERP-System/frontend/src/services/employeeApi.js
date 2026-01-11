@@ -37,6 +37,7 @@ const toFrontend = (backendData) => {
   return {
     id: backendData.id,
     name: backendData.name,
+    code: backendData.id, // Using ID as the Job Number (Code) as requested
     title: backendData.position,
     branchId: backendData.branchId,
     branch: backendData.branch,
@@ -46,6 +47,13 @@ const toFrontend = (backendData) => {
     workHours: backendData.workingHoursPerDay.toString(),
     weekend: backendData.weeklyHoliday,
     salary: backendData.salary.toString(),
+    advances: backendData.advances || 0,
+    deductions: backendData.deductions || 0,
+    remaining: backendData.remaining || backendData.salary,
+    transactions: backendData.transactions || [],
+    isPaid: backendData.isPaid || false,
+    payrollId: backendData.payrollId || null,
+    paidBy: backendData.paidBy || null,
     createdAt: backendData.createdAt,
     updatedAt: backendData.updatedAt,
   };
@@ -58,10 +66,12 @@ const toFrontend = (backendData) => {
 export const employeeService = {
   /**
    * Get all employees
+   * @param {Object} params - Query params (month, year)
    * @returns {Promise<Array>} Array of employees in frontend format
    */
-  getAll: async () => {
-    const employees = await api.get("/employees");
+  getAll: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const employees = await api.get(`/employees?${query}`);
     return employees.map(toFrontend);
   },
 
@@ -100,6 +110,24 @@ export const employeeService = {
   },
 
   /**
+   * Add transaction (Advance/Deduction)
+   * @param {number} id - Employee ID
+   * @param {Object} data - { type: "ADVANCE"|"DEDUCTION", amount: number, reason: string, date: string }
+   */
+  addTransaction: async (id, data) => {
+    return await api.post(`/employees/${id}/transactions`, data);
+  },
+
+  /**
+   * Pay Salary for a month
+   * @param {number} id - Employee ID
+   * @param {Object} data - { month: number, year: number }
+   */
+  paySalary: async (id, data) => {
+    return await api.post(`/employees/${id}/pay`, data);
+  },
+
+  /**
    * Delete an employee
    * @param {number} id - Employee ID
    * @returns {Promise<boolean>} Success status
@@ -107,5 +135,50 @@ export const employeeService = {
   delete: async (id) => {
     await api.delete(`/employees/${id}`);
     return true;
+  },
+
+  /**
+   * Get all transactions (globally)
+   * @param {Object} params - Query params (type, startDate, endDate, branchId)
+   */
+  getAllTransactions: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const transactions = await api.get(`/employees/transactions/all?${query}`);
+    return transactions.map((t) => {
+      const dateObj = new Date(t.date);
+      return {
+        id: t.id,
+        amount: t.amount,
+        reason: t.reason,
+        // Format Date as DD/MM/YYYY
+        date: dateObj.toLocaleDateString("en-GB"),
+        // Format Time as HH:MM:SS
+        time: dateObj.toLocaleTimeString("en-GB"),
+        // Original date for editing forms
+        originalDate: t.date,
+        type: t.type,
+        employeeId: t.employeeId,
+        employeeName: t.employee?.name || "Unknown",
+        branchName: t.employee?.branch?.name || "Unknown",
+        createdBy: t.createdBy?.name || "Unknown",
+      };
+    });
+  },
+
+  /**
+   * Update a transaction
+   * @param {number} id - Transaction ID
+   * @param {Object} data - Updated data
+   */
+  updateTransaction: async (id, data) => {
+    return await api.put(`/employees/transactions/${id}`, data);
+  },
+
+  /**
+   * Delete a transaction
+   * @param {number} id - Transaction ID
+   */
+  deleteTransaction: async (id) => {
+    return await api.delete(`/employees/transactions/${id}`);
   },
 };

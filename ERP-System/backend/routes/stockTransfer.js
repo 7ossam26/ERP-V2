@@ -33,7 +33,36 @@ const generateTransferNumber = async () => {
 // GET all stock transfers
 router.get("/", async (req, res) => {
   try {
+    const {
+      startDate,
+      endDate,
+      fromWarehouseId,
+      toWarehouseId,
+      transferNumber,
+    } = req.query;
+    const where = {};
+
+    if (transferNumber) {
+      where.transferNumber = { contains: transferNumber };
+    }
+
+    if (startDate && endDate) {
+      where.createdAt = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    }
+
+    if (fromWarehouseId && fromWarehouseId !== "all") {
+      where.fromWarehouseId = parseInt(fromWarehouseId);
+    }
+
+    if (toWarehouseId && toWarehouseId !== "all") {
+      where.toWarehouseId = parseInt(toWarehouseId);
+    }
+
     const transfers = await prisma.stockTransfer.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       include: {
         fromWarehouse: true,
@@ -49,12 +78,10 @@ router.get("/", async (req, res) => {
     res.json(transfers);
   } catch (error) {
     console.error("Error fetching stock transfers:", error);
-    res
-      .status(500)
-      .json({
-        error: "Failed to fetch stock transfers",
-        message: error.message,
-      });
+    res.status(500).json({
+      error: "Failed to fetch stock transfers",
+      message: error.message,
+    });
   }
 });
 
@@ -82,12 +109,10 @@ router.get("/:id", async (req, res) => {
     res.json(transfer);
   } catch (error) {
     console.error("Error fetching stock transfer:", error);
-    res
-      .status(500)
-      .json({
-        error: "Failed to fetch stock transfer",
-        message: error.message,
-      });
+    res.status(500).json({
+      error: "Failed to fetch stock transfer",
+      message: error.message,
+    });
   }
 });
 
@@ -271,12 +296,10 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Stock transfer not found" });
     }
     console.error("Error deleting stock transfer:", error);
-    res
-      .status(500)
-      .json({
-        error: "Failed to delete stock transfer",
-        message: error.message,
-      });
+    res.status(500).json({
+      error: "Failed to delete stock transfer",
+      message: error.message,
+    });
   }
 });
 

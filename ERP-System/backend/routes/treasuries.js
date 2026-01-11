@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken } = require("../middleware/auth");
+
+router.use(authenticateToken);
 
 // GET all treasuries
 router.get("/", async (req, res) => {
@@ -24,6 +27,8 @@ router.get("/transfers", async (req, res) => {
       include: {
         fromTreasury: true,
         toTreasury: true,
+        createdBy: { select: { id: true, name: true } },
+        acceptedBy: { select: { id: true, name: true } },
       },
     });
     res.json(transfers);
@@ -130,6 +135,7 @@ router.post("/transfer", async (req, res) => {
           amount: transferAmount,
           notes,
           status: "PENDING",
+          createdById: req.user.id,
         },
       });
     });
@@ -164,7 +170,10 @@ router.post("/transfer/:id/approve", async (req, res) => {
       // 2. Update Status
       return await tx.cashTransfer.update({
         where: { id: transferId },
-        data: { status: "APPROVED" },
+        data: {
+          status: "APPROVED",
+          acceptedById: req.user.id,
+        },
       });
     });
 
@@ -197,7 +206,10 @@ router.post("/transfer/:id/reject", async (req, res) => {
       // 2. Update Status
       return await tx.cashTransfer.update({
         where: { id: transferId },
-        data: { status: "REJECTED" },
+        data: {
+          status: "REJECTED",
+          acceptedById: req.user.id,
+        },
       });
     });
 
