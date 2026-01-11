@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { FaCashRegister, FaCheck, FaUser, FaClock, FaCalendarAlt, FaStore } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { FaCashRegister, FaCheck, FaUser, FaClock, FaCalendarAlt, FaStore, FaSignOutAlt } from "react-icons/fa";
 
 const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
+    const navigate = useNavigate();
     const [startCash, setStartCash] = useState("");
     const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -16,6 +18,10 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         onConfirm(startCash ? parseFloat(startCash) : 0);
+    };
+
+    const handleExit = () => {
+        navigate("/dashboard");
     };
 
     return createPortal(
@@ -109,13 +115,24 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                             </div>
                         </div>
 
-                        <button
-                            type="submit"
-                            className="w-full bg-gradient-to-l from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white p-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3"
-                        >
-                            <FaCheck className="w-5 h-5" />
-                            <span>بدء الوردية</span>
-                        </button>
+                        <div className="flex gap-3">
+                            <button
+                                type="submit"
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3"
+                            >
+                                <FaCheck className="w-5 h-5" />
+                                <span>بدء الوردية</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleExit}
+                                className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 p-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2"
+                                title="الخروج إلى لوحة التحكم"
+                            >
+                                <FaSignOutAlt className="w-5 h-5" />
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
