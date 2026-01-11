@@ -139,10 +139,10 @@ const PurchasesPage = () => {
   // Filter items by selected supplier
   const availableItems = selectedSupplierId
     ? allItems.filter(
-        (item) =>
-          item.suppliers &&
-          item.suppliers.includes(parseInt(selectedSupplierId))
-      )
+      (item) =>
+        item.suppliers &&
+        item.suppliers.includes(parseInt(selectedSupplierId))
+    )
     : allItems;
 
   const addItem = () => {
@@ -177,11 +177,11 @@ const PurchasesPage = () => {
         items.map((item) =>
           item.id === rowId
             ? {
-                ...item,
-                itemId: selectedItem.id,
-                name: selectedItem.name,
-                sellPrice: selectedItem.price || 0,
-              }
+              ...item,
+              itemId: selectedItem.id,
+              name: selectedItem.name,
+              sellPrice: selectedItem.price || 0,
+            }
             : item
         )
       );
@@ -371,19 +371,20 @@ const PurchasesPage = () => {
               المخزن
             </label>
             <div className="relative">
-              <input
-                className="w-full bg-gray-100 dark:bg-background-dark/50 border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 cursor-not-allowed opacity-75 font-bold"
-                value={
-                  selectedWarehouseId
-                    ? warehouses.find(
-                        (w) => w.id === parseInt(selectedWarehouseId)
-                      )?.name || "..."
-                    : "يرجى ضبط المخزن الرئيسي"
-                }
-                readOnly
-                type="text"
-              />
-              <input type="hidden" value={selectedWarehouseId} />
+              <select
+                value={selectedWarehouseId}
+                onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors">
+                <option value="">اختر المخزن...</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </option>
+                ))}
+              </select>
+              <span className="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">
+                expand_more
+              </span>
             </div>
           </div>
           <div className="md:col-span-5">
@@ -541,11 +542,10 @@ const PurchasesPage = () => {
           <button
             onClick={addItem}
             disabled={!selectedSupplierId}
-            className={`w-full py-3 rounded-lg border border-dashed flex justify-center items-center transition-all group ${
-              selectedSupplierId
+            className={`w-full py-3 rounded-lg border border-dashed flex justify-center items-center transition-all group ${selectedSupplierId
                 ? "bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark border-primary/40 dark:border-primary/60 cursor-pointer"
                 : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
-            }`}>
+              }`}>
             <span className="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform text-primary">
               add_circle
             </span>
