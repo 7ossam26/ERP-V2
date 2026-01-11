@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
-const BASE_URL = `${API_URL}/api/treasuries`;
+const API_BASE_URL = "/api";
+const BASE_URL = `${API_BASE_URL}/treasuries`;
 
 export const treasuryService = {
   // Get all treasuries

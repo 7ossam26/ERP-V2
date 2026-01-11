@@ -1,6 +1,5 @@
 // API Client configuration and base utilities
-const API_BASE_URL =
-  "/api"; // Use relative path to leverage Vite proxy
+const API_BASE_URL = "/api"; // Use relative path to leverage Vite proxy
 
 class APIError extends Error {
   constructor(message, status, data) {
