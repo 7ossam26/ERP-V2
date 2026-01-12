@@ -283,7 +283,7 @@ router.get("/roles/:id/permissions", async (req, res) => {
 router.put("/roles/:id/permissions", async (req, res) => {
   try {
     const { id } = req.params;
-    // permissions is an array of { module, canView, canCreate... }
+    // permissions is an array of { module, canAccess }
     const { permissions } = req.body;
 
     const roleId = parseInt(id);
@@ -297,18 +297,12 @@ router.put("/roles/:id/permissions", async (req, res) => {
           },
         },
         update: {
-          canView: perm.canView,
-          canCreate: perm.canCreate,
-          canEdit: perm.canEdit,
-          canDelete: perm.canDelete,
+          canAccess: perm.canAccess,
         },
         create: {
           roleId: roleId,
           module: perm.module,
-          canView: perm.canView,
-          canCreate: perm.canCreate,
-          canEdit: perm.canEdit,
-          canDelete: perm.canDelete,
+          canAccess: perm.canAccess,
         },
       });
     });

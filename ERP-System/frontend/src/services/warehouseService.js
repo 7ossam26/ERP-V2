@@ -1,35 +1,30 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_BASE_URL = "/api";
-const BASE_URL = `${API_BASE_URL}/warehouses`;
+const WAREHOUSES_URL = "/warehouses";
 
 export const warehouseService = {
   // Get all warehouses
   getAll: async () => {
-    const response = await axios.get(BASE_URL);
-    return response.data;
+    return await api.get(WAREHOUSES_URL);
   },
 
   // Get warehouse by ID
   getById: async (id) => {
-    const response = await axios.get(`${BASE_URL}/${id}`);
-    return response.data;
+    return await api.get(`${WAREHOUSES_URL}/${id}`);
   },
 
   // Create new warehouse
   create: async (data) => {
-    const response = await axios.post(BASE_URL, data);
-    return response.data;
+    return await api.post(WAREHOUSES_URL, data);
   },
 
   // Update warehouse
   update: async (id, data) => {
-    const response = await axios.put(`${BASE_URL}/${id}`, data);
-    return response.data;
+    return await api.put(`${WAREHOUSES_URL}/${id}`, data);
   },
 
   // Delete warehouse
   delete: async (id) => {
-    await axios.delete(`${BASE_URL}/${id}`);
+    await api.delete(`${WAREHOUSES_URL}/${id}`);
   },
 };

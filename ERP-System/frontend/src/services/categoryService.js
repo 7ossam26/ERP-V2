@@ -1,7 +1,6 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_BASE_URL = "/api";
-const CATEGORIES_URL = `${API_BASE_URL}/categories`;
+const CATEGORIES_URL = "/categories";
 
 /**
  * Category API Service
@@ -13,13 +12,7 @@ export const categoryService = {
    * @returns {Promise<Array>} Array of categories
    */
   async getAll() {
-    try {
-      const response = await axios.get(CATEGORIES_URL);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      throw error;
-    }
+    return await api.get(CATEGORIES_URL);
   },
 
   /**
@@ -28,13 +21,7 @@ export const categoryService = {
    * @returns {Promise<Object>} Category object
    */
   async getById(id) {
-    try {
-      const response = await axios.get(`${CATEGORIES_URL}/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching category ${id}:`, error);
-      throw error;
-    }
+    return await api.get(`${CATEGORIES_URL}/${id}`);
   },
 
   /**
@@ -43,13 +30,7 @@ export const categoryService = {
    * @returns {Promise<Object>} Created category
    */
   async create(categoryData) {
-    try {
-      const response = await axios.post(CATEGORIES_URL, categoryData);
-      return response.data;
-    } catch (error) {
-      console.error("Error creating category:", error);
-      throw error;
-    }
+    return await api.post(CATEGORIES_URL, categoryData);
   },
 
   /**
@@ -59,13 +40,7 @@ export const categoryService = {
    * @returns {Promise<Object>} Updated category
    */
   async update(id, updates) {
-    try {
-      const response = await axios.put(`${CATEGORIES_URL}/${id}`, updates);
-      return response.data;
-    } catch (error) {
-      console.error(`Error updating category ${id}:`, error);
-      throw error;
-    }
+    return await api.put(`${CATEGORIES_URL}/${id}`, updates);
   },
 
   /**
@@ -74,12 +49,7 @@ export const categoryService = {
    * @returns {Promise<boolean>} Success status
    */
   async delete(id) {
-    try {
-      await axios.delete(`${CATEGORIES_URL}/${id}`);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting category ${id}:`, error);
-      throw error;
-    }
+    await api.delete(`${CATEGORIES_URL}/${id}`);
+    return true;
   },
 };

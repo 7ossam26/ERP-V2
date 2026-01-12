@@ -1,11 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter } = require("../middleware/auth");
 
-// GET all branches
+// Protect all routes with BRANCHES permission
+// Protect all routes with authentication
+router.use(authenticateToken);
+
+// GET all branches - Accessible to all auth users, but filtered by permission/branch assignment
 router.get("/", async (req, res) => {
   try {
+    const userBranchFilter = await getUserBranchFilter(req.user.id);
+    const where = userBranchFilter ? { id: userBranchFilter } : {};
+
     const branches = await prisma.branch.findMany({
+      where,
       include: {
         warehouse: true,
         treasury: true,
@@ -94,9 +103,16 @@ router.get("/summary", async (req, res) => {
   }
 });
 
-// GET branch by ID
+// GET branch by ID - Accessible if it matches user's branch or user has global access
 router.get("/:id", async (req, res) => {
   try {
+    const branchId = parseInt(req.params.id);
+    const userBranchFilter = await getUserBranchFilter(req.user.id);
+
+    // Strict isolation check
+    if (userBranchFilter && userBranchFilter !== branchId) {
+      return res.status(403).json({ error: "Access denied to this branch" });
+    }
     const branch = await prisma.branch.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {
@@ -116,7 +132,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create new branch
-router.post("/", async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res) => {
   try {
     const { name, address, warehouseId, treasuryId } = req.body;
 
@@ -155,8 +171,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT update branch
-router.put("/:id", async (req, res) => {
+// PUT update branch - Requires BRANCHES permission
+router.put("/:id", requirePermission("BRANCHES"), async (req, res) => {
   try {
     const { name, address, warehouseId, treasuryId } = req.body;
 
@@ -193,8 +209,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE branch
-router.delete("/:id", async (req, res) => {
+// DELETE branch - Requires BRANCHES permission
+router.delete("/:id", requirePermission("BRANCHES"), async (req, res) => {
   try {
     await prisma.branch.delete({
       where: { id: parseInt(req.params.id) },

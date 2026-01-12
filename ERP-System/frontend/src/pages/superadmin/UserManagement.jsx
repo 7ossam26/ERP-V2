@@ -35,8 +35,17 @@ const UserManagement = () => {
       ]);
       setUsers(usersTitle);
       setRoles(rolesRes);
-      setBranches(branchesRes);
+
+      // Sort branches: "All Branches" (isAllBranches=true) comes first
+      const rawBranches = Array.isArray(branchesRes) ? branchesRes : (branchesRes?.data || []);
+      const sortedBranches = [...rawBranches].sort((a, b) => {
+        if (a.isAllBranches) return -1;
+        if (b.isAllBranches) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      setBranches(sortedBranches);
     } catch (error) {
+      console.error("UserManagement Data Load Error:", error);
       toast.error("Failed to load data");
     } finally {
       setIsLoading(false);
@@ -188,11 +197,10 @@ const UserManagement = () => {
                 <td className="p-4">
                   <button
                     onClick={() => handleToggleStatus(user.id)}
-                    className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${
-                      user.isActive
-                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200"
-                        : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200"
-                    }`}>
+                    className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${user.isActive
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200"
+                      : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200"
+                      }`}>
                     {user.isActive ? "Active" : "Inactive"}
                   </button>
                 </td>
@@ -320,8 +328,8 @@ const UserManagement = () => {
                     Select a branch
                   </option>
                   {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
+                    <option key={branch.id} value={branch.id} className={branch.isAllBranches ? "font-bold text-primary" : ""}>
+                      {branch.isAllBranches ? `★ ${branch.name}` : branch.name}
                     </option>
                   ))}
                 </select>

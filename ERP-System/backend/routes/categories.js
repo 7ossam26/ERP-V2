@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+
+// Protect all routes with CATEGORIES permission
+router.use(authenticateToken, requirePermission("CATEGORIES"));
 
 // GET all categories
 router.get("/", async (req, res) => {
@@ -34,7 +38,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create new category
-router.post("/", async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_CATEGORIES"), async (req, res) => {
   try {
     const { name } = req.body;
 

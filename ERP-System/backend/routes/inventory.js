@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
+
+// Protect all routes with INVENTORY permission
+router.use(authenticateToken, requirePermission("INVENTORY"));
 
 // GET Inventory (All items with stock levels)
 router.get("/", async (req, res) => {
@@ -19,11 +23,27 @@ router.get("/", async (req, res) => {
       };
     }
 
+    // Determine warehouse limitation based on user branch
+    const branchId = await getUserBranchFilter(req.user.id);
+    let inventoryWhere = {};
+
+    if (branchId) {
+      const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { warehouseId: true }
+      });
+      if (branch && branch.warehouseId) {
+        inventoryWhere = { warehouseId: branch.warehouseId };
+      }
+    }
+
     // Fetch items with inventory data
     const items = await prisma.item.findMany({
       where: whereClause,
       include: {
-        inventory: true,
+        inventory: {
+          where: inventoryWhere
+        },
         categories: {
           include: {
             category: true,

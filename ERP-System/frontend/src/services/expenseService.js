@@ -1,7 +1,6 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_BASE_URL = "/api";
-const EXPENSES_URL = `${API_BASE_URL}/expenses`;
+const EXPENSES_URL = "/expenses";
 
 export const expenseService = {
     /**
@@ -9,13 +8,7 @@ export const expenseService = {
      * @returns {Promise<Array>} Array of expenses
      */
     async getAll() {
-        try {
-            const response = await axios.get(EXPENSES_URL);
-            return response.data;
-        } catch (error) {
-            console.error("Error fetching expenses:", error);
-            throw error;
-        }
+        return await api.get(EXPENSES_URL);
     },
 
     /**
@@ -24,13 +17,7 @@ export const expenseService = {
      * @returns {Promise<Object>} Expense object
      */
     async getById(id) {
-        try {
-            const response = await axios.get(`${EXPENSES_URL}/${id}`);
-            return response.data;
-        } catch (error) {
-            console.error(`Error fetching expense ${id}:`, error);
-            throw error;
-        }
+        return await api.get(`${EXPENSES_URL}/${id}`);
     },
 
     /**
@@ -39,13 +26,7 @@ export const expenseService = {
      * @returns {Promise<Object>} Created expense
      */
     async create(data) {
-        try {
-            const response = await axios.post(EXPENSES_URL, data);
-            return response.data;
-        } catch (error) {
-            console.error("Error creating expense:", error);
-            throw error;
-        }
+        return await api.post(EXPENSES_URL, data);
     },
 
     /**
@@ -55,13 +36,7 @@ export const expenseService = {
      * @returns {Promise<Object>} Updated expense
      */
     async update(id, data) {
-        try {
-            const response = await axios.put(`${EXPENSES_URL}/${id}`, data);
-            return response.data;
-        } catch (error) {
-            console.error(`Error updating expense ${id}:`, error);
-            throw error;
-        }
+        return await api.put(`${EXPENSES_URL}/${id}`, data);
     },
 
     /**
@@ -70,12 +45,7 @@ export const expenseService = {
      * @returns {Promise<boolean>} Success status
      */
     async delete(id) {
-        try {
-            await axios.delete(`${EXPENSES_URL}/${id}`);
-            return true;
-        } catch (error) {
-            console.error(`Error deleting expense ${id}:`, error);
-            throw error;
-        }
+        await api.delete(`${EXPENSES_URL}/${id}`);
+        return true;
     },
 };

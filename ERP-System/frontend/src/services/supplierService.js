@@ -1,7 +1,6 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_BASE_URL = "/api";
-const SUPPLIERS_URL = `${API_BASE_URL}/suppliers`;
+const SUPPLIERS_URL = "/suppliers";
 
 // Map backend response to frontend format
 const toFrontend = (backendData) => ({
@@ -22,13 +21,8 @@ export const supplierService = {
    * @returns {Promise<Array>} Array of suppliers
    */
   async getAll() {
-    try {
-      const response = await axios.get(SUPPLIERS_URL);
-      return response.data.map(toFrontend);
-    } catch (error) {
-      console.error("Error fetching suppliers:", error);
-      throw error;
-    }
+    const data = await api.get(SUPPLIERS_URL);
+    return data.map(toFrontend);
   },
 
   /**
@@ -37,34 +31,22 @@ export const supplierService = {
    * @returns {Promise<Object>} Supplier object
    */
   async getById(id) {
-    try {
-      const response = await axios.get(`${SUPPLIERS_URL}/${id}`);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error(`Error fetching supplier ${id}:`, error);
-      throw error;
-    }
+    const data = await api.get(`${SUPPLIERS_URL}/${id}`);
+    return toFrontend(data);
   },
 
   /**
    * Create a new supplier
-   * @param {Object} supplierData - Supplier data (name, phone, code)
+   * @param {Object} supplierData - Supplier data (name, phone)
    * @returns {Promise<Object>} Created supplier
    */
   async create(supplierData) {
-    try {
-      // Map frontend field names to backend field names
-      const backendData = {
-        name: supplierData.name,
-        phoneNumber: supplierData.phone || supplierData.phoneNumber,
-      };
-
-      const response = await axios.post(SUPPLIERS_URL, backendData);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error("Error creating supplier:", error);
-      throw error;
-    }
+    const backendData = {
+      name: supplierData.name,
+      phoneNumber: supplierData.phone || supplierData.phoneNumber,
+    };
+    const data = await api.post(SUPPLIERS_URL, backendData);
+    return toFrontend(data);
   },
 
   /**
@@ -74,19 +56,12 @@ export const supplierService = {
    * @returns {Promise<Object>} Updated supplier
    */
   async update(id, updates) {
-    try {
-      // Map frontend field names to backend field names
-      const backendData = {
-        name: updates.name,
-        phoneNumber: updates.phone || updates.phoneNumber,
-      };
-
-      const response = await axios.put(`${SUPPLIERS_URL}/${id}`, backendData);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error(`Error updating supplier ${id}:`, error);
-      throw error;
-    }
+    const backendData = {
+      name: updates.name,
+      phoneNumber: updates.phone || updates.phoneNumber,
+    };
+    const data = await api.put(`${SUPPLIERS_URL}/${id}`, backendData);
+    return toFrontend(data);
   },
 
   /**
@@ -95,12 +70,7 @@ export const supplierService = {
    * @returns {Promise<boolean>} Success status
    */
   async delete(id) {
-    try {
-      await axios.delete(`${SUPPLIERS_URL}/${id}`);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting supplier ${id}:`, error);
-      throw error;
-    }
+    await api.delete(`${SUPPLIERS_URL}/${id}`);
+    return true;
   },
 };

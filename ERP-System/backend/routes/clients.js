@@ -1,9 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, requireCreatePermission, requireAnyPermission } = require("../middleware/auth");
+
+// Protect all routes with CLIENTS permission
+// Protect all routes with authentication
+router.use(authenticateToken);
 
 // GET all clients
-router.get("/", async (req, res) => {
+// GET all clients - Requires VIEW permission (CLIENTS) or usage permissions (POS, SALES)
+router.get("/", requireAnyPermission(["CLIENTS", "POS", "SALES"]), async (req, res) => {
   try {
     const clients = await prisma.client.findMany({
       orderBy: { createdAt: "asc" },
@@ -17,7 +23,8 @@ router.get("/", async (req, res) => {
 });
 
 // GET client by ID
-router.get("/:id", async (req, res) => {
+// GET client by ID - Requires VIEW permission
+router.get("/:id", requirePermission("CLIENTS"), async (req, res) => {
   try {
     const client = await prisma.client.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -34,7 +41,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create new client
-router.post("/", async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) => {
   try {
     const { name, phoneNumber } = req.body;
 
@@ -57,7 +64,8 @@ router.post("/", async (req, res) => {
 });
 
 // PUT update client
-router.put("/:id", async (req, res) => {
+// PUT update client - Requires VIEW permission (managing clients implied)
+router.put("/:id", requirePermission("CLIENTS"), async (req, res) => {
   try {
     const { name, phoneNumber } = req.body;
 
@@ -80,7 +88,8 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE client
-router.delete("/:id", async (req, res) => {
+// DELETE client - Requires VIEW permission
+router.delete("/:id", requirePermission("CLIENTS"), async (req, res) => {
   try {
     await prisma.client.delete({
       where: { id: parseInt(req.params.id) },

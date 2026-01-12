@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+
+// Protect all routes with ITEMS permission
+router.use(authenticateToken, requirePermission("ITEMS"));
 
 // GET all items
 router.get("/", async (req, res) => {
@@ -58,7 +62,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create new item
-router.post("/", async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_ITEMS"), async (req, res) => {
   try {
     const { name, price, unit, reorderPoint, suppliers, categories } = req.body;
 

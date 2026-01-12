@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission } = require("../middleware/auth");
 
 // Helper function to generate unique transfer number
 const generateTransferNumber = async () => {
@@ -29,6 +30,9 @@ const generateTransferNumber = async () => {
     return `STK-${Date.now()}`;
   }
 };
+
+// Protect all routes with INVENTORY permission
+router.use(authenticateToken, requirePermission("INVENTORY"));
 
 // GET all stock transfers
 router.get("/", async (req, res) => {

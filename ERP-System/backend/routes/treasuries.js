@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
 
-router.use(authenticateToken);
+// Protect all routes with TREASURIES permission
+router.use(authenticateToken, requirePermission("TREASURIES"));
 
 // GET all treasuries
 router.get("/", async (req, res) => {
@@ -223,7 +224,7 @@ router.post("/transfer/:id/reject", async (req, res) => {
 });
 
 // POST create new treasury
-router.post("/", async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_TREASURIES"), async (req, res) => {
   try {
     const { name } = req.body;
     const treasury = await prisma.treasury.create({

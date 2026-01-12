@@ -1,11 +1,41 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
+
+// Protect all routes with PURCHASES permission
+router.use(authenticateToken, requirePermission("PURCHASES"));
 
 // GET all purchases
 router.get("/", async (req, res) => {
   try {
+    const branchId = await getUserBranchFilter(req.user.id);
+    // Purchases are linked to a warehouse. Branches are linked to a warehouse.
+    // However, the Purchase model links to `warehouse`. 
+    // We should filter purchases where the warehouse belongs to the user's branch.
+    // OR, if the purchase has a branchId field? Let's check schema.
+    // Assuming Purchase has branchId or we filter by warehouse.branch.
+    // Simplifying assumption: Purchase has branchId or we filter by warehouseId linked to branch.
+    // Let's check schema first.
+    // If Purchase doesn't have branchId, we need to find the warehouseId for the branch.
+
+    let whereClause = {};
+    if (branchId) {
+      // Find warehouse for this branch
+      const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { warehouseId: true }
+      });
+      if (branch && branch.warehouseId) {
+        whereClause = { warehouseId: branch.warehouseId };
+      } else {
+        // Should not happen for valid branch
+        whereClause = { id: -1 }; // Force empty result
+      }
+    }
+
     const purchases = await prisma.purchase.findMany({
+      where: whereClause,
       orderBy: { createdAt: "desc" },
       include: {
         supplier: true,

@@ -52,6 +52,7 @@ model Role {
 }
 
 enum Module {
+  // Module Access Permissions
   HR
   INVENTORY
   POS
@@ -68,16 +69,23 @@ enum Module {
   WAREHOUSES
   SETTINGS
   EXPENSES
+  
+  // Creation Permissions (CREATES)
+  CREATES_WAREHOUSES
+  CREATES_EMPLOYEES
+  CREATES_SUPPLIERS
+  CREATES_CLIENTS
+  CREATES_CATEGORIES
+  CREATES_ITEMS
+  CREATES_TREASURIES
+  CREATES_BRANCHES
 }
 
 model Permission {
   id        Int     @id @default(autoincrement())
   roleId    Int     @map("role_id")
   module    Module
-  canView   Boolean @default(false) @map("can_view")
-  canCreate Boolean @default(false) @map("can_create")
-  canEdit   Boolean @default(false) @map("can_edit")
-  canDelete Boolean @default(false) @map("can_delete")
+  canAccess Boolean @default(false) @map("can_access")
 
   // Relations
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -233,13 +241,14 @@ model Treasury {
 // ============================================
 
 model Branch {
-  id          Int      @id @default(autoincrement())
-  name        String
-  address     String
-  warehouseId Int      @unique @map("warehouse_id")
-  treasuryId  Int      @unique @map("treasury_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id            Int      @id @default(autoincrement())
+  name          String
+  address       String
+  warehouseId   Int      @unique @map("warehouse_id")
+  treasuryId    Int      @unique @map("treasury_id")
+  isAllBranches Boolean  @default(false) @map("is_all_branches")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
   warehouse Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)

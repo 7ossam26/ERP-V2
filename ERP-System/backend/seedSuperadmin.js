@@ -37,6 +37,7 @@ async function main() {
         if (role.name === "Superadmin") {
           console.log("   [DEBUG] Assigning Superadmin permissions...");
           const modules = [
+            // Module Access Permissions
             "HR",
             "INVENTORY",
             "POS",
@@ -52,6 +53,16 @@ async function main() {
             "ITEMS",
             "WAREHOUSES",
             "SETTINGS",
+            "EXPENSES",
+            // Creation Permissions
+            "CREATES_WAREHOUSES",
+            "CREATES_EMPLOYEES",
+            "CREATES_SUPPLIERS",
+            "CREATES_CLIENTS",
+            "CREATES_CATEGORIES",
+            "CREATES_ITEMS",
+            "CREATES_TREASURIES",
+            "CREATES_BRANCHES",
           ];
 
           for (const module of modules) {
@@ -60,18 +71,12 @@ async function main() {
                 roleId_module: { roleId: role.id, module: module },
               },
               update: {
-                canView: true,
-                canCreate: true,
-                canEdit: true,
-                canDelete: true,
+                canAccess: true,
               },
               create: {
                 roleId: role.id,
                 module: module,
-                canView: true,
-                canCreate: true,
-                canEdit: true,
-                canDelete: true,
+                canAccess: true,
               },
             });
           }
@@ -126,9 +131,59 @@ async function main() {
         address: "Headquarters",
         warehouseId: warehouse.id,
         treasuryId: treasury.id,
+        isAllBranches: false,
       },
     });
     console.log(`   [DEBUG] Branch created: ID ${branch.id}`);
+
+    // Create "All Branches" special branch for users who can see all branch data
+    console.log("   [DEBUG] Checking/Creating All Branches infrastructure...");
+
+    // 1. Warehouse
+    let allBranchesWarehouse = await prisma.warehouse.findFirst({
+      where: { name: "All Branches Warehouse" }
+    });
+    if (!allBranchesWarehouse) {
+      allBranchesWarehouse = await prisma.warehouse.create({
+        data: { name: "All Branches Warehouse" }
+      });
+      console.log(`   [DEBUG] All Branches Warehouse created: ${allBranchesWarehouse.id}`);
+    } else {
+      console.log(`   [DEBUG] All Branches Warehouse exists: ${allBranchesWarehouse.id}`);
+    }
+
+    // 2. Treasury
+    let allBranchesTreasury = await prisma.treasury.findFirst({
+      where: { name: "All Branches Treasury" }
+    });
+    if (!allBranchesTreasury) {
+      allBranchesTreasury = await prisma.treasury.create({
+        data: { name: "All Branches Treasury", balance: 0 }
+      });
+      console.log(`   [DEBUG] All Branches Treasury created: ${allBranchesTreasury.id}`);
+    } else {
+      console.log(`   [DEBUG] All Branches Treasury exists: ${allBranchesTreasury.id}`);
+    }
+
+    // 3. Branch
+    let allBranchesBranch = await prisma.branch.findFirst({
+      where: { isAllBranches: true }
+    });
+
+    if (!allBranchesBranch) {
+      allBranchesBranch = await prisma.branch.create({
+        data: {
+          name: "All Branches",
+          address: "N/A - Special Branch for Multi-Branch Access",
+          warehouseId: allBranchesWarehouse.id,
+          treasuryId: allBranchesTreasury.id,
+          isAllBranches: true,
+        },
+      });
+      console.log(`   [DEBUG] All Branches branch created: ID ${allBranchesBranch.id}`);
+    } else {
+      console.log(`   [DEBUG] All Branches branch exists: ID ${allBranchesBranch.id}`);
+    }
 
     console.log("   [DEBUG] Creating/Updating superadmin user...");
     const superadmin = await prisma.user.upsert({

@@ -93,6 +93,13 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  patch: (endpoint, data, options = {}) =>
+    apiClient(endpoint, {
+      ...options,
+      method: "PATCH",
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+
   delete: (endpoint, options = {}) =>
     apiClient(endpoint, { ...options, method: "DELETE" }),
 };

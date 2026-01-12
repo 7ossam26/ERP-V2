@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter } = require("../middleware/auth");
 
 // Helper to get date range for a month
 const getMonthDateRange = (month, year) => {
@@ -9,6 +9,9 @@ const getMonthDateRange = (month, year) => {
   const endDate = new Date(year, month, 0, 23, 59, 59, 999);
   return { startDate, endDate };
 };
+
+// Protect all routes with EMPLOYEES permission
+router.use(authenticateToken, requirePermission("EMPLOYEES"));
 
 // GET all employees (with calculated current month stats)
 router.get("/", async (req, res) => {
@@ -19,7 +22,11 @@ router.get("/", async (req, res) => {
 
     const { startDate, endDate } = getMonthDateRange(currentMonth, currentYear);
 
+    const branchId = await getUserBranchFilter(req.user.id);
+    const whereClause = branchId ? { branchId } : {};
+
     const employees = await prisma.employee.findMany({
+      where: whereClause,
       orderBy: { createdAt: "desc" },
       include: {
         branch: true,
@@ -304,7 +311,7 @@ router.post("/:id/pay", authenticateToken, async (req, res) => {
 });
 
 // POST create new employee
-router.post("/", async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_EMPLOYEES"), async (req, res) => {
   try {
     const {
       name,

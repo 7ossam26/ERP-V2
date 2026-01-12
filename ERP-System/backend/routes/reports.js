@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission } = require("../middleware/auth");
 
 /**
  * GET /api/reports/general
@@ -10,6 +11,9 @@ const prisma = require("../config/database");
  * - endDate (YYYY-MM-DD)
  * - branchId (Optional)
  */
+// Protect all routes with REPORTS permission
+router.use(authenticateToken, requirePermission("REPORTS"));
+
 router.get("/general", async (req, res) => {
     try {
         const { startDate, endDate, branchId } = req.query;

@@ -1,68 +1,36 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_BASE_URL = "/api";
-const BRANCHES_URL = `${API_BASE_URL}/branches`;
+const BRANCHES_URL = "/branches";
 
 export const branchService = {
   async getAll() {
-    try {
-      const response = await axios.get(BRANCHES_URL);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching branches:", error);
-      throw error;
-    }
+    return await api.get(BRANCHES_URL);
   },
 
   async getSummary() {
     try {
-      const response = await axios.get(`${BRANCHES_URL}/summary`);
-      console.log("Summary response:", response.data);
-      return response.data;
+      const data = await api.get(`${BRANCHES_URL}/summary`);
+      return data;
     } catch (error) {
       console.error("Error fetching branch summary:", error);
-      // Return fallback if fails
       return { totalBalance: 0, percentageChange: 0, netChange: 0 };
     }
   },
 
   async getById(id) {
-    try {
-      const response = await axios.get(`${BRANCHES_URL}/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching branch ${id}:`, error);
-      throw error;
-    }
+    return await api.get(`${BRANCHES_URL}/${id}`);
   },
 
   async create(branchData) {
-    try {
-      const response = await axios.post(BRANCHES_URL, branchData);
-      return response.data;
-    } catch (error) {
-      console.error("Error creating branch:", error);
-      throw error;
-    }
+    return await api.post(BRANCHES_URL, branchData);
   },
 
   async update(id, branchData) {
-    try {
-      const response = await axios.put(`${BRANCHES_URL}/${id}`, branchData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error updating branch ${id}:`, error);
-      throw error;
-    }
+    return await api.put(`${BRANCHES_URL}/${id}`, branchData);
   },
 
   async delete(id) {
-    try {
-      await axios.delete(`${BRANCHES_URL}/${id}`);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting branch ${id}:`, error);
-      throw error;
-    }
+    await api.delete(`${BRANCHES_URL}/${id}`);
+    return true;
   },
 };

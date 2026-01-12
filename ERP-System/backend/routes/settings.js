@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission } = require("../middleware/auth");
+
+// Protect all routes with SETTINGS permission
+router.use(authenticateToken, requirePermission("SETTINGS"));
 
 // GET System Configuration
 router.get("/", async (req, res) => {
