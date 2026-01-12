@@ -57,7 +57,11 @@ const GenericDataTable = ({
                 {columns.map((col, index) => (
                   <td
                     key={index}
-                    className="px-6 py-4 whitespace-nowrap text-center">
+                    className={`px-6 py-4 text-center ${
+                      col.wrap
+                        ? "whitespace-normal min-w-[200px]"
+                        : "whitespace-nowrap"
+                    }`}>
                     {col.render ? (
                       col.render(item)
                     ) : (

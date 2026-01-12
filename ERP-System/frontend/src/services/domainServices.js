@@ -14,6 +14,7 @@ import { inventoryService } from "./inventoryService";
 import { stockTransferService } from "./stockTransferService";
 import shiftService from "./shiftService";
 import { reportService } from "./reportService";
+import { expenseService } from "./expenseService";
 
 // Employee, Treasury, Branch, Warehouse, Client, Supplier, Category, Item, Purchase, and Sales services use real API
 export {
@@ -32,11 +33,41 @@ export {
   stockTransferService,
   shiftService,
   reportService,
+  expenseService,
 };
 
-// Other services still use mock data (for now)
-import { expenseService } from "./expenseService";
+export const deductionService = {
+  getAll: async (filters = {}) => {
+    return await employeeService.getAllTransactions({
+      ...filters,
+      type: "DEDUCTION",
+    });
+  },
+  update: async (id, data) => {
+    return await employeeService.updateTransaction(id, data);
+  },
+  delete: async (id) => {
+    return await employeeService.deleteTransaction(id);
+  },
+  create: async () => {
+    throw new Error("Create not supported directly");
+  },
+};
 
-// Other services still use mock data (for now)
-// export const expenseService = createMockService("erp_expenses");
-export { expenseService };
+export const advanceService = {
+  getAll: async (filters = {}) => {
+    return await employeeService.getAllTransactions({
+      ...filters,
+      type: "ADVANCE",
+    });
+  },
+  update: async (id, data) => {
+    return await employeeService.updateTransaction(id, data);
+  },
+  delete: async (id) => {
+    return await employeeService.deleteTransaction(id);
+  },
+  create: async () => {
+    throw new Error("Create not supported directly");
+  },
+};

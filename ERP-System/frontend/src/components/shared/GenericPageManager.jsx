@@ -18,6 +18,7 @@ const GenericPageManager = ({
   headerActions,
   customActions,
   FilterComponent,
+  ...props
 }) => {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
@@ -28,10 +29,10 @@ const GenericPageManager = ({
   const [deletingId, setDeletingId] = useState(null);
   const { toast, showToast, hideToast } = useToast();
 
-  const loadData = async () => {
+  const loadData = async (filters = {}) => {
     setLoading(true);
     try {
-      const result = await service.getAll();
+      const result = await service.getAll(filters);
       setData(result);
     } catch (error) {
       console.error("Failed to load data", error);
@@ -119,7 +120,7 @@ const GenericPageManager = ({
       {/* Filters Section */}
       {FilterComponent && (
         <div className="px-6 py-4 sm:px-8 bg-gray-50 dark:bg-gray-800/30 border-b border-gray-100 dark:border-gray-700 shrink-0">
-          <FilterComponent />
+          <FilterComponent onFilter={loadData} {...props} />
         </div>
       )}
 

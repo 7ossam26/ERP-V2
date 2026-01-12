@@ -12,13 +12,20 @@ router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    console.log("🔐 Login attempt:");
+    console.log(`   Username received: "${username}"`);
+    console.log(`   Password received: "${password}"`);
+    console.log(`   Username length: ${username?.length}`);
+
     if (!username || !password) {
+      console.log("❌ Missing username or password");
       return res
         .status(400)
         .json({ error: "Username and password are required" });
     }
 
     // Find user
+    console.log(`   Searching for user: "${username}"`);
     const user = await prisma.user.findUnique({
       where: { username },
       include: {
@@ -32,20 +39,29 @@ router.post("/login", async (req, res) => {
     });
 
     if (!user) {
+      console.log(`❌ User not found: "${username}"`);
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    console.log(`✅ User found: ${user.username} (ID: ${user.id})`);
+
     if (!user.isActive) {
+      console.log(`❌ User is inactive: ${user.username}`);
       return res
         .status(403)
         .json({ error: "Account is inactive. Please contact administrator." });
     }
 
+    console.log(`   User is active, checking password...`);
+
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      console.log(`❌ Invalid password for user: ${user.username}`);
       return res.status(401).json({ error: "Invalid credentials" });
     }
+
+    console.log(`✅ Password valid for user: ${user.username}`);
 
     // Generate token
     const token = jwt.sign(

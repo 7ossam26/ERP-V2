@@ -28,6 +28,10 @@ model User {
   sales          Sale[]
   auditLogs      AuditLog[]
   stockTransfers StockTransfer[]
+  createdTransfers  CashTransfer[] @relation("TransferCreator")
+  acceptedTransfers CashTransfer[] @relation("TransferAccepter")
+  createdTransactions EmployeeTransaction[] @relation("TransactionCreator")
+  createdPayrolls     Payroll[]             @relation("PayrollCreator")
   shifts         Shift[]
 
   @@map("users")
@@ -117,10 +121,61 @@ model Employee {
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   // Relations
-  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  sales  Sale[]
+  branch       Branch                @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales        Sale[]
+  transactions EmployeeTransaction[]
+  payrolls     Payroll[]
 
   @@map("employees")
+}
+
+model EmployeeTransaction {
+  id         Int             @id @default(autoincrement())
+  employeeId Int             @map("employee_id")
+  type       TransactionType
+  amount     Decimal         @db.Decimal(10, 2)
+  reason     String?         @db.Text
+  date       DateTime        @default(now())
+  createdById Int?           @map("created_by_id")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("TransactionCreator", fields: [createdById], references: [id])
+
+  @@map("employee_transactions")
+}
+
+enum TransactionType {
+  ADVANCE
+  DEDUCTION
+}
+
+model Payroll {
+  id          Int           @id @default(autoincrement())
+  employeeId  Int           @map("employee_id")
+  month       Int
+  year        Int
+  baseSalary  Decimal       @map("base_salary") @db.Decimal(10, 2)
+  advances    Decimal       @default(0) @db.Decimal(10, 2)
+  deductions  Decimal       @default(0) @db.Decimal(10, 2)
+  netSalary   Decimal       @map("net_salary") @db.Decimal(10, 2)
+  status      PayrollStatus @default(PENDING)
+  paymentDate DateTime?     @map("payment_date")
+  createdById Int?          @map("created_by_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy User?    @relation("PayrollCreator", fields: [createdById], references: [id])
+
+  @@unique([employeeId, month, year])
+  @@map("payrolls")
+}
+
+enum PayrollStatus {
+  PENDING
+  PAID
 }
 
 // ============================================
@@ -464,6 +519,10 @@ model CashTransfer {
   // Relations
   fromTreasury Treasury @relation("TransfersFrom", fields: [fromTreasuryId], references: [id], onDelete: Restrict)
   toTreasury   Treasury @relation("TransfersTo", fields: [toTreasuryId], references: [id], onDelete: Restrict)
+  createdBy    User     @relation("TransferCreator", fields: [createdById], references: [id])
+  createdById  Int      @map("created_by_id")
+  acceptedBy   User?    @relation("TransferAccepter", fields: [acceptedById], references: [id])
+  acceptedById Int?     @map("accepted_by_id")
 
   @@map("cash_transfers")
 }
