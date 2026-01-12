@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
+import Footer from "../components/shared/Footer";
 
 const SuperadminLayout = () => {
   const location = useLocation();
@@ -24,10 +25,11 @@ const SuperadminLayout = () => {
       <aside className="w-64 bg-slate-900 text-white flex flex-col fixed inset-y-0 left-0 z-50 shadow-xl">
         <div className="h-20 flex items-center px-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center font-bold">
-              S
-            </div>
-            <span className="font-bold text-lg tracking-tight">Superadmin</span>
+            <img
+              src="/assets/logo.png"
+              alt="Elghonemy Logo"
+              className="h-12 w-auto object-contain"
+            />
           </div>
         </div>
 
@@ -83,10 +85,13 @@ const SuperadminLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-64 p-8">
-        <div className="max-w-6xl mx-auto">
-          <Outlet />
+      <main className="flex-1 ml-64 flex flex-col">
+        <div className="flex-grow p-8">
+          <div className="max-w-6xl mx-auto">
+            <Outlet />
+          </div>
         </div>
+        <Footer />
       </main>
     </div>
   );

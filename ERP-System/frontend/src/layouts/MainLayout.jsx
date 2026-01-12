@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
 import Modal from "../components/ui/Modal";
+import Footer from "../components/shared/Footer";
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -30,19 +31,15 @@ const MainLayout = ({ children }) => {
               <span className="text-sm font-semibold">تسجيل خروج</span>
             </button>
 
-            <div className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2">
-              <div className="bg-primary/10 dark:bg-primary/20 p-2 rounded-xl text-primary">
-                <span className="material-icons-round text-3xl">coffee</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-primary dark:text-text-dark leading-tight">
-                  بن الغنيمي
-                </h1>
-                <p className="text-xs text-primary/80 font-semibold tracking-wide uppercase">
-                  Elghonemy
-                </p>
-              </div>
-            </div>
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2 hover:opacity-80 transition-opacity">
+              <img
+                src="/assets/logo.png"
+                alt="Elghonemy Logo"
+                className="h-16 w-auto object-contain"
+              />
+            </Link>
 
             <Link
               className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent/10 dark:hover:bg-accent/5"
@@ -82,6 +79,9 @@ const MainLayout = ({ children }) => {
           </div>
         </div>
       </Modal>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
