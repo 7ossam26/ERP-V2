@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+
+// Protect all routes with BRANCHES permission
+router.use(authenticateToken, requirePermission("BRANCHES"));
 
 // GET all branches
 router.get("/", async (req, res) => {
@@ -116,7 +120,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create new branch
-router.post("/", async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res) => {
   try {
     const { name, address, warehouseId, treasuryId } = req.body;
 

@@ -1,7 +1,6 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_BASE_URL = "/api";
-const CLIENTS_URL = `${API_BASE_URL}/clients`;
+const CLIENTS_URL = "/clients";
 
 // Map backend response to frontend format
 const toFrontend = (backendData) => ({
@@ -22,13 +21,8 @@ export const clientService = {
    * @returns {Promise<Array>} Array of clients
    */
   async getAll() {
-    try {
-      const response = await axios.get(CLIENTS_URL);
-      return response.data.map(toFrontend);
-    } catch (error) {
-      console.error("Error fetching clients:", error);
-      throw error;
-    }
+    const data = await api.get(CLIENTS_URL);
+    return data.map(toFrontend);
   },
 
   /**
@@ -37,13 +31,8 @@ export const clientService = {
    * @returns {Promise<Object>} Client object
    */
   async getById(id) {
-    try {
-      const response = await axios.get(`${CLIENTS_URL}/${id}`);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error(`Error fetching client ${id}:`, error);
-      throw error;
-    }
+    const data = await api.get(`${CLIENTS_URL}/${id}`);
+    return toFrontend(data);
   },
 
   /**
@@ -52,19 +41,14 @@ export const clientService = {
    * @returns {Promise<Object>} Created client
    */
   async create(clientData) {
-    try {
-      // Map frontend field names to backend field names
-      const backendData = {
-        name: clientData.name,
-        phoneNumber: clientData.phone || clientData.phoneNumber,
-      };
+    // Map frontend field names to backend field names
+    const backendData = {
+      name: clientData.name,
+      phoneNumber: clientData.phone || clientData.phoneNumber,
+    };
 
-      const response = await axios.post(CLIENTS_URL, backendData);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error("Error creating client:", error);
-      throw error;
-    }
+    const data = await api.post(CLIENTS_URL, backendData);
+    return toFrontend(data);
   },
 
   /**
@@ -74,19 +58,14 @@ export const clientService = {
    * @returns {Promise<Object>} Updated client
    */
   async update(id, updates) {
-    try {
-      // Map frontend field names to backend field names
-      const backendData = {
-        name: updates.name,
-        phoneNumber: updates.phone || updates.phoneNumber,
-      };
+    // Map frontend field names to backend field names
+    const backendData = {
+      name: updates.name,
+      phoneNumber: updates.phone || updates.phoneNumber,
+    };
 
-      const response = await axios.put(`${CLIENTS_URL}/${id}`, backendData);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error(`Error updating client ${id}:`, error);
-      throw error;
-    }
+    const data = await api.put(`${CLIENTS_URL}/${id}`, backendData);
+    return toFrontend(data);
   },
 
   /**
@@ -95,12 +74,7 @@ export const clientService = {
    * @returns {Promise<boolean>} Success status
    */
   async delete(id) {
-    try {
-      await axios.delete(`${CLIENTS_URL}/${id}`);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting client ${id}:`, error);
-      throw error;
-    }
+    await api.delete(`${CLIENTS_URL}/${id}`);
+    return true;
   },
 };

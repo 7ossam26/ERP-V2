@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+
+// Protect all routes with SUPPLIERS permission
+router.use(authenticateToken, requirePermission("SUPPLIERS"));
 
 // GET all suppliers
 router.get("/", async (req, res) => {
@@ -34,7 +38,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create new supplier
-router.post("/", async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_SUPPLIERS"), async (req, res) => {
   try {
     const { name, phoneNumber } = req.body;
 

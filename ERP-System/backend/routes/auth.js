@@ -74,16 +74,11 @@ router.post("/login", async (req, res) => {
       { expiresIn: TOKEN_EXPIRY }
     );
 
-    // Transform permissions
+    // Transform permissions to simplified structure
     const permissions = {};
     if (user.role && user.role.permissions) {
       user.role.permissions.forEach((perm) => {
-        permissions[perm.module] = {
-          view: perm.canView,
-          create: perm.canCreate,
-          edit: perm.canEdit,
-          delete: perm.canDelete,
-        };
+        permissions[perm.module] = perm.canAccess;
       });
     }
 
@@ -134,16 +129,11 @@ router.get("/me", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Transform permissions to a simpler format for frontend
+    // Transform permissions to simplified structure
     const permissions = {};
     if (user.role && user.role.permissions) {
       user.role.permissions.forEach((perm) => {
-        permissions[perm.module] = {
-          view: perm.canView,
-          create: perm.canCreate,
-          edit: perm.canEdit,
-          delete: perm.canDelete,
-        };
+        permissions[perm.module] = perm.canAccess;
       });
     }
 

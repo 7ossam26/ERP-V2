@@ -1,85 +1,47 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_BASE_URL = "/api";
-const SALES_URL = `${API_BASE_URL}/sales`;
+const SALES_URL = "/sales";
 
-/**
- * Sales API Service
- * Provides CRUD operations for POS sales
- */
+// Map backend payment method to frontend format
+const mapPaymentMethod = (backendMethod) => {
+  const mapping = {
+    CASH: "cash",
+    CREDIT: "credit",
+    MIXED: "mixed",
+  };
+  return mapping[backendMethod] || "cash";
+};
+
+// Map frontend payment method to backend format
+const mapPaymentMethodToBackend = (frontendMethod) => {
+  const mapping = {
+    cash: "CASH",
+    credit: "CREDIT",
+    mixed: "MIXED",
+  };
+  return mapping[frontendMethod] || "CASH";
+};
+
 export const salesService = {
-  /**
-   * Get all sales
-   * @returns {Promise<Array>} Array of sales
-   */
   async getAll() {
-    try {
-      const response = await axios.get(SALES_URL);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching sales:", error);
-      throw error;
-    }
+    const data = await api.get(SALES_URL);
+    return data;
   },
 
-  /**
-   * Get sale by ID
-   * @param {number} id - Sale ID
-   * @returns {Promise<Object>} Sale object
-   */
   async getById(id) {
-    try {
-      const response = await axios.get(`${SALES_URL}/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching sale ${id}:`, error);
-      throw error;
-    }
+    return await api.get(`${SALES_URL}/${id}`);
   },
 
-  /**
-   * Create a new sale
-   * @param {Object} saleData - Sale data
-   * @returns {Promise<Object>} Created sale
-   */
   async create(saleData) {
-    try {
-      const response = await axios.post(SALES_URL, saleData);
-      return response.data;
-    } catch (error) {
-      console.error("Error creating sale:", error);
-      throw error;
-    }
+    return await api.post(SALES_URL, saleData);
   },
 
-  /**
-   * Update an existing sale
-   * @param {number} id - Sale ID
-   * @param {Object} updates - Updated sale data
-   * @returns {Promise<Object>} Updated sale
-   */
   async update(id, updates) {
-    try {
-      const response = await axios.put(`${SALES_URL}/${id}`, updates);
-      return response.data;
-    } catch (error) {
-      console.error(`Error updating sale ${id}:`, error);
-      throw error;
-    }
+    return await api.put(`${SALES_URL}/${id}`, updates);
   },
 
-  /**
-   * Delete a sale
-   * @param {number} id - Sale ID
-   * @returns {Promise<boolean>} Success status
-   */
   async delete(id) {
-    try {
-      await axios.delete(`${SALES_URL}/${id}`);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting sale ${id}:`, error);
-      throw error;
-    }
+    await api.delete(`${SALES_URL}/${id}`);
+    return true;
   },
 };

@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import AuthService from "../services/authService";
 
 const DashboardCard = ({ icon, title, description, onClick }) => (
   <div
@@ -26,48 +27,56 @@ const CreatesDashboard = () => {
       title: "الموظف",
       description: "إدارة بيانات الموظفين",
       onClick: () => navigate("/employees"),
+      permission: "EMPLOYEES"
     },
     {
       icon: "local_shipping",
       title: "المورد",
       description: "سجلات الموردين والشركاء",
       onClick: () => navigate("/suppliers"),
+      permission: "SUPPLIERS"
     },
     {
       icon: "groups",
       title: "العملاء",
       description: "قاعدة بيانات العملاء",
       onClick: () => navigate("/clients"),
+      permission: "CLIENTS"
     },
     {
       icon: "inventory_2",
       title: "الأصناف",
       description: "المنتجات والأسعار",
       onClick: () => navigate("/items"),
+      permission: "ITEMS"
     },
     {
       icon: "warehouse",
       title: "المخازن",
       description: "الجرد والمستودعات",
       onClick: () => navigate("/warehouses"),
+      permission: "WAREHOUSES"
     },
     {
       icon: "category",
       title: "التصنيفات",
       description: "إدارة فئات المنتجات",
       onClick: () => navigate("/categories"),
+      permission: "CATEGORIES"
     },
     {
       icon: "savings",
       title: "الخزائن",
       description: "المالية والنقدية",
       onClick: () => navigate("/treasuries"),
+      permission: "TREASURIES"
     },
     {
       icon: "storefront",
       title: "الفروع",
       description: "إعدادات فروع المتجر",
       onClick: () => navigate("/branches"),
+      permission: "BRANCHES"
     },
   ];
 
@@ -84,7 +93,10 @@ const CreatesDashboard = () => {
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-6">
-        {cards.map((card, index) => (
+        {cards.filter(card => {
+          if (!card.permission) return true;
+          return AuthService.hasPermission(card.permission);
+        }).map((card, index) => (
           <DashboardCard key={index} {...card} />
         ))}
       </div>

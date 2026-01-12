@@ -1,16 +1,14 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_BASE_URL = "/api";
-const ITEMS_URL = `${API_BASE_URL}/items`;
+const ITEMS_URL = "/items";
 
 // Map backend response to frontend format
 const toFrontend = (backendData) => ({
   id: backendData.id,
   name: backendData.name,
-  code: backendData.code || backendData.id, // Using ID as code if not present (although model doesn't have code, form expects it visually)
+  code: backendData.code || backendData.id,
   price: backendData.price,
   unit: backendData.unit,
-  // Map array of relation objects to array of IDs for the form state
   suppliers: backendData.suppliers?.map((s) => s.supplier.id) || [],
   categories: backendData.categories?.map((c) => c.category.id) || [],
   createdAt: backendData.createdAt,
@@ -27,13 +25,8 @@ export const itemService = {
    * @returns {Promise<Array>} Array of items
    */
   async getAll() {
-    try {
-      const response = await axios.get(ITEMS_URL);
-      return response.data.map(toFrontend);
-    } catch (error) {
-      console.error("Error fetching items:", error);
-      throw error;
-    }
+    const data = await api.get(ITEMS_URL);
+    return data.map(toFrontend);
   },
 
   /**
@@ -42,13 +35,8 @@ export const itemService = {
    * @returns {Promise<Object>} Item object
    */
   async getById(id) {
-    try {
-      const response = await axios.get(`${ITEMS_URL}/${id}`);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error(`Error fetching item ${id}:`, error);
-      throw error;
-    }
+    const data = await api.get(`${ITEMS_URL}/${id}`);
+    return toFrontend(data);
   },
 
   /**
@@ -57,22 +45,15 @@ export const itemService = {
    * @returns {Promise<Object>} Created item
    */
   async create(itemData) {
-    try {
-      // Backend expects arrays of IDs
-      const backendData = {
-        name: itemData.name,
-        price: itemData.price,
-        unit: itemData.unit,
-        suppliers: itemData.suppliers,
-        categories: itemData.categories,
-      };
-
-      const response = await axios.post(ITEMS_URL, backendData);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error("Error creating item:", error);
-      throw error;
-    }
+    const backendData = {
+      name: itemData.name,
+      price: itemData.price,
+      unit: itemData.unit,
+      suppliers: itemData.suppliers,
+      categories: itemData.categories,
+    };
+    const data = await api.post(ITEMS_URL, backendData);
+    return toFrontend(data);
   },
 
   /**
@@ -82,21 +63,15 @@ export const itemService = {
    * @returns {Promise<Object>} Updated item
    */
   async update(id, updates) {
-    try {
-      const backendData = {
-        name: updates.name,
-        price: updates.price,
-        unit: updates.unit,
-        suppliers: updates.suppliers,
-        categories: updates.categories,
-      };
-
-      const response = await axios.put(`${ITEMS_URL}/${id}`, backendData);
-      return toFrontend(response.data);
-    } catch (error) {
-      console.error(`Error updating item ${id}:`, error);
-      throw error;
-    }
+    const backendData = {
+      name: updates.name,
+      price: updates.price,
+      unit: updates.unit,
+      suppliers: updates.suppliers,
+      categories: updates.categories,
+    };
+    const data = await api.put(`${ITEMS_URL}/${id}`, backendData);
+    return toFrontend(data);
   },
 
   /**
@@ -105,12 +80,7 @@ export const itemService = {
    * @returns {Promise<boolean>} Success status
    */
   async delete(id) {
-    try {
-      await axios.delete(`${ITEMS_URL}/${id}`);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting item ${id}:`, error);
-      throw error;
-    }
+    await api.delete(`${ITEMS_URL}/${id}`);
+    return true;
   },
 };

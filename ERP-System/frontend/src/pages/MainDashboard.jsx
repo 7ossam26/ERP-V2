@@ -30,15 +30,9 @@ const MainDashboard = () => {
       subtitle: "إدارة الأصناف",
       onClick: () => navigate("/creates"),
       permission: {
-        type: "some", permissions: [
-          { module: "ITEMS", action: "view" },
-          { module: "CATEGORIES", action: "view" },
-          { module: "WAREHOUSES", action: "view" },
-          { module: "BRANCHES", action: "view" },
-          { module: "EMPLOYEES", action: "view" },
-          { module: "SUPPLIERS", action: "view" },
-          { module: "CLIENTS", action: "view" },
-          { module: "TREASURIES", action: "view" }
+        type: "some", modules: [
+          "ITEMS", "CATEGORIES", "WAREHOUSES", "BRANCHES",
+          "EMPLOYEES", "SUPPLIERS", "CLIENTS", "TREASURIES"
         ]
       }
     },
@@ -47,75 +41,77 @@ const MainDashboard = () => {
       title: "مشتريات",
       subtitle: "إدارة التوريد",
       onClick: () => navigate("/purchases"),
-      permission: { module: "PURCHASES", action: "view" }
+      permission: "PURCHASES"
     },
     {
       icon: "point_of_sale",
       title: "مبيعات",
       subtitle: "فاتورة جديدة",
       onClick: () => navigate("/pos"),
-      permission: { module: "POS", action: "view" }
+      permission: "POS"
     },
     {
       icon: "inventory_2",
       title: "تحويلات مخزنية",
       subtitle: "نقل البضائع",
       onClick: () => navigate("/stock-transfer"),
-      permission: { module: "INVENTORY", action: "view" }
+      permission: "INVENTORY"
     },
     {
       icon: "account_balance_wallet",
       title: "تحويلات الخزائن",
       subtitle: "النقدية والسيولة",
       onClick: () => navigate("/cashier-transfer"),
-      permission: { module: "TREASURIES", action: "view" }
+      permission: "TREASURIES"
     },
     {
       icon: "storefront",
       title: "مبيعات الفروع",
       subtitle: "تقارير الفروع",
       onClick: () => navigate("/branches-sales"),
-      permission: { module: "BRANCHES", action: "view" }
+      permission: "BRANCHES"
     },
     {
       icon: "fact_check",
       title: "الجرد",
       subtitle: "جرد المخزون",
       onClick: () => navigate("/inventory"),
-      permission: { module: "INVENTORY", action: "view" }
+      permission: "INVENTORY"
     },
     {
       icon: "bar_chart",
       title: "تقارير",
       subtitle: "تحليل البيانات",
       onClick: () => navigate("/reports"),
-      permission: { module: "REPORTS", action: "view" }
+      permission: "REPORTS"
     },
     {
       icon: "receipt_long",
       title: "مصروفات",
       subtitle: "إدارة المصروفات والفواتير",
       onClick: () => navigate("/expenses"),
-      permission: { module: "TREASURIES", action: "view" }
+      permission: "TREASURIES"
     },
     {
       icon: "groups",
       title: "موارد بشرية",
       subtitle: "إدارة الموظفين",
       onClick: () => navigate("/hr"),
-      permission: { module: "HR", action: "view" }
+      permission: "EMPLOYEES"
     },
     {
       icon: "settings",
       title: "الإعدادات",
       subtitle: "إعدادات النظام",
       onClick: () => navigate("/settings"),
+      permission: "SETTINGS"
     },
     {
       icon: "manage_accounts",
       title: "إدارة التحويلات",
       subtitle: "قبول ورفض التحويلات",
       onClick: () => navigate("/transfer-management"),
+      permission: "TREASURIES"
     },
   ];
 
@@ -139,7 +135,12 @@ const MainDashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
-        {cards.map((card, index) => (
+        {cards.filter(card => {
+          if (!card.permission) return true;
+          if (typeof card.permission === 'string') return AuthService.hasPermission(card.permission);
+          if (card.permission.type === 'some') return AuthService.hasAnyPermission(card.permission.modules);
+          return true;
+        }).map((card, index) => (
           <MainDashboardCard key={index} {...card} />
         ))}
       </div>

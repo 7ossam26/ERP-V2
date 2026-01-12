@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission } = require("../middleware/auth");
+
+// Protect all routes with EXPENSES permission
+router.use(authenticateToken, requirePermission("EXPENSES"));
 
 // Get all expenses
 router.get("/", async (req, res) => {

@@ -73,8 +73,7 @@ function App() {
         <Route
           path="/pos"
           element={
-            <ProtectedRoute
-              requiredPermission={{ module: "POS", action: "view" }}>
+            <ProtectedRoute requiredPermission="POS">
               <POSPage />
             </ProtectedRoute>
           }
@@ -110,8 +109,7 @@ function App() {
           <Route
             path="/warehouses"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "WAREHOUSES", action: "view" }}>
+              <ProtectedRoute requiredPermission="WAREHOUSES">
                 <WarehouseManager />
               </ProtectedRoute>
             }
@@ -119,8 +117,7 @@ function App() {
           <Route
             path="/employees"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "EMPLOYEES", action: "view" }}>
+              <ProtectedRoute requiredPermission="EMPLOYEES">
                 <EmployeeManager />
               </ProtectedRoute>
             }
@@ -128,8 +125,7 @@ function App() {
           <Route
             path="/suppliers"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "SUPPLIERS", action: "view" }}>
+              <ProtectedRoute requiredPermission="SUPPLIERS">
                 <SupplierManager />
               </ProtectedRoute>
             }
@@ -137,8 +133,7 @@ function App() {
           <Route
             path="/clients"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "CLIENTS", action: "view" }}>
+              <ProtectedRoute requiredPermission="CLIENTS">
                 <ClientManager />
               </ProtectedRoute>
             }
@@ -146,8 +141,7 @@ function App() {
           <Route
             path="/categories"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "CATEGORIES", action: "view" }}>
+              <ProtectedRoute requiredPermission="CATEGORIES">
                 <CategoryManager />
               </ProtectedRoute>
             }
@@ -155,8 +149,7 @@ function App() {
           <Route
             path="/items"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "ITEMS", action: "view" }}>
+              <ProtectedRoute requiredPermission="ITEMS">
                 <ItemManager />
               </ProtectedRoute>
             }
@@ -164,8 +157,7 @@ function App() {
           <Route
             path="/treasuries"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "TREASURIES", action: "view" }}>
+              <ProtectedRoute requiredPermission="TREASURIES">
                 <TreasuryManager />
               </ProtectedRoute>
             }
@@ -173,8 +165,7 @@ function App() {
           <Route
             path="/branches"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "BRANCHES", action: "view" }}>
+              <ProtectedRoute requiredPermission="BRANCHES">
                 <BranchManager />
               </ProtectedRoute>
             }
@@ -184,8 +175,7 @@ function App() {
           <Route
             path="/purchases"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "PURCHASES", action: "view" }}>
+              <ProtectedRoute requiredPermission="PURCHASES">
                 <PurchasesPage />
               </ProtectedRoute>
             }
@@ -194,8 +184,7 @@ function App() {
           <Route
             path="/stock-transfer"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "INVENTORY", action: "view" }}>
+              <ProtectedRoute requiredPermission="INVENTORY">
                 <StockTransferPage />
               </ProtectedRoute>
             }
@@ -203,8 +192,7 @@ function App() {
           <Route
             path="/cashier-transfer"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "TREASURIES", action: "view" }}>
+              <ProtectedRoute requiredPermission="TREASURIES">
                 <CashierTransferPage />
               </ProtectedRoute>
             }
@@ -212,8 +200,7 @@ function App() {
           <Route
             path="/branches-sales"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "BRANCHES", action: "view" }}>
+              <ProtectedRoute requiredPermission="BRANCHES">
                 <BranchesSalesPage />
               </ProtectedRoute>
             }
@@ -221,8 +208,7 @@ function App() {
           <Route
             path="/inventory"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "INVENTORY", action: "view" }}>
+              <ProtectedRoute requiredPermission="INVENTORY">
                 <InventoryPage />
               </ProtectedRoute>
             }
@@ -231,50 +217,116 @@ function App() {
           <Route
             path="/reports"
             element={
-              <ProtectedRoute
-                requiredPermission={{ module: "REPORTS", action: "view" }}>
+              <ProtectedRoute requiredPermission="REPORTS">
                 <ReportsPage />
               </ProtectedRoute>
             }
           />
-          <Route path="/reports/general" element={<GeneralReportPage />} />
-          <Route path="/reports/detailed" element={<DetailedReportsPage />} />
-          <Route path="/expenses" element={<ExpensesPage />} />
+          <Route
+            path="/reports/general"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <GeneralReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/detailed"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <DetailedReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute requiredPermission="EXPENSES">
+                <ExpensesPage />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Detailed History Reports */}
+          {/* Detailed History Reports - All require REPORTS permission */}
           <Route
             path="/reports/custom/advance-payments"
-            element={<AdvancePaymentsHistory />}
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <AdvancePaymentsHistory />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/reports/custom/cash-transfers"
-            element={<CashTransferHistory />}
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <CashTransferHistory />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/reports/custom/creations"
-            element={<CreationHistory />}
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <CreationHistory />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/reports/custom/daily-transactions"
-            element={<DailyTransactions />}
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <DailyTransactions />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/reports/custom/deductions"
-            element={<DeductionHistory />}
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <DeductionHistory />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/reports/custom/purchases"
-            element={<PurchaseHistory />}
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <PurchaseHistory />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/reports/custom/stock-transfers"
-            element={<StockTransferHistory />}
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <StockTransferHistory />
+              </ProtectedRoute>
+            }
           />
-          <Route path="/hr" element={<HRPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/hr"
+            element={
+              <ProtectedRoute requiredPermission="EMPLOYEES">
+                <HRPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute requiredPermission="SETTINGS">
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/transfer-management"
-            element={<TransferManagementPage />}
+            element={
+              <ProtectedRoute requiredPermission="TREASURIES">
+                <TransferManagementPage />
+              </ProtectedRoute>
+            }
           />
         </Route>
       </Routes>

@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requireAnyPermission, getUserBranchFilter } = require("../middleware/auth");
+
+// Require authentication for all shift operations
+router.use(authenticateToken);
 
 // Start a new shift
 router.post("/start", async (req, res) => {
@@ -9,6 +13,12 @@ router.post("/start", async (req, res) => {
 
         if (!userId || !branchId) {
             return res.status(400).json({ error: "User ID and Branch ID are required" });
+        }
+
+        // Validate Branch Access
+        const allowedBranchId = await getUserBranchFilter(req.user.id);
+        if (allowedBranchId && allowedBranchId !== parseInt(branchId)) {
+            return res.status(403).json({ error: "Access denied. You cannot start a shift in this branch." });
         }
 
         // Check if user already has an active shift
@@ -88,8 +98,8 @@ router.get("/active/:userId", async (req, res) => {
     }
 });
 
-// Get Shift Report
-router.get("/:id/report", async (req, res) => {
+// Get Shift Report - Requires POS or REPORTS permission
+router.get("/:id/report", requireAnyPermission(["POS", "REPORTS"]), async (req, res) => {
     try {
         const shiftId = parseInt(req.params.id);
 
@@ -103,6 +113,12 @@ router.get("/:id/report", async (req, res) => {
 
         if (!shift) {
             return res.status(404).json({ error: "Shift not found" });
+        }
+
+        // Validate Branch Access for Report
+        const allowedBranchId = await getUserBranchFilter(req.user.id);
+        if (allowedBranchId && allowedBranchId !== shift.branchId) {
+            return res.status(403).json({ error: "Access denied. You cannot view reports for this branch." });
         }
 
         // Aggregate Sales Data

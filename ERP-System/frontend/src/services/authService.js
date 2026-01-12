@@ -51,7 +51,7 @@ const AuthService = {
     },
 
     // Check if user has specific permission
-    hasPermission: (module, action) => { // action: 'view', 'create', 'edit', 'delete'
+    hasPermission: (module) => {
         const user = AuthService.getCurrentUser();
         if (!user) return false;
 
@@ -59,11 +59,17 @@ const AuthService = {
         if (user.role === "Superadmin") return true;
 
         // Check permissions object if available
-        if (user.permissions && user.permissions[module]) {
-            return !!user.permissions[module][action];
+        // Backend returns simplified boolean map: { "INVENTORY": true, "Sales": false }
+        if (user.permissions) {
+            return !!user.permissions[module];
         }
 
         return false;
+    },
+
+    // Check if user has ANY of the provided permissions (OR logic)
+    hasAnyPermission: (modules) => {
+        return modules.some(module => AuthService.hasPermission(module));
     },
 
     // Check if user is superadmin

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { authenticateToken, requirePermission, requireAnyPermission, getUserBranchFilter } = require("../middleware/auth");
 
 // Helper function to generate unique sale number
 const generateSaleNumber = async () => {
@@ -46,10 +47,14 @@ const generateSaleNumber = async () => {
   }
 };
 
-// GET all sales
-router.get("/", async (req, res) => {
+// GET all sales - Requires SALES permission
+router.get("/", authenticateToken, requirePermission("SALES"), async (req, res) => {
   try {
+    const branchId = await getUserBranchFilter(req.user.id);
+    const whereClause = branchId ? { branchId } : {};
+
     const sales = await prisma.sale.findMany({
+      where: whereClause,
       orderBy: { createdAt: "desc" },
       include: {
         client: true,
@@ -71,8 +76,8 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET sale by ID
-router.get("/:id", async (req, res) => {
+// GET sale by ID - Requires SALES permission
+router.get("/:id", authenticateToken, requirePermission("SALES"), async (req, res) => {
   try {
     const sale = await prisma.sale.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -99,8 +104,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST create new sale
-router.post("/", async (req, res) => {
+// POST create new sale - Requires SALES OR POS permission
+router.post("/", authenticateToken, requireAnyPermission(["SALES", "POS"]), async (req, res) => {
   try {
     console.log("💰 ============ SALES API CALLED ============");
     console.log("💰 Request body:", JSON.stringify(req.body, null, 2));
@@ -415,8 +420,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT update sale (for updating status, held carts, etc.)
-router.put("/:id", async (req, res) => {
+// PUT update sale - Requires SALES permission
+router.put("/:id", authenticateToken, requirePermission("SALES"), async (req, res) => {
   try {
     const {
       clientId,
@@ -503,8 +508,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE sale
-router.delete("/:id", async (req, res) => {
+// DELETE sale - Requires SALES permission
+router.delete("/:id", authenticateToken, requirePermission("SALES"), async (req, res) => {
   try {
     await prisma.sale.delete({
       where: { id: parseInt(req.params.id) },
