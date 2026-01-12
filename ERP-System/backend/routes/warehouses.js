@@ -1,15 +1,34 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter } = require("../middleware/auth");
 
 // Protect all routes with WAREHOUSES permission
-router.use(authenticateToken, requirePermission("WAREHOUSES"));
+// Protect all routes with authentication
+router.use(authenticateToken);
 
-// GET all warehouses
+// GET all warehouses - Accessible to all auth users, filtered by branch assignment
 router.get("/", async (req, res) => {
   try {
+    const userBranchFilter = await getUserBranchFilter(req.user.id);
+    let where = {};
+
+    if (userBranchFilter) {
+      // Find the warehouse linked to this branch
+      const branch = await prisma.branch.findUnique({
+        where: { id: userBranchFilter },
+        select: { warehouseId: true }
+      });
+      if (branch && branch.warehouseId) {
+        where = { id: branch.warehouseId };
+      } else {
+        // If user is restricted to a branch but that branch has no warehouse, show nothing
+        where = { id: -1 };
+      }
+    }
+
     const warehouses = await prisma.warehouse.findMany({
+      where,
       orderBy: { createdAt: "asc" },
     });
     res.json(warehouses);
@@ -52,8 +71,8 @@ router.post("/", requireCreatePermission("CREATES_WAREHOUSES"), async (req, res)
   }
 });
 
-// PUT update warehouse
-router.put("/:id", async (req, res) => {
+// PUT update warehouse - Requires WAREHOUSES management permission
+router.put("/:id", requirePermission("WAREHOUSES"), async (req, res) => {
   try {
     const { name } = req.body;
     const warehouse = await prisma.warehouse.update({
@@ -68,8 +87,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE warehouse
-router.delete("/:id", async (req, res) => {
+// DELETE warehouse - Requires WAREHOUSES management permission
+router.delete("/:id", requirePermission("WAREHOUSES"), async (req, res) => {
   try {
     await prisma.warehouse.delete({
       where: { id: parseInt(req.params.id) },
