@@ -1,0 +1,12 @@
+# Ignore environment variable files
+.env
+.env.*
+# IDE/editor settings
+.vscode/
+# Dependency directories
+node_modules/
+# Build output
+Dist/
+# Local configuration files (if any)
+*.local.js
+*.config.js
