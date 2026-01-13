@@ -244,14 +244,7 @@ const ExpensesPage = () => {
                                             <td className="px-6 py-3 text-center">
                                                 {expense.type === "MANUAL" && (
                                                     <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button
-                                                            onClick={() => openEditModal(expense)}
-                                                            className="text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-border-light dark:hover:border-border-dark rounded p-1"
-                                                            title="تعديل">
-                                                            <span className="material-symbols-outlined text-[18px]">
-                                                                edit
-                                                            </span>
-                                                        </button>
+                                                        {/* Edit button removed to enforce immutability */}
                                                         <button
                                                             onClick={() => handleDelete(expense.id)}
                                                             className="text-text-light/70 hover:text-red-600 dark:text-text-dark/70 dark:hover:text-red-400 transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-red-100 dark:hover:border-red-900/30 rounded p-1"
