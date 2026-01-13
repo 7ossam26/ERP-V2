@@ -6,11 +6,10 @@ const { authenticateToken, requirePermission, requireCreatePermission, getUserBr
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// GET all branches - Accessible to all auth users, but filtered by permission/branch assignment
+// GET all branches - Accessible to all auth users, no filter (for transfers etc)
 router.get("/", async (req, res) => {
   try {
-    const userBranchFilter = await getUserBranchFilter(req.user.id);
-    const where = userBranchFilter ? { id: userBranchFilter } : {};
+    const where = {};
 
     const branches = await prisma.branch.findMany({
       where,
@@ -106,12 +105,7 @@ router.get("/summary", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const branchId = parseInt(req.params.id);
-    const userBranchFilter = await getUserBranchFilter(req.user.id);
 
-    // Strict isolation check
-    if (userBranchFilter && userBranchFilter !== branchId) {
-      return res.status(403).json({ error: "Access denied to this branch" });
-    }
     const branch = await prisma.branch.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {

@@ -7,25 +7,10 @@ const { authenticateToken, requirePermission, requireCreatePermission, getUserBr
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// GET all warehouses - Accessible to all auth users, filtered by branch assignment
+// GET all warehouses - Accessible to all auth users (for transfers etc)
 router.get("/", async (req, res) => {
   try {
-    const userBranchFilter = await getUserBranchFilter(req.user.id);
-    let where = {};
-
-    if (userBranchFilter) {
-      // Find the warehouse linked to this branch
-      const branch = await prisma.branch.findUnique({
-        where: { id: userBranchFilter },
-        select: { warehouseId: true }
-      });
-      if (branch && branch.warehouseId) {
-        where = { id: branch.warehouseId };
-      } else {
-        // If user is restricted to a branch but that branch has no warehouse, show nothing
-        where = { id: -1 };
-      }
-    }
+    const where = {};
 
     const warehouses = await prisma.warehouse.findMany({
       where,
