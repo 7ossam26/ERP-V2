@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission, requireSensitiveAccess } = require("../middleware/auth");
 
 // Helper to get date range for a month
 const getMonthDateRange = (month, year) => {
@@ -360,8 +360,8 @@ router.post("/", requireCreatePermission("CREATES_EMPLOYEES"), async (req, res) 
   }
 });
 
-// PUT update employee
-router.put("/:id", requireAnyPermission(["EMPLOYEES", "CREATES_EMPLOYEES"]), async (req, res) => {
+// PUT update employee - Requires SENSITIVE ACCESS
+router.put("/:id", requireAnyPermission(["EMPLOYEES", "CREATES_EMPLOYEES"]), requireSensitiveAccess, async (req, res) => {
   try {
     const {
       name,
@@ -408,8 +408,8 @@ router.put("/:id", requireAnyPermission(["EMPLOYEES", "CREATES_EMPLOYEES"]), asy
   }
 });
 
-// DELETE employee
-router.delete("/:id", requirePermission("EMPLOYEES"), async (req, res) => {
+// DELETE employee - Requires SENSITIVE ACCESS
+router.delete("/:id", requirePermission("EMPLOYEES"), requireSensitiveAccess, async (req, res) => {
   try {
     await prisma.employee.delete({
       where: { id: parseInt(req.params.id) },

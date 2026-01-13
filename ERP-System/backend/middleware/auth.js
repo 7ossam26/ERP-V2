@@ -149,7 +149,24 @@ const requireCreatePermission = (createModule) => {
       console.error("Create permission check error:", error);
       return res.status(500).json({ error: "Internal server error" });
     }
-  };
+  }
+};
+
+// Check if user has sensitive access (for update/delete operations)
+const requireSensitiveAccess = (req, res, next) => {
+  // Superadmin always has sensitive access
+  if (req.user.role === "Superadmin") {
+    return next();
+  }
+
+  // Check if user has sensitive access flag
+  if (!req.user.hasSensitiveAccess) {
+    return res.status(403).json({
+      error: "Access denied. This operation requires sensitive access permissions.",
+    });
+  }
+
+  next();
 };
 
 // Get branch filter for queries (returns null if user can see all branches)
@@ -185,5 +202,6 @@ module.exports = {
   requirePermission,
   requireAnyPermission,
   requireCreatePermission,
+  requireSensitiveAccess,
   getUserBranchFilter,
 };

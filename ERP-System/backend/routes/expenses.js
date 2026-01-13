@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, isSuperadmin } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireSensitiveAccess } = require("../middleware/auth");
 
 // Protect all routes with EXPENSES permission
 router.use(authenticateToken, requirePermission("EXPENSES"));
@@ -9,8 +9,8 @@ router.use(authenticateToken, requirePermission("EXPENSES"));
 // ... (GET and POST routes remain the same) ...
 
 // Delete expense (Manual only)
-// STRICT SECURITY: Only Superadmin can delete sensitive financial records
-router.delete("/:id", isSuperadmin, async (req, res) => {
+// STRICT SECURITY: Only users with sensitive access can delete financial records
+router.delete("/:id", requireSensitiveAccess, async (req, res) => {
     const { id } = req.params;
 
     try {

@@ -1,4 +1,5 @@
 import React from "react";
+import AuthService from "../../services/authService";
 
 const GenericDataTable = ({
   columns,
@@ -57,11 +58,10 @@ const GenericDataTable = ({
                 {columns.map((col, index) => (
                   <td
                     key={index}
-                    className={`px-6 py-4 text-center ${
-                      col.wrap
-                        ? "whitespace-normal min-w-[200px]"
-                        : "whitespace-nowrap"
-                    }`}>
+                    className={`px-6 py-4 text-center ${col.wrap
+                      ? "whitespace-normal min-w-[200px]"
+                      : "whitespace-nowrap"
+                      }`}>
                     {col.render ? (
                       col.render(item)
                     ) : (
@@ -81,10 +81,9 @@ const GenericDataTable = ({
                           <button
                             key={idx}
                             onClick={action.onClick}
-                            className={`${action.color || "text-blue-600"} ${
-                              action.hoverColor ||
+                            className={`${action.color || "text-blue-600"} ${action.hoverColor ||
                               "hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                            } p-2 rounded-lg transition-all flex items-center gap-1`}
+                              } p-2 rounded-lg transition-all flex items-center gap-1`}
                             title={action.label}>
                             <span className="material-symbols-outlined text-lg">
                               {action.icon}
@@ -95,19 +94,23 @@ const GenericDataTable = ({
                     ) : (
                       /* Render default edit/delete actions */
                       <>
-                        {onEdit && (
-                          <button
-                            onClick={() => onEdit(item)}
-                            className="text-blue-500 hover:text-blue-700 ml-2 transition-colors">
-                            <span className="material-icons-round">edit</span>
-                          </button>
-                        )}
-                        {onDelete && (
-                          <button
-                            onClick={() => onDelete(item.id)}
-                            className="text-red-500 hover:text-red-700 transition-colors">
-                            <span className="material-icons-round">delete</span>
-                          </button>
+                        {AuthService.hasSensitiveAccess() && (
+                          <>
+                            {onEdit && (
+                              <button
+                                onClick={() => onEdit(item)}
+                                className="text-blue-500 hover:text-blue-700 ml-2 transition-colors">
+                                <span className="material-icons-round">edit</span>
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button
+                                onClick={() => onDelete(item.id)}
+                                className="text-red-500 hover:text-red-700 transition-colors">
+                                <span className="material-icons-round">delete</span>
+                              </button>
+                            )}
+                          </>
                         )}
                       </>
                     )}

@@ -20,6 +20,7 @@ router.get("/users", async (req, res) => {
         name: true,
         username: true,
         isActive: true,
+        hasSensitiveAccess: true,
         role: {
           select: {
             id: true,
@@ -61,15 +62,25 @@ router.post("/users", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Get role to determine default hasSensitiveAccess
+    const role = await prisma.role.findUnique({
+      where: { id: parseInt(roleId) },
+    });
+
+    // Determine hasSensitiveAccess value
+    let hasSensitiveAccess = req.body.hasSensitiveAccess !== undefined
+      ? req.body.hasSensitiveAccess
+      : ['Superadmin', 'Admin', 'Manager'].includes(role?.name);
+
     const newUser = await prisma.user.create({
       data: {
         name,
         username,
         password: hashedPassword,
-        password: hashedPassword,
         roleId: parseInt(roleId),
         branchId: parseInt(branchId),
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        hasSensitiveAccess: hasSensitiveAccess,
       },
       include: {
         role: true,
@@ -98,6 +109,7 @@ router.put("/users/:id", async (req, res) => {
       roleId: parseInt(roleId),
       branchId: branchId ? parseInt(branchId) : undefined,
       isActive: req.body.isActive !== undefined ? req.body.isActive : undefined,
+      hasSensitiveAccess: req.body.hasSensitiveAccess !== undefined ? req.body.hasSensitiveAccess : undefined,
     };
 
     // Remove undefined keys
@@ -257,6 +269,43 @@ router.get("/roles/:id", async (req, res) => {
     res
       .status(500)
       .json({ error: "Failed to fetch role", details: error.message });
+  }
+});
+
+// DELETE role
+router.delete("/roles/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if role has any users
+    const roleWithUsers = await prisma.role.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        _count: {
+          select: { users: true },
+        },
+      },
+    });
+
+    if (!roleWithUsers) {
+      return res.status(404).json({ error: "Role not found" });
+    }
+
+    if (roleWithUsers._count.users > 0) {
+      return res.status(400).json({
+        error: `Cannot delete role. ${roleWithUsers._count.users} user(s) are assigned to this role.`,
+      });
+    }
+
+    await prisma.role.delete({
+      where: { id: parseInt(id) },
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to delete role", details: error.message });
   }
 });
 

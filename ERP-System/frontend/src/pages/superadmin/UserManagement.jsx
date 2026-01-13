@@ -23,30 +23,55 @@ const UserManagement = () => {
     password: "",
     roleId: "",
     isActive: true,
+    hasSensitiveAccess: false,
   });
 
   const fetchData = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const [usersTitle, rolesRes, branchesRes] = await Promise.all([
+      const results = await Promise.allSettled([
         SuperadminService.getUsers(),
         SuperadminService.getRoles(),
         branchService.getAll(),
       ]);
-      setUsers(usersTitle);
-      setRoles(rolesRes);
 
-      // Sort branches: "All Branches" (isAllBranches=true) comes first
-      const rawBranches = Array.isArray(branchesRes) ? branchesRes : (branchesRes?.data || []);
-      const sortedBranches = [...rawBranches].sort((a, b) => {
-        if (a.isAllBranches) return -1;
-        if (b.isAllBranches) return 1;
-        return a.name.localeCompare(b.name);
-      });
-      setBranches(sortedBranches);
+      const [usersResult, rolesResult, branchesResult] = results;
+
+      // Handle Users
+      if (usersResult.status === "fulfilled") {
+        setUsers(usersResult.value);
+      } else {
+        console.error("Users load failed:", usersResult.reason);
+        toast.error(`Users load failed: ${usersResult.reason.message}`);
+      }
+
+      // Handle Roles
+      if (rolesResult.status === "fulfilled") {
+        setRoles(rolesResult.value);
+      } else {
+        console.error("Roles load failed:", rolesResult.reason);
+        toast.error(`Roles load failed: ${rolesResult.reason.message}`);
+      }
+
+      // Handle Branches
+      if (branchesResult.status === "fulfilled") {
+        const branchesRes = branchesResult.value;
+        const rawBranches = Array.isArray(branchesRes)
+          ? branchesRes
+          : branchesRes?.data || [];
+        const sortedBranches = [...rawBranches].sort((a, b) => {
+          if (a.isAllBranches) return -1;
+          if (b.isAllBranches) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        setBranches(sortedBranches);
+      } else {
+        console.error("Branches load failed:", branchesResult.reason);
+        toast.error(`Branches load failed: ${branchesResult.reason.message}`);
+      }
     } catch (error) {
-      console.error("UserManagement Data Load Error:", error);
-      toast.error("Failed to load data");
+      console.error("Unexpected error:", error);
+      toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -127,6 +152,7 @@ const UserManagement = () => {
       roleId: "",
       branchId: "",
       isActive: true,
+      hasSensitiveAccess: false,
     });
   };
 
@@ -139,6 +165,7 @@ const UserManagement = () => {
       roleId: user.role.id,
       branchId: user.branchId || "",
       isActive: user.isActive,
+      hasSensitiveAccess: user.hasSensitiveAccess || false,
     });
     setShowModal(true);
   };
@@ -172,6 +199,7 @@ const UserManagement = () => {
               <th className="p-4">Role</th>
               <th className="p-4">Branch</th>
               <th className="p-4">Status</th>
+              <th className="p-4">Sensitive Access</th>
               <th className="p-4 text-right">Actions</th>
             </tr>
           </thead>
@@ -203,6 +231,17 @@ const UserManagement = () => {
                       }`}>
                     {user.isActive ? "Active" : "Inactive"}
                   </button>
+                </td>
+                <td className="p-4">
+                  {user.hasSensitiveAccess ? (
+                    <span className="px-2 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                      ✓ Enabled
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                      Disabled
+                    </span>
+                  )}
                 </td>
                 <td className="p-4 text-right space-x-2">
                   <button
@@ -299,9 +338,17 @@ const UserManagement = () => {
                   required
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-transparent dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                   value={formData.roleId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, roleId: e.target.value })
-                  }>
+                  onChange={(e) => {
+                    const selectedRoleId = e.target.value;
+                    const selectedRole = roles.find(r => r.id == selectedRoleId);
+                    // Auto-set hasSensitiveAccess based on role
+                    const shouldHaveSensitive = ['Superadmin', 'Admin', 'Manager'].includes(selectedRole?.name);
+                    setFormData({
+                      ...formData,
+                      roleId: selectedRoleId,
+                      hasSensitiveAccess: shouldHaveSensitive
+                    });
+                  }}>
                   <option value="" disabled>
                     Select a role
                   </option>
@@ -348,6 +395,24 @@ const UserManagement = () => {
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                   <span className="ml-3 text-sm font-medium text-slate-700 dark:text-slate-300">
                     Is Active
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={formData.hasSensitiveAccess}
+                    onChange={(e) =>
+                      setFormData({ ...formData, hasSensitiveAccess: e.target.checked })
+                    }
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                  <span className="ml-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Sensitive Access
+                    <span className="block text-xs text-slate-400">Can edit/delete sensitive data</span>
                   </span>
                 </label>
               </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import SuperadminService from "../../services/superadminService";
+import AuthService from "../../services/authService";
 import { toast } from "react-hot-toast";
 
 const RoleManagement = () => {
@@ -35,6 +36,20 @@ const RoleManagement = () => {
             fetchRoles();
         } catch (error) {
             toast.error("Failed to create role");
+        }
+    };
+
+    const handleDeleteRole = async (role) => {
+        if (window.confirm(`Are you sure you want to delete the role "${role.name}"?`)) {
+            try {
+                await SuperadminService.deleteRole(role.id);
+                toast.success("Role deleted successfully");
+                fetchRoles();
+            } catch (error) {
+                console.error("Failed to delete role:", error);
+                const errorMessage = error.response?.data?.error || "Failed to delete role";
+                toast.error(errorMessage);
+            }
         }
     };
 
@@ -75,6 +90,15 @@ const RoleManagement = () => {
                                 <span className="material-icons-round text-base">settings</span>
                                 Permissions
                             </Link>
+                            {AuthService.hasSensitiveAccess() && (
+                                <button
+                                    onClick={() => handleDeleteRole(role)}
+                                    className="px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition"
+                                    title="Delete Role"
+                                >
+                                    <span className="material-icons-round text-base">delete</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 ))}

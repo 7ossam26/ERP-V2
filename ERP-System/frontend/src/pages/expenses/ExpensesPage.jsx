@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AddExpenseModal from "./AddExpenseModal";
 import { expenseService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 
 const ExpensesPage = () => {
@@ -242,7 +243,7 @@ const ExpensesPage = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3 text-center">
-                                                {expense.type === "MANUAL" && (
+                                                {expense.type === "MANUAL" && AuthService.hasSensitiveAccess() && (
                                                     <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         {/* Edit button removed to enforce immutability */}
                                                         <button

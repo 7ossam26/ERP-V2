@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission, requireAnyPermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, requireAnyPermission, requireSensitiveAccess } = require("../middleware/auth");
 
 // Protect all routes with CLIENTS permission
 // Protect all routes with authentication
@@ -65,8 +65,8 @@ router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) =>
 
 // PUT update client
 // PUT update client
-// PUT update client - Requires VIEW permission (managing clients implied) OR create permission (operational editing)
-router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS"]), async (req, res) => {
+// PUT update client - Requires SENSITIVE ACCESS
+router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS"]), requireSensitiveAccess, async (req, res) => {
   try {
     const { name, phoneNumber } = req.body;
 
@@ -89,8 +89,8 @@ router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS"]), async (
 });
 
 // DELETE client
-// DELETE client - Requires VIEW permission
-router.delete("/:id", requirePermission("CLIENTS"), async (req, res) => {
+// DELETE client - Requires SENSITIVE ACCESS
+router.delete("/:id", requirePermission("CLIENTS"), requireSensitiveAccess, async (req, res) => {
   try {
     await prisma.client.delete({
       where: { id: parseInt(req.params.id) },

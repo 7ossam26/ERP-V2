@@ -78,6 +78,18 @@ const AuthService = {
         return user && user.role === "Superadmin";
     },
 
+    // Check if user has sensitive access (can edit/delete sensitive data)
+    hasSensitiveAccess: () => {
+        const user = AuthService.getCurrentUser();
+        if (!user) return false;
+
+        // Superadmin always has sensitive access
+        if (user.role === "Superadmin") return true;
+
+        // Check hasSensitiveAccess flag
+        return !!user.hasSensitiveAccess;
+    },
+
     // Refresh user profile from backend
     refreshProfile: async () => {
         try {

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission, requireSensitiveAccess } = require("../middleware/auth");
 
 // Protect all routes with authentication
 router.use(authenticateToken);
@@ -164,8 +164,8 @@ router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res) =
   }
 });
 
-// PUT update branch - Requires BRANCHES permission
-router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), async (req, res) => {
+// PUT update branch - Requires SENSITIVE ACCESS
+router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), requireSensitiveAccess, async (req, res) => {
   try {
     const { name, address, warehouseId, treasuryId } = req.body;
 
@@ -202,8 +202,8 @@ router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), async
   }
 });
 
-// DELETE branch - Requires BRANCHES permission
-router.delete("/:id", requirePermission("BRANCHES"), async (req, res) => {
+// DELETE branch - Requires SENSITIVE ACCESS
+router.delete("/:id", requirePermission("BRANCHES"), requireSensitiveAccess, async (req, res) => {
   try {
     await prisma.branch.delete({
       where: { id: parseInt(req.params.id) },

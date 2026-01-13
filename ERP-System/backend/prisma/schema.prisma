@@ -18,6 +18,7 @@ model User {
   password  String
   roleId    Int      @map("role_id")
   isActive  Boolean  @default(true) @map("is_active")
+  hasSensitiveAccess Boolean @default(false) @map("has_sensitive_access")
   branchId  Int      @map("branch_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
