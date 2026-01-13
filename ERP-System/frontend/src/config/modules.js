@@ -1,179 +1,181 @@
 export const MODULES = [
-    // --- Creation Modules (Tantweedat) ---
-    {
-        id: "creates_employees",
-        code: "CREATES_EMPLOYEES",
-        label: "الموظف",
-        description: "إدارة بيانات الموظفين",
-        icon: "badge",
-        path: "/employees",
-        category: "CREATION"
-    },
-    {
-        id: "creates_suppliers",
-        code: "CREATES_SUPPLIERS",
-        label: "المورد",
-        description: "سجلات الموردين والشركاء",
-        icon: "local_shipping",
-        path: "/suppliers",
-        category: "CREATION"
-    },
-    {
-        id: "creates_clients",
-        code: "CREATES_CLIENTS",
-        label: "العملاء",
-        description: "قاعدة بيانات العملاء",
-        icon: "groups",
-        path: "/clients",
-        category: "CREATION"
-    },
-    {
-        id: "creates_items",
-        code: "CREATES_ITEMS",
-        label: "الأصناف",
-        description: "المنتجات والأسعار",
-        icon: "inventory_2",
-        path: "/items",
-        category: "CREATION"
-    },
-    {
-        id: "creates_warehouses",
-        code: "CREATES_WAREHOUSES",
-        label: "المخازن",
-        description: "الجرد والمستودعات",
-        icon: "warehouse",
-        path: "/warehouses",
-        category: "CREATION"
-    },
-    {
-        id: "creates_categories",
-        code: "CREATES_CATEGORIES",
-        label: "التصنيفات",
-        description: "إدارة فئات المنتجات",
-        icon: "category",
-        path: "/categories",
-        category: "CREATION"
-    },
-    {
-        id: "creates_treasuries",
-        code: "CREATES_TREASURIES",
-        label: "الخزائن",
-        description: "المالية والنقدية",
-        icon: "savings",
-        path: "/treasuries",
-        category: "CREATION"
-    },
-    {
-        id: "creates_branches",
-        code: "CREATES_BRANCHES",
-        label: "الفروع",
-        description: "إعدادات فروع المتجر",
-        icon: "storefront",
-        path: "/branches",
-        category: "CREATION"
-    },
+  // --- Creation Modules (Tantweedat) ---
+  {
+    id: "creates_employees",
+    code: "CREATES_EMPLOYEES",
+    label: "الموظف",
+    description: "إدارة بيانات الموظفين",
+    icon: "badge",
+    path: "/employees",
+    category: "CREATION",
+  },
+  {
+    id: "creates_suppliers",
+    code: "CREATES_SUPPLIERS",
+    label: "المورد",
+    description: "سجلات الموردين والشركاء",
+    icon: "local_shipping",
+    path: "/suppliers",
+    category: "CREATION",
+  },
+  {
+    id: "creates_clients",
+    code: "CREATES_CLIENTS",
+    label: "العملاء",
+    description: "قاعدة بيانات العملاء",
+    icon: "groups",
+    path: "/clients",
+    category: "CREATION",
+  },
+  {
+    id: "creates_items",
+    code: "CREATES_ITEMS",
+    label: "الأصناف",
+    description: "المنتجات والأسعار",
+    icon: "inventory_2",
+    path: "/items",
+    category: "CREATION",
+  },
+  {
+    id: "creates_warehouses",
+    code: "CREATES_WAREHOUSES",
+    label: "المخازن",
+    description: "الجرد والمستودعات",
+    icon: "warehouse",
+    path: "/warehouses",
+    category: "CREATION",
+  },
+  {
+    id: "creates_categories",
+    code: "CREATES_CATEGORIES",
+    label: "التصنيفات",
+    description: "إدارة فئات المنتجات",
+    icon: "category",
+    path: "/categories",
+    category: "CREATION",
+  },
+  {
+    id: "creates_treasuries",
+    code: "CREATES_TREASURIES",
+    label: "الخزائن",
+    description: "المالية والنقدية",
+    icon: "savings",
+    path: "/treasuries",
+    category: "CREATION",
+  },
+  {
+    id: "creates_branches",
+    code: "CREATES_BRANCHES",
+    label: "الفروع",
+    description: "إعدادات فروع المتجر",
+    icon: "storefront",
+    path: "/branches",
+    category: "CREATION",
+  },
 
-    // --- Management Modules (Main Dashboard) ---
-    {
-        id: "purchases",
-        code: "PURCHASES",
-        label: "مشتريات",
-        description: "إدارة التوريد",
-        icon: "shopping_cart",
-        path: "/purchases",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "pos",
-        code: "POS",
-        label: "مبيعات",
-        description: "فاتورة جديدة",
-        icon: "point_of_sale",
-        path: "/pos",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "stock_transfer",
-        code: "INVENTORY",
-        label: "تحويلات مخزنية",
-        description: "نقل البضائع",
-        icon: "inventory_2",
-        path: "/stock-transfer",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "cashier_transfer",
-        code: "TREASURIES",
-        label: "تحويلات الخزائن",
-        description: "النقدية والسيولة",
-        icon: "account_balance_wallet",
-        path: "/cashier-transfer",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "branches_sales",
-        code: "BRANCHES",
-        label: "مبيعات الفروع",
-        description: "تقارير الفروع",
-        icon: "storefront",
-        path: "/branches-sales",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "inventory",
-        code: "INVENTORY",
-        label: "الجرد",
-        description: "جرد المخزون",
-        icon: "fact_check",
-        path: "/inventory",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "reports",
-        code: "REPORTS",
-        label: "تقارير",
-        description: "تحليل البيانات",
-        icon: "bar_chart",
-        path: "/reports",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "expenses",
-        code: "EXPENSES", // Changed from TREASURIES to EXPENSES based on granular intent
-        label: "مصروفات",
-        description: "إدارة المصروفات والفواتير",
-        icon: "receipt_long",
-        path: "/expenses",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "hr",
-        code: "EMPLOYEES",
-        label: "موارد بشرية",
-        description: "إدارة الموظفين",
-        icon: "groups",
-        path: "/hr",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "settings",
-        code: "SETTINGS",
-        label: "الإعدادات",
-        description: "إعدادات النظام",
-        icon: "settings",
-        path: "/settings",
-        category: "MANAGEMENT"
-    },
-    {
-        id: "transfer_management",
-        code: "TREASURIES",
-        label: "إدارة التحويلات",
-        description: "قبول ورفض التحويلات",
-        icon: "manage_accounts",
-        path: "/transfer-management",
-        category: "MANAGEMENT"
-    }
+  // --- Management Modules (Main Dashboard) ---
+  {
+    id: "purchases",
+    code: "PURCHASES",
+    label: "مشتريات",
+    description: "إدارة التوريد",
+    icon: "shopping_cart",
+    path: "/purchases",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "pos",
+    code: "POS",
+    label: "مبيعات",
+    description: "فاتورة جديدة",
+    icon: "point_of_sale",
+    path: "/pos",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "stock_transfer",
+    code: "STOCK_TRANSFER",
+    label: "تحويلات مخزنية",
+    description: "نقل البضائع",
+    icon: "inventory_2",
+    path: "/stock-transfer",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "cashier_transfer",
+    code: "CASH_TRANSFER",
+    label: "تحويلات الخزائن",
+    description: "النقدية والسيولة",
+    icon: "account_balance_wallet",
+    path: "/cashier-transfer",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "branches_sales",
+    code: "BRANCHES",
+    label: "مبيعات الفروع",
+    description: "تقارير الفروع",
+    icon: "storefront",
+    path: "/branches-sales",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "inventory",
+    code: "INVENTORY_COUNT",
+    label: "الجرد",
+    description: "جرد المخزون",
+    icon: "fact_check",
+    path: "/inventory",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "reports",
+    code: "REPORTS",
+    label: "تقارير",
+    description: "تحليل البيانات",
+    icon: "bar_chart",
+    path: "/reports",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "expenses",
+    code: "EXPENSES", // Changed from TREASURIES to EXPENSES based on granular intent
+    label: "مصروفات",
+    description: "إدارة المصروفات والفواتير",
+    icon: "receipt_long",
+    path: "/expenses",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "hr",
+    code: "EMPLOYEES",
+    label: "موارد بشرية",
+    description: "إدارة الموظفين",
+    icon: "groups",
+    path: "/hr",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "settings",
+    code: "SETTINGS",
+    label: "الإعدادات",
+    description: "إعدادات النظام",
+    icon: "settings",
+    path: "/settings",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "transfer_management",
+    code: "TRANSFER_MANAGEMENT",
+    label: "إدارة التحويلات",
+    description: "قبول ورفض التحويلات",
+    icon: "manage_accounts",
+    path: "/transfer-management",
+    category: "MANAGEMENT",
+  },
 ];
 
-export const getCreationModules = () => MODULES.filter(m => m.category === "CREATION");
-export const getManagementModules = () => MODULES.filter(m => m.category === "MANAGEMENT");
+export const getCreationModules = () =>
+  MODULES.filter((m) => m.category === "CREATION");
+export const getManagementModules = () =>
+  MODULES.filter((m) => m.category === "MANAGEMENT");

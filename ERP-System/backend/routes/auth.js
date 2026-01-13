@@ -140,6 +140,7 @@ router.post("/login", loginLimiter, async (req, res) => {
     // Log login (Create Audit Log if possible, otherwise just log to console for now)
     // We will implement full audit logging in Phase 2
     console.log(`🔐 Login successful: ${user.username} (${user.role.name})`);
+    console.log("Permissions sent to client:", JSON.stringify(permissions));
 
     res.json({
       token,

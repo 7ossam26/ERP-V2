@@ -109,7 +109,8 @@ function App() {
           <Route
             path="/warehouses"
             element={
-              <ProtectedRoute requiredPermission={["WAREHOUSES", "CREATES_WAREHOUSES"]}>
+              <ProtectedRoute
+                requiredPermission={["WAREHOUSES", "CREATES_WAREHOUSES"]}>
                 <WarehouseManager />
               </ProtectedRoute>
             }
@@ -117,7 +118,8 @@ function App() {
           <Route
             path="/employees"
             element={
-              <ProtectedRoute requiredPermission={["EMPLOYEES", "CREATES_EMPLOYEES"]}>
+              <ProtectedRoute
+                requiredPermission={["EMPLOYEES", "CREATES_EMPLOYEES"]}>
                 <EmployeeManager />
               </ProtectedRoute>
             }
@@ -125,7 +127,8 @@ function App() {
           <Route
             path="/suppliers"
             element={
-              <ProtectedRoute requiredPermission={["SUPPLIERS", "CREATES_SUPPLIERS"]}>
+              <ProtectedRoute
+                requiredPermission={["SUPPLIERS", "CREATES_SUPPLIERS"]}>
                 <SupplierManager />
               </ProtectedRoute>
             }
@@ -133,7 +136,8 @@ function App() {
           <Route
             path="/clients"
             element={
-              <ProtectedRoute requiredPermission={["CLIENTS", "CREATES_CLIENTS"]}>
+              <ProtectedRoute
+                requiredPermission={["CLIENTS", "CREATES_CLIENTS"]}>
                 <ClientManager />
               </ProtectedRoute>
             }
@@ -141,7 +145,8 @@ function App() {
           <Route
             path="/categories"
             element={
-              <ProtectedRoute requiredPermission={["CATEGORIES", "CREATES_CATEGORIES"]}>
+              <ProtectedRoute
+                requiredPermission={["CATEGORIES", "CREATES_CATEGORIES"]}>
                 <CategoryManager />
               </ProtectedRoute>
             }
@@ -157,7 +162,8 @@ function App() {
           <Route
             path="/treasuries"
             element={
-              <ProtectedRoute requiredPermission={["TREASURIES", "CREATES_TREASURIES"]}>
+              <ProtectedRoute
+                requiredPermission={["TREASURIES", "CREATES_TREASURIES"]}>
                 <TreasuryManager />
               </ProtectedRoute>
             }
@@ -165,7 +171,8 @@ function App() {
           <Route
             path="/branches"
             element={
-              <ProtectedRoute requiredPermission={["BRANCHES", "CREATES_BRANCHES"]}>
+              <ProtectedRoute
+                requiredPermission={["BRANCHES", "CREATES_BRANCHES"]}>
                 <BranchManager />
               </ProtectedRoute>
             }
@@ -184,7 +191,7 @@ function App() {
           <Route
             path="/stock-transfer"
             element={
-              <ProtectedRoute requiredPermission="INVENTORY">
+              <ProtectedRoute requiredPermission="STOCK_TRANSFER">
                 <StockTransferPage />
               </ProtectedRoute>
             }
@@ -192,7 +199,7 @@ function App() {
           <Route
             path="/cashier-transfer"
             element={
-              <ProtectedRoute requiredPermission="TREASURIES">
+              <ProtectedRoute requiredPermission="CASH_TRANSFER">
                 <CashierTransferPage />
               </ProtectedRoute>
             }

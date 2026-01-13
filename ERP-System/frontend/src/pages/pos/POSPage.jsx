@@ -22,6 +22,8 @@ const POSPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [cartItems, setCartItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
+  const [lastSale, setLastSale] = useState(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // User & Shift State
   const [currentUser, setCurrentUser] = useState(null);
@@ -96,7 +98,7 @@ const POSPage = () => {
       const newShift = await shiftService.start({
         userId: currentUser.id,
         branchId: currentUser.branch.id,
-        startCash: startCash
+        startCash: startCash,
       });
       console.log("Started new shift:", newShift);
       setCurrentShiftId(newShift.id);
@@ -297,10 +299,10 @@ const POSPage = () => {
         return prevItems.map((item) =>
           item.id === product.id
             ? {
-              ...item,
-              quantity: item.quantity + quantity,
-              total: (item.quantity + quantity) * price,
-            }
+                ...item,
+                quantity: item.quantity + quantity,
+                total: (item.quantity + quantity) * price,
+              }
             : item
         );
       } else {
@@ -420,9 +422,16 @@ const POSPage = () => {
     return unit; // Return original if not recognized
   };
 
-  // Handle print button - only print
+  // Handle print button - prints current cart or last sale
   const handlePrintClick = () => {
-    window.print();
+    if (cartItems.length > 0) {
+      window.print();
+    } else if (lastSale) {
+      toast.success("طباعة آخر فاتورة...");
+      window.print();
+    } else {
+      toast.error("لا توجد مبيعات لطباعتها");
+    }
   };
 
   // Handle payment method selection
@@ -515,11 +524,28 @@ const POSPage = () => {
       // REFRESH INVENTORY
       await loadInventory();
 
+      // Save for last sale printing
+      setLastSale({
+        ...saleData,
+        id: createdSale.id,
+        saleNumber: createdSale.saleNumber,
+        items: cartItems, // Use cartItems for rich display names
+        clientName: selectedClient?.name || "عميل نقدي",
+        branchName: currentUser?.branch?.name || "الفرع الرئيسي",
+        employeeName: currentUser?.name || currentUser?.username,
+        date: new Date().toLocaleString("ar-EG"),
+      });
+
       setIsPaymentConfirmOpen(false);
       setPendingPaymentMethod(null);
       setCashPaidAmount("");
       clearCart();
       setSelectedClient(null);
+
+      // Auto-print after successful payment
+      setTimeout(() => {
+        window.print();
+      }, 500);
     } catch (error) {
       console.error("❌ Error creating sale:", error);
       const errorMessage =
@@ -536,7 +562,7 @@ const POSPage = () => {
     try {
       await shiftService.end({
         shiftId: currentShiftId,
-        endCash: 0
+        endCash: 0,
       });
       toast.success("تم إغلاق الوردية بنجاح");
       setIsReportOpen(false);
@@ -601,7 +627,6 @@ const POSPage = () => {
     <div
       className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark overflow-hidden h-screen flex flex-col text-sm font-sans"
       dir="rtl">
-
       <StartShiftModal
         isOpen={isStartShiftModalOpen}
         onConfirm={handleStartShift}
@@ -616,8 +641,7 @@ const POSPage = () => {
           onConfirm={handleConfirmShift}
           reportData={shiftReportData}
         />
-      )
-      }
+      )}
 
       <Modal
         isOpen={isClientModalOpen}
@@ -692,10 +716,11 @@ const POSPage = () => {
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`material-symbols-outlined text-3xl ${pendingPaymentMethod === "cash"
-                    ? "text-green-500"
-                    : "text-blue-500"
-                    }`}>
+                  className={`material-symbols-outlined text-3xl ${
+                    pendingPaymentMethod === "cash"
+                      ? "text-green-500"
+                      : "text-blue-500"
+                  }`}>
                   {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
                 </span>
                 <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -736,8 +761,8 @@ const POSPage = () => {
                 </label>
                 <div className="w-full px-4 py-3 text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
                   {cashPaidAmount &&
-                    !isNaN(parseFloat(cashPaidAmount)) &&
-                    parseFloat(cashPaidAmount) >= total
+                  !isNaN(parseFloat(cashPaidAmount)) &&
+                  parseFloat(cashPaidAmount) >= total
                     ? Math.round(parseFloat(cashPaidAmount) - total)
                     : 0}{" "}
                   ج.م
@@ -769,10 +794,11 @@ const POSPage = () => {
             </button>
             <button
               onClick={handleConfirmPayment}
-              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${pendingPaymentMethod === "cash"
-                ? "bg-green-500 hover:bg-green-600"
-                : "bg-blue-500 hover:bg-blue-600"
-                }`}>
+              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+                pendingPaymentMethod === "cash"
+                  ? "bg-green-500 hover:bg-green-600"
+                  : "bg-blue-500 hover:bg-blue-600"
+              }`}>
               <span className="material-symbols-outlined">check_circle</span>
               <span>تأكيد الدفع</span>
             </button>
@@ -886,10 +912,11 @@ const POSPage = () => {
                   <div
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
-                      ? "bg-primary text-white shadow-md"
-                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                      }`}>
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
+                      activeCategory === cat.id
+                        ? "bg-primary text-white shadow-md"
+                        : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                    }`}>
                     {cat.name}
                   </div>
                 ))}
@@ -963,8 +990,8 @@ const POSPage = () => {
                     isClientDropdownOpen
                       ? clientSearchTerm
                       : selectedClient
-                        ? selectedClient.name
-                        : ""
+                      ? selectedClient.name
+                      : ""
                   }
                   onChange={(e) => {
                     setClientSearchTerm(e.target.value);
@@ -1021,8 +1048,9 @@ const POSPage = () => {
           </div>
 
           <div
-            className={`${keypadMode === "default" ? "flex-1" : "h-[45%]"
-              } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
+            className={`${
+              keypadMode === "default" ? "flex-1" : "h-[45%]"
+            } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 h-64">
@@ -1036,10 +1064,11 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${selectedItemId === item.id
-                      ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
-                      : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
-                      }`}>
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${
+                      selectedItemId === item.id
+                        ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
+                        : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+                    }`}>
                     {/* Delete icon - appears when selected */}
                     {selectedItemId === item.id ? (
                       <button
@@ -1083,8 +1112,8 @@ const POSPage = () => {
                   <div className="grid grid-cols-3 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
                     <button
                       onClick={handlePrintClick}
-                      className="flex flex-col items-center justify-center p-3 bg-gray-500 hover:bg-gray-600 text-white transition-colors">
-                      <span className="material-symbols-outlined mb-1">
+                      className="flex flex-col items-center justify-center p-3 bg-[#6F4E37] hover:bg-[#5D4030] text-white transition-all duration-300 border-l border-white/10 group">
+                      <span className="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">
                         print
                       </span>
                       <span className="font-bold">طباعة</span>
@@ -1172,12 +1201,13 @@ const POSPage = () => {
             <div className="h-[55%] flex flex-col bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 transition-all duration-300">
               {/* Dynamic Keypad Area - Changes based on mode */}
               <div
-                className={`grid h-full bg-white dark:bg-zinc-800 ${keypadMode === "piece"
-                  ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
-                  : keypadMode === "weight"
+                className={`grid h-full bg-white dark:bg-zinc-800 ${
+                  keypadMode === "piece"
+                    ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
+                    : keypadMode === "weight"
                     ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
                     : "grid-cols-5"
-                  }`}
+                }`}
                 dir="ltr">
                 {/* PIECE QUANTITY SELECTOR MODE */}
                 {keypadMode === "piece" && selectedProductForQuantity && (
@@ -1362,7 +1392,90 @@ const POSPage = () => {
           )}
         </div>
       </div>
-    </div >
+      {/* Thermal Receipt Template - Invisible on screen, visible on print */}
+      <div id="thermal-receipt" className="hidden print:block">
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-bold uppercase tracking-wider">
+            {currentUser?.branch?.name || "Elghonemy ERP"}
+          </h2>
+          <p className="text-xs opacity-80">
+            {lastSale?.date || new Date().toLocaleString("ar-EG")}
+          </p>
+          <div className="border-b border-dashed border-black my-2"></div>
+        </div>
+
+        <div className="text-xs mb-3 space-y-1">
+          <div className="flex justify-between">
+            <span>رقم الفاتورة:</span>
+            <span className="font-mono">{lastSale?.saleNumber || "Draft"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>العميل:</span>
+            <span>
+              {selectedClient?.name || lastSale?.clientName || "عميل نقدي"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>البائع:</span>
+            <span>
+              {currentUser?.name || lastSale?.employeeName || "System"}
+            </span>
+          </div>
+        </div>
+
+        <div className="border-b border-gray-300 my-2"></div>
+
+        <table className="w-full text-xs text-right">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="py-1">الصنف</th>
+              <th className="py-1 text-center">ك</th>
+              <th className="py-1 text-left">ق</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(cartItems.length > 0 ? cartItems : lastSale?.items || []).map(
+              (item, idx) => (
+                <tr key={idx} className="border-b border-gray-50">
+                  <td className="py-2">{item.name}</td>
+                  <td className="py-2 text-center">{item.quantity}</td>
+                  <td className="py-2 text-left">{item.total.toFixed(2)}</td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
+
+        <div className="mt-4 space-y-1 text-xs">
+          <div className="flex justify-between font-bold text-sm">
+            <span>الإجمالي</span>
+            <span>
+              {(cartItems.length > 0 ? total : lastSale?.total || 0).toFixed(2)}{" "}
+              ج.م
+            </span>
+          </div>
+          <div className="flex justify-between opacity-80">
+            <span>قيمة الضريبة</span>
+            <span>
+              {(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(
+                2
+              )}{" "}
+              ج.م
+            </span>
+          </div>
+          <div className="flex justify-between opacity-80">
+            <span>طريقة الدفع</span>
+            <span>{lastSale?.paymentMethod === "CASH" ? "نقدي" : "بطاقة"}</span>
+          </div>
+        </div>
+
+        <div className="border-t border-dashed border-black mt-6 mb-2"></div>
+        <div className="text-center">
+          <p className="text-xs font-bold italic">نأمل رؤيتكم مرة أخرى</p>
+          <p className="text-[10px] mt-1">Elghonemy ERP System</p>
+        </div>
+      </div>
+    </div>
   );
 };
 

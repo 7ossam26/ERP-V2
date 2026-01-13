@@ -21,65 +21,6 @@ const DashboardCard = ({ icon, title, description, onClick }) => (
 
 const CreatesDashboard = () => {
   const navigate = useNavigate();
-
-  const cards = [
-    {
-      icon: "badge",
-      title: "الموظف",
-      description: "إدارة بيانات الموظفين",
-      onClick: () => navigate("/employees"),
-      permission: "CREATES_EMPLOYEES",
-    },
-    {
-      icon: "local_shipping",
-      title: "المورد",
-      description: "سجلات الموردين والشركاء",
-      onClick: () => navigate("/suppliers"),
-      permission: "CREATES_SUPPLIERS",
-    },
-    {
-      icon: "groups",
-      title: "العملاء",
-      description: "قاعدة بيانات العملاء",
-      onClick: () => navigate("/clients"),
-      permission: "CREATES_CLIENTS",
-    },
-    {
-      icon: "inventory_2",
-      title: "الأصناف",
-      description: "المنتجات والأسعار",
-      onClick: () => navigate("/items"),
-      permission: "CREATES_ITEMS",
-    },
-    {
-      icon: "warehouse",
-      title: "المخازن",
-      description: "الجرد والمستودعات",
-      onClick: () => navigate("/warehouses"),
-      permission: "CREATES_WAREHOUSES",
-    },
-    {
-      icon: "category",
-      title: "التصنيفات",
-      description: "إدارة فئات المنتجات",
-      onClick: () => navigate("/categories"),
-      permission: "CREATES_CATEGORIES",
-    },
-    {
-      icon: "savings",
-      title: "الخزائن",
-      description: "المالية والنقدية",
-      onClick: () => navigate("/treasuries"),
-      permission: "CREATES_TREASURIES",
-    },
-    {
-      icon: "storefront",
-      title: "الفروع",
-      description: "إعدادات فروع المتجر",
-      onClick: () => navigate("/branches"),
-      permission: "CREATES_BRANCHES",
-    },
-  ];
   const creationModules = getCreationModules();
 
   const cards = creationModules.map((m) => ({
@@ -106,14 +47,6 @@ const CreatesDashboard = () => {
         {cards
           .filter((card) => {
             if (!card.permission) return true;
-            return AuthService.hasPermission(card.permission);
-          })
-          .map((card, index) => (
-            <DashboardCard key={index} {...card} />
-          ))}
-        {cards
-          .filter((card) => {
-            // Strict permission check: must match permission code
             return AuthService.hasPermission(card.permission);
           })
           .map((card, index) => (

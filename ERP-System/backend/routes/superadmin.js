@@ -68,9 +68,10 @@ router.post("/users", async (req, res) => {
     });
 
     // Determine hasSensitiveAccess value
-    let hasSensitiveAccess = req.body.hasSensitiveAccess !== undefined
-      ? req.body.hasSensitiveAccess
-      : ['Superadmin', 'Admin', 'Manager'].includes(role?.name);
+    let hasSensitiveAccess =
+      req.body.hasSensitiveAccess !== undefined
+        ? req.body.hasSensitiveAccess
+        : ["Superadmin", "Admin", "Manager"].includes(role?.name);
 
     const newUser = await prisma.user.create({
       data: {
@@ -109,7 +110,10 @@ router.put("/users/:id", async (req, res) => {
       roleId: parseInt(roleId),
       branchId: branchId ? parseInt(branchId) : undefined,
       isActive: req.body.isActive !== undefined ? req.body.isActive : undefined,
-      hasSensitiveAccess: req.body.hasSensitiveAccess !== undefined ? req.body.hasSensitiveAccess : undefined,
+      hasSensitiveAccess:
+        req.body.hasSensitiveAccess !== undefined
+          ? req.body.hasSensitiveAccess
+          : undefined,
     };
 
     // Remove undefined keys

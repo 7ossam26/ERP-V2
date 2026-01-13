@@ -49,3 +49,42 @@
     transform: scale(1.05);
   }
 }
+
+/* Thermal Printer Receipt Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #thermal-receipt,
+  #thermal-receipt * {
+    visibility: visible;
+  }
+  #thermal-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm; /* Standard thermal width, can be adjusted to 58mm if needed */
+    padding: 5mm;
+    background: white !important;
+    color: black !important;
+    font-family: "Cairo", sans-serif;
+    font-size: 12px;
+  }
+
+  /* Reset layout for print */
+  @page {
+    size: auto;
+    margin: 0mm;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: white !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
