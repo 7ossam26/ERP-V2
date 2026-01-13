@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
+import { getCreationModules } from "../config/modules";
 
 const DashboardCard = ({ icon, title, description, onClick }) => (
   <div
@@ -21,72 +22,15 @@ const DashboardCard = ({ icon, title, description, onClick }) => (
 const CreatesDashboard = () => {
   const navigate = useNavigate();
 
-  const cards = [
-    {
-      icon: "badge",
-      title: "الموظف",
-      description: "إدارة بيانات الموظفين",
-      onClick: () => navigate("/employees"),
-      permission: "EMPLOYEES",
-      creationPermission: "CREATES_EMPLOYEES"
-    },
-    {
-      icon: "local_shipping",
-      title: "المورد",
-      description: "سجلات الموردين والشركاء",
-      onClick: () => navigate("/suppliers"),
-      permission: "SUPPLIERS",
-      creationPermission: "CREATES_SUPPLIERS"
-    },
-    {
-      icon: "groups",
-      title: "العملاء",
-      description: "قاعدة بيانات العملاء",
-      onClick: () => navigate("/clients"),
-      permission: "CLIENTS",
-      creationPermission: "CREATES_CLIENTS"
-    },
-    {
-      icon: "inventory_2",
-      title: "الأصناف",
-      description: "المنتجات والأسعار",
-      onClick: () => navigate("/items"),
-      permission: "ITEMS",
-      creationPermission: "CREATES_ITEMS"
-    },
-    {
-      icon: "warehouse",
-      title: "المخازن",
-      description: "الجرد والمستودعات",
-      onClick: () => navigate("/warehouses"),
-      permission: "WAREHOUSES",
-      creationPermission: "CREATES_WAREHOUSES"
-    },
-    {
-      icon: "category",
-      title: "التصنيفات",
-      description: "إدارة فئات المنتجات",
-      onClick: () => navigate("/categories"),
-      permission: "CATEGORIES",
-      creationPermission: "CREATES_CATEGORIES"
-    },
-    {
-      icon: "savings",
-      title: "الخزائن",
-      description: "المالية والنقدية",
-      onClick: () => navigate("/treasuries"),
-      permission: "TREASURIES",
-      creationPermission: "CREATES_TREASURIES"
-    },
-    {
-      icon: "storefront",
-      title: "الفروع",
-      description: "إعدادات فروع المتجر",
-      onClick: () => navigate("/branches"),
-      permission: "BRANCHES",
-      creationPermission: "CREATES_BRANCHES"
-    },
-  ];
+  const creationModules = getCreationModules();
+
+  const cards = creationModules.map(m => ({
+    icon: m.icon,
+    title: m.label,
+    description: m.description,
+    onClick: () => navigate(m.path),
+    permission: m.code
+  }));
 
   return (
     <div className="w-full max-w-5xl mx-auto">
@@ -102,9 +46,8 @@ const CreatesDashboard = () => {
       </div>
       <div className="flex flex-wrap justify-center gap-6">
         {cards.filter(card => {
-          if (!card.permission) return true;
-          return AuthService.hasPermission(card.permission) ||
-            (card.creationPermission && AuthService.hasPermission(card.creationPermission));
+          // Strict permission check: must match permission code
+          return AuthService.hasPermission(card.permission);
         }).map((card, index) => (
           <DashboardCard key={index} {...card} />
         ))}

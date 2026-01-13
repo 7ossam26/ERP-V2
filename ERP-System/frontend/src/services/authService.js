@@ -76,6 +76,23 @@ const AuthService = {
     isSuperadmin: () => {
         const user = AuthService.getCurrentUser();
         return user && user.role === "Superadmin";
+    },
+
+    // Refresh user profile from backend
+    refreshProfile: async () => {
+        try {
+            const response = await apiClient.get("/auth/me");
+            const userData = response.data || response;
+
+            if (userData) {
+                // Preserve the token, update the user object
+                localStorage.setItem("user", JSON.stringify(userData));
+                return userData;
+            }
+        } catch (error) {
+            console.error("Failed to refresh profile:", error);
+            return null;
+        }
     }
 };
 

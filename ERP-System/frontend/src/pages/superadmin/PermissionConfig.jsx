@@ -2,18 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SuperadminService from "../../services/superadminService";
 import { toast } from "react-hot-toast";
-
-const MANAGEMENT_MODULES = [
-    "HR", "INVENTORY", "POS", "PURCHASES", "SALES", "REPORTS",
-    "TREASURIES", "BRANCHES", "EMPLOYEES", "CLIENTS", "SUPPLIERS",
-    "CATEGORIES", "ITEMS", "WAREHOUSES", "SETTINGS", "EXPENSES"
-];
-
-const CREATION_MODULES = [
-    "CREATES_WAREHOUSES", "CREATES_EMPLOYEES", "CREATES_SUPPLIERS",
-    "CREATES_CLIENTS", "CREATES_CATEGORIES", "CREATES_ITEMS",
-    "CREATES_TREASURIES", "CREATES_BRANCHES"
-];
+import { getManagementModules, getCreationModules } from "../../config/modules";
 
 const PermissionConfig = () => {
     const { id } = useParams();
@@ -22,11 +11,21 @@ const PermissionConfig = () => {
     const [permissions, setPermissions] = useState({});
     const [isLoading, setIsLoading] = useState(true);
 
+    const managementModules = getManagementModules();
+    const creationModules = getCreationModules();
+
+    // Helper to get all unique permission codes
+    const getAllPermissionCodes = () => {
+        const codes = new Set();
+        [...managementModules, ...creationModules].forEach(m => codes.add(m.code));
+        return Array.from(codes);
+    };
+
     useEffect(() => {
-        // Initialize default permissions for ALL modules
+        // Initialize default permissions for ALL unique codes
         const defaultPerms = {};
-        [...MANAGEMENT_MODULES, ...CREATION_MODULES].forEach(m => {
-            defaultPerms[m] = { module: m, canAccess: false };
+        getAllPermissionCodes().forEach(code => {
+            defaultPerms[code] = { module: code, canAccess: false };
         });
         setPermissions(defaultPerms);
 
@@ -45,10 +44,6 @@ const PermissionConfig = () => {
 
                 if (permissionsData && Array.isArray(permissionsData)) {
                     permissionsData.forEach(p => {
-                        // Backend might return old fields, but we only care about canAccess
-                        // If migrating from old data, they might not have canAccess set yet? 
-                        // The database migration added default false. 
-                        // If we want to be safe, we could check old fields, but let's assume cleaner start or manual update.
                         loadedPerms[p.module] = {
                             module: p.module,
                             canAccess: !!p.canAccess
@@ -67,12 +62,12 @@ const PermissionConfig = () => {
         fetchData();
     }, [id]);
 
-    const handleToggle = (module) => {
+    const handleToggle = (code) => {
         setPermissions(prev => ({
             ...prev,
-            [module]: {
-                ...prev[module],
-                canAccess: !prev[module].canAccess
+            [code]: {
+                ...prev[code],
+                canAccess: !prev[code].canAccess
             }
         }));
     };
@@ -103,18 +98,30 @@ const PermissionConfig = () => {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {modules.map(module => (
-                        <tr key={module} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition cursor-pointer" onClick={() => handleToggle(module)}>
-                            <td className="p-4 font-semibold text-slate-700 dark:text-slate-200">
-                                {module.replace("CREATES_", "Create ")}
-                            </td>
-                            <td className="p-4 text-center">
-                                <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 mx-auto ${permissions[module]?.canAccess ? 'bg-green-500' : 'bg-slate-200 dark:bg-slate-600'}`}>
-                                    <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-300 ${permissions[module]?.canAccess ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
+                    {modules.map(module => {
+                        // Check if this code is already handled by a previous row in THIS table to avoid duplicates in display?
+                        // The user said "sync it by its name" and complained about duplicates.
+                        // But if we iterate 'modules' (which comes from modules.js), we might have multiple items with same code.
+                        // Example: Stock Transfer (INVENTORY) and Inventory (INVENTORY).
+                        // If we render both, clicking one toggles 'INVENTORY'. Clicking other also toggles 'INVENTORY'.
+                        // This seems to be what is requested: "loop on cards... and sync it by name".
+                        // So we render ALL cards.
+
+                        const isGranted = permissions[module.code]?.canAccess;
+
+                        return (
+                            <tr key={module.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition cursor-pointer" onClick={() => handleToggle(module.code)}>
+                                <td className="p-4 font-semibold text-slate-700 dark:text-slate-200">
+                                    {module.label}
+                                </td>
+                                <td className="p-4 text-center">
+                                    <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 mx-auto ${isGranted ? 'bg-green-500' : 'bg-slate-200 dark:bg-slate-600'}`}>
+                                        <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-300 ${isGranted ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -149,8 +156,8 @@ const PermissionConfig = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-6">
-                {renderPermissionTable(MANAGEMENT_MODULES, "Management Modules", "apps")}
-                {renderPermissionTable(CREATION_MODULES, "Creation Permissions", "add_circle")}
+                {renderPermissionTable(managementModules, "Management Modules", "apps")}
+                {renderPermissionTable(creationModules, "Creation Permissions", "add_circle")}
             </div>
         </div>
     );

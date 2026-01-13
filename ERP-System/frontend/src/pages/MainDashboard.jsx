@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
+import { getManagementModules, getCreationModules } from "../config/modules";
 
 const MainDashboardCard = ({ icon, title, subtitle, onClick }) => (
   <div
@@ -23,96 +24,30 @@ const MainDashboardCard = ({ icon, title, subtitle, onClick }) => (
 const MainDashboard = () => {
   const navigate = useNavigate();
 
+  // Load modules from config
+  const managementModules = getManagementModules();
+  const creationModules = getCreationModules();
+
+  // Transform config modules to dashboard card format
   const cards = [
+    // Special "Creates" Card
     {
       icon: "qr_code_2",
       title: "تكويدات",
       subtitle: "إدارة الأصناف",
       onClick: () => navigate("/creates"),
-      permission: {
-        type: "some", modules: [
-          "ITEMS", "CATEGORIES", "WAREHOUSES", "BRANCHES",
-          "EMPLOYEES", "SUPPLIERS", "CLIENTS", "TREASURIES"
-        ]
-      }
+      // Special logic: Show if user has ANY creation permission
+      isCreatesCard: true,
+      creationPermissions: creationModules.map(m => m.code)
     },
-    {
-      icon: "shopping_cart",
-      title: "مشتريات",
-      subtitle: "إدارة التوريد",
-      onClick: () => navigate("/purchases"),
-      permission: "PURCHASES"
-    },
-    {
-      icon: "point_of_sale",
-      title: "مبيعات",
-      subtitle: "فاتورة جديدة",
-      onClick: () => navigate("/pos"),
-      permission: "POS"
-    },
-    {
-      icon: "inventory_2",
-      title: "تحويلات مخزنية",
-      subtitle: "نقل البضائع",
-      onClick: () => navigate("/stock-transfer"),
-      permission: "INVENTORY"
-    },
-    {
-      icon: "account_balance_wallet",
-      title: "تحويلات الخزائن",
-      subtitle: "النقدية والسيولة",
-      onClick: () => navigate("/cashier-transfer"),
-      permission: "TREASURIES"
-    },
-    {
-      icon: "storefront",
-      title: "مبيعات الفروع",
-      subtitle: "تقارير الفروع",
-      onClick: () => navigate("/branches-sales"),
-      permission: "BRANCHES"
-    },
-    {
-      icon: "fact_check",
-      title: "الجرد",
-      subtitle: "جرد المخزون",
-      onClick: () => navigate("/inventory"),
-      permission: "INVENTORY"
-    },
-    {
-      icon: "bar_chart",
-      title: "تقارير",
-      subtitle: "تحليل البيانات",
-      onClick: () => navigate("/reports"),
-      permission: "REPORTS"
-    },
-    {
-      icon: "receipt_long",
-      title: "مصروفات",
-      subtitle: "إدارة المصروفات والفواتير",
-      onClick: () => navigate("/expenses"),
-      permission: "TREASURIES"
-    },
-    {
-      icon: "groups",
-      title: "موارد بشرية",
-      subtitle: "إدارة الموظفين",
-      onClick: () => navigate("/hr"),
-      permission: "EMPLOYEES"
-    },
-    {
-      icon: "settings",
-      title: "الإعدادات",
-      subtitle: "إعدادات النظام",
-      onClick: () => navigate("/settings"),
-      permission: "SETTINGS"
-    },
-    {
-      icon: "manage_accounts",
-      title: "إدارة التحويلات",
-      subtitle: "قبول ورفض التحويلات",
-      onClick: () => navigate("/transfer-management"),
-      permission: "TREASURIES"
-    },
+    // Standard Management Cards
+    ...managementModules.map(m => ({
+      icon: m.icon,
+      title: m.label,
+      subtitle: m.description,
+      onClick: () => navigate(m.path),
+      permission: m.code
+    }))
   ];
 
   return (
@@ -136,9 +71,12 @@ const MainDashboard = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
         {cards.filter(card => {
-          if (!card.permission) return true;
-          if (typeof card.permission === 'string') return AuthService.hasPermission(card.permission);
-          if (card.permission.type === 'some') return AuthService.hasAnyPermission(card.permission.modules);
+          if (card.isCreatesCard) {
+            return AuthService.hasAnyPermission(card.creationPermissions);
+          }
+          if (card.permission) {
+            return AuthService.hasPermission(card.permission);
+          }
           return true;
         }).map((card, index) => (
           <MainDashboardCard key={index} {...card} />

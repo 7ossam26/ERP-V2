@@ -1,14 +1,28 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import AuthService from "../services/authService";
 import Modal from "../components/ui/Modal";
 import Footer from "../components/shared/Footer";
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-  const user = AuthService.getCurrentUser();
+
+  // Use state for user to trigger re-renders when profile refreshes
+  const [user, setUser] = useState(AuthService.getCurrentUser());
+
+  // Refresh user profile on navigation to ensure permissions are up to date
+  useEffect(() => {
+    const refreshUser = async () => {
+      const updatedUser = await AuthService.refreshProfile();
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
+    };
+    refreshUser();
+  }, [location.pathname]);
 
   const handleLogoutClick = () => {
     setIsLogoutModalOpen(true);
