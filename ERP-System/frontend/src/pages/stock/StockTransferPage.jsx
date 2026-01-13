@@ -77,7 +77,7 @@ const StockTransferPage = () => {
     const matchesSearch = product.name
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch && product.quantity > 0; // Only show items with stock
+    return matchesCategory && matchesSearch; // Show all items regardless of stock
   });
 
   // Handlers
