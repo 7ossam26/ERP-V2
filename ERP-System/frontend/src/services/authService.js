@@ -85,6 +85,19 @@ const AuthService = {
             const userData = response.data || response;
 
             if (userData) {
+                // Check if critical data has changed
+                const currentUser = AuthService.getCurrentUser();
+                if (currentUser) {
+                    const hasPermissionsChanged = JSON.stringify(currentUser.permissions || {}) !== JSON.stringify(userData.permissions || {});
+                    // Handle potential differences in role object vs string if applicable, though usually consistent
+                    const hasRoleChanged = currentUser.role !== userData.role;
+                    const hasNameChanged = currentUser.name !== userData.name;
+
+                    if (!hasPermissionsChanged && !hasRoleChanged && !hasNameChanged) {
+                        return null; // No significant change, avoid re-render
+                    }
+                }
+
                 // Preserve the token, update the user object
                 localStorage.setItem("user", JSON.stringify(userData));
                 return userData;
