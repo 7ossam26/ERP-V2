@@ -3,8 +3,8 @@ const router = express.Router();
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission } = require("../middleware/auth");
 
-// Protect all routes with SETTINGS permission
-router.use(authenticateToken, requirePermission("SETTINGS"));
+// Protect all routes with authentication
+router.use(authenticateToken);
 
 // GET System Configuration
 router.get("/", async (req, res) => {
@@ -48,7 +48,7 @@ const safeInt = (val) => {
 };
 
 // PUT Update Configuration
-router.put("/", async (req, res) => {
+router.put("/", requirePermission("SETTINGS"), async (req, res) => {
   try {
     const {
       companyName,

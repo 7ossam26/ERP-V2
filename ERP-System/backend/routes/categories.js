@@ -3,8 +3,8 @@ const router = express.Router();
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
 
-// Protect all routes with CATEGORIES permission
-router.use(authenticateToken, requirePermission("CATEGORIES"));
+// Protect all routes with authentication
+router.use(authenticateToken);
 
 // GET all categories
 router.get("/", async (req, res) => {
@@ -60,7 +60,7 @@ router.post("/", requireCreatePermission("CREATES_CATEGORIES"), async (req, res)
 });
 
 // PUT update category
-router.put("/:id", async (req, res) => {
+router.put("/:id", requirePermission("CATEGORIES"), async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -82,7 +82,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE category
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requirePermission("CATEGORIES"), async (req, res) => {
   try {
     await prisma.category.delete({
       where: { id: parseInt(req.params.id) },
