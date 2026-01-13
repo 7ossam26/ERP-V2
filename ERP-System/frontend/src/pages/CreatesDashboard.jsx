@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
+import { getCreationModules } from "../config/modules";
 
 const DashboardCard = ({ icon, title, description, onClick }) => (
   <div
@@ -79,6 +80,15 @@ const CreatesDashboard = () => {
       permission: "CREATES_BRANCHES",
     },
   ];
+  const creationModules = getCreationModules();
+
+  const cards = creationModules.map((m) => ({
+    icon: m.icon,
+    title: m.label,
+    description: m.description,
+    onClick: () => navigate(m.path),
+    permission: m.code,
+  }));
 
   return (
     <div className="w-full max-w-5xl mx-auto">
@@ -96,6 +106,14 @@ const CreatesDashboard = () => {
         {cards
           .filter((card) => {
             if (!card.permission) return true;
+            return AuthService.hasPermission(card.permission);
+          })
+          .map((card, index) => (
+            <DashboardCard key={index} {...card} />
+          ))}
+        {cards
+          .filter((card) => {
+            // Strict permission check: must match permission code
             return AuthService.hasPermission(card.permission);
           })
           .map((card, index) => (

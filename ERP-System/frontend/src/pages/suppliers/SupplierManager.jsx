@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { supplierService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 
 const SupplierForm = ({ initialData, onClose, onSave, data }) => {
   // Calculate next ID if creating new supplier
@@ -142,6 +143,7 @@ const SupplierManager = () => {
       columns={columns}
       FormComponent={SupplierForm}
       emptyMessage="لا يوجد موردين مسجلين."
+      hideAddButton={!AuthService.hasPermission("CREATES_SUPPLIERS")}
     />
   );
 };

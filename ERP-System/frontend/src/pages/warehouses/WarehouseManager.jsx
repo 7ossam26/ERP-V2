@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { warehouseService } from "../../services/warehouseService";
+import AuthService from "../../services/authService";
 
 const WarehouseForm = ({ initialData, onClose, onSave, data = [] }) => {
   const [formData, setFormData] = useState({
@@ -123,6 +124,7 @@ const WarehouseManager = () => {
       columns={columns}
       FormComponent={WarehouseForm}
       emptyMessage="لا توجد مخازن مضافة بعد."
+      hideAddButton={!AuthService.hasPermission("CREATES_WAREHOUSES")}
     />
   );
 };

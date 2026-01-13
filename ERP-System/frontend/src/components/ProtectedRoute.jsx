@@ -21,15 +21,22 @@ const ProtectedRoute = ({ requiredRole, requiredPermission, children }) => {
 
     // Permission-based access control
     if (requiredPermission) {
-        // Handle both string "MODULE" and object { module: "MODULE" } formats
-        const moduleName = typeof requiredPermission === 'string'
-            ? requiredPermission
-            : requiredPermission.module;
-
-        if (moduleName) {
-            const hasPerm = AuthService.hasPermission(moduleName);
-            if (!hasPerm) {
-                // User doesn't have permission for this module
+        // Handle array of permissions (OR logic)
+        if (Array.isArray(requiredPermission)) {
+            const hasAny = AuthService.hasAnyPermission(requiredPermission);
+            if (!hasAny) {
+                return <Navigate to="/forbidden" replace />;
+            }
+        }
+        // Handle single permission string
+        else if (typeof requiredPermission === 'string') {
+            if (!AuthService.hasPermission(requiredPermission)) {
+                return <Navigate to="/forbidden" replace />;
+            }
+        }
+        // Handle object format { module: "MODULE" } (legacy support if needed)
+        else if (requiredPermission.module) {
+            if (!AuthService.hasPermission(requiredPermission.module)) {
                 return <Navigate to="/forbidden" replace />;
             }
         }

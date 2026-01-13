@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { branchService, treasuryService } from "../../services/domainServices";
 import { warehouseService } from "../../services/warehouseService";
+import AuthService from "../../services/authService";
 
 const BranchForm = ({ initialData, onClose, onSave, data }) => {
   // Calculate next ID if creating new branch
@@ -261,6 +262,7 @@ const BranchManager = () => {
       columns={columns}
       FormComponent={BranchForm}
       emptyMessage="لا توجد فروع مسجلة."
+      hideAddButton={!AuthService.hasPermission("CREATES_BRANCHES")}
     />
   );
 };

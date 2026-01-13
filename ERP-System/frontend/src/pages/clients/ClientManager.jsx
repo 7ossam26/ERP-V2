@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { clientService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 
 export const ClientForm = ({ initialData, onClose, onSave, data }) => {
   // Calculate next ID if creating new client
@@ -141,6 +142,7 @@ const ClientManager = () => {
       columns={columns}
       FormComponent={ClientForm}
       emptyMessage="لا يوجد عملاء مسجلين."
+      hideAddButton={!AuthService.hasPermission("CREATES_CLIENTS")}
     />
   );
 };

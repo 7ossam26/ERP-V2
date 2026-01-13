@@ -123,6 +123,7 @@ router.post("/login", loginLimiter, async (req, res) => {
         id: user.id,
         username: user.username,
         role: user.role.name,
+        hasSensitiveAccess: user.hasSensitiveAccess,
       },
       JWT_SECRET,
       { expiresIn: TOKEN_EXPIRY }
@@ -150,6 +151,7 @@ router.post("/login", loginLimiter, async (req, res) => {
         roleId: user.roleId,
         branch: user.branch,
         permissions: permissions,
+        hasSensitiveAccess: user.hasSensitiveAccess,
       },
     });
   } catch (error) {
@@ -199,6 +201,7 @@ router.get("/me", authenticateToken, async (req, res) => {
       roleId: user.roleId,
       branch: user.branch,
       permissions: permissions,
+      hasSensitiveAccess: user.hasSensitiveAccess,
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch user details" });

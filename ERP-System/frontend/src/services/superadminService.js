@@ -12,6 +12,7 @@ const SuperadminService = {
     // === Role Management ===
     getRoles: () => api.get("/superadmin/roles"),
     createRole: (data) => api.post("/superadmin/roles", data),
+    deleteRole: (id) => api.delete(`/superadmin/roles/${id}`),
     getRole: (id) => api.get(`/superadmin/roles/${id}`),
 
     // === Permission Management ===

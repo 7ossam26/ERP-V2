@@ -5,6 +5,7 @@ import {
   supplierService,
   categoryService,
 } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 
 export const ItemForm = ({ initialData, onClose, onSave, data }) => {
   // Calculate next ID if creating new item
@@ -377,6 +378,7 @@ const ItemManager = () => {
       columns={columns}
       FormComponent={ItemForm}
       emptyMessage="لا توجد أصناف مسجلة."
+      hideAddButton={!AuthService.hasPermission("CREATES_ITEMS")}
     />
   );
 };

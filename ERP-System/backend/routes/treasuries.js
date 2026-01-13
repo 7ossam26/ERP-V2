@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, requireAnyPermission } = require("../middleware/auth");
 
-// Protect all routes with TREASURIES permission
-router.use(authenticateToken, requirePermission("TREASURIES"));
+// Protect all routes with authentication
+router.use(authenticateToken);
 
 // GET all treasuries
 router.get("/", async (req, res) => {
@@ -59,7 +59,7 @@ router.get("/:id", async (req, res) => {
 
 // POST Transfer between treasuries
 // POST Transfer Request (Handshake Step 1)
-router.post("/transfer", async (req, res) => {
+router.post("/transfer", requirePermission("TREASURIES"), async (req, res) => {
   try {
     const { fromTreasuryId, toTreasuryId, amount, notes } = req.body;
     const transferAmount = Number(amount);
@@ -152,7 +152,7 @@ router.post("/transfer", async (req, res) => {
 });
 
 // POST Approve Transfer (Handshake Step 2)
-router.post("/transfer/:id/approve", async (req, res) => {
+router.post("/transfer/:id/approve", requirePermission("TREASURIES"), async (req, res) => {
   try {
     const transferId = parseInt(req.params.id);
 
@@ -188,7 +188,7 @@ router.post("/transfer/:id/approve", async (req, res) => {
 });
 
 // POST Reject Transfer (Refund)
-router.post("/transfer/:id/reject", async (req, res) => {
+router.post("/transfer/:id/reject", requirePermission("TREASURIES"), async (req, res) => {
   try {
     const transferId = parseInt(req.params.id);
 
@@ -239,7 +239,7 @@ router.post("/", requireCreatePermission("CREATES_TREASURIES"), async (req, res)
 });
 
 // PUT update treasury
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireAnyPermission(["TREASURIES", "CREATES_TREASURIES"]), async (req, res) => {
   try {
     const { name } = req.body;
     const treasury = await prisma.treasury.update({
@@ -255,7 +255,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE treasury
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requirePermission("TREASURIES"), async (req, res) => {
   try {
     await prisma.treasury.delete({
       where: { id: parseInt(req.params.id) },

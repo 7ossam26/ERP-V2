@@ -76,6 +76,48 @@ const AuthService = {
     isSuperadmin: () => {
         const user = AuthService.getCurrentUser();
         return user && user.role === "Superadmin";
+    },
+
+    // Check if user has sensitive access (can edit/delete sensitive data)
+    hasSensitiveAccess: () => {
+        const user = AuthService.getCurrentUser();
+        if (!user) return false;
+
+        // Superadmin always has sensitive access
+        if (user.role === "Superadmin") return true;
+
+        // Check hasSensitiveAccess flag
+        return !!user.hasSensitiveAccess;
+    },
+
+    // Refresh user profile from backend
+    refreshProfile: async () => {
+        try {
+            const response = await apiClient.get("/auth/me");
+            const userData = response.data || response;
+
+            if (userData) {
+                // Check if critical data has changed
+                const currentUser = AuthService.getCurrentUser();
+                if (currentUser) {
+                    const hasPermissionsChanged = JSON.stringify(currentUser.permissions || {}) !== JSON.stringify(userData.permissions || {});
+                    // Handle potential differences in role object vs string if applicable, though usually consistent
+                    const hasRoleChanged = currentUser.role !== userData.role;
+                    const hasNameChanged = currentUser.name !== userData.name;
+
+                    if (!hasPermissionsChanged && !hasRoleChanged && !hasNameChanged) {
+                        return null; // No significant change, avoid re-render
+                    }
+                }
+
+                // Preserve the token, update the user object
+                localStorage.setItem("user", JSON.stringify(userData));
+                return userData;
+            }
+        } catch (error) {
+            console.error("Failed to refresh profile:", error);
+            return null;
+        }
     }
 };
 
