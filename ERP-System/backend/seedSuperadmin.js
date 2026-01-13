@@ -192,6 +192,7 @@ async function main() {
         password: hashedPassword,
         roleId: superadminRole.id,
         branchId: branch.id,
+        hasSensitiveAccess: true,
       },
       create: {
         name: "Superadmin",
@@ -200,6 +201,7 @@ async function main() {
         roleId: superadminRole.id,
         branchId: branch.id,
         isActive: true,
+        hasSensitiveAccess: true,
       },
     });
     console.log(`👤 [DEBUG] Superadmin user ready: ${superadmin.username}`);
