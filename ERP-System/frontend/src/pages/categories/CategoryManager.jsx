@@ -1,6 +1,7 @@
 import React from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { categoryService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 
 const CategoryForm = ({ initialData, onSave, onClose, data }) => {
   // Calculate next ID if creating new category
@@ -83,6 +84,7 @@ const CategoryManager = () => {
       FormComponent={CategoryForm}
       emptyMessage="لا توجد تصنيفات مضافة"
       backPath="/creates"
+      hideAddButton={!AuthService.hasPermission("CREATES_CATEGORIES")}
     />
   );
 };

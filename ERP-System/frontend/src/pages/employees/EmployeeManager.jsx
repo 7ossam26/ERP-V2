@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { employeeService, branchService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 
 const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   // Calculate next ID if creating new employee
@@ -385,6 +386,7 @@ const EmployeeManager = () => {
       columns={columns}
       FormComponent={EmployeeForm}
       emptyMessage="لا يوجد موظفين مسجلين."
+      hideAddButton={!AuthService.hasPermission("CREATES_EMPLOYEES")}
     />
   );
 };

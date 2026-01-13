@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { treasuryService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 
 const TreasuryForm = ({ initialData, onClose, onSave, data = [] }) => {
   const [formData, setFormData] = useState({
@@ -117,6 +118,7 @@ const TreasuryManager = () => {
       columns={columns}
       FormComponent={TreasuryForm}
       emptyMessage="لا توجد خزائن مسجلة."
+      hideAddButton={!AuthService.hasPermission("CREATES_TREASURIES")}
     />
   );
 };
