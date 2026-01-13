@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, requireAnyPermission } = require("../middleware/auth");
 
-// Protect all routes with SUPPLIERS permission
-router.use(authenticateToken, requirePermission("SUPPLIERS"));
+// Protect all routes with authentication
+router.use(authenticateToken);
 
 // GET all suppliers
 router.get("/", async (req, res) => {
@@ -61,7 +61,7 @@ router.post("/", requireCreatePermission("CREATES_SUPPLIERS"), async (req, res) 
 });
 
 // PUT update supplier
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireAnyPermission(["SUPPLIERS", "CREATES_SUPPLIERS"]), async (req, res) => {
   try {
     const { name, phoneNumber } = req.body;
 
@@ -84,7 +84,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE supplier
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requirePermission("SUPPLIERS"), async (req, res) => {
   try {
     await prisma.supplier.delete({
       where: { id: parseInt(req.params.id) },

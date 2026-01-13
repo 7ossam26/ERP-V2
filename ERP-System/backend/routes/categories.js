@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, requireAnyPermission } = require("../middleware/auth");
 
 // Protect all routes with authentication
 router.use(authenticateToken);
@@ -60,7 +60,7 @@ router.post("/", requireCreatePermission("CREATES_CATEGORIES"), async (req, res)
 });
 
 // PUT update category
-router.put("/:id", requirePermission("CATEGORIES"), async (req, res) => {
+router.put("/:id", requireAnyPermission(["CATEGORIES", "CREATES_CATEGORIES"]), async (req, res) => {
   try {
     const { name } = req.body;
 

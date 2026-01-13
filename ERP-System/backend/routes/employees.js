@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission } = require("../middleware/auth");
 
 // Helper to get date range for a month
 const getMonthDateRange = (month, year) => {
@@ -10,8 +10,8 @@ const getMonthDateRange = (month, year) => {
   return { startDate, endDate };
 };
 
-// Protect all routes with EMPLOYEES permission
-router.use(authenticateToken, requirePermission("EMPLOYEES"));
+// Protect all routes with authentication
+router.use(authenticateToken);
 
 // GET all employees (with calculated current month stats)
 router.get("/", async (req, res) => {
@@ -361,7 +361,7 @@ router.post("/", requireCreatePermission("CREATES_EMPLOYEES"), async (req, res) 
 });
 
 // PUT update employee
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireAnyPermission(["EMPLOYEES", "CREATES_EMPLOYEES"]), async (req, res) => {
   try {
     const {
       name,
@@ -409,7 +409,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE employee
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requirePermission("EMPLOYEES"), async (req, res) => {
   try {
     await prisma.employee.delete({
       where: { id: parseInt(req.params.id) },

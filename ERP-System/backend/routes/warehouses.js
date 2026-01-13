@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission } = require("../middleware/auth");
 
 // Protect all routes with WAREHOUSES permission
 // Protect all routes with authentication
@@ -72,7 +72,7 @@ router.post("/", requireCreatePermission("CREATES_WAREHOUSES"), async (req, res)
 });
 
 // PUT update warehouse - Requires WAREHOUSES management permission
-router.put("/:id", requirePermission("WAREHOUSES"), async (req, res) => {
+router.put("/:id", requireAnyPermission(["WAREHOUSES", "CREATES_WAREHOUSES"]), async (req, res) => {
   try {
     const { name } = req.body;
     const warehouse = await prisma.warehouse.update({

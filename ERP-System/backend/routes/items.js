@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireCreatePermission, requireAnyPermission } = require("../middleware/auth");
 
-// Protect all routes with ITEMS permission
-router.use(authenticateToken, requirePermission("ITEMS"));
+// Protect all routes with authentication
+router.use(authenticateToken);
 
 // GET all items
 router.get("/", async (req, res) => {
@@ -104,7 +104,7 @@ router.post("/", requireCreatePermission("CREATES_ITEMS"), async (req, res) => {
 });
 
 // PUT update item
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireAnyPermission(["ITEMS", "CREATES_ITEMS"]), async (req, res) => {
   try {
     const { name, price, unit, reorderPoint, suppliers, categories } = req.body;
     const itemId = parseInt(req.params.id);
@@ -174,7 +174,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE item
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requirePermission("ITEMS"), async (req, res) => {
   try {
     await prisma.item.delete({
       where: { id: parseInt(req.params.id) },

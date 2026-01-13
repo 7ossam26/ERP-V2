@@ -64,8 +64,9 @@ router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) =>
 });
 
 // PUT update client
-// PUT update client - Requires VIEW permission (managing clients implied)
-router.put("/:id", requirePermission("CLIENTS"), async (req, res) => {
+// PUT update client
+// PUT update client - Requires VIEW permission (managing clients implied) OR create permission (operational editing)
+router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS"]), async (req, res) => {
   try {
     const { name, phoneNumber } = req.body;
 
