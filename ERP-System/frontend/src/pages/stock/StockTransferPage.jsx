@@ -145,13 +145,24 @@ const StockTransferPage = () => {
         toast.error("فشل تحديث المخزون");
       }
     } else {
-      setProducts([]);
+      try {
+        const inventoryItems = await inventoryService.getInventory({});
+        setProducts(inventoryItems);
+      } catch (error) {
+        console.error("Failed to fetch all inventory", error);
+        toast.error("فشل تحديث المخزون");
+      }
     }
   };
 
   const handleConfirmTransfer = async () => {
+    if (!fromWarehouseId) {
+      toast.error("يرجى اختيار المخزن المصدر (من)");
+      return;
+    }
+
     if (!selectedWarehouse) {
-      toast.error("يرجى اختيار المخزن المستلم");
+      toast.error("يرجى اختيار المخزن المستلم (إلى)");
       return;
     }
 
@@ -378,17 +389,26 @@ const StockTransferPage = () => {
                     {product.name}
                   </h3>
                   <div className="mt-auto border-t border-gray-100 dark:border-zinc-700 pt-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-500">متاح</span>
-                      <span
-                        className={`font-bold px-1.5 py-0.5 rounded ${product.quantity <= product.reorderPoint
-                          ? "text-red-600 bg-red-50 dark:bg-red-900/20"
-                          : product.quantity < 50
-                            ? "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
-                            : "text-green-600 bg-green-50 dark:bg-green-900/20"
-                          }`}>
-                        {product.quantity} {product.unit}
-                      </span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500">متاح</span>
+                        <span
+                          className={`font-bold px-1.5 py-0.5 rounded ${product.quantity <= product.reorderPoint
+                            ? "text-red-600 bg-red-50 dark:bg-red-900/20"
+                            : product.quantity < 50
+                              ? "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
+                              : "text-green-600 bg-green-50 dark:bg-green-900/20"
+                            }`}>
+                          {product.quantity} {product.unit}
+                        </span>
+                      </div>
+
+                      {/* Show available branches if no source warehouse selected */}
+                      {!fromWarehouseId && product.warehouses && product.warehouses.length > 0 && (
+                        <div className="text-[10px] text-gray-400 mt-1 truncate" title={product.warehouses.join(", ")}>
+                          في: {product.warehouses.join("، ")}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

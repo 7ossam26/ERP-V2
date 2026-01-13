@@ -23,6 +23,15 @@ router.get("/", async (req, res) => {
       };
     }
 
+    // Filter by warehouse presence if warehouseId is provided
+    if (warehouseId && warehouseId !== "all") {
+      whereClause.inventory = {
+        some: {
+          warehouseId: parseInt(warehouseId),
+        },
+      };
+    }
+
     // Determine warehouse limitation based on user branch
     const branchId = await getUserBranchFilter(req.user.id);
     let inventoryWhere = {};
@@ -42,7 +51,10 @@ router.get("/", async (req, res) => {
       where: whereClause,
       include: {
         inventory: {
-          where: inventoryWhere
+          where: inventoryWhere,
+          include: {
+            warehouse: true,
+          },
         },
         categories: {
           include: {
@@ -57,16 +69,21 @@ router.get("/", async (req, res) => {
     const formattedItems = items.map((item) => {
       // Calculate Total Quantity
       let totalQuantity = 0;
+      let availableWarehouses = [];
+
       if (warehouseId && warehouseId !== "all") {
         const stock = item.inventory.find(
           (inv) => inv.warehouseId === parseInt(warehouseId)
         );
         totalQuantity = stock ? Number(stock.quantity) : 0;
       } else {
-        totalQuantity = item.inventory.reduce(
-          (sum, inv) => sum + Number(inv.quantity),
-          0
-        );
+        totalQuantity = item.inventory.reduce((sum, inv) => {
+          const qty = Number(inv.quantity);
+          if (qty > 0 && inv.warehouse) {
+            availableWarehouses.push(inv.warehouse.name);
+          }
+          return sum + qty;
+        }, 0);
       }
 
       // Determine Category Name & Color (First category found)
@@ -93,6 +110,7 @@ router.get("/", async (req, res) => {
         category: primaryCategory,
         categoryColor: getCategoryColor(primaryCategory),
         quantity: totalQuantity,
+        warehouses: availableWarehouses, // List of warehouses with stock
         unit: item.unit,
         purchasePrice: Number(item.price), // Assuming price is cost/purchase price
         sellPrice: Number(item.price), // Using item price as sell price
