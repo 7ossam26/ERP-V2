@@ -27,56 +27,64 @@ const CreatesDashboard = () => {
       title: "الموظف",
       description: "إدارة بيانات الموظفين",
       onClick: () => navigate("/employees"),
-      permission: "EMPLOYEES"
+      permission: "EMPLOYEES",
+      creationPermission: "CREATES_EMPLOYEES"
     },
     {
       icon: "local_shipping",
       title: "المورد",
       description: "سجلات الموردين والشركاء",
       onClick: () => navigate("/suppliers"),
-      permission: "SUPPLIERS"
+      permission: "SUPPLIERS",
+      creationPermission: "CREATES_SUPPLIERS"
     },
     {
       icon: "groups",
       title: "العملاء",
       description: "قاعدة بيانات العملاء",
       onClick: () => navigate("/clients"),
-      permission: "CLIENTS"
+      permission: "CLIENTS",
+      creationPermission: "CREATES_CLIENTS"
     },
     {
       icon: "inventory_2",
       title: "الأصناف",
       description: "المنتجات والأسعار",
       onClick: () => navigate("/items"),
-      permission: "ITEMS"
+      permission: "ITEMS",
+      creationPermission: "CREATES_ITEMS"
     },
     {
       icon: "warehouse",
       title: "المخازن",
       description: "الجرد والمستودعات",
       onClick: () => navigate("/warehouses"),
-      permission: "WAREHOUSES"
+      permission: "WAREHOUSES",
+      creationPermission: "CREATES_WAREHOUSES"
     },
     {
       icon: "category",
       title: "التصنيفات",
       description: "إدارة فئات المنتجات",
       onClick: () => navigate("/categories"),
-      permission: "CATEGORIES"
+      permission: "CATEGORIES",
+      creationPermission: "CREATES_CATEGORIES"
     },
     {
       icon: "savings",
       title: "الخزائن",
       description: "المالية والنقدية",
       onClick: () => navigate("/treasuries"),
-      permission: "TREASURIES"
+      permission: "TREASURIES",
+      creationPermission: "CREATES_TREASURIES"
     },
     {
       icon: "storefront",
       title: "الفروع",
       description: "إعدادات فروع المتجر",
       onClick: () => navigate("/branches"),
-      permission: "BRANCHES"
+      permission: "BRANCHES",
+      creationPermission: "CREATES_BRANCHES"
     },
   ];
 
@@ -95,7 +103,8 @@ const CreatesDashboard = () => {
       <div className="flex flex-wrap justify-center gap-6">
         {cards.filter(card => {
           if (!card.permission) return true;
-          return AuthService.hasPermission(card.permission);
+          return AuthService.hasPermission(card.permission) ||
+            (card.creationPermission && AuthService.hasPermission(card.creationPermission));
         }).map((card, index) => (
           <DashboardCard key={index} {...card} />
         ))}
