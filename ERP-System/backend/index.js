@@ -114,14 +114,8 @@ app.use("/api/settings", settingsRouter);
 app.use("/api/stock-transfers", require("./routes/stockTransfer"));
 app.use("/api/shifts", require("./routes/shifts"));
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    error: "Something went wrong!",
-    message: err.message,
-  });
-});
+const errorHandler = require("./middleware/errorHandler");
+app.use(errorHandler);
 
 // Force restart trigger
 console.log("🔄 Server updated");

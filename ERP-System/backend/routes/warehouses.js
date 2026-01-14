@@ -73,23 +73,14 @@ router.put("/:id", requireAnyPermission(["WAREHOUSES", "CREATES_WAREHOUSES"]), a
 });
 
 // DELETE warehouse - Requires WAREHOUSES management permission
-router.delete("/:id", requirePermission("WAREHOUSES"), async (req, res) => {
+router.delete("/:id", requirePermission("WAREHOUSES"), async (req, res, next) => {
   try {
     await prisma.warehouse.delete({
       where: { id: parseInt(req.params.id) },
     });
     res.status(204).send();
   } catch (error) {
-    if (error.code === "P2003") {
-      return res.status(400).json({
-        error: "Cannot delete warehouse",
-        message:
-          "This warehouse cannot be deleted because it is associated with other records (e.g., branches, products, or transactions).",
-      });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to delete warehouse", message: error.message });
+    next(error);
   }
 });
 

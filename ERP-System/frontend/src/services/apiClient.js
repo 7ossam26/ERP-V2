@@ -57,10 +57,15 @@ export const apiClient = async (endpoint, options = {}) => {
           window.location.href = "/";
         }
       }
+
+      // Use the structured error message from backend if available
+      const errorMessage = data.message || data.error || "An unexpected error occurred";
+      const errorDetails = data;
+
       throw new APIError(
-        data.message || data.error || "An error occurred",
+        errorMessage,
         response.status,
-        data
+        errorDetails
       );
     }
 
@@ -71,7 +76,12 @@ export const apiClient = async (endpoint, options = {}) => {
       throw error;
     }
 
-    throw new APIError(error.message || "Network error occurred", 0, null);
+    // Handle network errors (offline, server down)
+    throw new APIError(
+      "Unable to connect to the server. Please check your internet connection.",
+      0,
+      null
+    );
   }
 };
 
