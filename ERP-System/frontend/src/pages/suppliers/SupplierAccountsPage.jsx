@@ -15,6 +15,7 @@ const SupplierAccountsPage = () => {
     const [treasuries, setTreasuries] = useState([]);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [showZeroBalance, setShowZeroBalance] = useState(true);
 
     // Payment form state
     const [paymentData, setPaymentData] = useState({
@@ -33,9 +34,7 @@ const SupplierAccountsPage = () => {
         try {
             setIsLoading(true);
             const data = await supplierAccountService.getAll();
-            // Filter accounts with balance > 0
-            const accountsWithDebt = data.filter((acc) => Number(acc.balance) > 0);
-            setAccounts(accountsWithDebt);
+            setAccounts(data);
         } catch (error) {
             console.error("Failed to fetch supplier accounts:", error);
             toast.error("فشل تحميل حسابات الموردين");
@@ -142,12 +141,25 @@ const SupplierAccountsPage = () => {
                     <span className="material-symbols-outlined">account_balance_wallet</span>
                     حسابات الموردين
                 </h2>
-                <Link
-                    to="/dashboard"
-                    className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
-                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                    <span>رجوع</span>
-                </Link>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowZeroBalance(!showZeroBalance)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-sm ${showZeroBalance
+                            ? "bg-primary text-white"
+                            : "bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark"
+                            }`}>
+                        <span className="material-symbols-outlined text-sm">
+                            {showZeroBalance ? "visibility" : "visibility_off"}
+                        </span>
+                        <span>{showZeroBalance ? "إخفاء الأرصدة الصفرية" : "إظهار الكل"}</span>
+                    </button>
+                    <Link
+                        to="/dashboard"
+                        className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
+                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                        <span>رجوع</span>
+                    </Link>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -156,7 +168,7 @@ const SupplierAccountsPage = () => {
                     <div className="p-4 bg-background-light dark:bg-background-dark/50 border-b border-border-light dark:border-border-dark">
                         <h3 className="font-bold text-text-light dark:text-text-dark flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary">group</span>
-                            الموردين ({accounts.length})
+                            الموردين ({accounts.filter(acc => showZeroBalance || Number(acc.balance) > 0).length})
                         </h3>
                     </div>
 
@@ -165,39 +177,44 @@ const SupplierAccountsPage = () => {
                             <div className="p-8 text-center text-text-muted">
                                 <span className="material-symbols-outlined animate-spin text-4xl">progress_activity</span>
                             </div>
-                        ) : accounts.length === 0 ? (
+                        ) : accounts.filter(acc => showZeroBalance || Number(acc.balance) > 0).length === 0 ? (
                             <div className="p-8 text-center text-text-muted">
-                                لا يوجد موردين بأرصدة مستحقة
+                                {showZeroBalance ? "لا يوجد موردين" : "لا يوجد موردين بأرصدة مستحقة"}
                             </div>
                         ) : (
-                            accounts.map((account) => (
-                                <div
-                                    key={account.id}
-                                    onClick={() => handleAccountClick(account)}
-                                    className={`p-4 border-b border-border-light dark:border-border-dark cursor-pointer transition-colors ${selectedAccount?.id === account.id
+                            accounts
+                                .filter(acc => showZeroBalance || Number(acc.balance) > 0)
+                                .map((account) => (
+                                    <div
+                                        key={account.supplierId}
+                                        onClick={() => handleAccountClick(account)}
+                                        className={`p-4 border-b border-border-light dark:border-border-dark cursor-pointer transition-colors ${selectedAccount?.supplierId === account.supplierId
                                             ? "bg-primary/10 dark:bg-primary/20"
                                             : "hover:bg-background-light dark:hover:bg-background-dark/50"
-                                        }`}>
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h4 className="font-bold text-text-light dark:text-text-dark">
-                                                {account.supplier.name}
-                                            </h4>
-                                            <p className="text-xs text-text-muted dark:text-accent mt-1">
-                                                {account.supplier.phoneNumber}
-                                            </p>
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-lg font-bold text-red-600 dark:text-red-400">
-                                                {Number(account.balance).toFixed(2)} EGP
-                                            </p>
-                                            <p className="text-xs text-text-muted dark:text-accent">
-                                                مستحق
-                                            </p>
+                                            }`}>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="font-bold text-text-light dark:text-text-dark">
+                                                    {account.supplier.name}
+                                                </h4>
+                                                <p className="text-xs text-text-muted dark:text-accent mt-1">
+                                                    {account.supplier.phoneNumber}
+                                                </p>
+                                            </div>
+                                            <div className="text-left">
+                                                <p className={`text-lg font-bold ${Number(account.balance) > 0
+                                                    ? "text-red-600 dark:text-red-400"
+                                                    : "text-green-600 dark:text-green-400"
+                                                    }`}>
+                                                    {Number(account.balance).toFixed(2)} EGP
+                                                </p>
+                                                <p className="text-xs text-text-muted dark:text-accent">
+                                                    {Number(account.balance) > 0 ? "مستحق" : "مسدد"}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))
+                                ))
                         )}
                     </div>
                 </div>
@@ -236,12 +253,14 @@ const SupplierAccountsPage = () => {
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={handleMakePayment}
-                                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
-                                    <span className="material-symbols-outlined">payments</span>
-                                    سداد دفعة
-                                </button>
+                                {Number(selectedAccount.balance) > 0 && (
+                                    <button
+                                        onClick={handleMakePayment}
+                                        className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                                        <span className="material-symbols-outlined">payments</span>
+                                        سداد دفعة
+                                    </button>
+                                )}
                             </div>
 
                             {/* Unpaid Purchases */}
@@ -288,8 +307,8 @@ const SupplierAccountsPage = () => {
                                                         <td className="px-4 py-3">
                                                             <span
                                                                 className={`px-2 py-1 rounded text-xs font-bold ${purchase.paymentStatus === "PARTIALLY_PAID"
-                                                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-                                                                        : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
+                                                                    : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
                                                                     }`}>
                                                                 {purchase.paymentStatus === "PARTIALLY_PAID"
                                                                     ? "مدفوع جزئيًا"

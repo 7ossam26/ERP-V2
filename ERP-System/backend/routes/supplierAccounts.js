@@ -9,16 +9,66 @@ router.use(authenticateToken, requirePermission("SUPPLIER_ACCOUNTS"));
 // GET all supplier accounts with balances
 router.get("/", async (req, res) => {
     try {
-        const accounts = await prisma.supplierAccount.findMany({
-            include: {
-                supplier: true,
-                payments: {
-                    orderBy: { paymentDate: "desc" },
-                    take: 5, // Last 5 payments per supplier
+        // Get all suppliers who have made purchases
+        const suppliersWithPurchases = await prisma.supplier.findMany({
+            where: {
+                purchases: {
+                    some: {}, // Has at least one purchase
                 },
             },
-            orderBy: { balance: "desc" }, // Highest debt first
+            include: {
+                account: {
+                    include: {
+                        payments: {
+                            orderBy: { paymentDate: "desc" },
+                            take: 5, // Last 5 payments per supplier
+                        },
+                    },
+                },
+            },
         });
+
+        // Transform to match the expected format
+        const accounts = suppliersWithPurchases.map((supplier) => {
+            if (supplier.account) {
+                // Supplier has an account record
+                return {
+                    id: supplier.account.id,
+                    supplierId: supplier.id,
+                    balance: supplier.account.balance,
+                    createdAt: supplier.account.createdAt,
+                    updatedAt: supplier.account.updatedAt,
+                    supplier: {
+                        id: supplier.id,
+                        name: supplier.name,
+                        phoneNumber: supplier.phoneNumber,
+                        createdAt: supplier.createdAt,
+                        updatedAt: supplier.updatedAt,
+                    },
+                    payments: supplier.account.payments,
+                };
+            } else {
+                // Supplier has no account record (all purchases were paid in full)
+                return {
+                    id: null,
+                    supplierId: supplier.id,
+                    balance: 0,
+                    createdAt: supplier.createdAt,
+                    updatedAt: supplier.updatedAt,
+                    supplier: {
+                        id: supplier.id,
+                        name: supplier.name,
+                        phoneNumber: supplier.phoneNumber,
+                        createdAt: supplier.createdAt,
+                        updatedAt: supplier.updatedAt,
+                    },
+                    payments: [],
+                };
+            }
+        });
+
+        // Sort by balance (highest debt first)
+        accounts.sort((a, b) => Number(b.balance) - Number(a.balance));
 
         res.json(accounts);
     } catch (error) {
