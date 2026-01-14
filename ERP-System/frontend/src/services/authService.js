@@ -150,8 +150,9 @@ const AuthService = {
           // Handle potential differences in role object vs string if applicable, though usually consistent
           const hasRoleChanged = currentUser.role !== userData.role;
           const hasNameChanged = currentUser.name !== userData.name;
+          const hasSensitiveAccessChanged = currentUser.hasSensitiveAccess !== userData.hasSensitiveAccess;
 
-          if (!hasPermissionsChanged && !hasRoleChanged && !hasNameChanged) {
+          if (!hasPermissionsChanged && !hasRoleChanged && !hasNameChanged && !hasSensitiveAccessChanged) {
             return null; // No significant change, avoid re-render
           }
         }
