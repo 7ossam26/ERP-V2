@@ -176,9 +176,6 @@ router.get("/:supplierId/purchases", async (req, res) => {
         const purchases = await prisma.purchase.findMany({
             where: {
                 supplierId,
-                paymentStatus: {
-                    in: ["UNPAID", "PARTIALLY_PAID"],
-                },
             },
             orderBy: { createdAt: "desc" },
             include: {

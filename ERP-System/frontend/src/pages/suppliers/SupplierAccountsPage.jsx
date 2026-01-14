@@ -11,7 +11,7 @@ const SupplierAccountsPage = () => {
     const [accounts, setAccounts] = useState([]);
     const [selectedAccount, setSelectedAccount] = useState(null);
     const [payments, setPayments] = useState([]);
-    const [unpaidPurchases, setUnpaidPurchases] = useState([]);
+    const [purchases, setPurchases] = useState([]);
     const [treasuries, setTreasuries] = useState([]);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -65,7 +65,7 @@ const SupplierAccountsPage = () => {
                 supplierAccountService.getPurchases(account.supplierId),
             ]);
             setPayments(paymentsData);
-            setUnpaidPurchases(purchasesData);
+            setPurchases(purchasesData);
         } catch (error) {
             console.error("Failed to fetch account details:", error);
             toast.error("فشل تحميل تفاصيل الحساب");
@@ -268,69 +268,71 @@ const SupplierAccountsPage = () => {
                                 )}
                             </div>
 
-                            {/* Unpaid Purchases */}
-                            {unpaidPurchases.length > 0 && (
-                                <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
-                                    <div className="p-4 bg-background-light dark:bg-background-dark/50 border-b border-border-light dark:border-border-dark">
-                                        <h3 className="font-bold text-text-light dark:text-text-dark flex items-center gap-2">
-                                            <span className="material-symbols-outlined text-primary">receipt_long</span>
-                                            الفواتير غير المسددة ({unpaidPurchases.length})
-                                        </h3>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead className="text-xs uppercase bg-accent/20 dark:bg-surface-dark/80">
-                                                <tr>
-                                                    <th className="px-4 py-3">رقم الفاتورة</th>
-                                                    <th className="px-4 py-3">التاريخ</th>
-                                                    <th className="px-4 py-3">الإجمالي</th>
-                                                    <th className="px-4 py-3">المدفوع</th>
-                                                    <th className="px-4 py-3">المتبقي</th>
-                                                    <th className="px-4 py-3">الحالة</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {unpaidPurchases.map((purchase) => (
-                                                    <tr
-                                                        key={purchase.id}
-                                                        className="border-b border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50">
-                                                        <td className="px-4 py-3 font-bold">
-                                                            #{purchase.id}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-text-muted">
-                                                            {formatDate(purchase.createdAt)}
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            {Number(purchase.netTotal).toFixed(2)} EGP
-                                                        </td>
-                                                        <td className="px-4 py-3 text-green-600">
-                                                            {Number(purchase.paidAmount).toFixed(2)} EGP
-                                                        </td>
-                                                        <td className="px-4 py-3 text-red-600 font-bold">
-                                                            {Number(purchase.remaining).toFixed(2)} EGP
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <span
-                                                                className={`px-2 py-1 rounded text-xs font-bold ${purchase.paymentStatus === "PAID"
-                                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                                                                    : purchase.paymentStatus === "PARTIALLY_PAID"
-                                                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-                                                                        : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
-                                                                    }`}>
-                                                                {purchase.paymentStatus === "PAID"
-                                                                    ? "مدفوع"
-                                                                    : purchase.paymentStatus === "PARTIALLY_PAID"
-                                                                        ? "غير مدفوع بالكامل"
-                                                                        : "غير مدفوع"}
-                                                            </span>
-                                                        </td>
+                            <>
+                                {/* Purchases List */}
+                                {purchases.length > 0 && (
+                                    <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
+                                        <div className="p-4 bg-background-light dark:bg-background-dark/50 border-b border-border-light dark:border-border-dark">
+                                            <h3 className="font-bold text-text-light dark:text-text-dark flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-primary">receipt_long</span>
+                                                سجل الفواتير ({purchases.length})
+                                            </h3>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead className="text-xs uppercase bg-accent/20 dark:bg-surface-dark/80">
+                                                    <tr>
+                                                        <th className="px-4 py-3">رقم الفاتورة</th>
+                                                        <th className="px-4 py-3">التاريخ</th>
+                                                        <th className="px-4 py-3">الإجمالي</th>
+                                                        <th className="px-4 py-3">المدفوع</th>
+                                                        <th className="px-4 py-3">المتبقي</th>
+                                                        <th className="px-4 py-3">الحالة</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody>
+                                                    {purchases.map((purchase) => (
+                                                        <tr
+                                                            key={purchase.id}
+                                                            className="border-b border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50">
+                                                            <td className="px-4 py-3 font-bold">
+                                                                #{purchase.id}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-text-muted">
+                                                                {formatDate(purchase.createdAt)}
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                {Number(purchase.netTotal).toFixed(2)} EGP
+                                                            </td>
+                                                            <td className="px-4 py-3 text-green-600">
+                                                                {Number(purchase.paidAmount).toFixed(2)} EGP
+                                                            </td>
+                                                            <td className="px-4 py-3 text-red-600 font-bold">
+                                                                {Number(purchase.remaining).toFixed(2)} EGP
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <span
+                                                                    className={`px-2 py-1 rounded text-xs font-bold ${purchase.paymentStatus === "PAID"
+                                                                        ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                                                                        : purchase.paymentStatus === "PARTIALLY_PAID"
+                                                                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
+                                                                            : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                                                        }`}>
+                                                                    {purchase.paymentStatus === "PAID"
+                                                                        ? "مدفوع"
+                                                                        : purchase.paymentStatus === "PARTIALLY_PAID"
+                                                                            ? "غير مدفوع بالكامل"
+                                                                            : "غير مدفوع"}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </>
 
                             {/* Payment History */}
                             <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
@@ -445,7 +447,9 @@ const SupplierAccountsPage = () => {
                             }
                             className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5">
                             <option value="">الكل</option>
-                            {unpaidPurchases.map((purchase) => (
+                            {purchases.filter(
+                                (p) => p.paymentStatus !== "PAID"
+                            ).map((purchase) => (
                                 <option key={purchase.id} value={purchase.id}>
                                     #{purchase.id} - {Number(purchase.remaining).toFixed(2)} EGP
                                 </option>
