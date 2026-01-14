@@ -6,7 +6,140 @@ const { authenticateToken, requirePermission, requireSensitiveAccess } = require
 // Protect all routes with EXPENSES permission
 router.use(authenticateToken, requirePermission("EXPENSES"));
 
-// ... (GET and POST routes remain the same) ...
+// GET all expenses
+router.get("/", async (req, res) => {
+    try {
+        const expenses = await prisma.expense.findMany({
+            orderBy: { date: "desc" },
+            include: {
+                treasury: true
+            }
+        });
+        res.json(expenses);
+    } catch (error) {
+        console.error("Failed to fetch expenses", error);
+        res.status(500).json({ error: "Failed to fetch expenses" });
+    }
+});
+
+// POST create new manual expense
+router.post("/", async (req, res) => {
+    const { description, amount, date, treasuryId, paymentMethod } = req.body;
+
+    try {
+        if (!amount || !treasuryId || !description) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Check treasury balance
+            const treasury = await tx.treasury.findUnique({
+                where: { id: parseInt(treasuryId) }
+            });
+
+            if (!treasury) {
+                throw new Error("Treasury not found");
+            }
+
+            if (Number(treasury.balance) < Number(amount)) {
+                throw new Error("Insufficient treasury balance");
+            }
+
+            // 2. Deduct from treasury
+            await tx.treasury.update({
+                where: { id: parseInt(treasuryId) },
+                data: {
+                    balance: { decrement: Number(amount) }
+                }
+            });
+
+            // 3. Create Expense
+            await tx.expense.create({
+                data: {
+                    description,
+                    amount: Number(amount),
+                    date: new Date(date || new Date()),
+                    type: "MANUAL",
+                    treasuryId: parseInt(treasuryId),
+                    paymentMethod: paymentMethod || "CASH"
+                }
+            });
+        });
+
+        res.status(201).json({ message: "Expense created successfully" });
+    } catch (error) {
+        console.error("Failed to create expense", error);
+        res.status(500).json({ error: error.message || "Failed to create expense" });
+    }
+});
+
+// PUT update expense
+router.put("/:id", async (req, res) => {
+    const { id } = req.params;
+    const { description, amount, date, treasuryId, paymentMethod } = req.body;
+
+    try {
+        const existingExpense = await prisma.expense.findUnique({
+            where: { id: parseInt(id) }
+        });
+
+        if (!existingExpense) {
+            return res.status(404).json({ error: "Expense not found" });
+        }
+
+        if (existingExpense.type !== "MANUAL") {
+            return res.status(400).json({ error: "Cannot edit system-generated expenses" });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Refund old amount to old treasury
+            await tx.treasury.update({
+                where: { id: existingExpense.treasuryId },
+                data: {
+                    balance: { increment: existingExpense.amount }
+                }
+            });
+
+            // 2. Check new treasury balance
+            const currentTreasury = await tx.treasury.findUnique({
+                where: { id: parseInt(treasuryId) }
+            });
+
+            if (!currentTreasury) {
+                throw new Error("Target treasury not found");
+            }
+
+            if (Number(currentTreasury.balance) < Number(amount)) {
+                throw new Error("Insufficient treasury balance for the new amount");
+            }
+
+            // 3. Deduct new amount
+            await tx.treasury.update({
+                where: { id: parseInt(treasuryId) },
+                data: {
+                    balance: { decrement: Number(amount) }
+                }
+            });
+
+            // 4. Update Expense
+            await tx.expense.update({
+                where: { id: parseInt(id) },
+                data: {
+                    description,
+                    amount: Number(amount),
+                    date: new Date(date),
+                    treasuryId: parseInt(treasuryId),
+                    paymentMethod: paymentMethod || "CASH"
+                }
+            });
+        });
+
+        res.json({ message: "Expense updated successfully" });
+    } catch (error) {
+        console.error("Failed to update expense", error);
+        res.status(500).json({ error: error.message || "Failed to update expense" });
+    }
+});
 
 // Delete expense (Manual only)
 // STRICT SECURITY: Only users with sensitive access can delete financial records

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { treasuryService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
-import BranchFilterHelper from "../../utils/BranchFilterHelper";
 import toast from "react-hot-toast";
 
 const CashierTransferPage = () => {
@@ -19,29 +18,10 @@ const CashierTransferPage = () => {
     const fetchTreasuries = async () => {
       try {
         let data = await treasuryService.getAll();
-
         setTreasuries(data);
-        console.log("Fetched Treasuries:", data); // DEBUG LOG
 
-        // 1. Set Destination to Main Treasury
-        const mainTreasury = data.find(
-          (t) =>
-            t.id === 1 || t.name.includes("رئيسية") || t.name.includes("Main") // Fallback check
-        );
-        if (mainTreasury) {
-          setToTreasuryId(mainTreasury.id);
-        }
-
-        // 2. Filter Source Candidates
+        // Filter Source Candidates
         const validSources = data.filter((t) => {
-          // Exclude Main Treasury
-          if (
-            t.id === 1 ||
-            t.name.includes("رئيسية") ||
-            t.name.includes("Main")
-          ) {
-            return false;
-          }
           // For Managers: Filter by their branch
           if (currentUser?.role === "Manager" && currentUser?.branch) {
             return t.branch?.id === currentUser.branch.id;
@@ -49,7 +29,7 @@ const CashierTransferPage = () => {
           return true;
         });
 
-        // 3. Auto-select the first valid source option
+        // Auto-select the first valid source option if available
         if (validSources.length > 0) {
           setSourceTreasuryId(validSources[0].id);
         }
@@ -78,14 +58,12 @@ const CashierTransferPage = () => {
       toast.error("يرجى تحديد الخزينة المحول منها");
       return;
     }
+    if (!toTreasuryId) {
+      toast.error("يرجى تحديد الخزينة المحول إليها");
+      return;
+    }
 
-    // Resolve Destination (Main Treasury)
-    const mainTreasury = treasuries.find(
-      (t) => t.id === 1 || t.name.includes("رئيسية") || t.name.includes("Main")
-    );
-    const targetToTreasuryId = mainTreasury ? mainTreasury.id : 1; // Default to 1 if not found
-
-    if (parseInt(sourceTreasuryId) === parseInt(targetToTreasuryId)) {
+    if (parseInt(sourceTreasuryId) === parseInt(toTreasuryId)) {
       toast.error("لا يمكن التحويل لنفس الخزينة");
       return;
     }
@@ -94,7 +72,7 @@ const CashierTransferPage = () => {
     try {
       await treasuryService.transfer({
         fromTreasuryId: parseInt(sourceTreasuryId),
-        toTreasuryId: parseInt(targetToTreasuryId),
+        toTreasuryId: parseInt(toTreasuryId),
         amount: Number(amount),
         notes,
       });
@@ -120,7 +98,7 @@ const CashierTransferPage = () => {
                 تورد نقدية
               </h1>
               <p className="text-text-secondary dark:text-gray-400 text-lg">
-                إرسال النقدية من الفرع إلى الخزينة الرئيسية (طلب استلام)
+                إرسال النقدية بين الخزائن (تحت المراجعة)
               </p>
             </div>
             <div className="bg-surface-light dark:bg-surface-dark border border-primary/20 rounded-xl p-5 shadow-sm min-w-[280px] flex items-center justify-between">
@@ -169,14 +147,6 @@ const CashierTransferPage = () => {
                     </option>
                     {treasuries
                       .filter((t) => {
-                        // Exclude Main Treasury
-                        if (
-                          t.id === 1 ||
-                          t.name.includes("رئيسية") ||
-                          t.name.includes("Main")
-                        ) {
-                          return false;
-                        }
                         // For Managers: Filter by their branch
                         if (
                           currentUser?.role === "Manager" &&
@@ -205,7 +175,7 @@ const CashierTransferPage = () => {
                   </span>
                 </div>
 
-                {/* Destination Treasury Static */}
+                {/* Destination Treasury Select */}
                 <div className="flex-1 w-full bg-background-light dark:bg-background-dark/50 rounded-xl p-4 border border-border-light dark:border-border-dark relative group hover:border-primary/30 transition-colors">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-white dark:bg-surface-dark rounded-lg text-primary shadow-sm">
@@ -217,11 +187,21 @@ const CashierTransferPage = () => {
                       إلى
                     </p>
                   </div>
-                  <div className="w-full flex items-center h-[28px] pl-1">
-                    <span className="font-bold text-lg text-text-primary dark:text-text-dark">
-                      الخزينة الرئيسية
-                    </span>
-                  </div>
+                  <select
+                    className="w-full bg-transparent font-bold text-lg text-text-primary dark:text-text-dark focus:outline-none cursor-pointer"
+                    value={toTreasuryId}
+                    onChange={(e) => setToTreasuryId(e.target.value)}>
+                    <option value="" disabled>
+                      اختر الوجهة
+                    </option>
+                    {treasuries
+                      .filter(t => t.id !== parseInt(sourceTreasuryId)) // Prevent selecting same treasury
+                      .map((t) => (
+                        <option key={t.id} value={t.id} className="text-black">
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
                   <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
                     يتم التحويل كطلب معلق
                   </p>
