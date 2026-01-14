@@ -85,6 +85,7 @@ enum Module {
   EMPLOYEES
   CLIENTS
   SUPPLIERS
+  SUPPLIER_ACCOUNTS
   CATEGORIES
   ITEMS
   WAREHOUSES
@@ -243,12 +244,13 @@ model Treasury {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  branch       Branch?
-  purchases    Purchase[]
-  sales        Sale[]
-  expenses     Expense[]
-  transfersOut CashTransfer[] @relation("TransfersFrom")
-  transfersIn  CashTransfer[] @relation("TransfersTo")
+  branch           Branch?
+  purchases        Purchase[]
+  sales            Sale[]
+  expenses         Expense[]
+  transfersOut     CashTransfer[]    @relation("TransfersFrom")
+  transfersIn      CashTransfer[]    @relation("TransfersTo")
+  supplierPayments SupplierPayment[]
 
   // Config Relations
   systemConfigAsMain SystemConfiguration[] @relation("ConfigMainTreasury")
@@ -304,13 +306,14 @@ model Client {
 // ============================================
 
 model Supplier {
-  id          Int            @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   name        String
-  phoneNumber String         @map("phone_number")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  phoneNumber String           @map("phone_number")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
   items       ItemSupplier[]
   purchases   Purchase[]
+  account     SupplierAccount?
 
   @@map("suppliers")
 }
@@ -392,14 +395,21 @@ model ItemCategory {
 // ============================================
 
 enum PaymentMethod {
-  CASH
-  CREDIT
-  MIXED
+  CASH     // نقد - pay with cash now
+  CREDIT   // كريدت/فيزا - pay with card now
+  DEFERRED // آجل - pay later
+  MIXED    // متنوع - partial payment
 }
 
 enum DiscountType {
   PERCENTAGE
   VALUE
+}
+
+enum PaymentStatus {
+  PAID
+  PARTIALLY_PAID
+  UNPAID
 }
 
 model Purchase {
@@ -409,6 +419,7 @@ model Purchase {
   warehouseId       Int           @map("warehouse_id")
   supplierInvoiceNo String?       @map("supplier_invoice_no")
   paymentMethod     PaymentMethod @default(CASH) @map("payment_method")
+  paymentStatus     PaymentStatus @default(UNPAID) @map("payment_status")
   subtotal          Decimal       @db.Decimal(10, 2)
   discountType      DiscountType  @default(PERCENTAGE) @map("discount_type")
   discountValue     Decimal       @default(0) @map("discount_value") @db.Decimal(10, 2)
@@ -420,11 +431,12 @@ model Purchase {
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  supplier  Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  treasury  Treasury       @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  items     PurchaseItem[]
-  expense   Expense?
+  supplier         Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  treasury         Treasury          @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  warehouse        Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  items            PurchaseItem[]
+  expense          Expense?
+  supplierPayments SupplierPayment[]
 
   @@map("purchases")
 }
@@ -637,6 +649,42 @@ enum StockTransferStatus {
   APPROVED
   REJECTED
   COMPLETED
+}
+
+// ============================================
+// Supplier Account Management
+// ============================================
+
+model SupplierAccount {
+  id         Int      @id @default(autoincrement())
+  supplierId Int      @unique @map("supplier_id")
+  balance    Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  supplier Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  payments SupplierPayment[]
+
+  @@map("supplier_accounts")
+}
+
+model SupplierPayment {
+  id                Int      @id @default(autoincrement())
+  supplierAccountId Int      @map("supplier_account_id")
+  purchaseId        Int?     @map("purchase_id")
+  amount            Decimal  @db.Decimal(10, 2)
+  treasuryId        Int      @map("treasury_id")
+  notes             String?  @db.Text
+  paymentDate       DateTime @default(now()) @map("payment_date")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  // Relations
+  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  purchase        Purchase?       @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  treasury        Treasury        @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+
+  @@map("supplier_payments")
 }
 
 // ============================================

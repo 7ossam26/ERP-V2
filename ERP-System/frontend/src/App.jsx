@@ -44,6 +44,7 @@ import PurchaseHistory from "./pages/reports/history/PurchaseHistory";
 import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 import SettingsPage from "./pages/settings/SettingsPage";
 import TransferManagementPage from "./pages/treasuries/TransferManagementPage";
+import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
@@ -187,6 +188,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="PURCHASES">
                 <PurchasesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/supplier-accounts"
+            element={
+              <ProtectedRoute requiredPermission="SUPPLIER_ACCOUNTS">
+                <SupplierAccountsPage />
               </ProtectedRoute>
             }
           />

@@ -15,6 +15,7 @@ import { stockTransferService } from "./stockTransferService";
 import shiftService from "./shiftService";
 import { reportService } from "./reportService";
 import { expenseService } from "./expenseService";
+import { supplierAccountService } from "./supplierAccountService";
 
 // Employee, Treasury, Branch, Warehouse, Client, Supplier, Category, Item, Purchase, and Sales services use real API
 export {
@@ -34,6 +35,7 @@ export {
   shiftService,
   reportService,
   expenseService,
+  supplierAccountService,
 };
 
 export const deductionService = {

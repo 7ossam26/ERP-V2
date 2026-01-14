@@ -13,7 +13,7 @@ import Modal from "../../components/ui/Modal";
 import { ItemForm } from "../items/ItemManager";
 
 const PurchasesPage = () => {
-  const [paymentMethod, setPaymentMethod] = useState("cash"); // cash, credit, mixed
+  const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH, CREDIT, DEFERRED, MIXED
   const [items, setItems] = useState([]);
   const [discountType, setDiscountType] = useState("percent"); // percent, value
 
@@ -23,6 +23,7 @@ const PurchasesPage = () => {
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [treasuries, setTreasuries] = useState([]);
   const [selectedTreasuryId, setSelectedTreasuryId] = useState("");
+  const [selectedTreasuryBalance, setSelectedTreasuryBalance] = useState(0);
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
@@ -190,22 +191,33 @@ const PurchasesPage = () => {
 
   const handlePaymentMethodChange = (method) => {
     setPaymentMethod(method);
-    // Reset paid amount logic based on method if needed, usually managed manually
-    if (method === "cash") {
+    // Reset paid amount logic based on method
+    if (method === "CASH" || method === "CREDIT") {
       setPaidAmount(totals.net);
-    } else if (method === "credit") {
+    } else if (method === "DEFERRED") {
       setPaidAmount(0);
     }
+    // For MIXED, keep manual entry
   };
 
   // Update paid amount automatically when net changes if mostly cash/credit
   useEffect(() => {
-    if (paymentMethod === "cash") {
+    if (paymentMethod === "CASH" || paymentMethod === "CREDIT") {
       setPaidAmount(totals.net);
-    } else if (paymentMethod === "credit") {
+    } else if (paymentMethod === "DEFERRED") {
       setPaidAmount(0);
     }
   }, [totals.net, paymentMethod]);
+
+  // Update treasury balance when selected treasury changes
+  useEffect(() => {
+    if (selectedTreasuryId) {
+      const treasury = treasuries.find(t => t.id === parseInt(selectedTreasuryId));
+      if (treasury) {
+        setSelectedTreasuryBalance(Number(treasury.balance) || 0);
+      }
+    }
+  }, [selectedTreasuryId, treasuries]);
 
   const handleSaveNewItem = async (formData) => {
     try {
@@ -252,7 +264,7 @@ const PurchasesPage = () => {
         treasuryId: parseInt(selectedTreasuryId),
         warehouseId: parseInt(selectedWarehouseId),
         supplierInvoiceNo,
-        paymentMethod,
+        paymentMethod, // CASH, CREDIT, DEFERRED, or MIXED
         subtotal: Number(totals.subtotal),
         discountType,
         discountValue: Number(discountValue) || 0,
@@ -543,8 +555,8 @@ const PurchasesPage = () => {
             onClick={addItem}
             disabled={!selectedSupplierId}
             className={`w-full py-3 rounded-lg border border-dashed flex justify-center items-center transition-all group ${selectedSupplierId
-                ? "bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark border-primary/40 dark:border-primary/60 cursor-pointer"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
+              ? "bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark border-primary/40 dark:border-primary/60 cursor-pointer"
+              : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
               }`}>
             <span className="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform text-primary">
               add_circle
@@ -686,19 +698,40 @@ const PurchasesPage = () => {
         <div className="lg:col-span-1 bg-surface-light dark:bg-surface-dark p-6 rounded-xl shadow-sm border border-border-light dark:border-border-dark flex flex-col justify-between relative overflow-hidden group">
           <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-1.5 bg-primary h-full"></div>
           <div className="space-y-6">
-            <h3 className="text-lg font-bold text-text-light dark:text-text-dark border-b border-border-light dark:border-border-dark pb-3 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">
-                payments
-              </span>
-              طريقة الدفع
-            </h3>
-            <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-border-light dark:border-border-dark pb-3">
+              <h3 className="text-lg font-bold text-text-light dark:text-text-dark flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">
+                  payments
+                </span>
+                طريقة الدفع
+              </h3>
+              {selectedTreasuryId && (
+                <div className="text-xs text-text-muted dark:text-accent">
+                  رصيد: {selectedTreasuryBalance.toFixed(2)} EGP
+                </div>
+              )}
+            </div>
+
+            {/* Treasury Balance Warning */}
+            {selectedTreasuryId && (paymentMethod === "CASH" || paymentMethod === "CREDIT" || paymentMethod === "MIXED") && (
+              selectedTreasuryBalance < (paymentMethod === "MIXED" ? paidAmount : totals.net)
+            ) && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                  <p className="text-xs text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">warning</span>
+                    رصيد الخزينة غير كافي
+                  </p>
+                </div>
+              )}
+
+            <div className="space-y-3">
+              {/* Cash Payment */}
               <div
                 className="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer"
-                onClick={() => handlePaymentMethodChange("cash")}>
+                onClick={() => handlePaymentMethodChange("CASH")}>
                 <input
-                  checked={paymentMethod === "cash"}
-                  onChange={() => handlePaymentMethodChange("cash")}
+                  checked={paymentMethod === "CASH"}
+                  onChange={() => handlePaymentMethodChange("CASH")}
                   className="w-5 h-5 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
                   id="payment-cash"
                   name="payment-method"
@@ -713,40 +746,66 @@ const PurchasesPage = () => {
                   </span>
                 </label>
               </div>
+
+              {/* Card/Credit Payment */}
               <div
                 className="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer"
-                onClick={() => handlePaymentMethodChange("credit")}>
+                onClick={() => handlePaymentMethodChange("CREDIT")}>
                 <input
                   className="w-5 h-5 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
                   id="payment-credit"
                   name="payment-method"
                   type="radio"
-                  checked={paymentMethod === "credit"}
-                  onChange={() => handlePaymentMethodChange("credit")}
+                  checked={paymentMethod === "CREDIT"}
+                  onChange={() => handlePaymentMethodChange("CREDIT")}
                 />
                 <label
                   className="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
                   htmlFor="payment-credit">
-                  <span>الآجل (Credit)</span>
+                  <span>كريدت/فيزا (Card)</span>
                   <span className="material-symbols-outlined text-text-muted text-lg">
-                    credit_score
+                    credit_card
                   </span>
                 </label>
               </div>
+
+              {/* Deferred Payment */}
               <div
                 className="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer"
-                onClick={() => handlePaymentMethodChange("mixed")}>
+                onClick={() => handlePaymentMethodChange("DEFERRED")}>
                 <input
                   className="w-5 h-5 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
-                  id="payment-misc"
+                  id="payment-deferred"
                   name="payment-method"
                   type="radio"
-                  checked={paymentMethod === "mixed"}
-                  onChange={() => handlePaymentMethodChange("mixed")}
+                  checked={paymentMethod === "DEFERRED"}
+                  onChange={() => handlePaymentMethodChange("DEFERRED")}
                 />
                 <label
                   className="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
-                  htmlFor="payment-misc">
+                  htmlFor="payment-deferred">
+                  <span>آجل (Deferred)</span>
+                  <span className="material-symbols-outlined text-text-muted text-lg">
+                    schedule
+                  </span>
+                </label>
+              </div>
+
+              {/* Mixed Payment */}
+              <div
+                className="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer"
+                onClick={() => handlePaymentMethodChange("MIXED")}>
+                <input
+                  className="w-5 h-5 text-primary bg-background-light border-border-dark/30 focus:ring-primary dark:ring-offset-surface-dark focus:ring-2 dark:bg-background-dark dark:border-border-dark cursor-pointer"
+                  id="payment-mixed"
+                  name="payment-method"
+                  type="radio"
+                  checked={paymentMethod === "MIXED"}
+                  onChange={() => handlePaymentMethodChange("MIXED")}
+                />
+                <label
+                  className="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
+                  htmlFor="payment-mixed">
                   <span>متنوع (Mixed)</span>
                   <span className="material-symbols-outlined text-text-muted text-lg">
                     account_balance
@@ -756,7 +815,7 @@ const PurchasesPage = () => {
             </div>
 
             {/* Conditional mixed payment inputs */}
-            {paymentMethod === "mixed" && (
+            {paymentMethod === "MIXED" && (
               <div className="space-y-4 pt-4 border-t border-dashed border-border-light dark:border-border-dark animate-fade-in bg-background-light/50 dark:bg-background-dark/30 -mx-6 px-6 pb-2">
                 <div>
                   <label className="block text-sm font-medium mb-1 text-text-muted dark:text-accent">

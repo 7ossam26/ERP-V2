@@ -113,6 +113,7 @@ app.use("/api/reports", require("./routes/reports"));
 app.use("/api/settings", settingsRouter);
 app.use("/api/stock-transfers", require("./routes/stockTransfer"));
 app.use("/api/shifts", require("./routes/shifts"));
+app.use("/api/supplier-accounts", require("./routes/supplierAccounts"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);

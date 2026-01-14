@@ -196,30 +196,131 @@ router.post("/", async (req, res) => {
         });
       }
 
-      // 3. Deduct from Treasury (User requested feature)
-      if (Number(paidAmount) > 0) {
-        // Decrease Balance
+      // 3. Handle Payment Methods and Treasury/Expense Logic
+      // CASH: Pay with cash now - deduct full amount, create full expense
+      // CREDIT: Pay with card now - deduct full amount, create expense as CARD
+      // DEFERRED: Pay later (آجل) - NO deduction, NO expense, add to supplier account
+      // MIXED: Partial payment now + partial later
+
+      if (paymentMethod === "CASH" || paymentMethod === "CREDIT") {
+        // Full payment now (cash or card)
+        // Check treasury balance first
+        const treasury = await prisma.treasury.findUnique({
+          where: { id: parseInt(treasuryId) },
+        });
+
+        if (!treasury) {
+          throw new Error("Treasury not found");
+        }
+
+        if (Number(treasury.balance) < Number(netTotal)) {
+          throw new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+        }
+
+        // Deduct from treasury
         await prisma.treasury.update({
           where: { id: parseInt(treasuryId) },
           data: {
-            balance: { decrement: Number(paidAmount) },
+            balance: { decrement: Number(netTotal) },
           },
         });
 
-        // 4. Create Expense Record (Log only)
-        // Map payment method: CASH -> CASH, others -> CARD (as fallback or assume non-cash means bank/card)
+        // Create expense (map CREDIT to CARD for expense record)
         const expenseMethod = paymentMethod === "CASH" ? "CASH" : "CARD";
-
         await prisma.expense.create({
           data: {
-            description: `Purchase Invocie #${supplierInvoiceNo || newPurchase.id}`,
-            amount: Number(paidAmount),
+            description: `Purchase Invoice #${supplierInvoiceNo || newPurchase.id}`,
+            amount: Number(netTotal),
             date: new Date(),
             type: "PURCHASE",
             treasuryId: parseInt(treasuryId),
             purchaseId: newPurchase.id,
             paymentMethod: expenseMethod,
           },
+        });
+
+        // Update purchase payment status to PAID
+        await prisma.purchase.update({
+          where: { id: newPurchase.id },
+          data: { paymentStatus: "PAID" },
+        });
+      } else if (paymentMethod === "DEFERRED") {
+        // Pay later (آجل) - NO treasury deduction, NO expense
+        // Add full amount to supplier account balance
+        await prisma.supplierAccount.upsert({
+          where: { supplierId: parseInt(supplierId) },
+          update: {
+            balance: { increment: Number(netTotal) },
+          },
+          create: {
+            supplierId: parseInt(supplierId),
+            balance: Number(netTotal),
+          },
+        });
+
+        // Update purchase payment status to UNPAID
+        await prisma.purchase.update({
+          where: { id: newPurchase.id },
+          data: { paymentStatus: "UNPAID" },
+        });
+      } else if (paymentMethod === "MIXED") {
+        // Partial payment (part now, part later)
+        if (Number(paidAmount) > 0) {
+          // Check treasury balance for paid amount
+          const treasury = await prisma.treasury.findUnique({
+            where: { id: parseInt(treasuryId) },
+          });
+
+          if (!treasury) {
+            throw new Error("Treasury not found");
+          }
+
+          if (Number(treasury.balance) < Number(paidAmount)) {
+            throw new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+          }
+
+          // Deduct paid amount from treasury
+          await prisma.treasury.update({
+            where: { id: parseInt(treasuryId) },
+            data: {
+              balance: { decrement: Number(paidAmount) },
+            },
+          });
+
+          // Create partial expense
+          // Note: For mixed, we don't track if paid amount was cash or card
+          // Defaulting to CASH, but could add UI field for this later
+          await prisma.expense.create({
+            data: {
+              description: `Purchase Invoice #${supplierInvoiceNo || newPurchase.id} (Partial Payment)`,
+              amount: Number(paidAmount),
+              date: new Date(),
+              type: "PURCHASE",
+              treasuryId: parseInt(treasuryId),
+              purchaseId: newPurchase.id,
+              paymentMethod: "CASH", // Could be CASH or CARD
+            },
+          });
+        }
+
+        // Add remaining to supplier account
+        if (Number(remaining) > 0) {
+          await prisma.supplierAccount.upsert({
+            where: { supplierId: parseInt(supplierId) },
+            update: {
+              balance: { increment: Number(remaining) },
+            },
+            create: {
+              supplierId: parseInt(supplierId),
+              balance: Number(remaining),
+            },
+          });
+        }
+
+        // Update purchase payment status to PARTIALLY_PAID
+        await prisma.purchase.update({
+          where: { id: newPurchase.id },
+          data: { paymentStatus: "PARTIALLY_PAID" },
         });
       }
 
