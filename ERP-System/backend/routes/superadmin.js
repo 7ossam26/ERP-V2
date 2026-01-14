@@ -22,6 +22,8 @@ router.get("/users", async (req, res) => {
         username: true,
         isActive: true,
         hasSensitiveAccess: true,
+        roleId: true,
+        branchId: true,
         role: {
           select: {
             id: true,

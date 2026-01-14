@@ -22,6 +22,7 @@ const UserManagement = () => {
     username: "",
     password: "",
     roleId: "",
+    branchId: "",
     isActive: true,
     hasSensitiveAccess: false,
   });
@@ -162,8 +163,8 @@ const UserManagement = () => {
       name: user.name,
       username: user.username,
       password: "", // User can leave empty to keep current
-      roleId: user.role.id,
-      branchId: user.branchId || "",
+      roleId: user.roleId || user.role?.id || "",
+      branchId: user.branchId || user.branch?.id || "",
       isActive: user.isActive,
       hasSensitiveAccess: user.hasSensitiveAccess || false,
     });
