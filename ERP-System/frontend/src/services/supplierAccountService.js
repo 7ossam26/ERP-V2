@@ -1,12 +1,12 @@
 import apiClient from "./apiClient";
 
 export const supplierAccountService = {
-    getAll: () => apiClient.get("/api/supplier-accounts"),
-    getById: (supplierId) => apiClient.get(`/api/supplier-accounts/${supplierId}`),
+    getAll: () => apiClient.get("/supplier-accounts"),
+    getById: (supplierId) => apiClient.get(`/supplier-accounts/${supplierId}`),
     getPayments: (supplierId) =>
-        apiClient.get(`/api/supplier-accounts/${supplierId}/payments`),
+        apiClient.get(`/supplier-accounts/${supplierId}/payments`),
     makePayment: (supplierId, data) =>
-        apiClient.post(`/api/supplier-accounts/${supplierId}/payments`, data),
+        apiClient.post(`/supplier-accounts/${supplierId}/payments`, data),
     getPurchases: (supplierId) =>
-        apiClient.get(`/api/supplier-accounts/${supplierId}/purchases`),
+        apiClient.get(`/supplier-accounts/${supplierId}/purchases`),
 };
