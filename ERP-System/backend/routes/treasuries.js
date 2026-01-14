@@ -279,6 +279,13 @@ router.delete("/:id", requirePermission("TREASURIES"), async (req, res) => {
     });
     res.status(204).send();
   } catch (error) {
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        error: "Cannot delete treasury",
+        message:
+          "This treasury cannot be deleted because it is associated with other records (e.g., branches, transactions, or expenses).",
+      });
+    }
     res
       .status(500)
       .json({ error: "Failed to delete treasury", message: error.message });
