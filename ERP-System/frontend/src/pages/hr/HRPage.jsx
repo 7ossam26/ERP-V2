@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { branchService, employeeService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
+import BranchFilterHelper from "../../utils/BranchFilterHelper";
 import Modal from "../../components/ui/Modal";
 
 const TransactionForm = ({
@@ -222,9 +224,12 @@ const TransactionForm = ({
 };
 
 const HRPage = () => {
+  const currentUser = AuthService.getCurrentUser();
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [selectedBranch, setSelectedBranch] = useState("all");
+  const [selectedBranch, setSelectedBranch] = useState(
+    BranchFilterHelper.getDefaultBranchId(currentUser)
+  );
 
   // Date Filter State
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -233,6 +238,11 @@ const HRPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null); // 'advance', 'deduction', 'history', 'transaction_entry'
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  // Filter available branches based on user role
+  const filteredBranches = useMemo(() => {
+    return BranchFilterHelper.getAvailableBranches(branches, currentUser);
+  }, [branches, currentUser]);
 
   const fetchData = async () => {
     try {
@@ -377,8 +387,10 @@ const HRPage = () => {
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
                 className="appearance-none bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-2.5 pr-10 text-sm font-bold text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-transparent outline-none cursor-pointer">
-                <option value="all">كل الفروع</option>
-                {branches.map((branch) => (
+                {BranchFilterHelper.canSeeAllBranches(currentUser) && (
+                  <option value="all">كل الفروع</option>
+                )}
+                {filteredBranches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
                   </option>

@@ -14,6 +14,9 @@ import {
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
 import { reportService, branchService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
+import BranchFilterHelper from "../../utils/BranchFilterHelper";
+import toast from "react-hot-toast";
 
 ChartJS.register(
   CategoryScale,
@@ -28,13 +31,16 @@ ChartJS.register(
 );
 
 const GeneralReportPage = () => {
+  const currentUser = AuthService.getCurrentUser();
+  console.log("Logged In User:", currentUser); // DEBUG USER ROLE
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
   const [error, setError] = useState(null);
   const [branches, setBranches] = useState([]);
   const [filters, setFilters] = useState({
-    period: "today", // today, yesterday, week, month, custom
-    branchId: "",
+    startDate: "",
+    endDate: "",
+    branchId: BranchFilterHelper.getDefaultBranchId(currentUser),
   });
 
   // Fetch branches on mount
@@ -42,13 +48,17 @@ const GeneralReportPage = () => {
     const loadBranches = async () => {
       try {
         const data = await branchService.getAll();
-        setBranches(data || []);
+        const available = BranchFilterHelper.getAvailableBranches(
+          data,
+          currentUser
+        );
+        setBranches(available || []);
       } catch (err) {
         console.error("Failed to load branches", err);
       }
     };
     loadBranches();
-  }, []);
+  }, [currentUser?.id]);
 
   const fetchReport = async () => {
     try {
@@ -59,40 +69,33 @@ const GeneralReportPage = () => {
       let startDate = new Date();
       let endDate = new Date(); // Defaults to now
 
-      // Set time to start/end of day to avoid timezone confusion during range selection
-      // But actually, let's keep it simple. `startDate` defaults to Today.
-
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
 
-      if (filters.period === "today") {
-        // Already set to today's start and end
-      } else if (filters.period === "yesterday") {
+      if (filters.period === "yesterday") {
         startDate.setDate(startDate.getDate() - 1);
         endDate.setDate(endDate.getDate() - 1);
-        // Ensure boundaries cover the full yesterday
         endDate.setHours(23, 59, 59, 999);
       } else if (filters.period === "week") {
         startDate.setDate(startDate.getDate() - 7);
-        // endDate remains today end
       } else if (filters.period === "month") {
-        startDate.setDate(1); // First day of current month
-        // endDate remains today end
+        startDate.setDate(1);
       }
 
-      // Convert to YYYY-MM-DD for API
-      // Note: toISOString uses UTC. If user is in +2, and it's 00:00 local, UTC is previous day 22:00.
-      // We should use local date string.
       const toLocalISOString = (date) => {
-        const offset = date.getTimezoneOffset() * 60000; // offset in milliseconds
-        const localISOTime = (new Date(date - offset)).toISOString().slice(0, 10);
+        const offset = date.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(date - offset).toISOString().slice(0, 10);
         return localISOTime;
       };
 
       const formattedStart = toLocalISOString(startDate);
       const formattedEnd = toLocalISOString(endDate);
 
-      console.log("Fetching report with:", { formattedStart, formattedEnd, branchId: filters.branchId });
+      console.log("Fetching report with:", {
+        formattedStart,
+        formattedEnd,
+        branchId: filters.branchId,
+      });
 
       const data = await reportService.getGeneralReport({
         startDate: formattedStart,
@@ -103,7 +106,12 @@ const GeneralReportPage = () => {
       setReportData(data);
     } catch (err) {
       console.error("Error loading report:", err);
-      setError("فشل تحميل البيانات. تأكد من اتصال الخادم.");
+      // More friendly error message
+      const msg =
+        err.response?.status === 403
+          ? "غير مسموح لك بعرض هذا التقرير."
+          : "فشل تحميل البيانات. تأكد من اتصال الخادم.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -114,6 +122,7 @@ const GeneralReportPage = () => {
   }, [filters]);
 
   // --- Chart Config ---
+  // Ensure valid data structure even if reportData is null during transitions
   const salesChartData = {
     labels: reportData?.charts?.salesOverTime?.labels || [],
     datasets: [
@@ -156,7 +165,13 @@ const GeneralReportPage = () => {
     datasets: [
       {
         data: reportData?.charts?.salesByItem?.data || [],
-        backgroundColor: ["#6F4E37", "#A1887F", "#D7CCC8", "#8D6E63", "#5D4037"],
+        backgroundColor: [
+          "#6F4E37",
+          "#A1887F",
+          "#D7CCC8",
+          "#8D6E63",
+          "#5D4037",
+        ],
         borderWidth: 0,
         hoverOffset: 4,
       },
@@ -168,14 +183,17 @@ const GeneralReportPage = () => {
     maintainAspectRatio: false,
     cutout: "70%",
     plugins: {
-      legend: { display: false }
-    }
+      legend: { display: false },
+    },
   };
 
   if (loading && !reportData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
-        <div className="text-primary text-xl font-bold animate-pulse">جاري تحميل التقرير...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-primary font-bold">جاري تحميل التقرير...</p>
+        </div>
       </div>
     );
   }
@@ -214,7 +232,9 @@ const GeneralReportPage = () => {
             <div className="relative">
               <select
                 value={filters.period}
-                onChange={(e) => setFilters({ ...filters, period: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, period: e.target.value })
+                }
                 className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
                 <option value="today">اليوم</option>
                 <option value="yesterday">أمس</option>
@@ -233,11 +253,17 @@ const GeneralReportPage = () => {
             <div className="relative">
               <select
                 value={filters.branchId}
-                onChange={(e) => setFilters({ ...filters, branchId: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, branchId: e.target.value })
+                }
                 className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
-                <option value="">الكل</option>
-                {branches.map(branch => (
-                  <option key={branch.id} value={branch.id}>{branch.name}</option>
+                {BranchFilterHelper.canSeeAllBranches(currentUser) && (
+                  <option value="">الكل</option>
+                )}
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
                 ))}
               </select>
               <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
@@ -249,7 +275,12 @@ const GeneralReportPage = () => {
             <button
               onClick={fetchReport}
               className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors font-medium shadow-md shadow-primary/20 flex items-center justify-center gap-2">
-              <span className={`material-icons-round text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
+              <span
+                className={`material-icons-round text-lg ${
+                  loading ? "animate-spin" : ""
+                }`}>
+                refresh
+              </span>
               تحديث التقرير
             </button>
           </div>
@@ -342,9 +373,7 @@ const GeneralReportPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         <div className="lg:col-span-2 bg-surface-light dark:bg-surface-dark p-6 rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-primary">
-              حركة المبيعات
-            </h3>
+            <h3 className="text-lg font-bold text-primary">حركة المبيعات</h3>
           </div>
           <div className="h-64 w-full">
             <Line data={salesChartData} options={salesOptions} />
@@ -361,7 +390,9 @@ const GeneralReportPage = () => {
             {reportData?.charts?.salesByItem?.data?.length > 0 ? (
               <Doughnut data={pieChartData} options={pieOptions} />
             ) : (
-              <div className="flex items-center justify-center text-gray-400">لا توجد بيانات</div>
+              <div className="flex items-center justify-center text-gray-400">
+                لا توجد بيانات
+              </div>
             )}
           </div>
           {/* Custom Legend */}
@@ -371,9 +402,13 @@ const GeneralReportPage = () => {
                 <div className="flex items-center gap-2">
                   <span
                     className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: pieChartData.datasets[0].backgroundColor[index % 5] }}>
+                    style={{
+                      backgroundColor:
+                        pieChartData.datasets[0].backgroundColor[index % 5],
+                    }}></span>
+                  <span className="text-gray-600 dark:text-gray-300">
+                    {label}
                   </span>
-                  <span className="text-gray-600 dark:text-gray-300">{label}</span>
                 </div>
               </div>
             ))}
@@ -402,10 +437,14 @@ const GeneralReportPage = () => {
             </thead>
             <tbody className="divide-y divide-border-light dark:divide-border-dark">
               {reportData?.tables?.salesByBranch?.map((branch, index) => (
-                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+                <tr
+                  key={index}
+                  className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
                   <td className="px-6 py-4 font-bold text-gray-900 dark:text-white flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-[#6F4E37]/10 flex items-center justify-center text-[#6F4E37]">
-                      <span className="material-icons-round text-sm">apartment</span>
+                      <span className="material-icons-round text-sm">
+                        apartment
+                      </span>
                     </div>
                     {branch.name}
                   </td>
@@ -414,7 +453,9 @@ const GeneralReportPage = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium w-8">{Math.round(branch.percentage)}%</span>
+                      <span className="text-xs font-medium w-8">
+                        {Math.round(branch.percentage)}%
+                      </span>
                       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                         <div
                           className="bg-[#6F4E37] h-2 rounded-full"
@@ -426,7 +467,7 @@ const GeneralReportPage = () => {
                     {branch.invoiceCount}
                   </td>
                   <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                    {Math.round(branch.averageInvoice)} ر.س
+                    {Math.round(branch.averageInvoice)} ج.م
                   </td>
                 </tr>
               ))}
@@ -455,7 +496,9 @@ const GeneralReportPage = () => {
             </thead>
             <tbody className="divide-y divide-border-light dark:divide-border-dark">
               {reportData?.tables?.stockAlertsList?.map((item, index) => (
-                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+                <tr
+                  key={index}
+                  className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
                   <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">
                     {item.itemName}
                   </td>
@@ -466,13 +509,18 @@ const GeneralReportPage = () => {
                     {item.reorderPoint}
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">منخفض جدًا</span>
+                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                      منخفض جدًا
+                    </span>
                   </td>
                 </tr>
               ))}
-              {(!reportData?.tables?.stockAlertsList || reportData.tables.stockAlertsList.length === 0) && (
+              {(!reportData?.tables?.stockAlertsList ||
+                reportData.tables.stockAlertsList.length === 0) && (
                 <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                  <td
+                    colSpan="4"
+                    className="px-6 py-8 text-center text-gray-500">
                     لا توجد تنبيهات مخزون حالياً
                   </td>
                 </tr>
@@ -481,7 +529,6 @@ const GeneralReportPage = () => {
           </table>
         </div>
       </div>
-
     </div>
   );
 };

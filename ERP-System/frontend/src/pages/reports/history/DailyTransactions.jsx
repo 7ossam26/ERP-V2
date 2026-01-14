@@ -2,18 +2,21 @@ import React from "react";
 import GenericPageManager from "../../../components/shared/GenericPageManager";
 import { salesService, branchService } from "../../../services/domainServices";
 import ReportFilterForm from "../../../components/shared/ReportFilterForm";
+import AuthService from "../../../services/authService";
+import BranchFilterHelper from "../../../utils/BranchFilterHelper";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import SaleDetailsModal from "./SaleDetailsModal";
 
 const DailyTransactions = () => {
+  const currentUser = AuthService.getCurrentUser();
   const [branches, setBranches] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
     searchTerm: "",
-    branchId: "all",
+    branchId: BranchFilterHelper.getDefaultBranchId(currentUser),
   });
   const [selectedSale, setSelectedSale] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);

@@ -1,0 +1,161 @@
+/* 404 Page Styles - Matching ERP System Theme */
+.not-found-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f0; /* background-light */
+  font-family: "Cairo", sans-serif;
+  padding: 2rem;
+}
+
+.not-found-content {
+  text-align: center;
+  max-width: 600px;
+  background: #ffffff; /* surface-light */
+  padding: 3rem 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px -2px rgba(111, 78, 55, 0.1);
+}
+
+/* 404 Error Code */
+.error-code {
+  margin-bottom: 2rem;
+}
+
+.error-code span {
+  font-size: 8rem;
+  font-weight: 800;
+  color: #6f4e37; /* primary */
+  display: block;
+  line-height: 1;
+}
+
+/* Text Styles */
+.error-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #3e2723; /* text-light */
+  margin-bottom: 1rem;
+  font-family: "Cairo", sans-serif;
+}
+
+.error-description {
+  font-size: 1.125rem;
+  color: #3e2723;
+  opacity: 0.7;
+  margin-bottom: 2.5rem;
+  line-height: 1.8;
+  max-width: 450px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.action-buttons button {
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Cairo", sans-serif;
+  min-width: 160px;
+}
+
+.btn-primary {
+  background: #6f4e37; /* primary */
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(111, 78, 55, 0.2);
+}
+
+.btn-primary:hover {
+  background: #5d4037; /* primary-hover */
+  box-shadow: 0 4px 12px rgba(111, 78, 55, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #6f4e37;
+  border: 2px solid #e7e5e4; /* border-light */
+}
+
+.btn-secondary:hover {
+  background: #f5f5f0;
+  border-color: #d7ccc8; /* accent */
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .not-found-content {
+    padding: 2rem 1.5rem;
+  }
+
+  .error-code span {
+    font-size: 5rem;
+  }
+
+  .error-title {
+    font-size: 1.5rem;
+  }
+
+  .error-description {
+    font-size: 1rem;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .action-buttons button {
+    width: 100%;
+  }
+}
+
+/* Dark mode support (optional - if your app uses dark mode) */
+@media (prefers-color-scheme: dark) {
+  .not-found-container {
+    background: #1f1b18; /* background-dark */
+  }
+
+  .not-found-content {
+    background: #2c2522; /* surface-dark */
+  }
+
+  .error-code span {
+    color: #d7ccc8; /* accent */
+  }
+
+  .error-title,
+  .error-description {
+    color: #efebe9; /* text-dark */
+  }
+
+  .btn-secondary {
+    color: #d7ccc8;
+    border-color: #44403c; /* border-dark */
+  }
+
+  .btn-secondary:hover {
+    background: #1f1b18;
+    border-color: #d7ccc8;
+  }
+}

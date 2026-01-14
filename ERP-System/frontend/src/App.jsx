@@ -45,10 +45,12 @@ import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 import SettingsPage from "./pages/settings/SettingsPage";
 import TransferManagementPage from "./pages/treasuries/TransferManagementPage";
 import ForbiddenPage from "./pages/ForbiddenPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
 import { seedData } from "./services/seedData";
+import SessionTimeoutWarning from "./components/SessionTimeoutWarning";
 
 function App() {
   useEffect(() => {
@@ -64,6 +66,7 @@ function App() {
   return (
     <Router>
       <Toaster position="top-center" reverseOrder={false} />
+      <SessionTimeoutWarning />
       <Routes>
         {/* Public Route: Login */}
         <Route path="/" element={<LoginPage />} />
@@ -215,7 +218,7 @@ function App() {
           <Route
             path="/inventory"
             element={
-              <ProtectedRoute requiredPermission="INVENTORY">
+              <ProtectedRoute requiredPermission="INVENTORY_COUNT">
                 <InventoryPage />
               </ProtectedRoute>
             }
@@ -330,12 +333,16 @@ function App() {
           <Route
             path="/transfer-management"
             element={
-              <ProtectedRoute requiredPermission="TREASURIES">
+              <ProtectedRoute
+                requiredPermission={["TREASURIES", "CASH_TRANSFER"]}>
                 <TransferManagementPage />
               </ProtectedRoute>
             }
           />
         </Route>
+
+        {/* 404 Catch-All Route */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
   );

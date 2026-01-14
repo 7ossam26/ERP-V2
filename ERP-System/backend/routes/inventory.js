@@ -1,10 +1,18 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
+const {
+  authenticateToken,
+  requirePermission,
+  getUserBranchFilter,
+  requireAnyPermission,
+} = require("../middleware/auth");
 
-// Protect all routes with INVENTORY permission
-router.use(authenticateToken, requirePermission("INVENTORY"));
+// Protect all routes with authentication, specific permissions checked per route or broadened here
+router.use(
+  authenticateToken,
+  requireAnyPermission(["INVENTORY", "POS", "INVENTORY_COUNT"])
+);
 
 // GET Inventory (All items with stock levels)
 router.get("/", async (req, res) => {
@@ -24,6 +32,8 @@ router.get("/", async (req, res) => {
     }
 
     // Filter by warehouse presence if warehouseId is provided
+    // REMOVED: Strict filtering that hides items without inventory records in target warehouse
+    /*
     if (warehouseId && warehouseId !== "all") {
       whereClause.inventory = {
         some: {
@@ -31,6 +41,7 @@ router.get("/", async (req, res) => {
         },
       };
     }
+    */
 
     // Determine warehouse limitation based on user branch
     const branchId = await getUserBranchFilter(req.user.id);
@@ -39,7 +50,7 @@ router.get("/", async (req, res) => {
     if (branchId) {
       const branch = await prisma.branch.findUnique({
         where: { id: branchId },
-        select: { warehouseId: true }
+        select: { warehouseId: true },
       });
       if (branch && branch.warehouseId) {
         inventoryWhere = { warehouseId: branch.warehouseId };

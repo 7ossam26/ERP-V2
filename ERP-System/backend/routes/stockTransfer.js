@@ -31,8 +31,8 @@ const generateTransferNumber = async () => {
   }
 };
 
-// Protect all routes with INVENTORY permission
-router.use(authenticateToken, requirePermission("INVENTORY"));
+// Protect all routes with STOCK_TRANSFER permission
+router.use(authenticateToken, requirePermission("STOCK_TRANSFER"));
 
 // GET all stock transfers
 router.get("/", async (req, res) => {
@@ -149,7 +149,9 @@ router.post("/", async (req, res) => {
     let sourceWarehouseId = fromWarehouseId;
 
     if (!sourceWarehouseId) {
-      console.log("📦 Source warehouse not provided, fetching main warehouse from system configuration...");
+      console.log(
+        "📦 Source warehouse not provided, fetching main warehouse from system configuration..."
+      );
       // Get main warehouse ID from system configuration
       const config = await prisma.systemConfiguration.findFirst({
         select: { mainWarehouseId: true },
@@ -197,8 +199,10 @@ router.post("/", async (req, res) => {
 
         if (!inventory || inventory.quantity < item.quantity) {
           throw new Error(
-            `Insufficient stock for item ${item.itemId
-            } in source warehouse. Available: ${inventory ? inventory.quantity : 0
+            `Insufficient stock for item ${
+              item.itemId
+            } in source warehouse. Available: ${
+              inventory ? inventory.quantity : 0
             }, Requested: ${item.quantity}`
           );
         }

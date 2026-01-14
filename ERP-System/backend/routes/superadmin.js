@@ -3,6 +3,7 @@ const router = express.Router();
 const prisma = require("../config/database");
 const bcrypt = require("bcryptjs");
 const { authenticateToken, isSuperadmin } = require("../middleware/auth");
+const { body, validationResult } = require("express-validator");
 
 // Middleware to ensure all routes here are protected and for superadmin only
 router.use(authenticateToken, isSuperadmin);
@@ -46,8 +47,21 @@ router.get("/users", async (req, res) => {
 });
 
 // POST create user
-router.post("/users", async (req, res) => {
+const createUserValidation = [
+  body("name").trim().escape(),
+  body("username").trim().escape(),
+  body("password")
+    .isLength({ min: 4 })
+    .withMessage("Password must be at least 4 characters"),
+];
+
+router.post("/users", createUserValidation, async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const { name, username, password, roleId, branchId } = req.body;
 
     if (!branchId) {

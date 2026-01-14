@@ -1,12 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import AuthService from "../../services/authService";
+import BranchFilterHelper from "../../utils/BranchFilterHelper";
 
 const ReportFilterForm = ({ onFilter, branches = null }) => {
+  const currentUser = AuthService.getCurrentUser();
+
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
     searchTerm: "",
-    branchId: "all",
+    branchId: BranchFilterHelper.getDefaultBranchId(currentUser),
   });
+
+  // Filter branches based on user role
+  const filteredBranches = useMemo(() => {
+    if (!branches) return null;
+    return BranchFilterHelper.getAvailableBranches(branches, currentUser);
+  }, [branches, currentUser]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,7 +33,7 @@ const ReportFilterForm = ({ onFilter, branches = null }) => {
       startDate: "",
       endDate: "",
       searchTerm: "",
-      branchId: "all",
+      branchId: BranchFilterHelper.getDefaultBranchId(currentUser),
     };
     setFilters(resetState);
     onFilter(resetState);
@@ -57,7 +67,7 @@ const ReportFilterForm = ({ onFilter, branches = null }) => {
         </div>
 
         {/* Branch Filter (Optional) */}
-        {branches && (
+        {branches && filteredBranches && (
           <div className="space-y-1.5">
             <label className="text-sm font-bold text-text-light dark:text-text-dark">
               الفرع
@@ -67,8 +77,10 @@ const ReportFilterForm = ({ onFilter, branches = null }) => {
               value={filters.branchId}
               onChange={handleChange}
               className="w-full px-4 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer">
-              <option value="all">كل الفروع</option>
-              {branches.map((branch) => (
+              {BranchFilterHelper.canSeeAllBranches(currentUser) && (
+                <option value="all">كل الفروع</option>
+              )}
+              {filteredBranches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
                 </option>

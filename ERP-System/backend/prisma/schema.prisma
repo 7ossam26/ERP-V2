@@ -34,8 +34,24 @@ model User {
   createdTransactions EmployeeTransaction[] @relation("TransactionCreator")
   createdPayrolls     Payroll[]             @relation("PayrollCreator")
   shifts         Shift[]
+  refreshTokens  RefreshToken[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
 }
 
 model Role {

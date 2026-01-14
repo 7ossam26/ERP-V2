@@ -49,11 +49,12 @@ export const apiClient = async (endpoint, options = {}) => {
     // Check if response is successful
     if (!response.ok) {
       if (response.status === 401) {
-        // Unauthorized - clear token and redirect if needed
-        // Avoid loop if already on login page
+        // Unauthorized - token expired or invalid
+        // Clear stale auth data and redirect to login
         if (!window.location.pathname.endsWith("/")) {
-          // Optional: localStorage.removeItem("token");
-          // window.location.href = "/";
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/";
         }
       }
       throw new APIError(

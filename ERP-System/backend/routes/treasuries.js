@@ -1,7 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission, requireAnyPermission } = require("../middleware/auth");
+const {
+  authenticateToken,
+  requirePermission,
+  requireCreatePermission,
+  requireAnyPermission,
+} = require("../middleware/auth");
 
 // Protect all routes with authentication
 router.use(authenticateToken);
@@ -10,6 +15,7 @@ router.use(authenticateToken);
 router.get("/", async (req, res) => {
   try {
     const treasuries = await prisma.treasury.findMany({
+      include: { branch: true },
       orderBy: { createdAt: "asc" },
     });
     res.json(treasuries);
@@ -59,7 +65,8 @@ router.get("/:id", async (req, res) => {
 
 // POST Transfer between treasuries
 // POST Transfer Request (Handshake Step 1)
-router.post("/transfer", requirePermission("TREASURIES"), async (req, res) => {
+router.post("/transfer", async (req, res) => {
+  console.log("Processing transfer request:", req.body); // DEBUG LOG
   try {
     const { fromTreasuryId, toTreasuryId, amount, notes } = req.body;
     const transferAmount = Number(amount);
@@ -152,7 +159,8 @@ router.post("/transfer", requirePermission("TREASURIES"), async (req, res) => {
 });
 
 // POST Approve Transfer (Handshake Step 2)
-router.post("/transfer/:id/approve", requirePermission("TREASURIES"), async (req, res) => {
+router.post("/transfer/:id/approve", async (req, res) => {
+  console.log("Processing transfer approval:", req.params.id); // DEBUG LOG
   try {
     const transferId = parseInt(req.params.id);
 
@@ -188,7 +196,8 @@ router.post("/transfer/:id/approve", requirePermission("TREASURIES"), async (req
 });
 
 // POST Reject Transfer (Refund)
-router.post("/transfer/:id/reject", requirePermission("TREASURIES"), async (req, res) => {
+router.post("/transfer/:id/reject", async (req, res) => {
+  console.log("Processing transfer rejection:", req.params.id); // DEBUG LOG
   try {
     const transferId = parseInt(req.params.id);
 
@@ -224,35 +233,43 @@ router.post("/transfer/:id/reject", requirePermission("TREASURIES"), async (req,
 });
 
 // POST create new treasury
-router.post("/", requireCreatePermission("CREATES_TREASURIES"), async (req, res) => {
-  try {
-    const { name } = req.body;
-    const treasury = await prisma.treasury.create({
-      data: { name },
-    });
-    res.status(201).json(treasury);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to create treasury", message: error.message });
+router.post(
+  "/",
+  requireCreatePermission("CREATES_TREASURIES"),
+  async (req, res) => {
+    try {
+      const { name } = req.body;
+      const treasury = await prisma.treasury.create({
+        data: { name },
+      });
+      res.status(201).json(treasury);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Failed to create treasury", message: error.message });
+    }
   }
-});
+);
 
 // PUT update treasury
-router.put("/:id", requireAnyPermission(["TREASURIES", "CREATES_TREASURIES"]), async (req, res) => {
-  try {
-    const { name } = req.body;
-    const treasury = await prisma.treasury.update({
-      where: { id: parseInt(req.params.id) },
-      data: { name },
-    });
-    res.json(treasury);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to update treasury", message: error.message });
+router.put(
+  "/:id",
+  requireAnyPermission(["TREASURIES", "CREATES_TREASURIES"]),
+  async (req, res) => {
+    try {
+      const { name } = req.body;
+      const treasury = await prisma.treasury.update({
+        where: { id: parseInt(req.params.id) },
+        data: { name },
+      });
+      res.json(treasury);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Failed to update treasury", message: error.message });
+    }
   }
-});
+);
 
 // DELETE treasury
 router.delete("/:id", requirePermission("TREASURIES"), async (req, res) => {

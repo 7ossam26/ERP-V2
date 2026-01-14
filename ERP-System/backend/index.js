@@ -7,17 +7,60 @@ const PORT = process.env.PORT || 3001;
 
 console.log("Attempting to start server...");
 
-// Middleware
+const helmet = require("helmet");
+
+// Security headers
 app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:3000",
-    ],
-    credentials: true,
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
   })
 );
+
+// CORS configuration
+const allowedOrigins = process.env.FRONTEND_URL?.split(",") || [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// HTTPS enforcement (production only)
+if (process.env.NODE_ENV === "production") {
+  app.use((req, res, next) => {
+    if (req.headers["x-forwarded-proto"] !== "https") {
+      return res.redirect("https://" + req.headers.host + req.url);
+    }
+    next();
+  });
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
