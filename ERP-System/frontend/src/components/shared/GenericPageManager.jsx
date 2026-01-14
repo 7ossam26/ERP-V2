@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import GenericDataTable from "./GenericDataTable";
 import Modal from "../ui/Modal";
 import Toast, { useToast } from "../ui/Toast";
+import { confirmAction } from "../../utils/toastUtils";
 
 const GenericPageManager = ({
   title,
@@ -71,8 +72,8 @@ const GenericPageManager = ({
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("هل أنت متأكد من الحذف؟")) {
+  const handleDelete = (id) => {
+    confirmAction("هل أنت متأكد من الحذف؟", async () => {
       setDeletingId(id);
       try {
         await service.delete(id);
@@ -84,7 +85,7 @@ const GenericPageManager = ({
       } finally {
         setDeletingId(null);
       }
-    }
+    });
   };
 
   const openNewModal = () => {

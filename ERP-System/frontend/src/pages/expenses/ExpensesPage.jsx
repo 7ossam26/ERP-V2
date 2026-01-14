@@ -3,6 +3,7 @@ import AddExpenseModal from "./AddExpenseModal";
 import { expenseService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
+import { confirmAction } from "../../utils/toastUtils";
 
 const ExpensesPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,8 +72,8 @@ const ExpensesPage = () => {
         setEditingExpense(null);
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm("هل أنت متأكد من حذف هذا المصروف؟")) {
+    const handleDelete = (id) => {
+        confirmAction("هل أنت متأكد من حذف هذا المصروف؟", async () => {
             try {
                 await expenseService.delete(id);
                 setExpenses((prev) => prev.filter((item) => item.id !== id));
@@ -81,7 +82,7 @@ const ExpensesPage = () => {
                 console.error("Failed to delete expense", error);
                 toast.error("فشل حذف المصروف");
             }
-        }
+        });
     };
 
 

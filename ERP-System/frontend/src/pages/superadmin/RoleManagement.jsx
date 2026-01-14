@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import SuperadminService from "../../services/superadminService";
 import AuthService from "../../services/authService";
 import { toast } from "react-hot-toast";
+import { confirmAction } from "../../utils/toastUtils";
 
 const RoleManagement = () => {
     const [roles, setRoles] = useState([]);
@@ -39,8 +40,8 @@ const RoleManagement = () => {
         }
     };
 
-    const handleDeleteRole = async (role) => {
-        if (window.confirm(`Are you sure you want to delete the role "${role.name}"?`)) {
+    const handleDeleteRole = (role) => {
+        confirmAction(`Are you sure you want to delete the role "${role.name}"?`, async () => {
             try {
                 await SuperadminService.deleteRole(role.id);
                 toast.success("Role deleted successfully");
@@ -50,7 +51,7 @@ const RoleManagement = () => {
                 const errorMessage = error.response?.data?.error || "Failed to delete role";
                 toast.error(errorMessage);
             }
-        }
+        });
     };
 
     return (
