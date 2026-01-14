@@ -111,6 +111,15 @@ export const MODULES = [
     category: "MANAGEMENT",
   },
   {
+    id: "supplier_accounts",
+    code: "SUPPLIER_ACCOUNTS",
+    label: "حسابات الموردين",
+    description: "إدارة حسابات الموردين والمدفوعات",
+    icon: "account_balance_wallet",
+    path: "/supplier-accounts",
+    category: "MANAGEMENT",
+  },
+  {
     id: "branches_sales",
     code: "BRANCHES",
     label: "مبيعات الفروع",
@@ -173,15 +182,7 @@ export const MODULES = [
     path: "/transfer-management",
     category: "MANAGEMENT",
   },
-  {
-    id: "supplier_accounts",
-    code: "SUPPLIER_ACCOUNTS",
-    label: "حسابات الموردين",
-    description: "إدارة حسابات الموردين والمدفوعات",
-    icon: "account_balance_wallet",
-    path: "/supplier-accounts",
-    category: "MANAGEMENT",
-  },
+
 ];
 
 export const getCreationModules = () =>

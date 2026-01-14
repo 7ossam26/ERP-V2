@@ -14,7 +14,7 @@ const { authenticateToken, requirePermission } = require("../middleware/auth");
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-router.get("/general", async (req, res) => {
+router.get("/general", requirePermission("REPORTS"), async (req, res) => {
   try {
     const { startDate, endDate, branchId } = req.query;
 
@@ -31,7 +31,8 @@ router.get("/general", async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    const branchFilter = branchId ? { branchId: parseInt(branchId) } : {};
+    const isAllBranches = !branchId || branchId === "all";
+    const branchFilter = isAllBranches ? {} : { branchId: parseInt(branchId) };
 
     // --- 2. Fetch Data ---
 
@@ -45,12 +46,7 @@ router.get("/general", async (req, res) => {
       include: {
         items: {
           include: {
-            item: {
-              // category is Many-to-Many via ItemCategory.
-              // We just want item name for now, but if we really want category name:
-              // include: { categories: { include: { category: true } } }
-              // But let's keep it simple and just get the item details.
-            },
+            item: true,
           },
         },
         branch: true,
@@ -62,7 +58,7 @@ router.get("/general", async (req, res) => {
       date: { gte: start, lte: end },
     };
 
-    if (branchId) {
+    if (!isAllBranches) {
       // Filter expenses where the treasury belongs to the branch
       expenseWhere.treasury = {
         branch: {
@@ -79,7 +75,7 @@ router.get("/general", async (req, res) => {
     // We can't easily "go back in time" for inventory without a ledger, so we return CURRENT warning levels.
     // C. Inventory (Snapshot - Current State)
     let inventoryWhere = {};
-    if (branchId) {
+    if (!isAllBranches) {
       const branch = await prisma.branch.findUnique({
         where: { id: parseInt(branchId) },
         select: { warehouseId: true }, // Get the linked warehouse
@@ -112,7 +108,7 @@ router.get("/general", async (req, res) => {
 
     let stockAlertsList = [];
 
-    if (branchId) {
+    if (!isAllBranches) {
       // Specific Scope: Check every item against this warehouse
       stockAlertsList = allItems
         .map((item) => ({

@@ -40,6 +40,7 @@ const GeneralReportPage = () => {
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
+    period: "today",
     branchId: BranchFilterHelper.getDefaultBranchId(currentUser),
   });
 
@@ -108,7 +109,7 @@ const GeneralReportPage = () => {
       console.error("Error loading report:", err);
       // More friendly error message
       const msg =
-        err.response?.status === 403
+        err.status === 403
           ? "غير مسموح لك بعرض هذا التقرير."
           : "فشل تحميل البيانات. تأكد من اتصال الخادم.";
       setError(msg);
@@ -258,7 +259,7 @@ const GeneralReportPage = () => {
                 }
                 className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
                 {BranchFilterHelper.canSeeAllBranches(currentUser) && (
-                  <option value="">الكل</option>
+                  <option value="all">الكل</option>
                 )}
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
@@ -276,9 +277,8 @@ const GeneralReportPage = () => {
               onClick={fetchReport}
               className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors font-medium shadow-md shadow-primary/20 flex items-center justify-center gap-2">
               <span
-                className={`material-icons-round text-lg ${
-                  loading ? "animate-spin" : ""
-                }`}>
+                className={`material-icons-round text-lg ${loading ? "animate-spin" : ""
+                  }`}>
                 refresh
               </span>
               تحديث التقرير
@@ -517,14 +517,14 @@ const GeneralReportPage = () => {
               ))}
               {(!reportData?.tables?.stockAlertsList ||
                 reportData.tables.stockAlertsList.length === 0) && (
-                <tr>
-                  <td
-                    colSpan="4"
-                    className="px-6 py-8 text-center text-gray-500">
-                    لا توجد تنبيهات مخزون حالياً
-                  </td>
-                </tr>
-              )}
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="px-6 py-8 text-center text-gray-500">
+                      لا توجد تنبيهات مخزون حالياً
+                    </td>
+                  </tr>
+                )}
             </tbody>
           </table>
         </div>
