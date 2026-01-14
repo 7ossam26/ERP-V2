@@ -95,6 +95,12 @@ const UserManagement = () => {
         toast.success("User created successfully");
       }
       setShowModal(false);
+      // Check if we updated ourselves
+      if (editingUser && editingUser.id === AuthService.getCurrentUser()?.id) {
+        await AuthService.refreshProfile();
+        window.location.reload(); // Force reload to ensure all components and sidebars update
+      }
+
       resetForm();
       fetchData();
     } catch (error) {
@@ -137,6 +143,12 @@ const UserManagement = () => {
   const handleToggleStatus = async (id) => {
     try {
       await SuperadminService.toggleUserStatus(id);
+
+      // Check if we updated ourselves
+      if (id === AuthService.getCurrentUser()?.id) {
+        await AuthService.refreshProfile();
+      }
+
       toast.success("User status updated");
       fetchData();
     } catch (error) {

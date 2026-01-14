@@ -153,20 +153,30 @@ const requireCreatePermission = (createModule) => {
 };
 
 // Check if user has sensitive access (for update/delete operations)
-const requireSensitiveAccess = (req, res, next) => {
+const requireSensitiveAccess = async (req, res, next) => {
   // Superadmin always has sensitive access
   if (req.user.role === "Superadmin") {
     return next();
   }
 
-  // Check if user has sensitive access flag
-  if (!req.user.hasSensitiveAccess) {
-    return res.status(403).json({
-      error: "Access denied. This operation requires sensitive access permissions.",
+  try {
+    // Check if user has sensitive access flag from DB (source of truth)
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { hasSensitiveAccess: true }
     });
-  }
 
-  next();
+    if (!user || !user.hasSensitiveAccess) {
+      return res.status(403).json({
+        error: "Access denied. This operation requires sensitive access permissions.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error("Sensitive access check error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 };
 
 // Get branch filter for queries (returns null if user can see all branches)
