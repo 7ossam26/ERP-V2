@@ -35,9 +35,11 @@ const SupplierAccountsPage = () => {
             setIsLoading(true);
             const data = await supplierAccountService.getAll();
             setAccounts(data);
+            return data; // Return the fresh data
         } catch (error) {
             console.error("Failed to fetch supplier accounts:", error);
             toast.error("فشل تحميل حسابات الموردين");
+            return []; // Return empty array on error
         } finally {
             setIsLoading(false);
         }
@@ -107,14 +109,17 @@ const SupplierAccountsPage = () => {
             toast.success("تم تسجيل الدفعة بنجاح");
             setIsPaymentModalOpen(false);
 
-            // Refresh data
-            await fetchAccounts();
-            if (selectedAccount) {
-                const updatedAccount = accounts.find(
+            // Refresh data with fresh data from server
+            const freshAccounts = await fetchAccounts();
+            if (selectedAccount && freshAccounts) {
+                const updatedAccount = freshAccounts.find(
                     (acc) => acc.supplierId === selectedAccount.supplierId
                 );
                 if (updatedAccount) {
                     handleAccountClick(updatedAccount);
+                } else {
+                    // Account no longer has debt, clear selection
+                    setSelectedAccount(null);
                 }
             }
         } catch (error) {
@@ -306,13 +311,17 @@ const SupplierAccountsPage = () => {
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <span
-                                                                className={`px-2 py-1 rounded text-xs font-bold ${purchase.paymentStatus === "PARTIALLY_PAID"
-                                                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-                                                                    : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                                                className={`px-2 py-1 rounded text-xs font-bold ${purchase.paymentStatus === "PAID"
+                                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                                                                    : purchase.paymentStatus === "PARTIALLY_PAID"
+                                                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
+                                                                        : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
                                                                     }`}>
-                                                                {purchase.paymentStatus === "PARTIALLY_PAID"
-                                                                    ? "مدفوع جزئيًا"
-                                                                    : "غير مدفوع"}
+                                                                {purchase.paymentStatus === "PAID"
+                                                                    ? "مدفوع"
+                                                                    : purchase.paymentStatus === "PARTIALLY_PAID"
+                                                                        ? "غير مدفوع بالكامل"
+                                                                        : "غير مدفوع"}
                                                             </span>
                                                         </td>
                                                     </tr>

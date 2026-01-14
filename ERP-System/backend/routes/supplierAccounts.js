@@ -277,15 +277,17 @@ router.post("/:supplierId/payments", async (req, res) => {
             });
 
             // 7. Create expense record for this payment
+            // Note: We don't link to purchaseId because purchases already have their own expense records
+            // and purchaseId has a unique constraint. Supplier payments are separate expense entries.
             await prisma.expense.create({
                 data: {
-                    description: `Payment to ${account.supplier?.name || "Supplier"} ${purchaseId ? `for Purchase #${purchaseId}` : ""
+                    description: `Payment to ${account.supplier?.name || "Supplier"}${purchaseId ? ` for Purchase #${purchaseId}` : ""
                         }`,
                     amount: Number(amount),
                     date: new Date(),
                     type: "PURCHASE",
                     treasuryId: parseInt(treasuryId),
-                    purchaseId: purchaseId ? parseInt(purchaseId) : null,
+                    // purchaseId: null, // Don't link to avoid unique constraint violation
                     paymentMethod: "CASH", // Default to CASH for supplier payments
                 },
             });

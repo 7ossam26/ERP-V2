@@ -7,6 +7,7 @@ const mapPaymentMethod = (backendMethod) => {
   const mapping = {
     CASH: "cash",
     CREDIT: "credit",
+    DEFERRED: "deferred",
     MIXED: "mixed",
   };
   return mapping[backendMethod] || "cash";
@@ -14,12 +15,15 @@ const mapPaymentMethod = (backendMethod) => {
 
 // Map frontend payment method to backend format
 const mapPaymentMethodToBackend = (frontendMethod) => {
+  // Handle both uppercase and lowercase
+  const upperMethod = String(frontendMethod).toUpperCase();
   const mapping = {
-    cash: "CASH",
-    credit: "CREDIT",
-    mixed: "MIXED",
+    CASH: "CASH",
+    CREDIT: "CREDIT",
+    DEFERRED: "DEFERRED",
+    MIXED: "MIXED",
   };
-  return mapping[frontendMethod] || "CASH";
+  return mapping[upperMethod] || "CASH";
 };
 
 // Map backend discount type to frontend format
