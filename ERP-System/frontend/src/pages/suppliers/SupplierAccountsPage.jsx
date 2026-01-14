@@ -4,8 +4,10 @@ import { Link } from "react-router-dom";
 import {
     supplierAccountService,
     treasuryService,
+    purchaseService,
 } from "../../services/domainServices";
 import Modal from "../../components/ui/Modal";
+import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
 
 const SupplierAccountsPage = () => {
     const [accounts, setAccounts] = useState([]);
@@ -16,6 +18,10 @@ const SupplierAccountsPage = () => {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [showZeroBalance, setShowZeroBalance] = useState(true);
+
+    // Details Modal State
+    const [selectedPurchase, setSelectedPurchase] = useState(null);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
     // Payment form state
     const [paymentData, setPaymentData] = useState({
@@ -81,6 +87,17 @@ const SupplierAccountsPage = () => {
             purchaseId: "",
             notes: "",
         });
+    };
+
+    const handleViewDetails = async (purchaseId) => {
+        try {
+            const purchase = await purchaseService.getById(purchaseId);
+            setSelectedPurchase(purchase);
+            setIsDetailsModalOpen(true);
+        } catch (error) {
+            console.error("Failed to fetch purchase details:", error);
+            toast.error("فشل تحميل تفاصيل الفاتورة");
+        }
     };
 
     const handlePaymentSubmit = async (e) => {
@@ -288,6 +305,7 @@ const SupplierAccountsPage = () => {
                                                         <th className="px-4 py-3">المدفوع</th>
                                                         <th className="px-4 py-3">المتبقي</th>
                                                         <th className="px-4 py-3">الحالة</th>
+                                                        <th className="px-4 py-3">إجراءات</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -324,6 +342,19 @@ const SupplierAccountsPage = () => {
                                                                             ? "غير مدفوع بالكامل"
                                                                             : "غير مدفوع"}
                                                                 </span>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleViewDetails(purchase.id);
+                                                                    }}
+                                                                    className="text-primary hover:text-primary-dark transition-colors"
+                                                                    title="عرض التفاصيل">
+                                                                    <span className="material-symbols-outlined text-xl">
+                                                                        visibility
+                                                                    </span>
+                                                                </button>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -484,6 +515,13 @@ const SupplierAccountsPage = () => {
                     </div>
                 </form>
             </Modal>
+
+            {/* Purchase Details Modal */}
+            <PurchaseDetailsModal
+                isOpen={isDetailsModalOpen}
+                onClose={() => setIsDetailsModalOpen(false)}
+                purchase={selectedPurchase}
+            />
         </div>
     );
 };
