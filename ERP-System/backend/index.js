@@ -16,7 +16,8 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
         scriptSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:"],
       },
@@ -34,6 +35,8 @@ const allowedOrigins = process.env.FRONTEND_URL?.split(",") || [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:3000",
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
 ];
 
 app.use(
@@ -44,6 +47,7 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
+        console.error("Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -142,7 +146,7 @@ if (fs.existsSync(CLIENT_DIST_PATH)) {
   app.use(express.static(CLIENT_DIST_PATH));
 
   // SPA Catch-all: Request to non-API routes returns index.html
-  app.get("*", (req, res) => {
+  app.get(/.*/, (req, res) => {
     if (req.path.startsWith("/api")) {
       // Should verify if we want to return 404 json or html here
       return res.status(404).json({ error: "API endpoint not found" });
@@ -156,7 +160,19 @@ if (fs.existsSync(CLIENT_DIST_PATH)) {
 
 // Start server
 console.log("Calling app.listen...");
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
+});
+
+server.on("error", (error) => {
+  console.error("❌ Server error:", error);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
 });
