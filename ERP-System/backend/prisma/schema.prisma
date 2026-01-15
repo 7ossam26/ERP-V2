@@ -35,6 +35,7 @@ model User {
   createdPayrolls     Payroll[]             @relation("PayrollCreator")
   shifts         Shift[]
   refreshTokens  RefreshToken[]
+  deposits       Deposit[]      @relation("DepositCreator")
 
   @@map("users")
 }
@@ -101,6 +102,9 @@ enum Module {
   CREATES_ITEMS
   CREATES_TREASURIES
   CREATES_BRANCHES
+
+  DEPOSITS
+  CREATES_DEPOSITS
 }
 
 model Permission {
@@ -251,6 +255,7 @@ model Treasury {
   transfersOut     CashTransfer[]    @relation("TransfersFrom")
   transfersIn      CashTransfer[]    @relation("TransfersTo")
   supplierPayments SupplierPayment[]
+  deposits         Deposit[]
 
   // Config Relations
   systemConfigAsMain SystemConfiguration[] @relation("ConfigMainTreasury")
@@ -718,4 +723,25 @@ model Expense {
   purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@map("expenses")
+}
+
+// ============================================
+// Deposit Management
+// ============================================
+
+model Deposit {
+  id          Int      @id @default(autoincrement())
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?  @db.Text
+  date        DateTime @default(now()) @db.Date
+  treasuryId  Int      @map("treasury_id")
+  createdById Int      @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  treasury  Treasury @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  createdBy User     @relation("DepositCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("deposits")
 }

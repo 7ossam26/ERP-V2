@@ -36,6 +36,7 @@ import DetailedReportsPage from "./pages/reports/DetailedReportsPage";
 import GeneralReportPage from "./pages/reports/GeneralReportPage"; // Import General Report
 import AdvancePaymentsHistory from "./pages/reports/history/AdvancePaymentsHistory";
 import ExpensesPage from "./pages/expenses/ExpensesPage";
+import DepositPage from "./pages/deposits/DepositPage";
 import CashTransferHistory from "./pages/reports/history/CashTransferHistory";
 import CreationHistory from "./pages/reports/history/CreationHistory";
 import DailyTransactions from "./pages/reports/history/DailyTransactions";
@@ -262,6 +263,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="EXPENSES">
                 <ExpensesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/deposits"
+            element={
+              <ProtectedRoute requiredPermission="DEPOSITS">
+                <DepositPage />
               </ProtectedRoute>
             }
           />

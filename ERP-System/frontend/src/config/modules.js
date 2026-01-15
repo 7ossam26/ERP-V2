@@ -72,6 +72,15 @@ export const MODULES = [
     path: "/branches",
     category: "CREATION",
   },
+  {
+    id: "creates_deposits",
+    code: "CREATES_DEPOSITS",
+    label: "إيداع",
+    description: "إذن إضافة إيداع",
+    icon: "account_balance",
+    path: "/deposits",
+    category: "CREATION",
+  },
 
   // --- Management Modules (Main Dashboard) ---
   {
@@ -153,6 +162,15 @@ export const MODULES = [
     description: "إدارة المصروفات والفواتير",
     icon: "receipt_long",
     path: "/expenses",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "deposits",
+    code: "DEPOSITS",
+    label: "الإيداعات",
+    description: "إضافة رصيد للخزائن",
+    icon: "account_balance",
+    path: "/deposits",
     category: "MANAGEMENT",
   },
   {

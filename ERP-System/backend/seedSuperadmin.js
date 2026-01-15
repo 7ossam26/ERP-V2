@@ -54,6 +54,7 @@ async function main() {
             "WAREHOUSES",
             "SETTINGS",
             "EXPENSES",
+            "DEPOSITS",
             // Creation Permissions
             "CREATES_WAREHOUSES",
             "CREATES_EMPLOYEES",
@@ -63,6 +64,7 @@ async function main() {
             "CREATES_ITEMS",
             "CREATES_TREASURIES",
             "CREATES_BRANCHES",
+            "CREATES_DEPOSITS",
           ];
 
           for (const module of modules) {
