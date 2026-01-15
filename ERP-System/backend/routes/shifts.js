@@ -86,7 +86,8 @@ router.get("/active/:userId", async (req, res, next) => {
         });
 
         if (!activeShift) {
-            return res.status(404).json({ message: "No active shift found" });
+            // Return null with 200 OK instead of 404 to avoid console errors
+            return res.json(null);
         }
 
         res.json(activeShift);

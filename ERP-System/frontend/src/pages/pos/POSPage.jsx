@@ -300,10 +300,10 @@ const POSPage = () => {
         return prevItems.map((item) =>
           item.id === product.id
             ? {
-                ...item,
-                quantity: item.quantity + quantity,
-                total: (item.quantity + quantity) * price,
-              }
+              ...item,
+              quantity: item.quantity + quantity,
+              total: (item.quantity + quantity) * price,
+            }
             : item
         );
       } else {
@@ -584,9 +584,28 @@ const POSPage = () => {
 
   const handleSaveClient = async (formData) => {
     try {
-      await clientService.create(formData);
+      const savedClient = await clientService.create(formData, { checkIfExists: true });
       setIsClientModalOpen(false);
-      toast.success("تم إضافة العميل بنجاح");
+
+      // Auto-select the client
+      handleSelectClient(savedClient);
+
+      // Determine message based on whether it was created or found
+      // We can infer it was found if We sent checkIfExists and got a result. 
+      // The backend adds _isExisting flag if found.
+      const isExisting = savedClient.id && clients.find(c => c.id === savedClient.id);
+
+      // Note: Since we fetch all clients on mount/modal open, if it was just created it won't be in 'clients' state yet unless we update it.
+      // But we just want to show a relevant toast.
+
+      if (savedClient._isExisting || isExisting) {
+        toast.success(`تم اختيار العميل الموجود: ${savedClient.name}`);
+      } else {
+        toast.success("تم إضافة العميل واختياره بنجاح");
+        // Add to local list so it appears in search immediately without refetch
+        setClients(prev => [...prev, savedClient]);
+      }
+
     } catch (error) {
       console.error("Failed to save client", error);
       toast.error("حدث خطأ أثناء حفظ العميل");
@@ -726,11 +745,10 @@ const POSPage = () => {
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`material-symbols-outlined text-3xl ${
-                    pendingPaymentMethod === "cash"
+                  className={`material-symbols-outlined text-3xl ${pendingPaymentMethod === "cash"
                       ? "text-green-500"
                       : "text-blue-500"
-                  }`}>
+                    }`}>
                   {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
                 </span>
                 <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -771,8 +789,8 @@ const POSPage = () => {
                 </label>
                 <div className="w-full px-4 py-3 text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
                   {cashPaidAmount &&
-                  !isNaN(parseFloat(cashPaidAmount)) &&
-                  parseFloat(cashPaidAmount) >= total
+                    !isNaN(parseFloat(cashPaidAmount)) &&
+                    parseFloat(cashPaidAmount) >= total
                     ? Math.round(parseFloat(cashPaidAmount) - total)
                     : 0}{" "}
                   ج.م
@@ -804,11 +822,10 @@ const POSPage = () => {
             </button>
             <button
               onClick={handleConfirmPayment}
-              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
-                pendingPaymentMethod === "cash"
+              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${pendingPaymentMethod === "cash"
                   ? "bg-green-500 hover:bg-green-600"
                   : "bg-blue-500 hover:bg-blue-600"
-              }`}>
+                }`}>
               <span className="material-symbols-outlined">check_circle</span>
               <span>تأكيد الدفع</span>
             </button>
@@ -922,11 +939,10 @@ const POSPage = () => {
                   <div
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
-                      activeCategory === cat.id
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
                         ? "bg-primary text-white shadow-md"
                         : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                    }`}>
+                      }`}>
                     {cat.name}
                   </div>
                 ))}
@@ -1000,8 +1016,8 @@ const POSPage = () => {
                     isClientDropdownOpen
                       ? clientSearchTerm
                       : selectedClient
-                      ? selectedClient.name
-                      : ""
+                        ? selectedClient.name
+                        : ""
                   }
                   onChange={(e) => {
                     setClientSearchTerm(e.target.value);
@@ -1058,9 +1074,8 @@ const POSPage = () => {
           </div>
 
           <div
-            className={`${
-              keypadMode === "default" ? "flex-1" : "h-[45%]"
-            } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
+            className={`${keypadMode === "default" ? "flex-1" : "h-[45%]"
+              } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 h-64">
@@ -1074,11 +1089,10 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${
-                      selectedItemId === item.id
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${selectedItemId === item.id
                         ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
                         : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
-                    }`}>
+                      }`}>
                     {/* Delete icon - appears when selected */}
                     {selectedItemId === item.id ? (
                       <button
@@ -1211,13 +1225,12 @@ const POSPage = () => {
             <div className="h-[55%] flex flex-col bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 transition-all duration-300">
               {/* Dynamic Keypad Area - Changes based on mode */}
               <div
-                className={`grid h-full bg-white dark:bg-zinc-800 ${
-                  keypadMode === "piece"
+                className={`grid h-full bg-white dark:bg-zinc-800 ${keypadMode === "piece"
                     ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
                     : keypadMode === "weight"
-                    ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
-                    : "grid-cols-5"
-                }`}
+                      ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
+                      : "grid-cols-5"
+                  }`}
                 dir="ltr">
                 {/* PIECE QUANTITY SELECTOR MODE */}
                 {keypadMode === "piece" && selectedProductForQuantity && (

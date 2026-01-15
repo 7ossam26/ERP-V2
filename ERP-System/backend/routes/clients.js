@@ -43,10 +43,24 @@ router.get("/:id", requirePermission("CLIENTS"), async (req, res) => {
 // POST create new client
 router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) => {
   try {
-    const { name, phoneNumber } = req.body;
+    const { name, phoneNumber, checkIfExists } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
+    }
+
+    // If checkIfExists is true (from POS), check if client exists by phone
+    if (checkIfExists && phoneNumber) {
+      const existingClient = await prisma.client.findFirst({
+        where: { phoneNumber: phoneNumber },
+      });
+
+      if (existingClient) {
+        return res.status(200).json({
+          ...existingClient,
+          _isExisting: true, // Flag to let frontend know it was found, not created
+        });
+      }
     }
 
     const client = await prisma.client.create({

@@ -38,13 +38,15 @@ export const clientService = {
   /**
    * Create a new client
    * @param {Object} clientData - Client data (name, phone)
+   * @param {Object} options - Additional options (e.g. checkIfExists)
    * @returns {Promise<Object>} Created client
    */
-  async create(clientData) {
+  async create(clientData, options = {}) {
     // Map frontend field names to backend field names
     const backendData = {
       name: clientData.name,
       phoneNumber: clientData.phone || clientData.phoneNumber,
+      checkIfExists: options.checkIfExists,
     };
 
     const data = await api.post(CLIENTS_URL, backendData);

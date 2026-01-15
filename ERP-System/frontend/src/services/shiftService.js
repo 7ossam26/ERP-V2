@@ -14,15 +14,9 @@ const shiftService = {
     },
 
     checkActive: async (userId) => {
-        try {
-            const response = await api.get(`/shifts/active/${userId}`);
-            return response;
-        } catch (error) {
-            if (error.status === 404) {
-                return null; // No active shift
-            }
-            throw error;
-        }
+        const response = await api.get(`/shifts/active/${userId}`);
+        // Backend now returns null (200 OK) if no shift, or the shift object
+        return response;
     },
 
     getReport: async (shiftId) => {
