@@ -3,10 +3,10 @@
     "version": "1.0.0",
     "main": "backend/index.js",
     "engines": {
-        "node": ">=18.0.0"
+        "node": ">=20.0.0"
     },
     "scripts": {
-        "build": "cd frontend && npm install && npm run build",
+        "build": "cd frontend && npm install --include=dev && npm run build",
         "start": "node backend/index.js",
         "postinstall": "cd  backend && npm install && npx prisma generate"
     },
