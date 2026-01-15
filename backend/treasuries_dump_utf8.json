@@ -1,0 +1,70 @@
+[
+  {
+    "id": 1,
+    "name": "Main Treasury",
+    "balance": "-800",
+    "createdAt": "2026-01-14T03:12:08.770Z",
+    "updatedAt": "2026-01-14T03:19:48.677Z",
+    "branch": {
+      "id": 1,
+      "name": "Main Branch",
+      "address": "Headquarters",
+      "warehouseId": 1,
+      "treasuryId": 1,
+      "isAllBranches": false,
+      "createdAt": "2026-01-14T03:12:08.776Z",
+      "updatedAt": "2026-01-14T03:12:08.776Z"
+    }
+  },
+  {
+    "id": 2,
+    "name": "All Branches Treasury",
+    "balance": "0",
+    "createdAt": "2026-01-14T03:12:08.784Z",
+    "updatedAt": "2026-01-14T03:12:08.784Z",
+    "branch": {
+      "id": 2,
+      "name": "All Branches",
+      "address": "N/A - Special Branch for Multi-Branch Access",
+      "warehouseId": 2,
+      "treasuryId": 2,
+      "isAllBranches": true,
+      "createdAt": "2026-01-14T03:12:08.792Z",
+      "updatedAt": "2026-01-14T03:12:08.792Z"
+    }
+  },
+  {
+    "id": 3,
+    "name": "اكتوبر",
+    "balance": "279.3",
+    "createdAt": "2026-01-14T03:15:49.114Z",
+    "updatedAt": "2026-01-14T04:10:40.161Z",
+    "branch": {
+      "id": 3,
+      "name": "اكتوبر",
+      "address": "26 المحور المركزي",
+      "warehouseId": 3,
+      "treasuryId": 3,
+      "isAllBranches": false,
+      "createdAt": "2026-01-14T03:16:29.818Z",
+      "updatedAt": "2026-01-14T03:16:29.818Z"
+    }
+  },
+  {
+    "id": 4,
+    "name": "الرحاب",
+    "balance": "0",
+    "createdAt": "2026-01-14T03:15:53.931Z",
+    "updatedAt": "2026-01-14T03:15:53.931Z",
+    "branch": {
+      "id": 4,
+      "name": "الرحاب",
+      "address": "السوق الشرقي",
+      "warehouseId": 4,
+      "treasuryId": 4,
+      "isAllBranches": false,
+      "createdAt": "2026-01-14T03:16:41.439Z",
+      "updatedAt": "2026-01-14T03:16:41.439Z"
+    }
+  }
+]
