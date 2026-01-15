@@ -50,40 +50,58 @@
   }
 }
 
-/* Thermal Printer Receipt Styles */
+/* Print Styles */
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    size: auto; /* Allow printer settings to control paper size */
+    margin: 0mm;
   }
-  #thermal-receipt,
-  #thermal-receipt * {
-    visibility: visible;
+
+  body {
+    margin: 0;
+    padding: 0;
   }
+
+  /* POS Thermal Receipt Styling */
   #thermal-receipt {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm; /* Standard thermal width, can be adjusted to 58mm if needed */
-    padding: 5mm;
+    width: 100%;
+    max-width: 80mm; /* Optimized for standard 80mm thermal paper */
+    margin: 0 auto;
+    padding: 2mm;
     background: white !important;
     color: black !important;
     font-family: "Cairo", sans-serif;
     font-size: 12px;
+    line-height: 1.2;
   }
 
-  /* Reset layout for print */
-  @page {
-    size: auto;
-    margin: 0mm;
+  #thermal-receipt h2 {
+    font-size: 16px;
+    margin-bottom: 5px;
   }
 
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-    background: white !important;
+  #thermal-receipt p {
+    font-size: 11px;
+    margin-bottom: 2px;
   }
 
+  #thermal-receipt table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  #thermal-receipt th,
+  #thermal-receipt td {
+    padding: 2px 0;
+    border-bottom: 1px dashed #ccc;
+  }
+
+  #thermal-receipt th {
+    font-weight: bold;
+    border-bottom: 1px solid #000;
+  }
+
+  /* General Print Helpers */
   .no-print {
     display: none !important;
   }

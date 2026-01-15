@@ -94,39 +94,41 @@ const GenericPageManager = ({
   };
 
   return (
-    <div className="bg-surface-light dark:bg-surface-dark w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-100px)] transition-colors duration-200">
+    <div className="bg-surface-light dark:bg-surface-dark w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-100px)] transition-colors duration-200 print:h-auto print:shadow-none print:rounded-none">
       {/* Header */}
-      <div className="px-6 py-5 sm:px-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-surface-dark z-10 shrink-0">
+      <div className="px-6 py-5 sm:px-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-surface-dark z-10 shrink-0 print:border-b-2 print:border-black print:py-3">
         <div className="flex items-center gap-4">
-          <div className="bg-primary text-white w-12 h-12 flex items-center justify-center rounded-xl shadow-lg">
+          <div className="bg-primary text-white w-12 h-12 flex items-center justify-center rounded-xl shadow-lg print:hidden">
             <span className="material-icons-round text-2xl">{icon}</span>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 print:text-xl print:text-black">
               {title}
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 print:text-xs print:text-gray-700">
               {subtitle}
             </p>
           </div>
         </div>
-        <div className="flex-1 flex justify-center">{headerActions}</div>
+        <div className="flex-1 flex justify-center print:hidden">
+          {headerActions}
+        </div>
         <button
           onClick={() => navigate(backPath)}
-          className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+          className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 print:hidden">
           <span className="material-icons-round text-2xl">close</span>
         </button>
       </div>
 
       {/* Filters Section */}
       {FilterComponent && (
-        <div className="px-6 py-4 sm:px-8 bg-gray-50 dark:bg-gray-800/30 border-b border-gray-100 dark:border-gray-700 shrink-0">
+        <div className="px-6 py-4 sm:px-8 bg-gray-50 dark:bg-gray-800/30 border-b border-gray-100 dark:border-gray-700 shrink-0 print:hidden">
           <FilterComponent onFilter={loadData} {...props} />
         </div>
       )}
 
       {/* Table */}
-      <div className="p-0 overflow-y-auto custom-scrollbar flex-grow bg-white dark:bg-surface-dark">
+      <div className="p-0 overflow-y-auto custom-scrollbar flex-grow bg-white dark:bg-surface-dark print:overflow-visible print:p-4">
         <GenericDataTable
           columns={columns}
           data={data}
@@ -139,7 +141,7 @@ const GenericPageManager = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="px-6 py-5 sm:px-8 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-surface-dark/50 flex flex-col sm:flex-row gap-3 shrink-0">
+      <div className="px-6 py-5 sm:px-8 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-surface-dark/50 flex flex-col sm:flex-row gap-3 shrink-0 print:hidden">
         {!hideAddButton && (
           <button
             onClick={openNewModal}

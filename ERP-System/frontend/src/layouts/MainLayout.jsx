@@ -51,12 +51,13 @@ const MainLayout = ({ children }) => {
       <nav className="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shadow-sm z-50 fixed top-0 w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center relative">
-            <button
-              onClick={handleLogoutClick}
-              className="flex items-center gap-2 text-text-light/70 hover:text-red-600 dark:text-text-dark/70 dark:hover:text-red-400 transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
-              <span className="material-icons-round text-xl">logout</span>
-              <span className="text-sm font-semibold">تسجيل خروج</span>
-            </button>
+            {/* Swapped: Home Page Button (was Logout) */}
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20">
+              <span className="material-icons-round text-xl">home</span>
+              <span className="text-sm font-semibold">الصفحة الرئيسية</span>
+            </Link>
 
             <Link
               to="/dashboard"
@@ -91,13 +92,16 @@ const MainLayout = ({ children }) => {
               {/* Dropdown Menu */}
               {isUserDropdownOpen && (
                 <div className="absolute left-0 mt-2 w-48 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg py-2 z-50">
-                  <Link
-                    to="/dashboard"
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-accent/10 dark:hover:bg-accent/5 transition-colors"
-                    onClick={() => setIsUserDropdownOpen(false)}>
-                    <span className="material-icons-round text-lg">home</span>
-                    <span className="text-sm">الصفحة الرئيسية</span>
-                  </Link>
+                  {/* Swapped: Logout Button (was Home Page) */}
+                  <button
+                    onClick={() => {
+                      setIsUserDropdownOpen(false);
+                      handleLogoutClick();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors">
+                    <span className="material-icons-round text-lg">logout</span>
+                    <span className="text-sm">تسجيل خروج</span>
+                  </button>
                 </div>
               )}
             </div>

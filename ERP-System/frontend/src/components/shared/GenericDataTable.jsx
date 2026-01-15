@@ -11,20 +11,20 @@ const GenericDataTable = ({
   customActions,
 }) => {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-center border-collapse">
-        <thead className="bg-gray-50 dark:bg-gray-800/50 sticky top-0 z-10 border-b border-gray-100 dark:border-gray-700">
+    <div className="overflow-x-auto print:overflow-visible">
+      <table className="w-full text-center border-collapse print:border print:border-black">
+        <thead className="bg-gray-50 dark:bg-gray-800/50 sticky top-0 z-10 border-b border-gray-100 dark:border-gray-700 print:bg-gray-200 print:border-b-2 print:border-black">
           <tr>
             {columns.map((col, index) => (
               <th
                 key={index}
-                className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">
+                className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center print:px-3 print:py-2 print:text-black print:border print:border-black">
                 {col.header}
               </th>
             ))}
             {/* Actions Header - Render only if onEdit or onDelete or customActions provided */}
             {(onEdit || onDelete || customActions) && (
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center print:hidden">
                 {customActions ? "عرض" : "إجراءات"}
               </th>
             )}
@@ -54,18 +54,19 @@ const GenericDataTable = ({
             data.map((item) => (
               <tr
                 key={item.id}
-                className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default">
+                className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default print:border-b print:border-gray-300">
                 {columns.map((col, index) => (
                   <td
                     key={index}
-                    className={`px-6 py-4 text-center ${col.wrap
-                      ? "whitespace-normal min-w-[200px]"
-                      : "whitespace-nowrap"
-                      }`}>
+                    className={`px-6 py-4 text-center ${
+                      col.wrap
+                        ? "whitespace-normal min-w-[200px]"
+                        : "whitespace-nowrap"
+                    } print:px-3 print:py-2 print:text-sm print:text-black print:border print:border-gray-300`}>
                     {col.render ? (
                       col.render(item)
                     ) : (
-                      <div className="text-sm text-gray-900 dark:text-gray-200">
+                      <div className="text-sm text-gray-900 dark:text-gray-200 print:text-black">
                         {item[col.accessor]}
                       </div>
                     )}
@@ -73,7 +74,7 @@ const GenericDataTable = ({
                 ))}
                 {/* Actions Cell - Render custom actions or default edit/delete */}
                 {(onEdit || onDelete || customActions) && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center print:hidden">
                     {customActions ? (
                       /* Render custom actions */
                       <div className="flex justify-center gap-2">
@@ -81,9 +82,10 @@ const GenericDataTable = ({
                           <button
                             key={idx}
                             onClick={action.onClick}
-                            className={`${action.color || "text-blue-600"} ${action.hoverColor ||
+                            className={`${action.color || "text-blue-600"} ${
+                              action.hoverColor ||
                               "hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                              } p-2 rounded-lg transition-all flex items-center gap-1`}
+                            } p-2 rounded-lg transition-all flex items-center gap-1`}
                             title={action.label}>
                             <span className="material-symbols-outlined text-lg">
                               {action.icon}
@@ -100,14 +102,18 @@ const GenericDataTable = ({
                               <button
                                 onClick={() => onEdit(item)}
                                 className="text-blue-500 hover:text-blue-700 ml-2 transition-colors">
-                                <span className="material-icons-round">edit</span>
+                                <span className="material-icons-round">
+                                  edit
+                                </span>
                               </button>
                             )}
                             {onDelete && (
                               <button
                                 onClick={() => onDelete(item.id)}
                                 className="text-red-500 hover:text-red-700 transition-colors">
-                                <span className="material-icons-round">delete</span>
+                                <span className="material-icons-round">
+                                  delete
+                                </span>
                               </button>
                             )}
                           </>

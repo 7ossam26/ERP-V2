@@ -12,7 +12,12 @@ export const inventoryService = {
   },
 
   // Get dashboard stats
-  getStats: async () => {
-    return api.get("/inventory/stats");
+  getStats: async (filters = {}) => {
+    const queryParams = new URLSearchParams();
+    if (filters.warehouseId)
+      queryParams.append("warehouseId", filters.warehouseId);
+    if (filters.category) queryParams.append("category", filters.category);
+
+    return api.get(`/inventory/stats?${queryParams.toString()}`);
   },
 };

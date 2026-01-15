@@ -72,6 +72,12 @@ router.get("/", async (req, res) => {
             category: true,
           },
         },
+        purchaseItems: {
+          select: {
+            quantity: true,
+            purchasePrice: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -95,6 +101,28 @@ router.get("/", async (req, res) => {
           }
           return sum + qty;
         }, 0);
+      }
+
+      // Calculate Weighted Average Purchase Price
+      let totalCost = 0;
+      let totalPurchasedQty = 0;
+
+      if (item.purchaseItems && item.purchaseItems.length > 0) {
+        item.purchaseItems.forEach((p) => {
+          const qty = Number(p.quantity);
+          const price = Number(p.purchasePrice);
+          totalCost += qty * price;
+          totalPurchasedQty += qty;
+        });
+      }
+
+      let avgPurchasePrice = 0;
+      if (totalPurchasedQty > 0) {
+        avgPurchasePrice = totalCost / totalPurchasedQty;
+      } else {
+        // Fallback to current item price if no purchase history exists
+        // (This might be the case for manually added items)
+        avgPurchasePrice = Number(item.price);
       }
 
       // Determine Category Name & Color (First category found)
@@ -123,9 +151,9 @@ router.get("/", async (req, res) => {
         quantity: totalQuantity,
         warehouses: availableWarehouses, // List of warehouses with stock
         unit: item.unit,
-        purchasePrice: Number(item.price), // Assuming price is cost/purchase price
+        purchasePrice: Number(avgPurchasePrice.toFixed(2)), // Calculated Avg Price
         sellPrice: Number(item.price), // Using item price as sell price
-        price: Number(item.price), // Add explicit price field just in case
+        price: Number(item.price),
         status: totalQuantity <= item.reorderPoint ? "Low Stock" : "In Stock",
         reorderPoint: item.reorderPoint,
         categories: item.categories.map((c) => c.category.id), // Return array of category IDs for filtering
@@ -142,33 +170,101 @@ router.get("/", async (req, res) => {
 // GET Dashboard Stats
 router.get("/stats", async (req, res) => {
   try {
+    const { warehouseId, category } = req.query;
+    const whereClause = {};
+
+    if (category && category !== "الكل") {
+      whereClause.categories = {
+        some: {
+          category: {
+            name: category,
+          },
+        },
+      };
+    }
+
+    // Determine warehouse limitation based on user branch
+    const branchId = await getUserBranchFilter(req.user.id);
+    let inventoryWhere = {};
+
+    if (branchId) {
+      const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { warehouseId: true },
+      });
+      if (branch && branch.warehouseId) {
+        inventoryWhere = { warehouseId: branch.warehouseId };
+      }
+    }
+
     const items = await prisma.item.findMany({
+      where: whereClause,
       include: {
-        inventory: true,
+        inventory: {
+          where: inventoryWhere,
+        },
+        purchaseItems: {
+          select: {
+            quantity: true,
+            purchasePrice: true,
+          },
+        },
       },
     });
 
     const totalItems = items.length;
     let lowStockCount = 0;
     let totalValue = 0;
+    let totalProfit = 0;
 
     items.forEach((item) => {
-      const totalQuantity = item.inventory.reduce(
-        (sum, inv) => sum + Number(inv.quantity),
-        0
-      );
+      let totalQuantity = 0;
+
+      if (warehouseId && warehouseId !== "all") {
+        const stock = item.inventory.find(
+          (inv) => inv.warehouseId === parseInt(warehouseId)
+        );
+        totalQuantity = stock ? Number(stock.quantity) : 0;
+      } else {
+        totalQuantity = item.inventory.reduce(
+          (sum, inv) => sum + Number(inv.quantity),
+          0
+        );
+      }
 
       if (totalQuantity <= item.reorderPoint) {
         lowStockCount++;
       }
 
-      totalValue += totalQuantity * Number(item.price);
+      // Calculate Weighted Average Purchase Price
+      let totalCost = 0;
+      let totalPurchasedQty = 0;
+
+      if (item.purchaseItems && item.purchaseItems.length > 0) {
+        item.purchaseItems.forEach((p) => {
+          const qty = Number(p.quantity);
+          const price = Number(p.purchasePrice);
+          totalCost += qty * price;
+          totalPurchasedQty += qty;
+        });
+      }
+
+      let avgPurchasePrice = 0;
+      if (totalPurchasedQty > 0) {
+        avgPurchasePrice = totalCost / totalPurchasedQty;
+      } else {
+        avgPurchasePrice = Number(item.price);
+      }
+
+      totalValue += totalQuantity * avgPurchasePrice;
+      totalProfit += totalQuantity * (Number(item.price) - avgPurchasePrice);
     });
 
     res.json({
       totalItems,
       lowStockCount,
       totalValue,
+      totalProfit,
     });
   } catch (error) {
     console.error("Error fetching stats:", error);

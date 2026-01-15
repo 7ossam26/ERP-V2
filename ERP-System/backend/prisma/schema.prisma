@@ -733,7 +733,7 @@ model Deposit {
   id          Int      @id @default(autoincrement())
   amount      Decimal  @db.Decimal(10, 2)
   description String?  @db.Text
-  date        DateTime @default(now()) @db.Date
+  date        DateTime @default(now()) @db.DateTime(0)
   treasuryId  Int      @map("treasury_id")
   createdById Int      @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")

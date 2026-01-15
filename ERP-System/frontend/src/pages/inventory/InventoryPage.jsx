@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from "react";
 import GenericDataTable from "../../components/shared/GenericDataTable";
 
-import {
-  warehouseService,
-  categoryService,
-} from "../../services/domainServices";
+import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
 
 const InventoryPage = () => {
   const [filter, setFilter] = useState("الكل");
-  const [warehouses, setWarehouses] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState("all");
 
@@ -24,13 +21,11 @@ const InventoryPage = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [warehousesData, statsData, categoriesData] = await Promise.all([
-          warehouseService.getAll(),
-          inventoryService.getStats(),
+        const [branchesData, categoriesData] = await Promise.all([
+          branchService.getAll(),
           categoryService.getAll(),
         ]);
-        setWarehouses(warehousesData);
-        setStats(statsData);
+        setBranches(branchesData);
         setCategories(["الكل", ...categoriesData.map((c) => c.name)]);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -41,20 +36,25 @@ const InventoryPage = () => {
 
   // Fetch when filters change
   useEffect(() => {
-    const fetchInventory = async () => {
+    const fetchData = async () => {
       try {
         const filters = {};
         if (selectedWarehouse !== "all")
           filters.warehouseId = selectedWarehouse;
         if (filter !== "الكل") filters.category = filter;
 
-        const data = await inventoryService.getInventory(filters);
-        setInventoryItems(data);
+        const [inventoryData, statsData] = await Promise.all([
+          inventoryService.getInventory(filters),
+          inventoryService.getStats(filters),
+        ]);
+
+        setInventoryItems(inventoryData);
+        setStats(statsData);
       } catch (error) {
-        console.error("Failed to fetch inventory:", error);
+        console.error("Failed to fetch data:", error);
       }
     };
-    fetchInventory();
+    fetchData();
   }, [filter, selectedWarehouse]);
 
   // Data is now already filtered by backend, so we just use inventoryItems
@@ -132,7 +132,7 @@ const InventoryPage = () => {
       },
     },
     {
-      header: "سعر الشراء",
+      header: "متوسط سعر الشراء",
       accessor: "purchasePrice",
       render: (item) => (
         <span className="text-text-muted dark:text-gray-400">
@@ -190,7 +190,7 @@ const InventoryPage = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-2 h-full bg-primary group-hover:w-3 transition-all"></div>
           <div className="flex justify-between items-start mb-1">
@@ -247,7 +247,7 @@ const InventoryPage = () => {
           <div className="flex justify-between items-start mb-1">
             <div>
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                القيمة الإجمالية
+                التكلفة الإجمالية
               </p>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-2xl font-bold text-text-main dark:text-text-dark">
@@ -256,14 +256,40 @@ const InventoryPage = () => {
                     ج.م
                   </span>
                 </h3>
-                <span className="text-green-800 text-xs font-medium flex items-center bg-green-100 px-1.5 py-0.5 rounded">
-                  +0%
-                </span>
               </div>
             </div>
             <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
               <span className="material-icons-round text-green-600 dark:text-green-400 text-xl">
                 attach_money
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-2 h-full bg-purple-600 group-hover:w-3 transition-all"></div>
+          <div className="flex justify-between items-start mb-1">
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                الأرباح المتوقعة
+              </p>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-2xl font-bold text-text-main dark:text-text-dark">
+                  {stats.totalProfit ? stats.totalProfit.toLocaleString() : 0}{" "}
+                  <span className="text-sm font-normal text-text-muted dark:text-gray-400 mr-1">
+                    ج.م
+                  </span>
+                </h3>
+                <span className="text-purple-800 text-xs font-medium flex items-center bg-purple-100 px-1.5 py-0.5 rounded">
+                  <span className="material-symbols-outlined text-[14px]">
+                    trending_up
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+              <span className="material-icons-round text-purple-600 dark:text-purple-400 text-xl">
+                savings
               </span>
             </div>
           </div>
@@ -290,7 +316,7 @@ const InventoryPage = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Warehouse Filter */}
+            {/* Branch Filter */}
             <div className="relative">
               <select
                 value={selectedWarehouse}
@@ -299,15 +325,15 @@ const InventoryPage = () => {
                   // Trigger fetch with new warehouse
                 }}
                 className="appearance-none bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-2.5 pr-10 text-sm font-bold text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-transparent outline-none cursor-pointer">
-                <option value="all">كل المخازن</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
+                <option value="all">كل الفروع</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.warehouseId}>
+                    {branch.name}
                   </option>
                 ))}
               </select>
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]">
-                warehouse
+                store
               </span>
               <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]">
                 expand_more

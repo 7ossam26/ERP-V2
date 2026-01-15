@@ -14,6 +14,18 @@ const LoginPage = () => {
   // Get return URL if exists
   const from = location.state?.from?.pathname || "/dashboard";
 
+  // Redirect if already logged in
+  useEffect(() => {
+    const user = AuthService.getCurrentUser();
+    if (user) {
+      if (user.role === "Superadmin") {
+        navigate("/superadmin/users", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    }
+  }, [navigate]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
