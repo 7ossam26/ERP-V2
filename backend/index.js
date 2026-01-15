@@ -139,7 +139,7 @@ console.log("🔄 Server updated");
 
 // Serve Static Frontend Files (Production)
 const path = require("path");
-const CLIENT_DIST_PATH = path.join(__dirname, "client_dist");
+const CLIENT_DIST_PATH = path.join(__dirname, "../frontend/dist");
 
 if (fs.existsSync(CLIENT_DIST_PATH)) {
   console.log("📂 Serving static frontend from:", CLIENT_DIST_PATH);
