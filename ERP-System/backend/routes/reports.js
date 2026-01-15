@@ -31,7 +31,7 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    const isAllBranches = !branchId || branchId === "all";
+    const isAllBranches = !branchId || branchId === "all" || parseInt(branchId) === 4;
     const branchFilter = isAllBranches ? {} : { branchId: parseInt(branchId) };
 
     // --- 2. Fetch Data ---

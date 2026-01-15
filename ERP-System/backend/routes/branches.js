@@ -19,6 +19,22 @@ router.get("/", async (req, res, next) => {
       },
       orderBy: { createdAt: "asc" },
     });
+
+    // Check if user is allowed to see "All Branches"
+    // Superadmins OR Users assigned to "All Branches" can see it.
+    // Others should not see the "All Branches" option in dropdowns.
+    if (req.user.role !== "Superadmin") {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: { branch: true },
+      });
+
+      if (!user || !user.branch?.isAllBranches) {
+        // Filter out "All Branches" (isAllBranches: true)
+        return res.json(branches.filter((b) => !b.isAllBranches));
+      }
+    }
+
     res.json(branches);
   } catch (error) {
     next(error);

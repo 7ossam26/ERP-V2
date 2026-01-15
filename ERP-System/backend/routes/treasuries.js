@@ -19,6 +19,47 @@ router.get("/", async (req, res) => {
       include: { branch: true },
       orderBy: { createdAt: "asc" },
     });
+
+    // --- ALL BRANCHES AGGREGATION LOGIC ---
+    // 1. Calculate total balance of all "real" treasuries
+    const allBranchesTreasury = treasuries.find(
+      (t) => t.name === "All Branches Treasury" || t.id === 4 // Fallback to ID 4 if name matches
+    );
+
+    if (allBranchesTreasury) {
+      const realTreasuries = treasuries.filter(
+        (t) => t.id !== allBranchesTreasury.id
+      );
+      const totalBalance = realTreasuries.reduce(
+        (sum, t) => sum + Number(t.balance),
+        0
+      );
+
+      // 2. Overwrite the balance in the response (Virtual View)
+      allBranchesTreasury.balance = totalBalance;
+      allBranchesTreasury.isVirtual = true; // Flag for frontend if needed
+    }
+    // --------------------------------------
+
+    // --- VISIBILITY FILTER ---
+    // Hide "All Branches Treasury" if user is not Superadmin AND not assigned to All Branches
+    if (req.user.role !== "Superadmin") {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: { branch: true },
+      });
+
+      if (!user || !user.branch?.isAllBranches) {
+        // Filter out All Branches Treasury (ID 4)
+        return res.json(
+          treasuries.filter(
+            (t) => t.id !== 4 && t.name !== "All Branches Treasury"
+          )
+        );
+      }
+    }
+    // -------------------------
+
     res.json(treasuries);
   } catch (error) {
     res
@@ -122,6 +163,10 @@ router.post("/transfer", async (req, res) => {
       throw new Error("Cannot transfer from Treasury to itself");
     }
 
+    // Block transfers from "All Branches Treasury" (ID 4 or Name check)
+    // We fetch source details in transaction anyway, but let's check basic ID first if known, 
+    // or better, check after fetching source.
+
     // Use transaction to ensure data integrity
     const result = await prisma.$transaction(async (tx) => {
       // 1. Check source balance
@@ -129,7 +174,15 @@ router.post("/transfer", async (req, res) => {
         where: { id: parseInt(fromTreasuryId) },
       });
 
-      if (!source || Number(source.balance) < transferAmount) {
+      if (!source) throw new Error("Source treasury not found");
+
+      // --- ENFORCE READ-ONLY FOR ALL BRANCHES ---
+      if (source.name === "All Branches Treasury" || source.id === 4) {
+        throw new Error("Cannot transfer funds FROM 'All Branches Treasury'. It is a read-only view.");
+      }
+      // ----------------------------------------
+
+      if (Number(source.balance) < transferAmount) {
         throw new Error("Insufficient funds in source treasury");
       }
 
