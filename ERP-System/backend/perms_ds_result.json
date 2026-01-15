@@ -1,0 +1,138 @@
+{
+  "role": "Manager",
+  "roleId": 3,
+  "expensesPerm": {
+    "id": 72,
+    "roleId": 3,
+    "module": "EXPENSES",
+    "canAccess": true
+  },
+  "allPerms": [
+    {
+      "id": 68,
+      "roleId": 3,
+      "module": "INVENTORY",
+      "canAccess": false
+    },
+    {
+      "id": 85,
+      "roleId": 3,
+      "module": "INVENTORY_COUNT",
+      "canAccess": true
+    },
+    {
+      "id": 83,
+      "roleId": 3,
+      "module": "STOCK_TRANSFER",
+      "canAccess": false
+    },
+    {
+      "id": 67,
+      "roleId": 3,
+      "module": "POS",
+      "canAccess": true
+    },
+    {
+      "id": 66,
+      "roleId": 3,
+      "module": "PURCHASES",
+      "canAccess": false
+    },
+    {
+      "id": 71,
+      "roleId": 3,
+      "module": "REPORTS",
+      "canAccess": true
+    },
+    {
+      "id": 69,
+      "roleId": 3,
+      "module": "TREASURIES",
+      "canAccess": false
+    },
+    {
+      "id": 84,
+      "roleId": 3,
+      "module": "CASH_TRANSFER",
+      "canAccess": true
+    },
+    {
+      "id": 86,
+      "roleId": 3,
+      "module": "TRANSFER_MANAGEMENT",
+      "canAccess": false
+    },
+    {
+      "id": 70,
+      "roleId": 3,
+      "module": "BRANCHES",
+      "canAccess": false
+    },
+    {
+      "id": 73,
+      "roleId": 3,
+      "module": "EMPLOYEES",
+      "canAccess": true
+    },
+    {
+      "id": 74,
+      "roleId": 3,
+      "module": "SETTINGS",
+      "canAccess": false
+    },
+    {
+      "id": 72,
+      "roleId": 3,
+      "module": "EXPENSES",
+      "canAccess": true
+    },
+    {
+      "id": 79,
+      "roleId": 3,
+      "module": "CREATES_WAREHOUSES",
+      "canAccess": false
+    },
+    {
+      "id": 75,
+      "roleId": 3,
+      "module": "CREATES_EMPLOYEES",
+      "canAccess": false
+    },
+    {
+      "id": 76,
+      "roleId": 3,
+      "module": "CREATES_SUPPLIERS",
+      "canAccess": false
+    },
+    {
+      "id": 77,
+      "roleId": 3,
+      "module": "CREATES_CLIENTS",
+      "canAccess": false
+    },
+    {
+      "id": 80,
+      "roleId": 3,
+      "module": "CREATES_CATEGORIES",
+      "canAccess": false
+    },
+    {
+      "id": 78,
+      "roleId": 3,
+      "module": "CREATES_ITEMS",
+      "canAccess": false
+    },
+    {
+      "id": 81,
+      "roleId": 3,
+      "module": "CREATES_TREASURIES",
+      "canAccess": false
+    },
+    {
+      "id": 82,
+      "roleId": 3,
+      "module": "CREATES_BRANCHES",
+      "canAccess": false
+    }
+  ]
+}

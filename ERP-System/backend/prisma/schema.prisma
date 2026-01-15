@@ -1,0 +1,750 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Auth & Access Control
+// ============================================
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  username  String   @unique
+  password  String
+  roleId    Int      @map("role_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  hasSensitiveAccess Boolean @default(false) @map("has_sensitive_access")
+  branchId  Int      @map("branch_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  role           Role            @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales          Sale[]
+  auditLogs      AuditLog[]
+  stockTransfers StockTransfer[]
+  createdTransfers  CashTransfer[] @relation("TransferCreator")
+  acceptedTransfers CashTransfer[] @relation("TransferAccepter")
+  createdTransactions EmployeeTransaction[] @relation("TransactionCreator")
+  createdPayrolls     Payroll[]             @relation("PayrollCreator")
+  shifts         Shift[]
+  refreshTokens  RefreshToken[]
+  deposits       Deposit[]      @relation("DepositCreator")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users       User[]
+  permissions Permission[]
+
+  @@map("roles")
+}
+
+enum Module {
+  // Module Access Permissions
+  HR
+  INVENTORY
+  INVENTORY_COUNT
+  STOCK_TRANSFER
+  POS
+  PURCHASES
+  SALES
+  REPORTS
+  TREASURIES
+  CASH_TRANSFER
+  TRANSFER_MANAGEMENT
+  BRANCHES
+  EMPLOYEES
+  CLIENTS
+  SUPPLIERS
+  SUPPLIER_ACCOUNTS
+  CATEGORIES
+  ITEMS
+  WAREHOUSES
+  SETTINGS
+  EXPENSES
+  
+  // Creation Permissions (CREATES)
+  CREATES_WAREHOUSES
+  CREATES_EMPLOYEES
+  CREATES_SUPPLIERS
+  CREATES_CLIENTS
+  CREATES_CATEGORIES
+  CREATES_ITEMS
+  CREATES_TREASURIES
+  CREATES_BRANCHES
+
+  DEPOSITS
+  CREATES_DEPOSITS
+}
+
+model Permission {
+  id        Int     @id @default(autoincrement())
+  roleId    Int     @map("role_id")
+  module    Module
+  canAccess Boolean @default(false) @map("can_access")
+
+  // Relations
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, module])
+  @@map("permissions")
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int?     @map("user_id")
+  action       String
+  targetEntity String   @map("target_entity")
+  targetId     String?  @map("target_id")
+  details      Json?
+  ipAddress    String?  @map("ip_address")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+// ============================================
+// Employee Management
+// ============================================
+
+model Employee {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  position            String
+  branchId            Int      @map("branch_id")
+  phoneNumber         String   @map("phone_number")
+  nationalId          String?  @map("national_id")
+  workingDaysPerMonth Int      @default(26) @map("working_days_per_month")
+  workingHoursPerDay  Decimal  @default(8) @map("working_hours_per_day") @db.Decimal(4, 2)
+  weeklyHoliday       String   @default("Friday") @map("weekly_holiday")
+  salary              Decimal  @db.Decimal(10, 2)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  branch       Branch                @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales        Sale[]
+  transactions EmployeeTransaction[]
+  payrolls     Payroll[]
+
+  @@map("employees")
+}
+
+model EmployeeTransaction {
+  id         Int             @id @default(autoincrement())
+  employeeId Int             @map("employee_id")
+  type       TransactionType
+  amount     Decimal         @db.Decimal(10, 2)
+  reason     String?         @db.Text
+  date       DateTime        @default(now())
+  createdById Int?           @map("created_by_id")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("TransactionCreator", fields: [createdById], references: [id])
+
+  @@map("employee_transactions")
+}
+
+enum TransactionType {
+  ADVANCE
+  DEDUCTION
+}
+
+model Payroll {
+  id          Int           @id @default(autoincrement())
+  employeeId  Int           @map("employee_id")
+  month       Int
+  year        Int
+  baseSalary  Decimal       @map("base_salary") @db.Decimal(10, 2)
+  advances    Decimal       @default(0) @db.Decimal(10, 2)
+  deductions  Decimal       @default(0) @db.Decimal(10, 2)
+  netSalary   Decimal       @map("net_salary") @db.Decimal(10, 2)
+  status      PayrollStatus @default(PENDING)
+  paymentDate DateTime?     @map("payment_date")
+  createdById Int?          @map("created_by_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy User?    @relation("PayrollCreator", fields: [createdById], references: [id])
+
+  @@unique([employeeId, month, year])
+  @@map("payrolls")
+}
+
+enum PayrollStatus {
+  PENDING
+  PAID
+}
+
+// ============================================
+// Warehouse Management
+// ============================================
+
+model Warehouse {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  isActive  Boolean  @default(true) @map("is_active")
+
+  // Relations
+  branch                 Branch?
+  purchases              Purchase[]
+  sales                  Sale[]
+  inventory              Inventory[]
+  outgoingStockTransfers StockTransfer[] @relation("StockTransferFrom")
+  incomingStockTransfers StockTransfer[] @relation("StockTransferTo")
+
+  // Config Relations
+  systemConfigAsMain SystemConfiguration[]
+
+  @@map("warehouses")
+}
+
+// ============================================
+// Treasury Management
+// ============================================
+
+model Treasury {
+  id        Int      @id @default(autoincrement())
+  name      String
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  isActive  Boolean  @default(true) @map("is_active")
+
+  // Relations
+  branch           Branch?
+  purchases        Purchase[]
+  sales            Sale[]
+  expenses         Expense[]
+  transfersOut     CashTransfer[]    @relation("TransfersFrom")
+  transfersIn      CashTransfer[]    @relation("TransfersTo")
+  supplierPayments SupplierPayment[]
+  deposits         Deposit[]
+
+  // Config Relations
+  systemConfigAsMain SystemConfiguration[] @relation("ConfigMainTreasury")
+  systemConfigAsBank SystemConfiguration[] @relation("ConfigBankTreasury")
+
+  @@map("treasuries")
+}
+
+// ============================================
+// Branch Management
+// ============================================
+
+model Branch {
+  id            Int      @id @default(autoincrement())
+  name          String
+  address       String
+  warehouseId   Int      @unique @map("warehouse_id")
+  treasuryId    Int      @unique @map("treasury_id")
+  isAllBranches Boolean  @default(false) @map("is_all_branches")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  isActive      Boolean  @default(true) @map("is_active")
+
+  // Relations
+  warehouse Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  treasury  Treasury   @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  employees Employee[]
+  users     User[]
+  sales     Sale[]
+  shifts    Shift[]
+
+  @@map("branches")
+}
+
+// ============================================
+// Client Management
+// ============================================
+
+model Client {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phoneNumber String   @map("phone_number")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  sales Sale[]
+
+  @@map("clients")
+}
+
+// ============================================
+// Supplier Management
+// ============================================
+
+model Supplier {
+  id          Int              @id @default(autoincrement())
+  name        String
+  phoneNumber String           @map("phone_number")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  items       ItemSupplier[]
+  purchases   Purchase[]
+  account     SupplierAccount?
+
+  @@map("suppliers")
+}
+
+// ============================================
+// Category Management
+// ============================================
+
+model Category {
+  id        Int            @id @default(autoincrement())
+  name      String
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  items     ItemCategory[]
+
+  @@map("categories")
+}
+
+// ============================================
+// Item Management
+// ============================================
+
+model Item {
+  id           Int      @id @default(autoincrement())
+  name         String
+  price        Decimal  @db.Decimal(10, 2)
+  unit         String
+  reorderPoint Int      @default(10) @map("reorder_point")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  suppliers          ItemSupplier[]
+  categories         ItemCategory[]
+  purchaseItems      PurchaseItem[]
+  saleItems          SaleItem[]
+  inventory          Inventory[]
+  stockTransferItems StockTransferItem[]
+
+  @@map("items")
+}
+
+model Inventory {
+  itemId      Int      @map("item_id")
+  warehouseId Int      @map("warehouse_id")
+  quantity    Decimal  @default(0) @db.Decimal(10, 2)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  @@id([itemId, warehouseId])
+  @@map("inventory")
+}
+
+model ItemSupplier {
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId     Int      @map("item_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierId Int      @map("supplier_id")
+
+  @@id([itemId, supplierId])
+  @@map("item_suppliers")
+}
+
+model ItemCategory {
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId     Int      @map("item_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId Int      @map("category_id")
+
+  @@id([itemId, categoryId])
+  @@map("item_categories")
+}
+
+// ============================================
+// Purchase Management
+// ============================================
+
+enum PaymentMethod {
+  CASH     // نقد - pay with cash now
+  CREDIT   // كريدت/فيزا - pay with card now
+  DEFERRED // آجل - pay later
+  MIXED    // متنوع - partial payment
+}
+
+enum DiscountType {
+  PERCENTAGE
+  VALUE
+}
+
+enum PaymentStatus {
+  PAID
+  PARTIALLY_PAID
+  UNPAID
+}
+
+model Purchase {
+  id                Int           @id @default(autoincrement())
+  supplierId        Int           @map("supplier_id")
+  treasuryId        Int           @map("treasury_id")
+  warehouseId       Int           @map("warehouse_id")
+  supplierInvoiceNo String?       @map("supplier_invoice_no")
+  paymentMethod     PaymentMethod @default(CASH) @map("payment_method")
+  paymentStatus     PaymentStatus @default(UNPAID) @map("payment_status")
+  subtotal          Decimal       @db.Decimal(10, 2)
+  discountType      DiscountType  @default(PERCENTAGE) @map("discount_type")
+  discountValue     Decimal       @default(0) @map("discount_value") @db.Decimal(10, 2)
+  discountAmount    Decimal       @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  netTotal          Decimal       @map("net_total") @db.Decimal(10, 2)
+  paidAmount        Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  remaining         Decimal       @default(0) @db.Decimal(10, 2)
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  supplier         Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  treasury         Treasury          @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  warehouse        Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  items            PurchaseItem[]
+  expense          Expense?
+  supplierPayments SupplierPayment[]
+
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  purchaseId    Int     @map("purchase_id")
+  itemId        Int     @map("item_id")
+  quantity      Decimal @db.Decimal(10, 2)
+  purchasePrice Decimal @map("purchase_price") @db.Decimal(10, 2)
+  sellPrice     Decimal @map("sell_price") @db.Decimal(10, 2)
+  total         Decimal @db.Decimal(10, 2)
+
+  // Relations
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  item     Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@id([purchaseId, itemId])
+  @@map("purchase_items")
+}
+
+// ============================================
+// POS (Point of Sale) Management
+// ============================================
+
+model Shift {
+  id           Int         @id @default(autoincrement())
+  userId       Int         @map("user_id")
+  branchId     Int         @map("branch_id")
+  startTime    DateTime    @default(now()) @map("start_time")
+  endTime      DateTime?   @map("end_time")
+  startCash    Decimal     @default(0) @db.Decimal(10, 2) @map("start_cash")
+  endCash      Decimal?    @db.Decimal(10, 2) @map("end_cash")
+  status       ShiftStatus @default(OPEN)
+  
+  // Relations
+  user         User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch       Branch      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales        Sale[]
+
+  @@map("shifts")
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum SalePaymentMethod {
+  CASH
+  CARD
+}
+
+enum SaleStatus {
+  COMPLETED
+  HELD
+  CANCELLED
+}
+
+model Sale {
+  id            Int               @id @default(autoincrement())
+  saleNumber    String            @unique @map("sale_number")
+  clientId      Int               @map("client_id")
+  employeeId    Int?              @map("employee_id")
+  userId        Int?              @map("user_id")
+  branchId      Int               @map("branch_id")
+  treasuryId    Int               @map("treasury_id")
+  warehouseId   Int?              @map("warehouse_id")
+  shiftId       Int?              @map("shift_id")
+  subtotal      Decimal           @db.Decimal(10, 2)
+  taxRate       Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
+  taxAmount     Decimal           @map("tax_amount") @db.Decimal(10, 2)
+  total         Decimal           @db.Decimal(10, 2)
+  paymentMethod SalePaymentMethod @default(CASH) @map("payment_method")
+  paidAmount    Decimal           @map("paid_amount") @db.Decimal(10, 2)
+  changeAmount  Decimal           @default(0) @map("change_amount") @db.Decimal(10, 2)
+  status        SaleStatus        @default(COMPLETED)
+  notes         String?           @db.Text
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  employee  Employee?  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  treasury  Treasury   @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  shift     Shift?     @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  items     SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id        Int     @id @default(autoincrement())
+  saleId    Int     @map("sale_id")
+  itemId    Int     @map("item_id")
+  quantity  Decimal @db.Decimal(10, 2)
+  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+
+  // Relations
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@map("sale_items")
+}
+
+// ============================================
+// Financial Transactions
+// ============================================
+
+model CashTransfer {
+  id             Int            @id @default(autoincrement())
+  amount         Decimal        @db.Decimal(10, 2)
+  notes          String?        @db.Text
+  fromTreasuryId Int            @map("from_treasury_id")
+  toTreasuryId   Int            @map("to_treasury_id")
+  status         TransferStatus @default(PENDING)
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  fromTreasury Treasury @relation("TransfersFrom", fields: [fromTreasuryId], references: [id], onDelete: Restrict)
+  toTreasury   Treasury @relation("TransfersTo", fields: [toTreasuryId], references: [id], onDelete: Restrict)
+  createdBy    User     @relation("TransferCreator", fields: [createdById], references: [id])
+  createdById  Int      @map("created_by_id")
+  acceptedBy   User?    @relation("TransferAccepter", fields: [acceptedById], references: [id])
+  acceptedById Int?     @map("accepted_by_id")
+
+  @@map("cash_transfers")
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ============================================
+// System Configuration
+// ============================================
+
+model SystemConfiguration {
+  id          Int    @id @default(1)
+  companyName String @default("ERP System") @map("company_name")
+
+  // Operational Defaults
+  mainWarehouseId Int? @map("main_warehouse_id")
+  mainTreasuryId  Int? @map("main_treasury_id")
+  bankTreasuryId  Int? @map("bank_treasury_id")
+
+  // Financial Defaults
+  taxRate Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
+
+  // HR Defaults
+  salaryStartDay Int    @default(1) @map("salary_start_day")
+  salaryEndDay   Int    @default(30) @map("salary_end_day")
+  shiftStartTime String @default("09:00") @map("shift_start_time")
+  shiftEndTime   String @default("17:00") @map("shift_end_time")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  mainWarehouse Warehouse? @relation(fields: [mainWarehouseId], references: [id])
+  mainTreasury  Treasury?  @relation("ConfigMainTreasury", fields: [mainTreasuryId], references: [id])
+  bankTreasury  Treasury?  @relation("ConfigBankTreasury", fields: [bankTreasuryId], references: [id])
+
+  @@map("system_configuration")
+}
+
+// ============================================
+// Stock Transfers
+// ============================================
+
+model StockTransfer {
+  id              Int                 @id @default(autoincrement())
+  transferNumber  String              @unique @map("transfer_number")
+  fromWarehouseId Int                 @map("from_warehouse_id")
+  toWarehouseId   Int                 @map("to_warehouse_id")
+  userId          Int                 @map("user_id")
+  status          StockTransferStatus @default(PENDING)
+  notes           String?             @db.Text
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  fromWarehouse Warehouse           @relation("StockTransferFrom", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
+  toWarehouse   Warehouse           @relation("StockTransferTo", fields: [toWarehouseId], references: [id], onDelete: Restrict)
+  user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items         StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id              Int     @id @default(autoincrement())
+  stockTransferId Int     @map("stock_transfer_id")
+  itemId          Int     @map("item_id")
+  quantity        Decimal @db.Decimal(10, 2)
+
+  // Relations
+  stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  item          Item          @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@map("stock_transfer_items")
+}
+
+enum StockTransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+// ============================================
+// Supplier Account Management
+// ============================================
+
+model SupplierAccount {
+  id         Int      @id @default(autoincrement())
+  supplierId Int      @unique @map("supplier_id")
+  balance    Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  supplier Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  payments SupplierPayment[]
+
+  @@map("supplier_accounts")
+}
+
+model SupplierPayment {
+  id                Int      @id @default(autoincrement())
+  supplierAccountId Int      @map("supplier_account_id")
+  purchaseId        Int?     @map("purchase_id")
+  amount            Decimal  @db.Decimal(10, 2)
+  treasuryId        Int      @map("treasury_id")
+  notes             String?  @db.Text
+  paymentDate       DateTime @default(now()) @map("payment_date")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  // Relations
+  supplierAccount SupplierAccount @relation(fields: [supplierAccountId], references: [id], onDelete: Restrict)
+  purchase        Purchase?       @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  treasury        Treasury        @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+
+  @@map("supplier_payments")
+}
+
+// ============================================
+// Expense Management
+// ============================================
+
+enum ExpenseType {
+  MANUAL
+  PURCHASE
+}
+
+enum ExpensePaymentMethod {
+  CASH
+  CARD
+}
+
+model Expense {
+  id            Int                    @id @default(autoincrement())
+  description   String
+  amount        Decimal                @db.Decimal(10, 2)
+  date          DateTime               @db.Date
+  type          ExpenseType            @default(MANUAL)
+  treasuryId    Int                    @map("treasury_id")
+  purchaseId    Int?                   @unique @map("purchase_id")
+  paymentMethod ExpensePaymentMethod   @default(CASH) @map("payment_method")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+
+  // Relations
+  treasury Treasury  @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
+}
+
+// ============================================
+// Deposit Management
+// ============================================
+
+model Deposit {
+  id          Int      @id @default(autoincrement())
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?  @db.Text
+  date        DateTime @default(now()) @db.DateTime(0)
+  treasuryId  Int      @map("treasury_id")
+  createdById Int      @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  treasury  Treasury @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  createdBy User     @relation("DepositCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("deposits")
+}

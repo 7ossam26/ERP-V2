@@ -1,0 +1,108 @@
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/icon?family=Material+Icons+Round");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
+
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-body transition-colors duration-300 min-h-screen flex flex-col;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar,
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* Keep custom scrollbar for instances where it might be explicitly wanted, but default user request "delete scroll bar" implies removing it globally or making it invisible */
+  ::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+    background: transparent;
+  }
+
+  /* Add smooth scroll behavior */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+
+  /* Add scale transforms */
+  .scale-102 {
+    transform: scale(1.02);
+  }
+
+  .scale-105 {
+    transform: scale(1.05);
+  }
+}
+
+/* Print Styles */
+@media print {
+  @page {
+    size: auto; /* Allow printer settings to control paper size */
+    margin: 0mm;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* POS Thermal Receipt Styling */
+  #thermal-receipt {
+    width: 100%;
+    max-width: 80mm; /* Optimized for standard 80mm thermal paper */
+    margin: 0 auto;
+    padding: 2mm;
+    background: white !important;
+    color: black !important;
+    font-family: "Cairo", sans-serif;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  #thermal-receipt h2 {
+    font-size: 16px;
+    margin-bottom: 5px;
+  }
+
+  #thermal-receipt p {
+    font-size: 11px;
+    margin-bottom: 2px;
+  }
+
+  #thermal-receipt table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  #thermal-receipt th,
+  #thermal-receipt td {
+    padding: 2px 0;
+    border-bottom: 1px dashed #ccc;
+  }
+
+  #thermal-receipt th {
+    font-weight: bold;
+    border-bottom: 1px solid #000;
+  }
+
+  /* General Print Helpers */
+  .no-print {
+    display: none !important;
+  }
+}
