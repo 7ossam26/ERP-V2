@@ -8,6 +8,7 @@
     "start": "node index.js",
     "start:prod": "node index.js",
     "build:ui": "node scripts/prepare-production.js",
+    "build": "npm run build:ui",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
