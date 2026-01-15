@@ -366,6 +366,7 @@ router.put("/:id", async (req, res) => {
       // 1. Get old purchase details for financial adjustment
       const oldPurchase = await prisma.purchase.findUnique({
         where: { id: purchaseId },
+        include: { items: true },
       });
 
       if (!oldPurchase) {
@@ -401,6 +402,28 @@ router.put("/:id", async (req, res) => {
         },
       });
 
+      // 6.6 Decrement Old Items from Inventory
+      // We must decrement the stock for the items that were in the OLD purchase
+      // The oldPurchase fetched at the start needs to include items
+      if (oldPurchase.items && oldPurchase.items.length > 0) {
+        for (const item of oldPurchase.items) {
+          await prisma.inventory.update({
+            where: {
+              itemId_warehouseId: {
+                itemId: item.itemId,
+                // Assuming the warehouse didn't change for the item.
+                // However, the purchase itself has a warehouseId.
+                // We should use the OLD warehouseId.
+                warehouseId: oldPurchase.warehouseId,
+              },
+            },
+            data: {
+              quantity: { decrement: Number(item.quantity) },
+            },
+          });
+        }
+      }
+
       // 4. Delete old items and create new ones
       if (items) {
         await prisma.purchaseItem.deleteMany({
@@ -418,6 +441,29 @@ router.put("/:id", async (req, res) => {
               total: item.total,
             })),
           });
+
+          // 6.7 Increment New Items to Inventory
+          // We must increment the stock for the NEW items
+          let newWarehouseId = warehouseId ? parseInt(warehouseId) : oldPurchase.warehouseId;
+
+          for (const item of items) {
+            await prisma.inventory.upsert({
+              where: {
+                itemId_warehouseId: {
+                  itemId: parseInt(item.itemId),
+                  warehouseId: newWarehouseId,
+                },
+              },
+              update: {
+                quantity: { increment: Number(item.quantity) },
+              },
+              create: {
+                itemId: parseInt(item.itemId),
+                warehouseId: newWarehouseId,
+                quantity: Number(item.quantity),
+              },
+            });
+          }
         }
       }
 
@@ -440,10 +486,10 @@ router.put("/:id", async (req, res) => {
             amount: Number(paidAmount),
             treasuryId: parseInt(treasuryId),
             paymentMethod: expenseMethod,
-            description: `Purchase Invocie #${supplierInvoiceNo || purchaseId}`,
+            description: `Purchase Invoice #${supplierInvoiceNo || purchaseId}`,
           },
           create: {
-            description: `Purchase Invocie #${supplierInvoiceNo || purchaseId}`,
+            description: `Purchase Invoice #${supplierInvoiceNo || purchaseId}`,
             amount: Number(paidAmount),
             date: oldPurchase.createdAt, // Keep original date
             type: "PURCHASE",
@@ -497,6 +543,7 @@ router.delete("/:id", async (req, res) => {
       // 1. Get purchase details before deletion
       const purchase = await prisma.purchase.findUnique({
         where: { id: purchaseId },
+        include: { items: true },
       });
 
       if (!purchase) {
@@ -511,6 +558,23 @@ router.delete("/:id", async (req, res) => {
             balance: { increment: Number(purchase.paidAmount) },
           },
         });
+      }
+
+      // 2.5 Revert Stock (Remove items from Inventory)
+      if (purchase.items && purchase.items.length > 0) {
+        for (const item of purchase.items) {
+          await prisma.inventory.update({
+            where: {
+              itemId_warehouseId: {
+                itemId: item.itemId,
+                warehouseId: purchase.warehouseId,
+              },
+            },
+            data: {
+              quantity: { decrement: Number(item.quantity) },
+            },
+          });
+        }
       }
 
       // 3. Delete Purchase (Cascade deletes Expense and Items)

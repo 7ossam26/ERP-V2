@@ -255,17 +255,25 @@ const ExpensesPage = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3 text-center">
-                                                {expense.type === "MANUAL" && AuthService.hasSensitiveAccess() && (
-                                                    <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {/* Edit button removed to enforce immutability */}
-                                                        <button
-                                                            onClick={() => handleDelete(expense.id)}
-                                                            className="text-text-light/70 hover:text-red-600 dark:text-text-dark/70 dark:hover:text-red-400 transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-red-100 dark:hover:border-red-900/30 rounded p-1"
-                                                            title="حذف">
-                                                            <span className="material-symbols-outlined text-[18px]">
-                                                                delete
-                                                            </span>
-                                                        </button>
+                                                {expense.type === "MANUAL" ? (
+                                                    AuthService.hasSensitiveAccess() ? (
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <button
+                                                                onClick={() => handleDelete(expense.id)}
+                                                                className="text-text-light/70 hover:text-red-600 dark:text-text-dark/70 dark:hover:text-red-400 transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-red-100 dark:hover:border-red-900/30 rounded p-1"
+                                                                title="حذف">
+                                                                <span className="material-symbols-outlined text-[18px]">
+                                                                    delete
+                                                                </span>
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">لا توجد صلاحية</span>
+                                                    )
+                                                ) : (
+                                                    <div className="flex items-center justify-center gap-1 text-gray-400" title="مصروف تلقائي (مرتبط بمشتروات)">
+                                                        <span className="material-symbols-outlined text-[16px]">lock</span>
+                                                        <span className="text-[10px]">تلقائي</span>
                                                     </div>
                                                 )}
                                             </td>

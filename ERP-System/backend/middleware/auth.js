@@ -186,11 +186,17 @@ const getUserBranchFilter = async (userId) => {
       where: { id: userId },
       include: {
         branch: true,
+        role: true, // Include role to check name
       },
     });
 
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // Superadmin sees ALL (return null)
+    if (user.role && user.role.name === "Superadmin") {
+      return null;
     }
 
     // If user is assigned to "All Branches", return null (no filter)

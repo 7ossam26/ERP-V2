@@ -519,8 +519,70 @@ router.delete(
   requirePermission("SALES"),
   async (req, res) => {
     try {
-      await prisma.sale.delete({
-        where: { id: parseInt(req.params.id) },
+      await prisma.$transaction(async (tx) => {
+        // 1. Fetch Sale with Items
+        const sale = await tx.sale.findUnique({
+          where: { id: parseInt(req.params.id) },
+          include: { items: true },
+        });
+
+        if (!sale) {
+          throw new Error("Sale not found");
+        }
+
+        // 2. Restock Items (Increment Inventory)
+        if (sale.items && sale.items.length > 0) {
+          for (const item of sale.items) {
+            // Find appropriate warehouse (Sale has warehouseId)
+            const warehouseId = sale.warehouseId;
+            if (warehouseId) {
+              await tx.inventory.upsert({
+                where: {
+                  itemId_warehouseId: {
+                    itemId: item.itemId,
+                    warehouseId: warehouseId,
+                  },
+                },
+                update: {
+                  quantity: { increment: Number(item.quantity) },
+                },
+                create: {
+                  itemId: item.itemId,
+                  warehouseId: warehouseId,
+                  quantity: Number(item.quantity),
+                },
+              });
+            }
+          }
+        }
+
+        // 3. Refund Treasury (If paid)
+        if (Number(sale.paidAmount) > 0) {
+          const method = sale.paymentMethod;
+
+          if (method === "CASH" && sale.treasuryId) {
+            await tx.treasury.update({
+              where: { id: sale.treasuryId },
+              data: { balance: { decrement: Number(sale.paidAmount) } },
+            });
+          } else if (method === "CARD" || method === "VISA") {
+            // Find Bank Treasury
+            const config = await tx.systemConfiguration.findFirst({
+              select: { bankTreasuryId: true },
+            });
+            if (config && config.bankTreasuryId) {
+              await tx.treasury.update({
+                where: { id: config.bankTreasuryId },
+                data: { balance: { decrement: Number(sale.paidAmount) } },
+              });
+            }
+          }
+        }
+
+        // 4. Delete Sale
+        await tx.sale.delete({
+          where: { id: parseInt(req.params.id) },
+        });
       });
       res.status(204).send();
     } catch (error) {
