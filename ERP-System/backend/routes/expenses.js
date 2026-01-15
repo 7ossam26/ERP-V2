@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireSensitiveAccess } = require("../middleware/auth");
+const { authenticateToken, requirePermission, requireSensitiveAccess, getUserBranchFilter } = require("../middleware/auth");
 
 // Protect all routes with EXPENSES permission
 router.use(authenticateToken, requirePermission("EXPENSES"));
@@ -9,12 +9,31 @@ router.use(authenticateToken, requirePermission("EXPENSES"));
 // GET all expenses
 router.get("/", async (req, res, next) => {
     try {
+        const branchId = await getUserBranchFilter(req.user.id);
+        const whereClause = {};
+
+        if (branchId) {
+            // Find the treasury associated with this branch
+            const branch = await prisma.branch.findUnique({
+                where: { id: branchId },
+                select: { treasuryId: true }
+            });
+            if (branch) {
+                whereClause.treasuryId = branch.treasuryId;
+            }
+        }
+
+        console.log(`🔍 Fetching expenses with whereClause: ${JSON.stringify(whereClause)} (User ID: ${req.user.id}, Branch ID: ${branchId})`);
+
         const expenses = await prisma.expense.findMany({
+            where: whereClause,
             orderBy: { date: "desc" },
             include: {
                 treasury: true
             }
         });
+
+        console.log(`✅ Found ${expenses.length} expenses for whereClause: ${JSON.stringify(whereClause)}`);
         res.json(expenses);
     } catch (error) {
         next(error);

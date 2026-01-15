@@ -15,9 +15,20 @@ const ExpensesPage = () => {
     const itemsPerPage = 8;
 
     // Derived state for filtering and pagination
-    const filteredExpenses = expenses.filter(expense => {
-        const matchesSearch = expense.description.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesDate = selectedDate ? new Date(expense.date).toISOString().split('T')[0] === selectedDate : true;
+    const filteredExpenses = (expenses || []).filter(expense => {
+        const matchesSearch = (expense.description || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+        let matchesDate = true;
+        if (selectedDate && expense.date) {
+            try {
+                const expenseDate = new Date(expense.date).toISOString().split('T')[0];
+                matchesDate = expenseDate === selectedDate;
+            } catch (e) {
+                console.error("Invalid date encountered:", expense.date);
+                matchesDate = false;
+            }
+        }
+
         return matchesSearch && matchesDate;
     });
 

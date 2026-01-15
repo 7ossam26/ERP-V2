@@ -98,6 +98,9 @@ router.get("/", async (req, res, next) => {
         totalQuantity = stock ? Number(stock.quantity) : 0;
       } else {
         totalQuantity = item.inventory.reduce((sum, inv) => {
+          // EXCLUDE "All Branches Warehouse" (ID 4) from the sum to prevent double counting or ghost stock
+          if (inv.warehouseId === 4) return sum;
+
           const qty = Number(inv.quantity);
           if (qty > 0 && inv.warehouse) {
             availableWarehouses.push(inv.warehouse.name);
@@ -232,7 +235,11 @@ router.get("/stats", async (req, res, next) => {
         totalQuantity = stock ? Number(stock.quantity) : 0;
       } else {
         totalQuantity = item.inventory.reduce(
-          (sum, inv) => sum + Number(inv.quantity),
+          (sum, inv) => {
+            // EXCLUDE "All Branches Warehouse" (ID 4) from the sum
+            if (inv.warehouseId === 4) return sum;
+            return sum + Number(inv.quantity);
+          },
           0
         );
       }
