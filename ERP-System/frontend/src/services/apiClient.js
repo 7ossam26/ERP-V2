@@ -1,5 +1,5 @@
 // API Client configuration and base utilities
-const API_BASE_URL = "/api"; // Use relative path to leverage Vite proxy
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 class APIError extends Error {
   constructor(message, status, data) {
