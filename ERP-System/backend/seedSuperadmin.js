@@ -109,34 +109,55 @@ async function main() {
     console.log("   [DEBUG] Password hashed.");
 
     // Create initial infrastructure (Warehouse, Treasury, Branch)
-    console.log("   [DEBUG] Creating initial warehouse...");
-    const warehouse = await prisma.warehouse.create({
-      data: {
-        name: "Main Warehouse",
-      },
+    console.log("   [DEBUG] Checking/Creating initial warehouse...");
+    let warehouse = await prisma.warehouse.findFirst({
+      where: { name: "Main Warehouse" },
     });
-    console.log(`   [DEBUG] Warehouse created: ID ${warehouse.id}`);
+    if (!warehouse) {
+      warehouse = await prisma.warehouse.create({
+        data: {
+          name: "Main Warehouse",
+        },
+      });
+      console.log(`   [DEBUG] Warehouse created: ID ${warehouse.id}`);
+    } else {
+      console.log(`   [DEBUG] Main Warehouse already exists: ID ${warehouse.id}`);
+    }
 
-    console.log("   [DEBUG] Creating initial treasury...");
-    const treasury = await prisma.treasury.create({
-      data: {
-        name: "Main Treasury",
-        balance: 0,
-      },
+    console.log("   [DEBUG] Checking/Creating initial treasury...");
+    let treasury = await prisma.treasury.findFirst({
+      where: { name: "Main Treasury" },
     });
-    console.log(`   [DEBUG] Treasury created: ID ${treasury.id}`);
+    if (!treasury) {
+      treasury = await prisma.treasury.create({
+        data: {
+          name: "Main Treasury",
+          balance: 0,
+        },
+      });
+      console.log(`   [DEBUG] Treasury created: ID ${treasury.id}`);
+    } else {
+      console.log(`   [DEBUG] Main Treasury already exists: ID ${treasury.id}`);
+    }
 
-    console.log("   [DEBUG] Creating main branch...");
-    const branch = await prisma.branch.create({
-      data: {
-        name: "Main Branch",
-        address: "Headquarters",
-        warehouseId: warehouse.id,
-        treasuryId: treasury.id,
-        isAllBranches: false,
-      },
+    console.log("   [DEBUG] Checking/Creating main branch...");
+    let branch = await prisma.branch.findFirst({
+      where: { name: "Main Branch" },
     });
-    console.log(`   [DEBUG] Branch created: ID ${branch.id}`);
+    if (!branch) {
+      branch = await prisma.branch.create({
+        data: {
+          name: "Main Branch",
+          address: "Headquarters",
+          warehouseId: warehouse.id,
+          treasuryId: treasury.id,
+          isAllBranches: false,
+        },
+      });
+      console.log(`   [DEBUG] Branch created: ID ${branch.id}`);
+    } else {
+      console.log(`   [DEBUG] Main Branch already exists: ID ${branch.id}`);
+    }
 
     // Create "All Branches" special branch for users who can see all branch data
     console.log("   [DEBUG] Checking/Creating All Branches infrastructure...");

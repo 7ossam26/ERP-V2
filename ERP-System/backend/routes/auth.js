@@ -184,7 +184,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
     });
   } catch (error) {
     console.error("Login Error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    next(error);
   }
 });
 
@@ -237,7 +237,7 @@ router.post("/refresh", async (req, res) => {
 
     res.json({ token: newAccessToken });
   } catch (error) {
-    res.status(401).json({ error: "Invalid refresh token" });
+    next(error);
   }
 });
 
@@ -309,7 +309,7 @@ router.get("/me", authenticateToken, async (req, res) => {
       hasSensitiveAccess: user.hasSensitiveAccess,
     });
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch user details" });
+    next(error);
   }
 });
 

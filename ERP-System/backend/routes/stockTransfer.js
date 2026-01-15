@@ -115,8 +115,8 @@ router.get("/:id", async (req, res, next) => {
 // POST create new stock transfer
 router.post("/", async (req, res, next) => {
   try {
-    console.log("📦 ============ STOCK TRANSFER API CALLED ============");
-    console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
+    // console.log("📦 ============ STOCK TRANSFER API CALLED ============");
+    // console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
 
     const { userId, fromWarehouseId, toWarehouseId, notes, items } = req.body;
 
@@ -263,11 +263,11 @@ router.post("/", async (req, res, next) => {
       return transfer;
     });
 
-    console.log(
-      "✅✅✅ Transaction completed successfully! Transfer ID:",
-      result.id
-    );
-    console.log("============================================");
+    // console.log(
+    //   "✅✅✅ Transaction completed successfully! Transfer ID:",
+    //   result.id
+    // );
+    // console.log("============================================");
     res.status(201).json(result);
   } catch (error) {
     next(error);

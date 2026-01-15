@@ -67,7 +67,7 @@ router.get("/:id", async (req, res) => {
 // POST Transfer between treasuries
 // POST Transfer Request (Handshake Step 1)
 router.post("/transfer", async (req, res) => {
-  console.log("Processing transfer request:", req.body); // DEBUG LOG
+  // console.log("Processing transfer request:", req.body); // DEBUG LOG
   try {
     const { fromTreasuryId, toTreasuryId, amount, notes } = req.body;
     const transferAmount = Number(amount);
@@ -161,7 +161,7 @@ router.post("/transfer", async (req, res) => {
 
 // POST Approve Transfer (Handshake Step 2)
 router.post("/transfer/:id/approve", async (req, res) => {
-  console.log("Processing transfer approval:", req.params.id); // DEBUG LOG
+  // console.log("Processing transfer approval:", req.params.id); // DEBUG LOG
   try {
     const transferId = parseInt(req.params.id);
 
@@ -198,7 +198,7 @@ router.post("/transfer/:id/approve", async (req, res) => {
 
 // POST Reject Transfer (Refund)
 router.post("/transfer/:id/reject", async (req, res) => {
-  console.log("Processing transfer rejection:", req.params.id); // DEBUG LOG
+  // console.log("Processing transfer rejection:", req.params.id); // DEBUG LOG
   try {
     const transferId = parseInt(req.params.id);
 

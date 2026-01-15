@@ -122,8 +122,8 @@ router.post(
   requireAnyPermission(["SALES", "POS"]),
   async (req, res, next) => {
     try {
-      console.log("💰 ============ SALES API CALLED ============");
-      console.log("💰 Request body:", JSON.stringify(req.body, null, 2));
+      // console.log("💰 ============ SALES API CALLED ============");
+      // console.log("💰 Request body:", JSON.stringify(req.body, null, 2));
 
       const {
         clientId,
@@ -238,10 +238,10 @@ router.post(
         });
       }
 
-      console.log(`💰 Step 3: Branch configuration:`);
-      console.log(`  - Branch ID: ${branchId}`);
-      console.log(`  - Treasury ID: ${treasuryId}`);
-      console.log(`  - Warehouse ID: ${warehouseId}`);
+      // console.log(`💰 Step 3: Branch configuration:`);
+      // console.log(`  - Branch ID: ${branchId}`);
+      // console.log(`  - Treasury ID: ${treasuryId}`);
+      // console.log(`  - Warehouse ID: ${warehouseId}`);
 
       // --- CHECK ACTIVE SHIFT ---
       console.log("💰 Step 3.5: Checking for Active Shift...");
@@ -412,11 +412,11 @@ router.post(
         return sale;
       });
 
-      console.log(
-        "✅✅✅ Transaction completed successfully! Sale ID:",
-        result.id
-      );
-      console.log("============================================");
+      // console.log(
+      //   "✅✅✅ Transaction completed successfully! Sale ID:",
+      //   result.id
+      // );
+      // console.log("============================================");
       res.status(201).json(result);
     } catch (error) {
       next(error);

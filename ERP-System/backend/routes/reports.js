@@ -18,11 +18,11 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
   try {
     const { startDate, endDate, branchId } = req.query;
 
-    console.log("📊 Generating General Report...", {
-      startDate,
-      endDate,
-      branchId,
-    });
+    // console.log("📊 Generating General Report...", {
+    //   startDate,
+    //   endDate,
+    //   branchId,
+    // });
 
     // --- 1. Filter Setup ---
     const start = startDate ? new Date(startDate) : new Date();
@@ -82,11 +82,11 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
       });
       if (branch && branch.warehouseId) {
         inventoryWhere = { warehouseId: branch.warehouseId };
-        console.log(
-          `[DEBUG] Branch ${branchId} resolved to Warehouse ${branch.warehouseId}`
-        );
+        // console.log(
+        //   `[DEBUG] Branch ${branchId} resolved to Warehouse ${branch.warehouseId}`
+        // );
       } else {
-        console.log(`[DEBUG] Branch ${branchId} has no warehouse linked!`);
+        // console.log(`[DEBUG] Branch ${branchId} has no warehouse linked!`);
         // Fallback or empty? If no warehouse, no inventory.
         inventoryWhere = { warehouseId: -1 };
       }
@@ -130,9 +130,9 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
 
     // --- 3. Calculations ---
 
-    console.log(
-      `[DEBUG] Found ${inventoryRecords.length} inventory records. Computed ${stockAlertsList.length} alerts.`
-    );
+    // console.log(
+    //   `[DEBUG] Found ${inventoryRecords.length} inventory records. Computed ${stockAlertsList.length} alerts.`
+    // );
 
     // > Summary Cards
     const totalSales = sales.reduce(
@@ -202,7 +202,7 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
         salesByCategory[itemName] += parseFloat(saleItem.total);
       });
     });
-    console.log("[DEBUG] Final Sales By Item:", salesByCategory);
+    // console.log("[DEBUG] Final Sales By Item:", salesByCategory);
 
     // > Sales By Branch (Table)
     const branchStats = {};
