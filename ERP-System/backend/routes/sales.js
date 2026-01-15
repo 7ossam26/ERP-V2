@@ -57,7 +57,7 @@ router.get(
   "/",
   authenticateToken,
   requireAnyPermission(["SALES", "REPORTS"]),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const branchId = await getUserBranchFilter(req.user.id);
       const whereClause = branchId ? { branchId } : {};
@@ -79,9 +79,7 @@ router.get(
       });
       res.json(sales);
     } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch sales", message: error.message });
+      next(error);
     }
   }
 );
@@ -112,9 +110,7 @@ router.get(
       }
       res.json(sale);
     } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Failed to fetch sale", message: error.message });
+      next(error);
     }
   }
 );
@@ -124,7 +120,7 @@ router.post(
   "/",
   authenticateToken,
   requireAnyPermission(["SALES", "POS"]),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       console.log("💰 ============ SALES API CALLED ============");
       console.log("💰 Request body:", JSON.stringify(req.body, null, 2));
@@ -384,8 +380,7 @@ router.post(
 
           if (!inventory || inventory.quantity < item.quantity) {
             throw new Error(
-              `Insufficient stock for item ${item.itemId}. Available: ${
-                inventory ? inventory.quantity : 0
+              `Insufficient stock for item ${item.itemId}. Available: ${inventory ? inventory.quantity : 0
               }`
             );
           }
@@ -424,21 +419,7 @@ router.post(
       console.log("============================================");
       res.status(201).json(result);
     } catch (error) {
-      console.error("❌❌❌ ERROR CREATING SALE ❌❌❌");
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error code:", error.code);
-      if (error.meta) {
-        console.error("Error meta:", JSON.stringify(error.meta, null, 2));
-      }
-      console.error("Full error stack:", error.stack);
-      console.error("============================================");
-
-      res.status(500).json({
-        error: "Failed to create sale",
-        message: error.message,
-        details: error.code || error.name,
-      });
+      next(error);
     }
   }
 );
@@ -526,12 +507,7 @@ router.put(
 
       res.json(sale);
     } catch (error) {
-      if (error.code === "P2025") {
-        return res.status(404).json({ error: "Sale not found" });
-      }
-      res
-        .status(500)
-        .json({ error: "Failed to update sale", message: error.message });
+      next(error);
     }
   }
 );
@@ -548,12 +524,7 @@ router.delete(
       });
       res.status(204).send();
     } catch (error) {
-      if (error.code === "P2025") {
-        return res.status(404).json({ error: "Sale not found" });
-      }
-      res
-        .status(500)
-        .json({ error: "Failed to delete sale", message: error.message });
+      next(error);
     }
   }
 );

@@ -7,7 +7,7 @@ const { authenticateToken, requirePermission } = require("../middleware/auth");
 router.use(authenticateToken);
 
 // GET System Configuration
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     let config = await prisma.systemConfiguration.findFirst({
       where: { id: 1 },
@@ -35,8 +35,7 @@ router.get("/", async (req, res) => {
 
     res.json(config);
   } catch (error) {
-    console.error("Error fetching settings:", error);
-    res.status(500).json({ error: "Failed to fetch settings" });
+    next(error);
   }
 });
 
@@ -48,7 +47,7 @@ const safeInt = (val) => {
 };
 
 // PUT Update Configuration
-router.put("/", requirePermission("SETTINGS"), async (req, res) => {
+router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
   try {
     const {
       companyName,
@@ -102,10 +101,7 @@ router.put("/", requirePermission("SETTINGS"), async (req, res) => {
 
     res.json(config);
   } catch (error) {
-    console.error("Error updating settings:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to update settings", details: error.message });
+    next(error);
   }
 });
 

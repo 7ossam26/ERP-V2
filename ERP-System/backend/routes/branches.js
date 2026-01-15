@@ -7,9 +7,9 @@ const { authenticateToken, requirePermission, requireCreatePermission, getUserBr
 router.use(authenticateToken);
 
 // GET all branches - Accessible to all auth users, no filter (for transfers etc)
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
-    const where = {};
+    const where = { isActive: true };
 
     const branches = await prisma.branch.findMany({
       where,
@@ -21,17 +21,16 @@ router.get("/", async (req, res) => {
     });
     res.json(branches);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch branches", message: error.message });
+    next(error);
   }
 });
 
 // GET Financial Summary (Total Balance & Daily Change)
-router.get("/summary", async (req, res) => {
+router.get("/summary", async (req, res, next) => {
   try {
     // 1. Get all branches with treasuries to calculate current total balance
     const branches = await prisma.branch.findMany({
+      where: { isActive: true },
       include: { treasury: true },
     });
 
@@ -94,15 +93,12 @@ router.get("/summary", async (req, res) => {
       netChange,
     });
   } catch (error) {
-    console.error("Summary Error:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to fetch summary", message: error.message });
+    next(error);
   }
 });
 
 // GET branch by ID - Accessible if it matches user's branch or user has global access
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
   try {
     const branchId = parseInt(req.params.id);
 
@@ -113,19 +109,17 @@ router.get("/:id", async (req, res) => {
         treasury: true,
       },
     });
-    if (!branch) {
+    if (!branch || !branch.isActive) {
       return res.status(404).json({ error: "Branch not found" });
     }
     res.json(branch);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch branch", message: error.message });
+    next(error);
   }
 });
 
 // POST create new branch
-router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res, next) => {
   try {
     const { name, address, warehouseId, treasuryId } = req.body;
 
@@ -151,21 +145,12 @@ router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res) =
     });
     res.status(201).json(branch);
   } catch (error) {
-    // Handle unique constraint violations
-    if (error.code === "P2002") {
-      return res.status(400).json({
-        error: "Warehouse or Treasury already assigned to another branch",
-        message: error.message,
-      });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to create branch", message: error.message });
+    next(error);
   }
 });
 
 // PUT update branch - Requires SENSITIVE ACCESS
-router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), requireSensitiveAccess, async (req, res) => {
+router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), requireSensitiveAccess, async (req, res, next) => {
   try {
     const { name, address, warehouseId, treasuryId } = req.body;
 
@@ -186,36 +171,20 @@ router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), requi
     });
     res.json(branch);
   } catch (error) {
-    // Handle unique constraint violations
-    if (error.code === "P2002") {
-      return res.status(400).json({
-        error: "Warehouse or Treasury already assigned to another branch",
-        message: error.message,
-      });
-    }
-    if (error.code === "P2025") {
-      return res.status(404).json({ error: "Branch not found" });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to update branch", message: error.message });
+    next(error);
   }
 });
 
 // DELETE branch - Requires SENSITIVE ACCESS
-router.delete("/:id", requirePermission("BRANCHES"), requireSensitiveAccess, async (req, res) => {
+router.delete("/:id", requirePermission("BRANCHES"), requireSensitiveAccess, async (req, res, next) => {
   try {
-    await prisma.branch.delete({
+    await prisma.branch.update({
       where: { id: parseInt(req.params.id) },
+      data: { isActive: false },
     });
     res.status(204).send();
   } catch (error) {
-    if (error.code === "P2025") {
-      return res.status(404).json({ error: "Branch not found" });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to delete branch", message: error.message });
+    next(error);
   }
 });
 

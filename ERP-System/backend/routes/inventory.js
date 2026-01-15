@@ -15,7 +15,7 @@ router.use(
 );
 
 // GET Inventory (All items with stock levels)
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const { warehouseId, category } = req.query;
 
@@ -162,13 +162,12 @@ router.get("/", async (req, res) => {
 
     res.json(formattedItems);
   } catch (error) {
-    console.error("Error fetching inventory:", error);
-    res.status(500).json({ error: "Failed to fetch inventory data" });
+    next(error);
   }
 });
 
 // GET Dashboard Stats
-router.get("/stats", async (req, res) => {
+router.get("/stats", async (req, res, next) => {
   try {
     const { warehouseId, category } = req.query;
     const whereClause = {};
@@ -267,8 +266,7 @@ router.get("/stats", async (req, res) => {
       totalProfit,
     });
   } catch (error) {
-    console.error("Error fetching stats:", error);
-    res.status(500).json({ error: "Failed to fetch stats" });
+    next(error);
   }
 });
 

@@ -7,7 +7,7 @@ const { authenticateToken, requireAnyPermission, getUserBranchFilter } = require
 router.use(authenticateToken);
 
 // Start a new shift
-router.post("/start", async (req, res) => {
+router.post("/start", async (req, res, next) => {
     try {
         const { userId, branchId, startCash } = req.body;
 
@@ -45,13 +45,12 @@ router.post("/start", async (req, res) => {
 
         res.status(201).json(newShift);
     } catch (error) {
-        console.error("Error starting shift:", error);
-        res.status(500).json({ error: "Failed to start shift" });
+        next(error);
     }
 });
 
 // End an existing shift
-router.post("/end", async (req, res) => {
+router.post("/end", async (req, res, next) => {
     try {
         const { shiftId, endCash } = req.body;
 
@@ -70,13 +69,12 @@ router.post("/end", async (req, res) => {
 
         res.json(updatedShift);
     } catch (error) {
-        console.error("Error ending shift:", error);
-        res.status(500).json({ error: "Failed to end shift" });
+        next(error);
     }
 });
 
 // Get active shift for a user
-router.get("/active/:userId", async (req, res) => {
+router.get("/active/:userId", async (req, res, next) => {
     try {
         const userId = parseInt(req.params.userId);
 
@@ -93,13 +91,12 @@ router.get("/active/:userId", async (req, res) => {
 
         res.json(activeShift);
     } catch (error) {
-        console.error("Error fetching active shift:", error);
-        res.status(500).json({ error: "Failed to fetch active shift" });
+        next(error);
     }
 });
 
 // Get Shift Report - Requires POS or REPORTS permission
-router.get("/:id/report", requireAnyPermission(["POS", "REPORTS"]), async (req, res) => {
+router.get("/:id/report", requireAnyPermission(["POS", "REPORTS"]), async (req, res, next) => {
     try {
         const shiftId = parseInt(req.params.id);
 
@@ -199,8 +196,7 @@ router.get("/:id/report", requireAnyPermission(["POS", "REPORTS"]), async (req, 
         res.json(report);
 
     } catch (error) {
-        console.error("Error generating report:", error);
-        res.status(500).json({ error: "Failed to generate report" });
+        next(error);
     }
 });
 

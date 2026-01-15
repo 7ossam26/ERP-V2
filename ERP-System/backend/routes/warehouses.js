@@ -10,7 +10,7 @@ router.use(authenticateToken);
 // GET all warehouses - Accessible to all auth users (for transfers etc)
 router.get("/", async (req, res) => {
   try {
-    const where = {};
+    const where = { isActive: true };
 
     const warehouses = await prisma.warehouse.findMany({
       where,
@@ -30,7 +30,7 @@ router.get("/:id", async (req, res) => {
     const warehouse = await prisma.warehouse.findUnique({
       where: { id: parseInt(req.params.id) },
     });
-    if (!warehouse) {
+    if (!warehouse || !warehouse.isActive) {
       return res.status(404).json({ error: "Warehouse not found" });
     }
     res.json(warehouse);
@@ -75,8 +75,9 @@ router.put("/:id", requireAnyPermission(["WAREHOUSES", "CREATES_WAREHOUSES"]), a
 // DELETE warehouse - Requires WAREHOUSES management permission
 router.delete("/:id", requirePermission("WAREHOUSES"), async (req, res, next) => {
   try {
-    await prisma.warehouse.delete({
+    await prisma.warehouse.update({
       where: { id: parseInt(req.params.id) },
+      data: { isActive: false },
     });
     res.status(204).send();
   } catch (error) {

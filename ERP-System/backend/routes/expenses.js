@@ -7,7 +7,7 @@ const { authenticateToken, requirePermission, requireSensitiveAccess } = require
 router.use(authenticateToken, requirePermission("EXPENSES"));
 
 // GET all expenses
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
     try {
         const expenses = await prisma.expense.findMany({
             orderBy: { date: "desc" },
@@ -17,13 +17,12 @@ router.get("/", async (req, res) => {
         });
         res.json(expenses);
     } catch (error) {
-        console.error("Failed to fetch expenses", error);
-        res.status(500).json({ error: "Failed to fetch expenses" });
+        next(error);
     }
 });
 
 // POST create new manual expense
-router.post("/", async (req, res) => {
+router.post("/", async (req, res, next) => {
     const { description, amount, date, treasuryId, paymentMethod } = req.body;
 
     try {
@@ -68,13 +67,12 @@ router.post("/", async (req, res) => {
 
         res.status(201).json({ message: "Expense created successfully" });
     } catch (error) {
-        console.error("Failed to create expense", error);
-        res.status(500).json({ error: error.message || "Failed to create expense" });
+        next(error);
     }
 });
 
 // PUT update expense
-router.put("/:id", async (req, res) => {
+router.put("/:id", async (req, res, next) => {
     const { id } = req.params;
     const { description, amount, date, treasuryId, paymentMethod } = req.body;
 
@@ -136,14 +134,13 @@ router.put("/:id", async (req, res) => {
 
         res.json({ message: "Expense updated successfully" });
     } catch (error) {
-        console.error("Failed to update expense", error);
-        res.status(500).json({ error: error.message || "Failed to update expense" });
+        next(error);
     }
 });
 
 // Delete expense (Manual only)
 // STRICT SECURITY: Only users with sensitive access can delete financial records
-router.delete("/:id", requireSensitiveAccess, async (req, res) => {
+router.delete("/:id", requireSensitiveAccess, async (req, res, next) => {
     const { id } = req.params;
 
     try {
@@ -178,8 +175,7 @@ router.delete("/:id", requireSensitiveAccess, async (req, res) => {
 
         res.json({ message: "Expense deleted successfully" });
     } catch (error) {
-        console.error("Error deleting expense:", error);
-        res.status(500).json({ error: "Failed to delete expense" });
+        next(error);
     }
 });
 

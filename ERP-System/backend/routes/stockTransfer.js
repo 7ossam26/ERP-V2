@@ -35,7 +35,7 @@ const generateTransferNumber = async () => {
 router.use(authenticateToken, requirePermission("STOCK_TRANSFER"));
 
 // GET all stock transfers
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const {
       startDate,
@@ -81,16 +81,12 @@ router.get("/", async (req, res) => {
     });
     res.json(transfers);
   } catch (error) {
-    console.error("Error fetching stock transfers:", error);
-    res.status(500).json({
-      error: "Failed to fetch stock transfers",
-      message: error.message,
-    });
+    next(error);
   }
 });
 
 // GET stock transfer by ID
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
   try {
     const transfer = await prisma.stockTransfer.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -112,16 +108,12 @@ router.get("/:id", async (req, res) => {
 
     res.json(transfer);
   } catch (error) {
-    console.error("Error fetching stock transfer:", error);
-    res.status(500).json({
-      error: "Failed to fetch stock transfer",
-      message: error.message,
-    });
+    next(error);
   }
 });
 
 // POST create new stock transfer
-router.post("/", async (req, res) => {
+router.post("/", async (req, res, next) => {
   try {
     console.log("📦 ============ STOCK TRANSFER API CALLED ============");
     console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
@@ -199,10 +191,8 @@ router.post("/", async (req, res) => {
 
         if (!inventory || inventory.quantity < item.quantity) {
           throw new Error(
-            `Insufficient stock for item ${
-              item.itemId
-            } in source warehouse. Available: ${
-              inventory ? inventory.quantity : 0
+            `Insufficient stock for item ${item.itemId
+            } in source warehouse. Available: ${inventory ? inventory.quantity : 0
             }, Requested: ${item.quantity}`
           );
         }
@@ -280,34 +270,19 @@ router.post("/", async (req, res) => {
     console.log("============================================");
     res.status(201).json(result);
   } catch (error) {
-    console.error("❌❌❌ ERROR CREATING STOCK TRANSFER ❌❌❌");
-    console.error("Error message:", error.message);
-    console.error("Full error:", error);
-    console.error("============================================");
-
-    res.status(500).json({
-      error: "Failed to create stock transfer",
-      message: error.message,
-    });
+    next(error);
   }
 });
 
 // DELETE stock transfer
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res, next) => {
   try {
     await prisma.stockTransfer.delete({
       where: { id: parseInt(req.params.id) },
     });
     res.status(204).send();
   } catch (error) {
-    if (error.code === "P2025") {
-      return res.status(404).json({ error: "Stock transfer not found" });
-    }
-    console.error("Error deleting stock transfer:", error);
-    res.status(500).json({
-      error: "Failed to delete stock transfer",
-      message: error.message,
-    });
+    next(error);
   }
 });
 

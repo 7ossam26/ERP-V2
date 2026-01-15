@@ -15,6 +15,7 @@ router.use(authenticateToken);
 router.get("/", async (req, res) => {
   try {
     const treasuries = await prisma.treasury.findMany({
+      where: { isActive: true },
       include: { branch: true },
       orderBy: { createdAt: "asc" },
     });
@@ -52,7 +53,7 @@ router.get("/:id", async (req, res) => {
     const treasury = await prisma.treasury.findUnique({
       where: { id: parseInt(req.params.id) },
     });
-    if (!treasury) {
+    if (!treasury || !treasury.isActive) {
       return res.status(404).json({ error: "Treasury not found" });
     }
     res.json(treasury);
@@ -275,8 +276,9 @@ router.put(
 // DELETE treasury
 router.delete("/:id", requirePermission("TREASURIES"), async (req, res, next) => {
   try {
-    await prisma.treasury.delete({
+    await prisma.treasury.update({
       where: { id: parseInt(req.params.id) },
+      data: { isActive: false },
     });
     res.status(204).send();
   } catch (error) {

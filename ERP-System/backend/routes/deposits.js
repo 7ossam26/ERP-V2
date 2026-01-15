@@ -11,7 +11,7 @@ const {
 router.use(authenticateToken);
 
 // GET all deposits
-router.get("/", requirePermission("DEPOSITS"), async (req, res) => {
+router.get("/", requirePermission("DEPOSITS"), async (req, res, next) => {
     try {
         const deposits = await prisma.deposit.findMany({
             include: {
@@ -22,12 +22,12 @@ router.get("/", requirePermission("DEPOSITS"), async (req, res) => {
         });
         res.json(deposits);
     } catch (error) {
-        res.status(500).json({ error: "Failed to fetch deposits", message: error.message });
+        next(error);
     }
 });
 
 // POST Create new deposit
-router.post("/", requireCreatePermission("CREATES_DEPOSITS"), async (req, res) => {
+router.post("/", requireCreatePermission("CREATES_DEPOSITS"), async (req, res, next) => {
     try {
         const { amount, treasuryId, description, date } = req.body;
         const depositAmount = Number(amount);
@@ -77,8 +77,7 @@ router.post("/", requireCreatePermission("CREATES_DEPOSITS"), async (req, res) =
 
         res.status(201).json(result);
     } catch (error) {
-        console.error("Deposit Error:", error);
-        res.status(400).json({ error: error.message || "Failed to create deposit" });
+        next(error);
     }
 });
 
