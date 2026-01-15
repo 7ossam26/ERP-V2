@@ -1,4 +1,5 @@
 const express = require("express");
+const fs = require("fs");
 const cors = require("cors");
 require("dotenv").config();
 
@@ -131,6 +132,27 @@ app.use(errorHandler);
 
 // Force restart trigger
 console.log("🔄 Server updated");
+
+// Serve Static Frontend Files (Production)
+const path = require("path");
+const CLIENT_DIST_PATH = path.join(__dirname, "client_dist");
+
+if (fs.existsSync(CLIENT_DIST_PATH)) {
+  console.log("📂 Serving static frontend from:", CLIENT_DIST_PATH);
+  app.use(express.static(CLIENT_DIST_PATH));
+
+  // SPA Catch-all: Request to non-API routes returns index.html
+  app.get("*", (req, res) => {
+    if (req.path.startsWith("/api")) {
+      // Should verify if we want to return 404 json or html here
+      return res.status(404).json({ error: "API endpoint not found" });
+    }
+    res.sendFile(path.join(CLIENT_DIST_PATH, "index.html"));
+  });
+} else {
+  console.log("⚠️  Frontend build not found at:", CLIENT_DIST_PATH);
+  console.log("    Run 'npm run build:ui' to generate it.");
+}
 
 // Start server
 console.log("Calling app.listen...");

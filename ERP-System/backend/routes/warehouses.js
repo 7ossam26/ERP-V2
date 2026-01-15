@@ -29,7 +29,7 @@ router.get("/", async (req, res) => {
         // Filter out All Branches Warehouse (ID 4)
         return res.json(
           warehouses.filter(
-            (w) => w.id !== 4 && w.name !== "All Branches Warehouse"
+            (w) => w.id !== 1 && w.name !== "All Branches Warehouse"
           )
         );
       }

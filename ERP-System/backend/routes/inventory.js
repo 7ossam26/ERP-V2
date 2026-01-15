@@ -88,8 +88,8 @@ router.get("/", async (req, res, next) => {
       let totalQuantity = 0;
       let availableWarehouses = [];
 
-      // Treat "All Branches Warehouse" (ID 4) as "all" for viewing purposes
-      const isAllWarehouses = !warehouseId || warehouseId === "all" || parseInt(warehouseId) === 4;
+      // Treat "All Branches Warehouse" (ID 1) as "all" for viewing purposes
+      const isAllWarehouses = !warehouseId || warehouseId === "all" || parseInt(warehouseId) === 1;
 
       if (!isAllWarehouses) {
         const stock = item.inventory.find(
@@ -98,8 +98,8 @@ router.get("/", async (req, res, next) => {
         totalQuantity = stock ? Number(stock.quantity) : 0;
       } else {
         totalQuantity = item.inventory.reduce((sum, inv) => {
-          // EXCLUDE "All Branches Warehouse" (ID 4) from the sum to prevent double counting or ghost stock
-          if (inv.warehouseId === 4) return sum;
+          // EXCLUDE "All Branches Warehouse" (ID 1) from the sum to prevent double counting or ghost stock
+          if (inv.warehouseId === 1) return sum;
 
           const qty = Number(inv.quantity);
           if (qty > 0 && inv.warehouse) {
@@ -225,8 +225,8 @@ router.get("/stats", async (req, res, next) => {
     items.forEach((item) => {
       let totalQuantity = 0;
 
-      // Treat "All Branches Warehouse" (ID 4) as "all"
-      const isAllWarehouses = !warehouseId || warehouseId === "all" || parseInt(warehouseId) === 4;
+      // Treat "All Branches Warehouse" (ID 1) as "all"
+      const isAllWarehouses = !warehouseId || warehouseId === "all" || parseInt(warehouseId) === 1;
 
       if (!isAllWarehouses) {
         const stock = item.inventory.find(
@@ -236,8 +236,8 @@ router.get("/stats", async (req, res, next) => {
       } else {
         totalQuantity = item.inventory.reduce(
           (sum, inv) => {
-            // EXCLUDE "All Branches Warehouse" (ID 4) from the sum
-            if (inv.warehouseId === 4) return sum;
+            // EXCLUDE "All Branches Warehouse" (ID 1) from the sum
+            if (inv.warehouseId === 1) return sum;
             return sum + Number(inv.quantity);
           },
           0
