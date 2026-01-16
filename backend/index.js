@@ -1,12 +1,16 @@
+console.log(">>> [BOOT] Starting backend application...");
 const express = require("express");
 const fs = require("fs");
+const path = require("path"); // Ensure path is available early
 const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-console.log("Attempting to start server...");
+console.log(`>>> [BOOT] Environment detected. PORT: ${PORT}, PID: ${process.pid}`);
+console.log(`>>> [BOOT] NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(">>> [BOOT] Attempting to set up server...");
 
 const helmet = require("helmet");
 
@@ -138,31 +142,34 @@ app.use(errorHandler);
 console.log("🔄 Server updated");
 
 // Serve Static Frontend Files (Production)
-const path = require("path");
+// Note: 'path' is required at the top, but defining here for clarity in context if needed, though usually top-level is better. 
+// We already added 'path' to top imports in previous step.
 const CLIENT_DIST_PATH = path.join(__dirname, "../frontend/dist");
 
+console.log(`>>> [STATIC] Checking for frontend build at: ${CLIENT_DIST_PATH}`);
+
 if (fs.existsSync(CLIENT_DIST_PATH)) {
-  console.log("📂 Serving static frontend from:", CLIENT_DIST_PATH);
+  console.log("📂 [STATIC] Serving static frontend files.");
   app.use(express.static(CLIENT_DIST_PATH));
 
   // SPA Catch-all: Request to non-API routes returns index.html
   app.get(/.*/, (req, res) => {
     if (req.path.startsWith("/api")) {
-      // Should verify if we want to return 404 json or html here
       return res.status(404).json({ error: "API endpoint not found" });
     }
     res.sendFile(path.join(CLIENT_DIST_PATH, "index.html"));
   });
 } else {
-  console.log("⚠️  Frontend build not found at:", CLIENT_DIST_PATH);
-  console.log("    Run 'npm run build:ui' to generate it.");
+  console.log("⚠️ [STATIC] Frontend build NOT found at:", CLIENT_DIST_PATH);
+  console.log("    This is expected if you are only running the backend API.");
+  console.log("    If this is a production deployment including frontend, run 'npm run build:ui' first.");
 }
 
 // Start server
-console.log("Calling app.listen...");
+console.log(">>> [BOOT] Calling app.listen...");
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
+  console.log(`📍 [SERVER] Health check available at: http://localhost:${PORT}/api/health`);
 });
 
 server.on("error", (error) => {
