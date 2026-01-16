@@ -9,4 +9,4 @@ node_modules/
 Dist/
 # Local configuration files (if any)
 *.local.js
-*.config.js
+# *.config.js -> Removed to allow vite.config.js
