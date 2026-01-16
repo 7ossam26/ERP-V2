@@ -5,6 +5,37 @@ const path = require("path"); // Ensure path is available early
 const cors = require("cors");
 require("dotenv").config();
 
+// --- DEBUGGING: Write logs to a file ---
+const LOG_FILE = path.join(__dirname, "deployment.log");
+function logToFile(message) {
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] ${message}\n`;
+  try {
+    fs.appendFileSync(LOG_FILE, logLine);
+  } catch (err) {
+    // Ignore file write errors to avoid infinite loops
+  }
+}
+
+// Override console methods to trace everything
+const originalLog = console.log;
+const originalError = console.error;
+
+console.log = function (...args) {
+  const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  logToFile(`INFO: ${msg}`);
+  originalLog.apply(console, args);
+};
+
+console.error = function (...args) {
+  const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  logToFile(`ERROR: ${msg}`);
+  originalError.apply(console, args);
+};
+
+console.log(`>>> [BOOT] Logging to file: ${LOG_FILE}`);
+// ---------------------------------------
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
