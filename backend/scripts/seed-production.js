@@ -167,13 +167,24 @@ async function main() {
 
     console.log(`✅ Superadmin User: ${adminUser.username} (ID: ${adminUser.id})`);
     console.log('✨ Seeding Complete!');
+    console.log('✨ Seeding Complete!');
+
+    // Return the promise so it can be awaited
+    return adminUser;
 }
 
-main()
-    .catch((e) => {
-        console.error(e);
-        process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
-    });
+// Check if run directly (node scripts/seed-production.js) vs imported
+if (require.main === module) {
+    main()
+        .then(() => {
+            console.log('✨ Seeding execution finished.');
+            // Don't force exit, let connection close naturally
+            return prisma.$disconnect();
+        })
+        .catch((e) => {
+            console.error(e);
+            process.exit(1);
+        });
+}
+
+module.exports = main;

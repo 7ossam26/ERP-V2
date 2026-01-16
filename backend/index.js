@@ -195,46 +195,55 @@ app.use(errorHandler);
 // Force restart trigger
 console.log("🔄 Server updated");
 
-// --- TEMPORARY: Database Setup Route (Robust) ---
-const { exec } = require("child_process");
+// --- TEMPORARY: Database Setup Route (Robust & Optimized) ---
+const { spawn } = require("child_process");
+const seedMain = require("./scripts/seed-production.js");
 
 app.get("/api/setup-production-db-securely", async (req, res) => {
   console.log(">>> [SETUP] Starting Database Setup...");
 
-  // Use the exact node executable running this process
   const nodeBin = process.execPath;
   const prismaBin = path.join(__dirname, "node_modules/prisma/build/index.js");
-  const seedScript = path.join(__dirname, "scripts/seed-production.js");
 
-  // Command 1: DB Push
-  // node node_modules/prisma/build/index.js db push
-  const pushCmd = `"${nodeBin}" "${prismaBin}" db push --accept-data-loss`;
+  // 1. Run Prisma DB Push using spawn (Avoids shell overhead)
+  console.log(`>>> [SETUP] Spawning Prisma via: ${nodeBin} ${prismaBin}`);
 
-  console.log(`>>> [SETUP] Executing: ${pushCmd}`);
+  // Using spawn instead of exec to reduce process count (no /bin/sh)
+  const prismaProcess = spawn(nodeBin, [prismaBin, "db", "push", "--accept-data-loss"], {
+    cwd: __dirname,
+    env: process.env // Inherit env vars including DATABASE_URL
+  });
 
-  exec(pushCmd, { cwd: __dirname }, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`>>> [SETUP] Push Error: ${error.message}`);
-      return res.status(500).json({ step: "db push", error: error.message, details: stderr });
+  let stdout = "";
+  let stderr = "";
+
+  prismaProcess.stdout.on("data", (data) => { stdout += data; });
+  prismaProcess.stderr.on("data", (data) => { stderr += data; });
+
+  prismaProcess.on("close", async (code) => {
+    if (code !== 0) {
+      console.error(`>>> [SETUP] Prisma Failed (Code ${code}): ${stderr}`);
+      return res.status(500).json({ step: "db push", error: `Exit code ${code}`, details: stderr, stdout });
     }
-    console.log(`>>> [SETUP] Push Output: ${stdout}`);
 
-    // Command 2: Seed
-    const seedCmd = `"${nodeBin}" "${seedScript}"`;
-    console.log(`>>> [SETUP] Executing: ${seedCmd}`);
+    console.log(`>>> [SETUP] Prisma Success: ${stdout}`);
 
-    exec(seedCmd, { cwd: __dirname }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`>>> [SETUP] Seed Error: ${error.message}`);
-        return res.status(500).json({ step: "seed", error: error.message, details: stderr });
-      }
-      console.log(`>>> [SETUP] Seed Output: ${stdout}`);
+    try {
+      // 2. Run Seed Script (In-Process)
+      // This runs in the SAME process, so 0 extra overhead.
+      console.log(">>> [SETUP] Starting In-Process Seeding...");
+      await seedMain();
+
       res.json({
         message: "Database setup completed successfully!",
         pushOutput: stdout,
-        seedOutput: stdout
+        seedOutput: "Seeding executed in-process successfully."
       });
-    });
+
+    } catch (seedError) {
+      console.error(`>>> [SETUP] Seed Error: ${seedError.message}`);
+      return res.status(500).json({ step: "seed", error: seedError.message });
+    }
   });
 });
 // ---------------------------------------
