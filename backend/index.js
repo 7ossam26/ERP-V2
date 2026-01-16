@@ -3,7 +3,25 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path"); // Ensure path is available early
 const cors = require("cors");
-require("dotenv").config();
+
+// --- DEBUGGING: Check for .env files ---
+const envRoot = path.resolve(__dirname, "../.env");
+const envBackend = path.resolve(__dirname, ".env");
+
+if (fs.existsSync(envRoot)) {
+  console.log(`>>> [ENV] Found .env at ROOT (${envRoot}). Loading...`);
+  require("dotenv").config({ path: envRoot });
+} else {
+  console.log(`>>> [ENV] NOT FOUND at ROOT (${envRoot})`);
+}
+
+if (fs.existsSync(envBackend)) {
+  console.log(`>>> [ENV] Found .env at BACKEND (${envBackend}). Loading...`);
+  require("dotenv").config({ path: envBackend });
+} else {
+  console.log(`>>> [ENV] NOT FOUND at BACKEND (${envBackend})`);
+}
+// ---------------------------------------
 
 // --- DEBUGGING: Write logs to a file ---
 const LOG_FILE = path.join(__dirname, "deployment.log");
