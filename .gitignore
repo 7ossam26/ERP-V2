@@ -1,5 +1,5 @@
 # Ignore environment variable files
-.env
+# .env -> Temporarily commented out for debugging
 .env.*
 # IDE/editor settings
 .vscode/
