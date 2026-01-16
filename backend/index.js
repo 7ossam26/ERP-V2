@@ -195,6 +195,50 @@ app.use(errorHandler);
 // Force restart trigger
 console.log("🔄 Server updated");
 
+// --- TEMPORARY: Database Setup Route (Robust) ---
+const { exec } = require("child_process");
+
+app.get("/api/setup-production-db-securely", async (req, res) => {
+  console.log(">>> [SETUP] Starting Database Setup...");
+
+  // Use the exact node executable running this process
+  const nodeBin = process.execPath;
+  const prismaBin = path.join(__dirname, "node_modules/prisma/build/index.js");
+  const seedScript = path.join(__dirname, "scripts/seed-production.js");
+
+  // Command 1: DB Push
+  // node node_modules/prisma/build/index.js db push
+  const pushCmd = `"${nodeBin}" "${prismaBin}" db push --accept-data-loss`;
+
+  console.log(`>>> [SETUP] Executing: ${pushCmd}`);
+
+  exec(pushCmd, { cwd: __dirname }, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`>>> [SETUP] Push Error: ${error.message}`);
+      return res.status(500).json({ step: "db push", error: error.message, details: stderr });
+    }
+    console.log(`>>> [SETUP] Push Output: ${stdout}`);
+
+    // Command 2: Seed
+    const seedCmd = `"${nodeBin}" "${seedScript}"`;
+    console.log(`>>> [SETUP] Executing: ${seedCmd}`);
+
+    exec(seedCmd, { cwd: __dirname }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`>>> [SETUP] Seed Error: ${error.message}`);
+        return res.status(500).json({ step: "seed", error: error.message, details: stderr });
+      }
+      console.log(`>>> [SETUP] Seed Output: ${stdout}`);
+      res.json({
+        message: "Database setup completed successfully!",
+        pushOutput: stdout,
+        seedOutput: stdout
+      });
+    });
+  });
+});
+// ---------------------------------------
+
 // Serve Static Frontend Files (Production)
 // Note: 'path' is required at the top, but defining here for clarity in context if needed, though usually top-level is better. 
 // We already added 'path' to top imports in previous step.
