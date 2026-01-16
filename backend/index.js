@@ -55,6 +55,9 @@ console.log(`>>> [BOOT] Logging to file: ${LOG_FILE}`);
 // ---------------------------------------
 
 const app = express();
+// Enable proxy trust for Hostinger Load Balancer (fixes rate limit error)
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3001;
 
 console.log(`>>> [BOOT] Environment detected. PORT: ${PORT}, PID: ${process.pid}`);
@@ -92,6 +95,8 @@ const allowedOrigins = process.env.FRONTEND_URL?.split(",") || [
   `http://127.0.0.1:${PORT}`,
 ];
 
+console.log(`>>> [CORS] Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -100,7 +105,7 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        console.error("Blocked by CORS:", origin);
+        console.error(`>>> [CORS] BLOCKED: Origin '${origin}' not in allowed list.`);
         callback(new Error("Not allowed by CORS"));
       }
     },
