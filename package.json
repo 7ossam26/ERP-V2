@@ -8,6 +8,8 @@
     "scripts": {
         "build": "cd frontend && npm install --include=dev && npm run build",
         "start": "node backend/index.js",
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev --prefix frontend\"",
+        "dev:backend": "cd backend && cross-env NODE_ENV=development nodemon index.js",
         "postinstall": "cd  backend && npm install && npx prisma generate"
     },
     "dependencies": {
@@ -25,9 +27,10 @@
     },
     "devDependencies": {
         "@types/node": "^25.0.3",
+        "concurrently": "^8.2.2",
+        "cross-env": "^10.1.0",
         "fs": "^0.0.1-security",
         "nodemon": "^3.1.11",
-        "typescript": "^5.9.3",
-        "concurrently": "^8.2.2"
+        "typescript": "^5.9.3"
     }
 }

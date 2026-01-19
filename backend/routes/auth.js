@@ -55,11 +55,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
 
     const { username, password } = req.body;
 
-    console.log("🔐 Login attempt:");
-    console.log(`   Username received: "${username}"`);
-
     // Find user
-    console.log(`   Searching for user: "${username}"`);
     const user = await prisma.user.findUnique({
       where: { username },
       include: {
@@ -73,20 +69,14 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
     });
 
     if (!user) {
-      console.log(`❌ User not found: "${username}"`);
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    console.log(`✅ User found: ${user.username} (ID: ${user.id})`);
-
     if (!user.isActive) {
-      console.log(`❌ User is inactive: ${user.username}`);
       return res
         .status(403)
         .json({ error: "Account is inactive. Please contact administrator." });
     }
-
-    console.log(`   User is active, checking password...`);
 
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
@@ -96,10 +86,6 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
       // Track failed login attempts
       const attempts = (failedLoginAttempts.get(username) || 0) + 1;
       failedLoginAttempts.set(username, attempts);
-
-      console.log(
-        `   Failed login attempts for ${username}: ${attempts}/${MAX_FAILED_ATTEMPTS}`
-      );
 
       // Deactivate account after MAX_FAILED_ATTEMPTS
       if (attempts >= MAX_FAILED_ATTEMPTS) {
@@ -125,10 +111,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
     // Reset failed attempts on successful login
     if (failedLoginAttempts.has(username)) {
       failedLoginAttempts.delete(username);
-      console.log(`   Cleared failed login attempts for ${username}`);
     }
-
-    console.log(`✅ Password valid for user: ${user.username}`);
 
     // Generate access token (short-lived)
     const accessToken = jwt.sign(
@@ -165,8 +148,6 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
         permissions[perm.module] = perm.canAccess;
       });
     }
-
-    console.log(`🔐 Login successful: ${user.username} (${user.role.name})`);
 
     res.json({
       token: accessToken,

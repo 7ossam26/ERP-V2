@@ -15,7 +15,7 @@ if (!process.env.DATABASE_URL) {
 
 console.log("🔌 [DB] Creating PrismaClient instance...");
 const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
+  log: ['warn', 'error'], // Only log warnings and errors, not every query
 });
 
 module.exports = prisma;

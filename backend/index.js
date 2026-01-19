@@ -5,21 +5,34 @@ const path = require("path"); // Ensure path is available early
 const cors = require("cors");
 
 // --- DEBUGGING: Check for .env files ---
+// Strategy: Load General/Prod first, then OVERRIDE with Local.
 const envRoot = path.resolve(__dirname, "../.env");
 const envBackend = path.resolve(__dirname, ".env");
+const envRootLocal = path.resolve(__dirname, "../.env.local");
+const envBackendLocal = path.resolve(__dirname, ".env.local");
 
+// 1. Root .env (Base)
 if (fs.existsSync(envRoot)) {
   console.log(`>>> [ENV] Found .env at ROOT (${envRoot}). Loading...`);
   require("dotenv").config({ path: envRoot });
-} else {
-  console.log(`>>> [ENV] NOT FOUND at ROOT (${envRoot})`);
 }
 
+// 2. Backend .env (Backend Specifics - Override Root)
 if (fs.existsSync(envBackend)) {
-  console.log(`>>> [ENV] Found .env at BACKEND (${envBackend}). Loading...`);
-  require("dotenv").config({ path: envBackend });
-} else {
-  console.log(`>>> [ENV] NOT FOUND at BACKEND (${envBackend})`);
+  console.log(`>>> [ENV] Found .env at BACKEND (${envBackend}). Loading/Overriding...`);
+  require("dotenv").config({ path: envBackend, override: true });
+}
+
+// 3. Root .env.local (Local Dev Overrides)
+if (fs.existsSync(envRootLocal)) {
+  console.log(`>>> [ENV] Found .env.local at ROOT (${envRootLocal}). Overriding...`);
+  require("dotenv").config({ path: envRootLocal, override: true });
+}
+
+// 4. Backend .env.local (Local Backend Overrides)
+if (fs.existsSync(envBackendLocal)) {
+  console.log(`>>> [ENV] Found .env.local at BACKEND (${envBackendLocal}). Overriding...`);
+  require("dotenv").config({ path: envBackendLocal, override: true });
 }
 // ---------------------------------------
 
@@ -78,11 +91,11 @@ app.use(
         imgSrc: ["'self'", "data:", "https:"],
       },
     },
-    hsts: {
+    hsts: process.env.NODE_ENV === "production" ? {
       maxAge: 31536000,
       includeSubDomains: true,
       preload: true,
-    },
+    } : false, // Disable HSTS in development
   })
 );
 
