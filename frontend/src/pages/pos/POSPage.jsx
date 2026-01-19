@@ -38,6 +38,9 @@ const POSPage = () => {
     new Date().toLocaleTimeString("en-US", { hour12: false })
   );
 
+  // Mobile Tab State
+  const [activeMobileTab, setActiveMobileTab] = useState("products"); // 'products' or 'cart'
+
   useEffect(() => {
     const user = AuthService.getCurrentUser();
     if (user) {
@@ -166,6 +169,8 @@ const POSPage = () => {
     setSelectedClient(client);
     setClientSearchTerm(client ? client.name : "");
     setIsClientDropdownOpen(false);
+    // On mobile, switch to cart to see client details if needed, or stay. 
+    // Usually selecting a client is part of cart operations.
   };
 
   const [products, setProducts] = useState([]);
@@ -249,6 +254,10 @@ const POSPage = () => {
     } else {
       // Show piece quantity selector inline
       setKeypadMode("piece");
+    }
+    // Switch to cart tab on mobile to show keypad/cart
+    if (window.innerWidth < 768) {
+      setActiveMobileTab("cart");
     }
   };
 
@@ -838,29 +847,29 @@ const POSPage = () => {
       </Modal>
 
       {/* Header */}
-      <div className="bg-primary dark:bg-primary text-white px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
+      <div className="bg-primary dark:bg-primary text-white px-3 md:px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
+        <div className="flex items-center gap-3 md:gap-6">
+          <div className="flex items-center gap-1 md:gap-2">
             <span className="material-symbols-outlined text-lg">person</span>
-            <span className="font-bold">اسم الموظف:</span>
-            <span>{currentUser?.name || currentUser?.username || "Guest"}</span>
+            <span className="font-bold hidden md:inline">اسم الموظف:</span>
+            <span className="text-sm md:text-base">{currentUser?.name || currentUser?.username || "Guest"}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">store</span>
             <span className="font-bold">اسم الفرع:</span>
             <span>{currentUser?.branch?.name || "غير محدد"}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             <span className="material-symbols-outlined text-lg">schedule</span>
-            <span className="font-bold">الوردية:</span>
+            <span className="font-bold hidden md:inline">الوردية:</span>
             <div className="flex flex-col leading-tight">
-              <span>{currentShift}</span>
-              <span className="text-xs font-mono opacity-80" dir="ltr">
+              <span className="text-sm md:text-base">{currentShift}</span>
+              <span className="text-[10px] md:text-xs font-mono opacity-80 hidden md:block" dir="ltr">
                 {currentTime}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">
               calendar_today
             </span>
@@ -870,18 +879,44 @@ const POSPage = () => {
         </div>
         <button
           onClick={handleEndShift}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+          className="flex items-center gap-1 md:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 md:px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
           <span className="material-symbols-outlined text-sm">logout</span>
-          <span>إنهاء الوردية</span>
+          <span className="hidden md:inline">إنهاء الوردية</span>
+          <span className="md:hidden">إنهاء</span>
         </button>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden print:hidden">
-        {/* Product Grid Area */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden print:hidden relative">
+        {/* Mobile Tab Navigation */}
+        <div className="md:hidden bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 flex text-xs font-bold shrink-0 z-50 order-last">
+          <button
+            onClick={() => setActiveMobileTab("products")}
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${activeMobileTab === "products"
+              ? "text-primary bg-primary/5 border-t-2 border-primary"
+              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+              }`}>
+            <span className="material-symbols-outlined">grid_view</span>
+            <span>المنتجات</span>
+          </button>
+          <button
+            onClick={() => setActiveMobileTab("cart")}
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors relative ${activeMobileTab === "cart"
+              ? "text-primary bg-primary/5 border-t-2 border-primary"
+              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+              }`}>
+            <span className="material-symbols-outlined">shopping_cart</span>
+            <span>السلة ({cartItems.length})</span>
+            {cartItems.length > 0 && (
+              <span className="absolute top-2 left-[55%] h-2 w-2 rounded-full bg-red-500"></span>
+            )}
+          </button>
+        </div>
+        {/* Product Grid Area - Hidden on mobile if tab is 'cart' */}
+        <div className={`flex-1 flex flex-col overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700 ${activeMobileTab === 'cart' ? 'hidden md:flex' : 'flex'
+          }`}>
           {/* Top Bar */}
-          <div className="flex items-center justify-between p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0">
+          <div className="flex items-center justify-between p-3 md:p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0 gap-2">
             <div className="flex items-center text-gray-500 dark:text-gray-400 gap-2">
               <button
                 onClick={() => navigate(-1)}
@@ -890,25 +925,25 @@ const POSPage = () => {
               </button>
               <button
                 onClick={() => navigate("/dashboard")}
-                className="hover:text-primary transition-colors flex items-center">
+                className="hover:text-primary transition-colors flex items-center hidden md:flex">
                 <span className="material-symbols-outlined">home</span>
               </button>
-              <span className="mx-2 text-gray-300">/</span>
+              <span className="mx-2 text-gray-300 hidden md:inline">/</span>
               <a
-                className="flex items-center hover:text-primary transition-colors"
+                className="flex items-center hover:text-primary transition-colors hidden md:flex"
                 href="#">
                 <span className="material-symbols-outlined ml-1">apps</span>
                 <span className="font-medium">كل المنتجات</span>
               </a>
             </div>
-            <div className="relative">
+            <div className="relative flex-1 md:flex-none">
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                 <span className="material-symbols-outlined text-lg">
                   search
                 </span>
               </span>
               <input
-                className="pr-10 pl-4 py-2 w-64 md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
+                className="pr-10 pl-4 py-2 w-full md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
                 placeholder="بحث عن منتج..."
                 type="text"
                 value={searchTerm}
@@ -1002,8 +1037,9 @@ const POSPage = () => {
           </div>
         </div>
 
-        {/* Cart/Sidebar Area */}
-        <div className="w-[600px] flex flex-col h-full bg-card-light dark:bg-card-dark shadow-xl z-20 shrink-0">
+        {/* Cart/Sidebar Area - Hidden on mobile if tab is 'products', full width on mobile */}
+        <div className={`w-full md:w-[600px] flex flex-col flex-1 md:flex-none bg-card-light dark:bg-card-dark shadow-xl z-20 ${activeMobileTab === 'products' ? 'hidden md:flex' : 'flex'
+          }`}>
           {/* Client Selection */}
           <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-card-dark shrink-0 z-20 relative">
             <div className="relative">
