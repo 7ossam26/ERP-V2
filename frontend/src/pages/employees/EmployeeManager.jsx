@@ -256,7 +256,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
         </div>
       </div>
 
-      <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <button
           type="button"
           onClick={onClose}

@@ -45,6 +45,10 @@ const POSPage = () => {
       checkActiveShift(user);
     }
 
+    //## Implementation Phase (10 Granular Phases)
+    //- [/] **Phase 1**: Foundation - Global styles & utilities (2 files) 🟢
+    //- [ ] **Phase 2**: Core Layout - Header & Navigation (2 files) 🟡
+
     // Initial calculation
     const calculateTimeData = () => {
       const now = new Date();
@@ -746,8 +750,8 @@ const POSPage = () => {
               <div className="flex items-center gap-2">
                 <span
                   className={`material-symbols-outlined text-3xl ${pendingPaymentMethod === "cash"
-                      ? "text-green-500"
-                      : "text-blue-500"
+                    ? "text-green-500"
+                    : "text-blue-500"
                     }`}>
                   {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
                 </span>
@@ -823,8 +827,8 @@ const POSPage = () => {
             <button
               onClick={handleConfirmPayment}
               className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${pendingPaymentMethod === "cash"
-                  ? "bg-green-500 hover:bg-green-600"
-                  : "bg-blue-500 hover:bg-blue-600"
+                ? "bg-green-500 hover:bg-green-600"
+                : "bg-blue-500 hover:bg-blue-600"
                 }`}>
               <span className="material-symbols-outlined">check_circle</span>
               <span>تأكيد الدفع</span>
@@ -940,8 +944,8 @@ const POSPage = () => {
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
                     className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
-                        ? "bg-primary text-white shadow-md"
-                        : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                      ? "bg-primary text-white shadow-md"
+                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
                       }`}>
                     {cat.name}
                   </div>
@@ -1090,8 +1094,8 @@ const POSPage = () => {
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
                     className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${selectedItemId === item.id
-                        ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
-                        : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+                      ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
+                      : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
                       }`}>
                     {/* Delete icon - appears when selected */}
                     {selectedItemId === item.id ? (
@@ -1226,10 +1230,10 @@ const POSPage = () => {
               {/* Dynamic Keypad Area - Changes based on mode */}
               <div
                 className={`grid h-full bg-white dark:bg-zinc-800 ${keypadMode === "piece"
-                    ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
-                    : keypadMode === "weight"
-                      ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
-                      : "grid-cols-5"
+                  ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
+                  : keypadMode === "weight"
+                    ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
+                    : "grid-cols-5"
                   }`}
                 dir="ltr">
                 {/* PIECE QUANTITY SELECTOR MODE */}
