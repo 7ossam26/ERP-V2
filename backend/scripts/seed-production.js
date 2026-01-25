@@ -1,7 +1,12 @@
 // scripts/seed-production.js
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load root .env.local
+const envPath = path.resolve(__dirname, '../../.env.local');
+dotenv.config({ path: envPath });
 
 const prisma = new PrismaClient();
 

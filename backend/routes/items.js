@@ -97,6 +97,9 @@ router.post("/", requireCreatePermission("CREATES_ITEMS"), async (req, res) => {
     });
     res.status(201).json(item);
   } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(400).json({ error: "Item name already exists" });
+    }
     res
       .status(500)
       .json({ error: "Failed to create item", message: error.message });
@@ -166,6 +169,9 @@ router.put("/:id", requireAnyPermission(["ITEMS", "CREATES_ITEMS"]), requireSens
   } catch (error) {
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Item not found" });
+    }
+    if (error.code === "P2002") {
+      return res.status(400).json({ error: "Item name already exists" });
     }
     res
       .status(500)

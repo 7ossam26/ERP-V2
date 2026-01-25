@@ -54,6 +54,9 @@ router.post("/", requireCreatePermission("CREATES_CATEGORIES"), async (req, res)
     });
     res.status(201).json(category);
   } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(400).json({ error: "Category name already exists" });
+    }
     res
       .status(500)
       .json({ error: "Failed to create category", message: error.message });
@@ -75,6 +78,9 @@ router.put("/:id", requireAnyPermission(["CATEGORIES", "CREATES_CATEGORIES"]), r
   } catch (error) {
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Category not found" });
+    }
+    if (error.code === "P2002") {
+      return res.status(400).json({ error: "Category name already exists" });
     }
     res
       .status(500)

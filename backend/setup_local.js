@@ -1,8 +1,14 @@
 const { execSync } = require('child_process');
 const path = require('path');
+const dotenv = require('dotenv');
 
-// Force Local Database URL
-process.env.DATABASE_URL = "mysql://root:@127.0.0.1:3306/erp_system";
+// Load root .env.local
+const envPath = path.resolve(__dirname, '../.env.local');
+const result = dotenv.config({ path: envPath });
+
+if (result.error) {
+    console.warn("⚠️  Warning: .env.local not found at project root. Proceeding with Process Env if set.");
+}
 
 console.log("🛠️  Setting up Local Database...");
 console.log(`📡 URL: ${process.env.DATABASE_URL}`);
