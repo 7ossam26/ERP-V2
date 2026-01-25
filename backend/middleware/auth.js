@@ -6,7 +6,10 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
   if (token == null) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
+    return res.status(401).json({
+      error: "Access denied. No token provided.",
+      resolution: "Please log in to access this resource."
+    });
   }
 
   jwt.verify(
@@ -14,7 +17,10 @@ const authenticateToken = (req, res, next) => {
     process.env.JWT_SECRET || "fallback_secret_key_change_me",
     (err, user) => {
       if (err) {
-        return res.status(403).json({ error: "Invalid or expired token." });
+        return res.status(403).json({
+          error: "Invalid or expired token.",
+          resolution: "Please log out and log back in to refresh your session."
+        });
       }
       req.user = user;
       next();
@@ -26,7 +32,10 @@ const isSuperadmin = (req, res, next) => {
   if (!req.user || req.user.role !== "Superadmin") {
     return res
       .status(403)
-      .json({ error: "Access denied. Superadmin privileges required." });
+      .json({
+        error: "Access denied. Superadmin privileges required.",
+        resolution: "This action is restricted to superadmin users only. Contact your system administrator."
+      });
   }
   next();
 };
@@ -53,7 +62,10 @@ const requirePermission = (module) => {
       });
 
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(404).json({
+          error: "User not found",
+          resolution: "Your account may have been removed. Please contact your administrator."
+        });
       }
 
       // Check if user has permission for the module
@@ -64,6 +76,7 @@ const requirePermission = (module) => {
       if (!hasPermission) {
         return res.status(403).json({
           error: `Access denied. ${module} module permission required.`,
+          resolution: `Please contact your administrator to request access to the ${module} module.`
         });
       }
 
@@ -97,6 +110,7 @@ const requireAnyPermission = (modules) => {
           error: `Access denied. One of the following permissions is required: ${modules.join(
             ", "
           )}`,
+          resolution: `Contact your administrator to request access to one of these modules: ${modules.join(", ")}.`
         });
       }
 
@@ -141,6 +155,7 @@ const requireCreatePermission = (createModule) => {
       if (!hasPermission) {
         return res.status(403).json({
           error: `Access denied. ${createModule} permission required to create this item.`,
+          resolution: `Contact your administrator to request ${createModule} permission.`
         });
       }
 
@@ -169,6 +184,7 @@ const requireSensitiveAccess = async (req, res, next) => {
     if (!user || !user.hasSensitiveAccess) {
       return res.status(403).json({
         error: "Access denied. This operation requires sensitive access permissions.",
+        resolution: "Update and delete operations are restricted. Contact your administrator to enable sensitive access for your account."
       });
     }
 

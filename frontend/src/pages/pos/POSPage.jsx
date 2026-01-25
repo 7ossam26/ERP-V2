@@ -15,7 +15,7 @@ import {
   shiftService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
-import { confirmAction } from "../../utils/toastUtils";
+import { confirmAction, showErrorToast } from "../../utils/toastUtils";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -562,19 +562,7 @@ const POSPage = () => {
       }, 500);
     } catch (error) {
       console.error("❌ Error creating sale:", error);
-      let errorMessage = "حدث خطأ أثناء حفظ الفاتورة";
-
-      if (error.response?.data) {
-        errorMessage =
-          error.response.data.error ||
-          error.response.data.message ||
-          error.response.data.details ||
-          errorMessage;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      toast.error(errorMessage);
+      showErrorToast(error, "حدث خطأ أثناء حفظ الفاتورة");
     }
   };
 

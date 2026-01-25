@@ -106,7 +106,10 @@ router.get(
         },
       });
       if (!sale) {
-        return res.status(404).json({ error: "Sale not found" });
+        return res.status(404).json({
+          error: "Sale not found",
+          resolution: "The sale may have been deleted. Please refresh the page and try again."
+        });
       }
       res.json(sale);
     } catch (error) {
@@ -146,13 +149,19 @@ router.post(
       // Validation
       if (!clientId) {
         console.error("❌ Validation failed: Client is required");
-        return res.status(400).json({ error: "Client is required" });
+        return res.status(400).json({
+          error: "Client is required",
+          resolution: "Please select a client from the dropdown before submitting the sale."
+        });
       }
       console.log(`✅ Client ID: ${clientId}`);
 
       if (!items || items.length === 0) {
         console.error("❌ Validation failed: At least one item is required");
-        return res.status(400).json({ error: "At least one item is required" });
+        return res.status(400).json({
+          error: "At least one item is required",
+          resolution: "Add at least one product to the cart before completing the sale."
+        });
       }
       console.log(`✅ Items count: ${items.length}`);
 
@@ -182,12 +191,16 @@ router.post(
         if (!user) {
           return res
             .status(404)
-            .json({ error: `User not found with ID: ${finalUserId}` });
+            .json({
+              error: `User not found with ID: ${finalUserId}`,
+              resolution: "Your user account may have been removed. Please contact your administrator."
+            });
         }
 
         if (!user.branch) {
           return res.status(400).json({
-            error: `User "${user.name}" is not assigned to any branch. Please contact superadmin.`,
+            error: `User "${user.name}" is not assigned to any branch.`,
+            resolution: "Contact your superadmin to assign you to a branch before making sales."
           });
         }
 
@@ -216,12 +229,16 @@ router.post(
         if (!employee) {
           return res
             .status(404)
-            .json({ error: `Employee not found with ID: ${finalEmployeeId}` });
+            .json({
+              error: `Employee not found with ID: ${finalEmployeeId}`,
+              resolution: "The employee record may have been deleted. Please refresh and try again."
+            });
         }
 
         if (!employee.branch) {
           return res.status(400).json({
             error: `Employee "${employee.name}" must be assigned to a branch`,
+            resolution: "Contact your administrator to assign this employee to a branch."
           });
         }
 
@@ -235,6 +252,7 @@ router.post(
       } else {
         return res.status(400).json({
           error: "Either User ID or Employee ID is required to process a sale",
+          resolution: "Please ensure you are logged in properly or contact technical support."
         });
       }
 
@@ -379,10 +397,13 @@ router.post(
           });
 
           if (!inventory || inventory.quantity < item.quantity) {
-            throw new Error(
-              `Insufficient stock for item ${item.itemId}. Available: ${inventory ? inventory.quantity : 0
-              }`
+            const itemName = inventory?.item?.name || `Item #${item.itemId}`;
+            const available = inventory ? inventory.quantity : 0;
+            const error = new Error(
+              `Insufficient stock for ${itemName}. Available: ${available}, Requested: ${item.quantity}`
             );
+            error.resolution = `Check the inventory for ${itemName} or reduce the quantity. You may also need to create a purchase order to restock.`;
+            throw error;
           }
 
           // Decrement stock
