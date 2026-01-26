@@ -5,11 +5,15 @@ const path = require("path"); // Ensure path is available early
 const cors = require("cors");
 
 // --- DEBUGGING: Check for .env files ---
-// Strategy: Load General/Prod first, then OVERRIDE with Local.
+// Strategy: Load General/Prod first, then OVERRIDE with Local (only in development).
 const envRoot = path.resolve(__dirname, "../.env");
 const envBackend = path.resolve(__dirname, ".env");
 const envRootLocal = path.resolve(__dirname, "../.env.local");
 const envBackendLocal = path.resolve(__dirname, ".env.local");
+
+// Determine if we're in production early
+// This prevents .env.local from corrupting production settings
+const isProduction = process.env.NODE_ENV === 'production';
 
 // 1. Root .env (Base)
 if (fs.existsSync(envRoot)) {
@@ -23,16 +27,21 @@ if (fs.existsSync(envBackend)) {
   require("dotenv").config({ path: envBackend, override: true });
 }
 
-// 3. Root .env.local (Local Dev Overrides)
-if (fs.existsSync(envRootLocal)) {
-  console.log(`>>> [ENV] Found .env.local at ROOT (${envRootLocal}). Overriding...`);
-  require("dotenv").config({ path: envRootLocal, override: true });
-}
+// 3 & 4. Local overrides (.env.local) - ONLY load in development!
+if (!isProduction) {
+  // 3. Root .env.local (Local Dev Overrides)
+  if (fs.existsSync(envRootLocal)) {
+    console.log(`>>> [ENV] Found .env.local at ROOT (${envRootLocal}). Overriding for development...`);
+    require("dotenv").config({ path: envRootLocal, override: true });
+  }
 
-// 4. Backend .env.local (Local Backend Overrides)
-if (fs.existsSync(envBackendLocal)) {
-  console.log(`>>> [ENV] Found .env.local at BACKEND (${envBackendLocal}). Overriding...`);
-  require("dotenv").config({ path: envBackendLocal, override: true });
+  // 4. Backend .env.local (Local Backend Overrides)
+  if (fs.existsSync(envBackendLocal)) {
+    console.log(`>>> [ENV] Found .env.local at BACKEND (${envBackendLocal}). Overriding for development...`);
+    require("dotenv").config({ path: envBackendLocal, override: true });
+  }
+} else {
+  console.log('>>> [ENV] Production mode detected - skipping .env.local files');
 }
 // ---------------------------------------
 
@@ -141,8 +150,11 @@ app.use(limiter);
 // HTTPS enforcement (production only)
 if (process.env.NODE_ENV === "production") {
   app.use((req, res, next) => {
-    if (req.headers["x-forwarded-proto"] !== "https") {
-      return res.redirect("https://" + req.headers.host + req.url);
+    const proto = req.headers["x-forwarded-proto"];
+    // Only redirect if explicitly http, not if missing or already https
+    if (proto && proto === "http") {
+      console.log(`>>> [HTTPS] Redirecting ${req.url} from HTTP to HTTPS`);
+      return res.redirect(301, "https://" + req.headers.host + req.url);
     }
     next();
   });
