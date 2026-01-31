@@ -12,30 +12,31 @@ datasource db {
 // ============================================
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  username  String   @unique
-  password  String
-  roleId    Int      @map("role_id")
-  isActive  Boolean  @default(true) @map("is_active")
-  hasSensitiveAccess Boolean @default(false) @map("has_sensitive_access")
-  branchId  Int      @map("branch_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                 Int      @id @default(autoincrement())
+  name               String
+  username           String   @unique
+  password           String
+  roleId             Int      @map("role_id")
+  isActive           Boolean  @default(true) @map("is_active")
+  hasSensitiveAccess Boolean  @default(false) @map("has_sensitive_access")
+  branchId           Int      @map("branch_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
-  role           Role            @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  sales          Sale[]
-  auditLogs      AuditLog[]
-  stockTransfers StockTransfer[]
-  createdTransfers  CashTransfer[] @relation("TransferCreator")
-  acceptedTransfers CashTransfer[] @relation("TransferAccepter")
+  role                Role                  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  branch              Branch                @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales               Sale[]
+  auditLogs           AuditLog[]
+  stockTransfers      StockTransfer[]
+  createdTransfers    CashTransfer[]        @relation("TransferCreator")
+  acceptedTransfers   CashTransfer[]        @relation("TransferAccepter")
   createdTransactions EmployeeTransaction[] @relation("TransactionCreator")
   createdPayrolls     Payroll[]             @relation("PayrollCreator")
-  shifts         Shift[]
-  refreshTokens  RefreshToken[]
-  deposits       Deposit[]      @relation("DepositCreator")
+  shifts              Shift[]
+  reviewedShifts      Shift[]               @relation("ShiftReviewer")
+  refreshTokens       RefreshToken[]
+  deposits            Deposit[]             @relation("DepositCreator")
 
   @@map("users")
 }
@@ -46,10 +47,10 @@ model RefreshToken {
   userId    Int      @map("user_id")
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
@@ -92,7 +93,7 @@ enum Module {
   WAREHOUSES
   SETTINGS
   EXPENSES
-  
+
   // Creation Permissions (CREATES)
   CREATES_WAREHOUSES
   CREATES_EMPLOYEES
@@ -164,14 +165,14 @@ model Employee {
 }
 
 model EmployeeTransaction {
-  id         Int             @id @default(autoincrement())
-  employeeId Int             @map("employee_id")
-  type       TransactionType
-  amount     Decimal         @db.Decimal(10, 2)
-  reason     String?         @db.Text
-  date       DateTime        @default(now())
-  createdById Int?           @map("created_by_id")
-  createdAt  DateTime        @default(now()) @map("created_at")
+  id          Int             @id @default(autoincrement())
+  employeeId  Int             @map("employee_id")
+  type        TransactionType
+  amount      Decimal         @db.Decimal(10, 2)
+  reason      String?         @db.Text
+  date        DateTime        @default(now())
+  createdById Int?            @map("created_by_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
 
   // Relations
   employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -403,10 +404,10 @@ model ItemCategory {
 // ============================================
 
 enum PaymentMethod {
-  CASH     // نقد - pay with cash now
-  CREDIT   // كريدت/فيزا - pay with card now
+  CASH // نقد - pay with cash now
+  CREDIT // كريدت/فيزا - pay with card now
   DEFERRED // آجل - pay later
-  MIXED    // متنوع - partial payment
+  MIXED // متنوع - partial payment
 }
 
 enum DiscountType {
@@ -470,25 +471,39 @@ model PurchaseItem {
 // ============================================
 
 model Shift {
-  id           Int         @id @default(autoincrement())
-  userId       Int         @map("user_id")
-  branchId     Int         @map("branch_id")
-  startTime    DateTime    @default(now()) @map("start_time")
-  endTime      DateTime?   @map("end_time")
-  startCash    Decimal     @default(0) @db.Decimal(10, 2) @map("start_cash")
-  endCash      Decimal?    @db.Decimal(10, 2) @map("end_cash")
-  status       ShiftStatus @default(OPEN)
-  
+  id                 Int         @id @default(autoincrement())
+  userId             Int         @map("user_id")
+  branchId           Int         @map("branch_id")
+  type               ShiftType   @default(MORNING)
+  startTime          DateTime    @default(now()) @map("start_time")
+  endTime            DateTime?   @map("end_time")
+  startCash          Decimal     @default(0) @map("start_cash") @db.Decimal(10, 2)
+  endCash            Decimal?    @map("end_cash") @db.Decimal(10, 2)
+  systemExpectedCash Decimal?    @map("system_expected_cash") @db.Decimal(10, 2)
+  actualCash         Decimal?    @map("actual_cash") @db.Decimal(10, 2)
+  shortage           Decimal?    @db.Decimal(10, 2)
+  status             ShiftStatus @default(OPEN)
+  reviewedById       Int?        @map("reviewed_by_id")
+  reviewedAt         DateTime?   @map("reviewed_at")
+
   // Relations
-  user         User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  branch       Branch      @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  sales        Sale[]
+  user       User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  reviewedBy User?     @relation("ShiftReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  sales      Sale[]
+  expenses   Expense[]
 
   @@map("shifts")
 }
 
+enum ShiftType {
+  MORNING
+  EVENING
+}
+
 enum ShiftStatus {
   OPEN
+  PENDING_REVIEW
   CLOSED
 }
 
@@ -605,6 +620,12 @@ model SystemConfiguration {
   shiftStartTime String @default("09:00") @map("shift_start_time")
   shiftEndTime   String @default("17:00") @map("shift_end_time")
 
+  // Shift Time Configuration
+  morningShiftStart String @default("09:00") @map("morning_shift_start")
+  morningShiftEnd   String @default("17:00") @map("morning_shift_end")
+  eveningShiftStart String @default("17:00") @map("evening_shift_start")
+  eveningShiftEnd   String @default("01:00") @map("evening_shift_end")
+
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
@@ -710,20 +731,22 @@ enum ExpensePaymentMethod {
 }
 
 model Expense {
-  id            Int                    @id @default(autoincrement())
+  id            Int                  @id @default(autoincrement())
   description   String
-  amount        Decimal                @db.Decimal(10, 2)
-  date          DateTime               @db.Date
-  type          ExpenseType            @default(MANUAL)
-  treasuryId    Int                    @map("treasury_id")
-  purchaseId    Int?                   @unique @map("purchase_id")
-  paymentMethod ExpensePaymentMethod   @default(CASH) @map("payment_method")
-  createdAt     DateTime               @default(now()) @map("created_at")
-  updatedAt     DateTime               @updatedAt @map("updated_at")
+  amount        Decimal              @db.Decimal(10, 2)
+  date          DateTime             @db.Date
+  type          ExpenseType          @default(MANUAL)
+  treasuryId    Int                  @map("treasury_id")
+  purchaseId    Int?                 @unique @map("purchase_id")
+  shiftId       Int?                 @map("shift_id")
+  paymentMethod ExpensePaymentMethod @default(CASH) @map("payment_method")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
 
   // Relations
   treasury Treasury  @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  shift    Shift?    @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@map("expenses")
 }

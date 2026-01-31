@@ -3,6 +3,8 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
 import StartShiftModal from "./StartShiftModal";
+import EndShiftModal from "../../components/pos/EndShiftModal";
+import ShiftVerificationModal from "../../components/pos/ShiftVerificationModal";
 import Modal from "../../components/ui/Modal";
 import { ClientForm } from "../clients/ClientManager";
 import {
@@ -79,16 +81,28 @@ const POSPage = () => {
 
   const checkActiveShift = async (user) => {
     try {
-      // 1. Check for active shift
+      // 1. Check for active shift for this user
       const activeShift = await shiftService.checkActive(user.id);
 
       if (activeShift) {
         console.log("Found active shift:", activeShift);
         setCurrentShiftId(activeShift.id);
+        setCurrentShift(activeShift.type === "MORNING" ? "صباحية" : "مسائية");
       } else {
-        // 2. No active shift, open modal to start one manually
-        console.log("No active shift, opening start modal...");
-        setIsStartShiftModalOpen(true);
+        // 2. No active shift - check if there's a pending shift blocking us
+        const pendingShift = await shiftService.getPending(user.branch.id);
+
+        if (pendingShift) {
+          console.log("Found pending shift blocking start:", pendingShift);
+          // There's a pending shift - can't start new one
+          setIsStartShiftModalOpen(false);
+          // Show blocking message - we'll handle this in the UI
+          toast.error("الوردية السابقة تحتاج موافقة المدير");
+        } else {
+          // 3. No active or pending shift - open modal to start one
+          console.log("No active shift, opening start modal...");
+          setIsStartShiftModalOpen(true);
+        }
       }
     } catch (error) {
       console.error("Error checking shift:", error);
@@ -106,17 +120,27 @@ const POSPage = () => {
       const newShift = await shiftService.start({
         userId: currentUser.id,
         branchId: currentUser.branch.id,
-        startCash: startCash,
+        startCash: startCash, // Can be undefined - backend will use rolling balance
       });
       console.log("Started new shift:", newShift);
       setCurrentShiftId(newShift.id);
+      setCurrentShift(newShift.type === "MORNING" ? "صباحية" : "مسائية");
       setIsStartShiftModalOpen(false);
-      toast.success("تم بدء الوردية بنجاح");
+      toast.success(`تم بدء الوردية ${newShift.type === "MORNING" ? "الصباحية" : "المسائية"} بنجاح`);
     } catch (error) {
       console.error("Error starting shift:", error);
-      toast.error("فشل بدء الوردية");
+
+      // Handle specific blocking error
+      if (error.response?.data?.previousShiftStatus) {
+        const message = error.response.data.message || "الوردية السابقة تحتاج موافقة المدير";
+        toast.error(message);
+        setIsStartShiftModalOpen(false);
+      } else {
+        toast.error(error.response?.data?.error || "فشل بدء الوردية");
+      }
     }
   };
+
 
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clients, setClients] = useState([]);
@@ -373,18 +397,71 @@ const POSPage = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [shiftReportData, setShiftReportData] = useState(null);
 
+  // New multi-step end shift state
+  const [isEndShiftModalOpen, setIsEndShiftModalOpen] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [pendingShiftData, setPendingShiftData] = useState(null);
+
   const handleEndShift = async () => {
     if (!currentShiftId) {
       toast.error("لا توجد وردية مفتوحة حالياً");
       return;
     }
+    // Step 1: Open blind cash count modal
+    setIsEndShiftModalOpen(true);
+  };
+
+  // Step 2: Submit blind cash count
+  const handleBlindCashSubmit = async (actualCash) => {
     try {
+      // Call end shift with blind amount
+      const updatedShift = await shiftService.end({
+        shiftId: currentShiftId,
+        actualCash: actualCash,
+      });
+
+      console.log("Shift ended, pending manager approval:", updatedShift);
+
+      // Store shift data for verification modal
+      setPendingShiftData(updatedShift);
+
+      // Close blind count modal, open verification modal
+      setIsEndShiftModalOpen(false);
+      setIsVerificationModalOpen(true);
+    } catch (error) {
+      console.error("Failed to end shift:", error);
+      toast.error(error.response?.data?.error || "فشل إغلاق الوردية");
+    }
+  };
+
+  // Step 3: Manager verification and final approval
+  const handleManagerVerification = async (username, password) => {
+    try {
+      const approvedShift = await shiftService.approve({
+        shiftId: currentShiftId,
+        managerUsername: username,
+        managerPassword: password,
+      });
+
+      console.log("Shift approved and closed:", approvedShift);
+
+      // Success - show final report
       const report = await shiftService.getReport(currentShiftId);
       setShiftReportData(report);
+
+      // Clean up
+      setIsVerificationModalOpen(false);
+      setPendingShiftData(null);
+      setCurrentShiftId(null);
+
+      // Show report
       setIsReportOpen(true);
+      toast.success("تم إغلاق الوردية بنجاح");
     } catch (error) {
-      console.error("Failed to get shift report", error);
-      toast.error("فشل تحميل تقرير الوردية");
+      console.error("Manager verification failed:", error);
+      const errorMsg = error.response?.data?.error || "فشلت المصادقة. تحقق من بيانات المدير";
+      toast.error(errorMsg);
+      throw error; // Re-throw to keep modal open
     }
   };
 
@@ -732,6 +809,25 @@ const POSPage = () => {
           )}
         </div>
       </Modal>
+
+      {/* End Shift Modal - Step 1: Blind Cash Count */}
+      <EndShiftModal
+        isOpen={isEndShiftModalOpen}
+        onClose={() => setIsEndShiftModalOpen(false)}
+        onSubmit={handleBlindCashSubmit}
+      />
+
+      {/* Shift Verification Modal - Step 2: Manager Approval */}
+      <ShiftVerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => {
+          setIsVerificationModalOpen(false);
+          setPendingShiftData(null);
+        }}
+        onVerify={handleManagerVerification}
+        branchId={currentUser?.branch?.id}
+        shiftData={pendingShiftData}
+      />
 
       {/* Payment Confirmation Modal */}
       <Modal

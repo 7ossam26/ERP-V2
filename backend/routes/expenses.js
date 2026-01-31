@@ -63,7 +63,28 @@ router.post("/", async (req, res, next) => {
                 throw new Error("Insufficient treasury balance");
             }
 
-            // 2. Deduct from treasury
+            // 2. Find the treasury's branch
+            const branch = treasury.branchId ? await tx.branch.findUnique({
+                where: { id: treasury.branchId }
+            }) : null;
+
+            // 3. Find active shift for this branch (if exists)
+            let shiftId = null;
+            if (branch) {
+                const activeShift = await tx.shift.findFirst({
+                    where: {
+                        branchId: branch.id,
+                        status: { in: ["OPEN", "PENDING_REVIEW"] }
+                    },
+                    orderBy: { startTime: "desc" }
+                });
+
+                if (activeShift) {
+                    shiftId = activeShift.id;
+                }
+            }
+
+            // 4. Deduct from treasury
             await tx.treasury.update({
                 where: { id: parseInt(treasuryId) },
                 data: {
@@ -71,7 +92,7 @@ router.post("/", async (req, res, next) => {
                 }
             });
 
-            // 3. Create Expense
+            // 5. Create Expense (with shift link if found)
             await tx.expense.create({
                 data: {
                     description,
@@ -79,6 +100,7 @@ router.post("/", async (req, res, next) => {
                     date: new Date(date || new Date()),
                     type: "MANUAL",
                     treasuryId: parseInt(treasuryId),
+                    shiftId: shiftId, // Link to shift if found
                     paymentMethod: paymentMethod || "CASH"
                 }
             });
