@@ -72,15 +72,6 @@ export const MODULES = [
     path: "/branches",
     category: "CREATION",
   },
-  {
-    id: "creates_deposits",
-    code: "CREATES_DEPOSITS",
-    label: "إيداع",
-    description: "إذن إضافة إيداع",
-    icon: "account_balance",
-    path: "/deposits",
-    category: "CREATION",
-  },
 
   {
     id: "creates_delivery_men",
