@@ -1,278 +1,311 @@
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Button,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
-  Switch,
-  FormControlLabel,
-} from "@mui/material";
-import { Add, Edit, Delete } from "@mui/icons-material";
-import axios from "axios";
+import React, { useState } from "react";
+import GenericPageManager from "../../components/shared/GenericPageManager";
+import { deliveryService } from "../../services/deliveryService";
+import { branchService } from "../../services/branchService";
 import AuthService from "../../services/authService";
-import toast from "react-hot-toast";
 
-const DeliveryMenPage = () => {
-  const user = AuthService.getCurrentUser();
-  const [deliveryMen, setDeliveryMen] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [currentDeliveryMan, setCurrentDeliveryMan] = useState(null);
+const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data }) => {
+  // Calculate next ID if creating new delivery man
+  const nextId =
+    data && data.length > 0
+      ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
+      : 1;
+
+  const [branches, setBranches] = useState([]);
   const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    nationalId: "",
-    vehicleType: "",
-    isActive: true,
+    id: initialData?.id || nextId,
+    name: initialData?.name || "",
+    branchId: initialData?.branchId || "",
+    phone: initialData?.phone || "",
+    nationalId: initialData?.nationalId || "",
+    vehicleType: initialData?.vehicleType || "",
   });
 
-  const fetchDeliveryMen = async () => {
-    try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/delivery-men`,
-        {
-          params: { branchId: user.branchId },
-          headers: { Authorization: `Bearer ${user.token}` },
-        },
-      );
-      setDeliveryMen(response.data);
-    } catch (error) {
-      console.error("Error fetching delivery men:", error);
-      toast.error("فشل في تحميل بيانات الطيارين");
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchDeliveryMen();
-    }
-  }, [user]);
-
-  const handleOpen = (deliveryMan = null) => {
-    if (deliveryMan) {
-      setCurrentDeliveryMan(deliveryMan);
-      setFormData({
-        name: deliveryMan.name,
-        phone: deliveryMan.phone,
-        nationalId: deliveryMan.nationalId || "",
-        vehicleType: deliveryMan.vehicleType || "",
-        isActive: deliveryMan.isActive,
-      });
-    } else {
-      setCurrentDeliveryMan(null);
-      setFormData({
-        name: "",
-        phone: "",
-        nationalId: "",
-        vehicleType: "",
-        isActive: true,
-      });
-    }
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-    setCurrentDeliveryMan(null);
-  };
+  React.useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const data = await branchService.getAll();
+        setBranches(data);
+      } catch (error) {
+        console.error("Failed to fetch branches", error);
+      }
+    };
+    fetchBranches();
+  }, []);
 
   const handleChange = (e) => {
-    const { name, value, checked, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: name === "branchId" ? parseInt(value) || "" : value,
+    });
   };
 
-  const handleSubmit = async () => {
-    try {
-      if (!formData.name || !formData.phone) {
-        toast.error("يرجى ملء الحقول المطلوبة");
-        return;
-      }
-
-      const payload = {
-        ...formData,
-        branchId: user.branchId,
-      };
-
-      if (currentDeliveryMan) {
-        await axios.put(
-          `${import.meta.env.VITE_API_URL}/api/delivery-men/${currentDeliveryMan.id}`,
-          payload,
-          { headers: { Authorization: `Bearer ${user.token}` } },
-        );
-        toast.success("تم تحديث البيانات بنجاح");
-      } else {
-        await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/delivery-men`,
-          payload,
-          { headers: { Authorization: `Bearer ${user.token}` } },
-        );
-        toast.success("تم إضافة الطيار بنجاح");
-      }
-      fetchDeliveryMen();
-      handleClose();
-    } catch (error) {
-      console.error("Error saving delivery man:", error);
-      toast.error("حدث خطأ أثناء الحفظ");
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm("هل أنت متأكد من حذف هذا الطيار؟")) {
-      try {
-        await axios.delete(
-          `${import.meta.env.VITE_API_URL}/api/delivery-men/${id}`,
-          {
-            headers: { Authorization: `Bearer ${user.token}` },
-          },
-        );
-        toast.success("تم حذف الطيار بنجاح");
-        fetchDeliveryMen();
-      } catch (error) {
-        console.error("Error deleting delivery man:", error);
-        toast.error("فشل في حذف الطيار");
-      }
-    }
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
   };
 
   return (
-    <Box p={3}>
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={3}>
-        <Typography variant="h4" component="h1">
-          إدارة الطيارين
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<Add />}
-          onClick={() => handleOpen()}>
-          إضافة طيار جديد
-        </Button>
-      </Box>
-
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>الاسم</TableCell>
-              <TableCell>رقم الهاتف</TableCell>
-              <TableCell>نوع المركبة</TableCell>
-              <TableCell>الحالة</TableCell>
-              <TableCell>إجراءات</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {deliveryMen.map((man) => (
-              <TableRow key={man.id}>
-                <TableCell>{man.name}</TableCell>
-                <TableCell>{man.phone}</TableCell>
-                <TableCell>{man.vehicleType || "-"}</TableCell>
-                <TableCell>{man.isActive ? "نشط" : "غير نشط"}</TableCell>
-                <TableCell>
-                  <IconButton onClick={() => handleOpen(man)} color="primary">
-                    <Edit />
-                  </IconButton>
-                  <IconButton
-                    onClick={() => handleDelete(man.id)}
-                    color="error">
-                    <Delete />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
+    <form
+      onSubmit={handleSubmit}
+      className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          الرقم التعريفي
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-500 dark:text-gray-400 focus:ring-0 cursor-not-allowed"
+            name="id"
+            value={formData.id}
+            readOnly
+            placeholder="ID تلقائي"
+            type="text"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            tag
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          الفرع
+        </label>
+        <div className="relative">
+          <select
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            name="branchId"
+            value={formData.branchId}
+            onChange={handleChange}
+            required>
+            <option value="">اختر الفرع...</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
             ))}
-            {deliveryMen.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} align="center">
-                  لا يوجد بيانات
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          </select>
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            store
+          </span>
+          <span className="material-icons-round absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+            expand_more
+          </span>
+        </div>
+      </div>
 
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>
-          {currentDeliveryMan ? "تعديل بيانات الطيار" : "إضافة طيار جديد"}
-        </DialogTitle>
-        <DialogContent>
-          <Box
-            display="flex"
-            flexDirection="column"
-            gap={2}
-            mt={1}
-            minWidth="400px">
-            <TextField
-              label="الاسم"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              label="رقم الهاتف"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              label="رقم الهوية (اختياري)"
-              name="nationalId"
-              value={formData.nationalId}
-              onChange={handleChange}
-              fullWidth
-            />
-            <TextField
-              label="نوع المركبة (اختياري)"
-              name="vehicleType"
-              value={formData.vehicleType}
-              onChange={handleChange}
-              fullWidth
-              placeholder="مثال: دراجة نارية، سيارة"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.isActive}
-                  onChange={handleChange}
-                  name="isActive"
-                  color="primary"
-                />
-              }
-              label="نشط"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="secondary">
-            إلغاء
-          </Button>
-          <Button onClick={handleSubmit} color="primary" variant="contained">
-            حفظ
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      <div className="space-y-2 col-span-1 md:col-span-1">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          اسم الطيار
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="أدخل اسم الطيار"
+            type="text"
+            required
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            delivery_dining
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2 col-span-1 md:col-span-1">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          نوع المركبة
+        </label>
+        <div className="relative">
+          <select
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            name="vehicleType"
+            value={formData.vehicleType}
+            onChange={handleChange}>
+            <option value="">اختر نوع المركبة...</option>
+            <option value="motorcycle">موتوسيكل</option>
+            <option value="car">سيارة</option>
+            <option value="van">فان</option>
+            <option value="bicycle">دراجة</option>
+          </select>
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            two_wheeler
+          </span>
+          <span className="material-icons-round absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+            expand_more
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          رقم البطاقة
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+            name="nationalId"
+            value={formData.nationalId}
+            onChange={handleChange}
+            placeholder="رقم البطاقة"
+            type="text"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            fingerprint
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          رقم الهاتف
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-right"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            dir="ltr"
+            placeholder="01xxxxxxxxx"
+            type="tel"
+            required
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            call
+          </span>
+        </div>
+      </div>
+
+      <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={isSaving}
+          className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          إلغاء
+        </button>
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          {isSaving ? (
+            <>
+              <span className="material-icons-round text-lg animate-spin">
+                refresh
+              </span>
+              <span>جاري الحفظ...</span>
+            </>
+          ) : (
+            <>
+              <span className="material-icons-round text-lg">save</span>
+              <span>حفظ التغييرات</span>
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+const DeliveryMenPage = () => {
+  const columns = [
+    {
+      header: "الرقم",
+      accessor: "id",
+      render: (item) => (
+        <span className="font-mono text-gray-900 dark:text-white font-bold text-sm">
+          {item.id}
+        </span>
+      ),
+    },
+    {
+      header: "الاسم",
+      accessor: "name",
+      render: (item) => (
+        <div>
+          <div className="font-bold text-gray-900 dark:text-white">
+            {item.name}
+          </div>
+          <div className="text-xs text-gray-500">
+            {item.branch?.name || "-"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "نوع المركبة",
+      accessor: "vehicleType",
+      render: (item) => {
+        const vehicleIcons = {
+          motorcycle: "🏍️",
+          car: "🚗",
+          van: "🚐",
+          bicycle: "🚲",
+        };
+        const vehicleNames = {
+          motorcycle: "موتوسيكل",
+          car: "سيارة",
+          van: "فان",
+          bicycle: "دراجة",
+        };
+        return (
+          <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+            {vehicleIcons[item.vehicleType] || "🛵"}{" "}
+            {vehicleNames[item.vehicleType] || "-"}
+          </span>
+        );
+      },
+    },
+    {
+      header: "رقم الهاتف",
+      accessor: "phone",
+      render: (item) => (
+        <span
+          dir="ltr"
+          className="text-gray-600 dark:text-gray-300 font-mono text-xs">
+          {item.phone}
+        </span>
+      ),
+    },
+    {
+      header: "رقم البطاقة",
+      accessor: "nationalId",
+      render: (item) => (
+        <span className="text-gray-500 dark:text-gray-400 font-mono text-xs">
+          {item.nationalId || "-"}
+        </span>
+      ),
+    },
+    {
+      header: "الحالة",
+      accessor: "isActive",
+      render: (item) => (
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-bold ${
+            item.isActive
+              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+          }`}>
+          {item.isActive ? "نشط" : "غير نشط"}
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <GenericPageManager
+      title="إدارة الطيارين"
+      subtitle="قائمة بجميع الطيارين المسجلين في النظام"
+      icon="delivery_dining"
+      service={deliveryService}
+      columns={columns}
+      FormComponent={DeliveryManForm}
+      emptyMessage="لا يوجد طيارين."
+      hideAddButton={!AuthService.hasPermission("CREATES_DELIVERY_MEN")}
+    />
   );
 };
 

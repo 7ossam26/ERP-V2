@@ -201,9 +201,10 @@ const POSPage = () => {
     const fetchDeliveryMen = async () => {
       try {
         const data = await deliveryService.getAll();
-        setDeliveryMen(data);
+        setDeliveryMen(data || []); // Ensure it's always an array
       } catch (error) {
         console.error("Failed to fetch delivery men", error);
+        setDeliveryMen([]); // Set empty array on error
       }
     };
     fetchDeliveryMen();
@@ -1387,7 +1388,7 @@ const POSPage = () => {
                   setSelectedDeliveryMan(man || null);
                 }}>
                 <option value="">-- بدون طيار --</option>
-                {deliveryMen.map((man) => (
+                {deliveryMen?.map((man) => (
                   <option key={man.id} value={man.id}>
                     🛵 {man.name}
                   </option>

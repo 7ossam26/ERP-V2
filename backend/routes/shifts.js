@@ -291,20 +291,25 @@ router.post("/start", async (req, res, next) => {
         .json({ error: "User already has an active shift" });
     }
 
-    // ROLLING BALANCE: Use end cash from most recent closed shift
-    let calculatedStartCash =
-      startCash !== undefined ? parseFloat(startCash) : 0;
+    // ROLLING BALANCE: Use end cash from most recent closed shift ONLY if user didn't provide a value
+    let calculatedStartCash;
 
-    const lastClosedShift = await prisma.shift.findFirst({
-      where: {
-        branchId: parseInt(branchId),
-        status: "CLOSED",
-      },
-      orderBy: { endTime: "desc" },
-    });
+    if (startCash !== undefined && startCash !== null) {
+      calculatedStartCash = parseFloat(startCash);
+    } else {
+      const lastClosedShift = await prisma.shift.findFirst({
+        where: {
+          branchId: parseInt(branchId),
+          status: "CLOSED",
+        },
+        orderBy: { endTime: "desc" },
+      });
 
-    if (lastClosedShift && lastClosedShift.endCash !== null) {
-      calculatedStartCash = parseFloat(lastClosedShift.endCash);
+      if (lastClosedShift && lastClosedShift.endCash !== null) {
+        calculatedStartCash = parseFloat(lastClosedShift.endCash);
+      } else {
+        calculatedStartCash = 0;
+      }
     }
 
     const newShift = await prisma.shift.create({
