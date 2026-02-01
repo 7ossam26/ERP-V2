@@ -17,14 +17,13 @@ const DeliveryModal = ({
     const [selectedRider, setSelectedRider] = useState(null);
     const [selectedZone, setSelectedZone] = useState(null);
     const [clientAddress, setClientAddress] = useState("");
-    const [isEditingAddress, setIsEditingAddress] = useState(false);
     const [riderDebts, setRiderDebts] = useState([]);
 
     useEffect(() => {
         if (isOpen) {
             fetchDeliveryZones();
             setClientAddress(selectedClient?.address || "");
-            setIsEditingAddress(!selectedClient?.address);
+            setClientAddress(selectedClient?.address || "");
         }
     }, [isOpen, selectedClient]);
 
@@ -38,26 +37,7 @@ const DeliveryModal = ({
         }
     };
 
-    const handleSaveAddress = async () => {
-        if (!clientAddress.trim()) {
-            toast.error("يرجى إدخال العنوان");
-            return;
-        }
-
-        try {
-            await clientService.update(selectedClient.id, {
-                ...selectedClient,
-                address: clientAddress,
-            });
-            toast.success("تم حفظ العنوان بنجاح");
-            setIsEditingAddress(false);
-        } catch (error) {
-            console.error("Failed to save address:", error);
-            toast.error("فشل حفظ العنوان");
-        }
-    };
-
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         if (!selectedRider) {
             toast.error("يرجى اختيار طيار التوصيل");
             return;
@@ -71,6 +51,20 @@ const DeliveryModal = ({
         if (!clientAddress.trim()) {
             toast.error("يرجى إضافة عنوان التوصيل");
             return;
+        }
+
+        // Auto-save address if changed
+        if (selectedClient && clientAddress !== selectedClient.address) {
+            try {
+                await clientService.update(selectedClient.id, {
+                    ...selectedClient,
+                    address: clientAddress,
+                });
+            } catch (error) {
+                console.error("Failed to save address:", error);
+                toast.error("فشل حفظ العنوان الجديد");
+                return;
+            }
         }
 
         onConfirm({
@@ -118,8 +112,8 @@ const DeliveryModal = ({
                         <button
                             onClick={() => setActiveTab("riders")}
                             className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "riders"
-                                    ? "bg-primary text-white shadow-md"
-                                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                                ? "bg-primary text-white shadow-md"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                                 }`}>
                             <span className="material-icons-round text-sm align-middle mr-1">
                                 delivery_dining
@@ -129,8 +123,8 @@ const DeliveryModal = ({
                         <button
                             onClick={() => setActiveTab("zones")}
                             className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "zones"
-                                    ? "bg-primary text-white shadow-md"
-                                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                                ? "bg-primary text-white shadow-md"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                                 }`}>
                             <span className="material-icons-round text-sm align-middle mr-1">
                                 map
@@ -140,8 +134,8 @@ const DeliveryModal = ({
                         <button
                             onClick={() => setActiveTab("debts")}
                             className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "debts"
-                                    ? "bg-primary text-white shadow-md"
-                                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                                ? "bg-primary text-white shadow-md"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                                 }`}>
                             <span className="material-icons-round text-sm align-middle mr-1">
                                 account_balance_wallet
@@ -159,34 +153,16 @@ const DeliveryModal = ({
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
                                 عنوان التوصيل
                             </label>
-                            {!isEditingAddress && clientAddress && (
-                                <button
-                                    onClick={() => setIsEditingAddress(true)}
-                                    className="text-xs text-primary hover:underline">
-                                    تعديل
-                                </button>
-                            )}
                         </div>
-                        {isEditingAddress ? (
-                            <div className="space-y-2">
-                                <textarea
-                                    className="w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent resize-y min-h-[60px]"
-                                    value={clientAddress}
-                                    onChange={(e) => setClientAddress(e.target.value)}
-                                    placeholder="أدخل عنوان التوصيل..."
-                                    rows={2}
-                                />
-                                <button
-                                    onClick={handleSaveAddress}
-                                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-hover transition-colors">
-                                    حفظ العنوان
-                                </button>
-                            </div>
-                        ) : (
-                            <p className="text-gray-700 dark:text-gray-300">
-                                {clientAddress || "لا يوجد عنوان"}
-                            </p>
-                        )}
+                        <div className="space-y-2">
+                            <textarea
+                                className="w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent resize-y min-h-[60px]"
+                                value={clientAddress}
+                                onChange={(e) => setClientAddress(e.target.value)}
+                                placeholder="أدخل عنوان التوصيل..."
+                                rows={2}
+                            />
+                        </div>
                     </div>
 
                     {/* Tab Content */}
@@ -205,8 +181,8 @@ const DeliveryModal = ({
                                         key={rider.id}
                                         onClick={() => setSelectedRider(rider)}
                                         className={`w-full p-4 rounded-xl border-2 transition-all text-right ${selectedRider?.id === rider.id
-                                                ? "border-primary bg-primary/10 dark:bg-primary/20"
-                                                : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
+                                            ? "border-primary bg-primary/10 dark:bg-primary/20"
+                                            : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
                                             }`}>
                                         <div className="flex items-center gap-3">
                                             <span className="material-icons-round text-primary text-2xl">
@@ -247,8 +223,8 @@ const DeliveryModal = ({
                                         key={zone.id}
                                         onClick={() => setSelectedZone(zone)}
                                         className={`w-full p-4 rounded-xl border-2 transition-all text-right ${selectedZone?.id === zone.id
-                                                ? "border-primary bg-primary/10 dark:bg-primary/20"
-                                                : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
+                                            ? "border-primary bg-primary/10 dark:bg-primary/20"
+                                            : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
                                             }`}>
                                         <div className="flex items-center gap-3">
                                             <span className="material-icons-round text-primary text-2xl">
