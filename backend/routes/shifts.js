@@ -133,7 +133,7 @@ async function determineShiftType() {
     const isInMorningShift =
       morningEnd > morningStart
         ? currentTimeInMinutes >= morningStart &&
-          currentTimeInMinutes < morningEnd
+        currentTimeInMinutes < morningEnd
         : false; // Morning shift doesn't cross midnight
 
     // Check if current time is in evening shift (may cross midnight)
