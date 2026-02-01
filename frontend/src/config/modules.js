@@ -91,6 +91,15 @@ export const MODULES = [
     path: "/delivery-men",
     category: "CREATION",
   },
+  {
+    id: "creates_delivery_zones",
+    code: "CREATES_DELIVERY_ZONES",
+    label: "المناطق",
+    description: "إدارة مناطق التوصيل والأسعار",
+    icon: "map",
+    path: "/delivery-zones",
+    category: "CREATION",
+  },
 
   // --- Management Modules (Main Dashboard) ---
   {

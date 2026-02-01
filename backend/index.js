@@ -115,10 +115,10 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-            maxAge: 31536000,
-            includeSubDomains: true,
-            preload: true,
-          }
+          maxAge: 31536000,
+          includeSubDomains: true,
+          preload: true,
+        }
         : false, // Disable HSTS in development
   }),
 );
@@ -232,6 +232,7 @@ app.use("/api/supplier-accounts", require("./routes/supplierAccounts"));
 app.use("/api/deposits", require("./routes/deposits"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/delivery-men", require("./routes/delivery.routes"));
+app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
@@ -295,7 +296,7 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
     } catch (checkErr) {
       throw new Error(
         "Tables do not appear to exist after migration. SQL Execution might have failed completely. Details: " +
-          checkErr.message,
+        checkErr.message,
       );
     }
 

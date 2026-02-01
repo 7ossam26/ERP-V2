@@ -48,6 +48,7 @@ import TransferManagementPage from "./pages/treasuries/TransferManagementPage";
 import ShiftManagementPage from "./pages/shifts/ShiftManagementPage";
 import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
 import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
+import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
@@ -372,6 +373,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="CREATES_DELIVERY_MEN">
                 <DeliveryMenPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-zones"
+            element={
+              <ProtectedRoute requiredPermission="CREATES_DELIVERY_ZONES">
+                <DeliveryZonesPage />
               </ProtectedRoute>
             }
           />

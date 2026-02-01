@@ -14,6 +14,7 @@ export const ClientForm = ({ initialData, onClose, onSave, data }) => {
     id: initialData?.id || nextId,
     name: initialData?.name || "",
     phone: initialData?.phone || "",
+    address: initialData?.address || "",
   });
 
   const handleChange = (e) => {
@@ -83,6 +84,24 @@ export const ClientForm = ({ initialData, onClose, onSave, data }) => {
           </span>
         </div>
       </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          العنوان
+        </label>
+        <div className="relative">
+          <textarea
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow resize-y min-h-[80px]"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            placeholder="أدخل عنوان العميل (اختياري)"
+            rows={3}
+          />
+          <span className="material-icons-round absolute left-4 top-3 text-gray-400">
+            location_on
+          </span>
+        </div>
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <button
@@ -128,6 +147,15 @@ const ClientManager = () => {
       render: (item) => (
         <span dir="ltr" className="text-gray-600 dark:text-gray-300">
           {item.phone}
+        </span>
+      ),
+    },
+    {
+      header: "العنوان",
+      accessor: "address",
+      render: (item) => (
+        <span className="text-gray-600 dark:text-gray-400 text-sm">
+          {item.address || "-"}
         </span>
       ),
     },

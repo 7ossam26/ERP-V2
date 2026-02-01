@@ -132,6 +132,11 @@ router.post(
         clientId,
         employeeId,
         userId, // New field
+        deliveryManId, // Delivery fields
+        deliveryZoneId,
+        deliveryFee,
+        deliveryAddress,
+        deliveryStatus,
         paymentMethod,
         subtotal,
         taxRate,
@@ -313,6 +318,11 @@ router.post(
             treasuryId,
             warehouseId,
             shiftId, // Link Sale to Shift
+            deliveryManId: deliveryManId ? parseInt(deliveryManId) : null,
+            deliveryZoneId: deliveryZoneId ? parseInt(deliveryZoneId) : null,
+            deliveryFee: deliveryFee ? parseFloat(deliveryFee) : null,
+            deliveryAddress: deliveryAddress || null,
+            deliveryStatus: deliveryStatus || null,
             subtotal: parseFloat(subtotal),
             taxRate: taxRate !== undefined ? parseFloat(taxRate) : 0.14,
             taxAmount: parseFloat(taxAmount),
@@ -338,6 +348,8 @@ router.post(
             branch: true,
             treasury: true,
             warehouse: true,
+            deliveryMan: true,
+            deliveryZone: true,
             items: {
               include: {
                 item: true,
