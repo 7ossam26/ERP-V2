@@ -46,6 +46,20 @@ const GenericPageManager = ({
     loadData();
   }, []);
 
+  // Handle ESC key to navigate back when no modal is open
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape" && !isModalOpen) {
+        navigate(backPath);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscKey);
+    return () => {
+      document.removeEventListener("keydown", handleEscKey);
+    };
+  }, [isModalOpen, navigate, backPath]);
+
   const handleSave = async (formData) => {
     setIsSaving(true);
     try {
