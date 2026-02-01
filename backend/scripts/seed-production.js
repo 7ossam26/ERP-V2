@@ -56,6 +56,25 @@ async function main() {
     }
     console.log('✅ Permissions synced');
 
+    // 2.5. PERMISSIONS (Employee)
+    // -------------------------------------------------------------
+    const employeeRole = await prisma.role.findUnique({ where: { name: 'Employee' } });
+    if (employeeRole) {
+        const employeeModules = [
+            "POS", "SALES", "CLIENTS", "ITEMS", "CATEGORIES", "INVENTORY",
+            "CREATES_CLIENTS" // Needed for POS new client creation
+        ];
+
+        for (const module of employeeModules) {
+            await prisma.permission.upsert({
+                where: { roleId_module: { roleId: employeeRole.id, module } },
+                update: { canAccess: true },
+                create: { roleId: employeeRole.id, module, canAccess: true },
+            });
+        }
+        console.log('✅ Employee Permissions synced');
+    }
+
     // 3. INFRASTRUCTURE: "ALL BRANCHES" (Global/System Default) - MUST BE ID 1
     // -------------------------------------------------------------
     const ALL_BRANCHES_NAME = 'All Branches';
