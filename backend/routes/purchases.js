@@ -182,7 +182,7 @@ router.post("/", async (req, res) => {
           where: {
             itemId_warehouseId: {
               itemId: parseInt(item.itemId),
-              warehouseId: effectiveWarehouseId,
+              warehouseId: parseInt(effectiveWarehouseId),
             },
           },
           update: {
@@ -190,7 +190,7 @@ router.post("/", async (req, res) => {
           },
           create: {
             itemId: parseInt(item.itemId),
-            warehouseId: effectiveWarehouseId,
+            warehouseId: parseInt(effectiveWarehouseId),
             quantity: Number(item.quantity),
           },
         });
