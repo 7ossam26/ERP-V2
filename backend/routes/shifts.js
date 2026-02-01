@@ -1,522 +1,682 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const bcrypt = require("bcrypt");
-const { authenticateToken, requireAnyPermission, getUserBranchFilter } = require("../middleware/auth");
+const bcrypt = require("bcryptjs");
+const {
+  authenticateToken,
+  requireAnyPermission,
+  getUserBranchFilter,
+} = require("../middleware/auth");
 
 // Require authentication for all shift operations
+// Require authentication for all shift operations
 router.use(authenticateToken);
+
+/**
+ * Get all shifts with filtering (Requires SHIFTS or REPORTS permission)
+ */
+router.get(
+  "/",
+  requireAnyPermission(["SHIFTS", "REPORTS"]),
+  async (req, res, next) => {
+    try {
+      const {
+        branchId,
+        status,
+        userId,
+        startDate,
+        endDate,
+        page = 1,
+        limit = 20,
+      } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const whereClause = {};
+
+      // Filter by Branch
+      if (branchId && branchId !== "all") {
+        whereClause.branchId = parseInt(branchId);
+      } else {
+        // Enforce branch access if not filtering by specific branch
+        const allowedBranchId = await getUserBranchFilter(req.user.id);
+        if (allowedBranchId) {
+          whereClause.branchId = allowedBranchId;
+        }
+      }
+
+      // Filter by Status
+      if (status && status !== "all") {
+        whereClause.status = status;
+      }
+
+      // Filter by User
+      if (userId) {
+        whereClause.userId = parseInt(userId);
+      }
+
+      // Filter by Date Range
+      if (startDate || endDate) {
+        whereClause.startTime = {};
+        if (startDate) whereClause.startTime.gte = new Date(startDate);
+        if (endDate) whereClause.startTime.lte = new Date(endDate);
+      }
+
+      const [shifts, total] = await Promise.all([
+        prisma.shift.findMany({
+          where: whereClause,
+          include: {
+            user: { select: { name: true, role: { select: { name: true } } } },
+            branch: { select: { name: true } },
+            reviewedBy: { select: { name: true } },
+          },
+          orderBy: { startTime: "desc" },
+          take: parseInt(limit),
+          skip: skip,
+        }),
+        prisma.shift.count({ where: whereClause }),
+      ]);
+
+      res.json({
+        data: shifts,
+        pagination: {
+          total,
+          page: parseInt(page),
+          pages: Math.ceil(total / parseInt(limit)),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 /**
  * Helper: Determine shift type based on current time and system config
  */
 async function determineShiftType() {
-    try {
-        const config = await prisma.systemConfiguration.findUnique({
-            where: { id: 1 }
-        });
+  try {
+    const config = await prisma.systemConfiguration.findUnique({
+      where: { id: 1 },
+    });
 
-        if (!config) {
-            // Fallback defaults if config doesn't exist
-            console.warn("⚠️ SystemConfiguration not found, using defaults");
-            return {
-                type: "MORNING",
-                config: {
-                    morningShiftStart: "09:00",
-                    morningShiftEnd: "17:00",
-                    eveningShiftStart: "17:00",
-                    eveningShiftEnd: "01:00"
-                }
-            };
-        }
-
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        const currentTimeInMinutes = currentHour * 60 + currentMinute;
-
-        // Parse time strings to minutes for accurate comparison
-        const parseTime = (timeStr) => {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            return hours * 60 + minutes;
-        };
-
-        const morningStart = parseTime(config.morningShiftStart);
-        const morningEnd = parseTime(config.morningShiftEnd);
-        const eveningStart = parseTime(config.eveningShiftStart);
-        const eveningEnd = parseTime(config.eveningShiftEnd);
-
-        // Check if current time is in morning shift
-        const isInMorningShift = morningEnd > morningStart
-            ? (currentTimeInMinutes >= morningStart && currentTimeInMinutes < morningEnd)
-            : false; // Morning shift doesn't cross midnight
-
-        // Check if current time is in evening shift (may cross midnight)
-        let isInEveningShift;
-        if (eveningEnd < eveningStart) {
-            // Overnight shift (e.g., 17:00 to 01:00)
-            isInEveningShift = (currentTimeInMinutes >= eveningStart || currentTimeInMinutes < eveningEnd);
-        } else {
-            isInEveningShift = (currentTimeInMinutes >= eveningStart && currentTimeInMinutes < eveningEnd);
-        }
-
-        const type = isInMorningShift ? "MORNING" : "EVENING";
-
-        return { type, config };
-    } catch (error) {
-        console.error("Error in determineShiftType:", error);
-        // Return safe defaults on error
-        return {
-            type: "MORNING",
-            config: {
-                morningShiftStart: "09:00",
-                morningShiftEnd: "17:00",
-                eveningShiftStart: "17:00",
-                eveningShiftEnd: "01:00"
-            }
-        };
+    if (!config) {
+      // Fallback defaults if config doesn't exist
+      console.warn("⚠️ SystemConfiguration not found, using defaults");
+      return {
+        type: "MORNING",
+        config: {
+          morningShiftStart: "09:00",
+          morningShiftEnd: "17:00",
+          eveningShiftStart: "17:00",
+          eveningShiftEnd: "01:00",
+        },
+      };
     }
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+    // Parse time strings to minutes for accurate comparison
+    const parseTime = (timeStr) => {
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const morningStart = parseTime(config.morningShiftStart);
+    const morningEnd = parseTime(config.morningShiftEnd);
+    const eveningStart = parseTime(config.eveningShiftStart);
+    const eveningEnd = parseTime(config.eveningShiftEnd);
+
+    // Check if current time is in morning shift
+    const isInMorningShift =
+      morningEnd > morningStart
+        ? currentTimeInMinutes >= morningStart &&
+          currentTimeInMinutes < morningEnd
+        : false; // Morning shift doesn't cross midnight
+
+    // Check if current time is in evening shift (may cross midnight)
+    let isInEveningShift;
+    if (eveningEnd < eveningStart) {
+      // Overnight shift (e.g., 17:00 to 01:00)
+      isInEveningShift =
+        currentTimeInMinutes >= eveningStart ||
+        currentTimeInMinutes < eveningEnd;
+    } else {
+      isInEveningShift =
+        currentTimeInMinutes >= eveningStart &&
+        currentTimeInMinutes < eveningEnd;
+    }
+
+    const type = isInMorningShift ? "MORNING" : "EVENING";
+
+    return { type, config };
+  } catch (error) {
+    console.error("Error in determineShiftType:", error);
+    // Return safe defaults on error
+    return {
+      type: "MORNING",
+      config: {
+        morningShiftStart: "09:00",
+        morningShiftEnd: "17:00",
+        eveningShiftStart: "17:00",
+        eveningShiftEnd: "01:00",
+      },
+    };
+  }
 }
 
 /**
  * Helper: Calculate system expected cash for a shift
  */
 async function calculateSystemExpectedCash(shiftId) {
-    const shift = await prisma.shift.findUnique({
-        where: { id: shiftId },
-        include: {
-            sales: {
-                where: { status: "COMPLETED" }
-            },
-            expenses: true
-        }
-    });
+  const shift = await prisma.shift.findUnique({
+    where: { id: shiftId },
+    include: {
+      sales: {
+        where: { status: "COMPLETED" },
+      },
+      expenses: true,
+    },
+  });
 
-    if (!shift) return 0;
+  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0 };
 
-    // Start with opening cash
-    let expected = parseFloat(shift.startCash) || 0;
+  // Start with opening cash
+  let startCash = parseFloat(shift.startCash) || 0;
+  let expected = startCash;
+  let cashSales = 0;
+  let cashExpenses = 0;
 
-    // Add cash sales only (card sales don't go in drawer)
-    shift.sales.forEach(sale => {
-        if (sale.paymentMethod === "CASH") {
-            expected += parseFloat(sale.paidAmount) || 0;
-        }
-    });
+  // Add cash sales only (card sales don't go in drawer)
+  shift.sales.forEach((sale) => {
+    if (sale.paymentMethod === "CASH") {
+      const amount = parseFloat(sale.paidAmount) || 0;
+      cashSales += amount;
+      expected += amount;
+    }
+  });
 
-    // Subtract expenses paid from drawer
-    shift.expenses.forEach(expense => {
-        if (expense.paymentMethod === "CASH") {
-            expected -= parseFloat(expense.amount) || 0;
-        }
-    });
+  // Subtract expenses paid from drawer
+  shift.expenses.forEach((expense) => {
+    if (expense.paymentMethod === "CASH") {
+      const amount = parseFloat(expense.amount) || 0;
+      cashExpenses += amount;
+      expected -= amount;
+    }
+  });
 
-    // Round to 2 decimal places to avoid floating point issues
-    return Math.round(expected * 100) / 100;
+  // Round to 2 decimal places to avoid floating point issues
+  return {
+    expected: Math.round(expected * 100) / 100,
+    cashSales: Math.round(cashSales * 100) / 100,
+    cashExpenses: Math.round(cashExpenses * 100) / 100,
+    startCash: Math.round(startCash * 100) / 100,
+  };
 }
 
 // Start a new shift
 router.post("/start", async (req, res, next) => {
-    try {
-        const { userId, branchId, startCash } = req.body;
+  try {
+    const { userId, branchId, startCash } = req.body;
 
-        if (!userId || !branchId) {
-            return res.status(400).json({ error: "User ID and Branch ID are required" });
-        }
-
-        // Validate Branch Access
-        const allowedBranchId = await getUserBranchFilter(req.user.id);
-        if (allowedBranchId && allowedBranchId !== parseInt(branchId)) {
-            return res.status(403).json({ error: "Access denied. You cannot start a shift in this branch." });
-        }
-
-        // Determine shift type based on time
-        const { type: shiftType, config } = await determineShiftType();
-
-        // Check for RECENT unclosed shifts (last 48 hours to handle overnight shifts)
-        const twoDaysAgo = new Date();
-        twoDaysAgo.setHours(twoDaysAgo.getHours() - 48);
-
-        const recentUnclosedShift = await prisma.shift.findFirst({
-            where: {
-                branchId: parseInt(branchId),
-                status: { in: ["OPEN", "PENDING_REVIEW"] },
-                startTime: {
-                    gte: twoDaysAgo
-                }
-            },
-            orderBy: { startTime: "desc" }
-        });
-
-        // BLOCKING LOGIC: Any unclosed shift blocks new shift start
-        if (recentUnclosedShift) {
-            return res.status(400).json({
-                error: "Cannot start shift. There is an unclosed shift for this branch.",
-                previousShiftStatus: recentUnclosedShift.status,
-                previousShiftId: recentUnclosedShift.id,
-                message: recentUnclosedShift.status === "PENDING_REVIEW"
-                    ? "الوردية السابقة تحتاج موافقة المدير"
-                    : "الوردية السابقة لم يتم إغلاقها"
-            });
-        }
-
-        // Check if user already has an active shift
-        const existingUserShift = await prisma.shift.findFirst({
-            where: {
-                userId: parseInt(userId),
-                status: "OPEN",
-            },
-        });
-
-        if (existingUserShift) {
-            return res.status(400).json({ error: "User already has an active shift" });
-        }
-
-        // ROLLING BALANCE: Use end cash from most recent closed shift
-        let calculatedStartCash = startCash !== undefined ? parseFloat(startCash) : 0;
-
-        const lastClosedShift = await prisma.shift.findFirst({
-            where: {
-                branchId: parseInt(branchId),
-                status: "CLOSED"
-            },
-            orderBy: { endTime: "desc" }
-        });
-
-        if (lastClosedShift && lastClosedShift.endCash !== null) {
-            calculatedStartCash = parseFloat(lastClosedShift.endCash);
-        }
-
-        const newShift = await prisma.shift.create({
-            data: {
-                userId: parseInt(userId),
-                branchId: parseInt(branchId),
-                type: shiftType,
-                startCash: calculatedStartCash,
-                startTime: new Date(),
-                status: "OPEN",
-            },
-        });
-
-        res.status(201).json(newShift);
-    } catch (error) {
-        next(error);
+    if (!userId || !branchId) {
+      return res
+        .status(400)
+        .json({ error: "User ID and Branch ID are required" });
     }
+
+    // Validate Branch Access
+    const allowedBranchId = await getUserBranchFilter(req.user.id);
+    if (allowedBranchId && allowedBranchId !== parseInt(branchId)) {
+      return res.status(403).json({
+        error: "Access denied. You cannot start a shift in this branch.",
+      });
+    }
+
+    // Determine shift type based on time
+    const { type: shiftType, config } = await determineShiftType();
+
+    // Check for RECENT unclosed shifts (last 48 hours to handle overnight shifts)
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setHours(twoDaysAgo.getHours() - 48);
+
+    // BLOCKING LOGIC: Any unclosed shift (OPEN or PENDING_REVIEW) blocks new shift start
+    // This enforces STRICT one shift per branch policy
+    const existingBranchShift = await prisma.shift.findFirst({
+      where: {
+        branchId: parseInt(branchId),
+        status: { in: ["OPEN", "PENDING_REVIEW"] },
+        startTime: {
+          gte: twoDaysAgo,
+        },
+      },
+      include: {
+        user: true, // Include user to show WHO has the open shift
+      },
+      orderBy: { startTime: "desc" },
+    });
+
+    if (existingBranchShift) {
+      const isPending = existingBranchShift.status === "PENDING_REVIEW";
+      const blockerName = existingBranchShift.user
+        ? existingBranchShift.user.name
+        : "Unknown User";
+
+      return res.status(400).json({
+        error: isPending
+          ? `Cannot start shift. Previous shift by ${blockerName} is pending manager review.`
+          : `Cannot start shift. There is already an active shift by ${blockerName}.`,
+        previousShiftStatus: existingBranchShift.status,
+        previousShiftId: existingBranchShift.id,
+        blockerName: blockerName,
+        message: isPending
+          ? `الوردية السابقة (للموظف ${blockerName}) تحتاج موافقة المدير`
+          : `يوجد وردية مفتوحة بالفعل للموظف ${blockerName}`,
+      });
+    }
+
+    // Check if user already has an active shift
+    const existingUserShift = await prisma.shift.findFirst({
+      where: {
+        userId: parseInt(userId),
+        status: "OPEN",
+      },
+    });
+
+    if (existingUserShift) {
+      return res
+        .status(400)
+        .json({ error: "User already has an active shift" });
+    }
+
+    // ROLLING BALANCE: Use end cash from most recent closed shift
+    let calculatedStartCash =
+      startCash !== undefined ? parseFloat(startCash) : 0;
+
+    const lastClosedShift = await prisma.shift.findFirst({
+      where: {
+        branchId: parseInt(branchId),
+        status: "CLOSED",
+      },
+      orderBy: { endTime: "desc" },
+    });
+
+    if (lastClosedShift && lastClosedShift.endCash !== null) {
+      calculatedStartCash = parseFloat(lastClosedShift.endCash);
+    }
+
+    const newShift = await prisma.shift.create({
+      data: {
+        userId: parseInt(userId),
+        branchId: parseInt(branchId),
+        type: shiftType,
+        startCash: calculatedStartCash,
+        startTime: new Date(),
+        status: "OPEN",
+      },
+    });
+
+    res.status(201).json(newShift);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // End an existing shift (Blind Close)
 router.post("/end", async (req, res, next) => {
-    try {
-        const { shiftId, actualCash } = req.body;
+  try {
+    const { shiftId, actualCash } = req.body;
 
-        if (!shiftId) {
-            return res.status(400).json({ error: "Shift ID is required" });
-        }
-
-        if (actualCash === undefined || actualCash === null) {
-            return res.status(400).json({ error: "Actual cash amount is required" });
-        }
-
-        // Calculate system expected cash
-        const systemExpectedCash = await calculateSystemExpectedCash(parseInt(shiftId));
-        const actualCashValue = parseFloat(actualCash);
-
-        // Round to 2 decimals to avoid floating point issues
-        const shortage = Math.round((actualCashValue - systemExpectedCash) * 100) / 100;
-
-        // Update shift to PENDING_REVIEW (not CLOSED yet - needs manager approval)
-        const updatedShift = await prisma.shift.update({
-            where: { id: parseInt(shiftId) },
-            data: {
-                endTime: new Date(),
-                endCash: actualCashValue, // This is what will carry to next shift
-                systemExpectedCash: systemExpectedCash,
-                actualCash: actualCashValue,
-                shortage: shortage,
-                status: "PENDING_REVIEW",
-            },
-        });
-
-        res.json(updatedShift);
-    } catch (error) {
-        next(error);
+    if (!shiftId) {
+      return res.status(400).json({ error: "Shift ID is required" });
     }
+
+    if (actualCash === undefined || actualCash === null) {
+      return res.status(400).json({ error: "Actual cash amount is required" });
+    }
+
+    // Calculate system expected cash and breakdown
+    const {
+      expected: systemExpectedCash,
+      cashSales,
+      cashExpenses,
+      startCash,
+    } = await calculateSystemExpectedCash(parseInt(shiftId));
+    const actualCashValue = parseFloat(actualCash);
+
+    // Round to 2 decimals to avoid floating point issues
+    const shortage =
+      Math.round((actualCashValue - systemExpectedCash) * 100) / 100;
+
+    // Update shift to PENDING_REVIEW (not CLOSED yet - needs manager approval)
+    const updatedShift = await prisma.shift.update({
+      where: { id: parseInt(shiftId) },
+      data: {
+        endTime: new Date(),
+        endCash: actualCashValue, // This is what will carry to next shift
+        systemExpectedCash: systemExpectedCash,
+        actualCash: actualCashValue,
+        shortage: shortage,
+        status: "PENDING_REVIEW",
+      },
+    });
+
+    // Return extended info for frontend
+    res.json({
+      ...updatedShift,
+      calculationBreakdown: {
+        startCash,
+        cashSales,
+        cashExpenses,
+        systemExpectedCash,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Approve/Close a shift (Manager only)
 router.post("/approve", async (req, res, next) => {
-    try {
-        const { shiftId, managerUsername, managerPassword } = req.body;
+  try {
+    const { shiftId, managerUsername, managerPassword } = req.body;
 
-        if (!shiftId || !managerUsername || !managerPassword) {
-            return res.status(400).json({
-                error: "Shift ID, manager username, and password are required"
-            });
-        }
-
-        // Find the shift
-        const shift = await prisma.shift.findUnique({
-            where: { id: parseInt(shiftId) },
-            include: { branch: true }
-        });
-
-        if (!shift) {
-            return res.status(404).json({ error: "Shift not found" });
-        }
-
-        // Validate shift status - must be PENDING_REVIEW
-        if (shift.status !== "PENDING_REVIEW") {
-            return res.status(400).json({
-                error: `Cannot approve shift with status: ${shift.status}`,
-                message: shift.status === "CLOSED"
-                    ? "هذه الوردية تم إغلاقها بالفعل"
-                    : "هذه الوردية لا تحتاج موافقة حالياً"
-            });
-        }
-
-        // Authenticate the manager
-        const manager = await prisma.user.findUnique({
-            where: { username: managerUsername },
-            include: { role: true }
-        });
-
-        if (!manager) {
-            return res.status(401).json({ error: "Invalid manager credentials" });
-        }
-
-        // Verify password
-        const isPasswordValid = await bcrypt.compare(managerPassword, manager.password);
-        if (!isPasswordValid) {
-            return res.status(401).json({ error: "Invalid manager credentials" });
-        }
-
-        // Verify manager is from same branch
-        if (manager.branchId !== shift.branchId) {
-            return res.status(403).json({
-                error: "Access denied. Manager must be from the same branch."
-            });
-        }
-
-        // Verify manager has appropriate role (TODO: Add permission check if needed)
-        // For now, assuming "Manager" role or Superadmin
-        const isAuthorized = manager.role.name === "Superadmin" ||
-            manager.role.name === "Manager" ||
-            manager.role.name === "Branch Manager";
-
-        if (!isAuthorized) {
-            return res.status(403).json({
-                error: "Access denied. Only managers can approve shifts."
-            });
-        }
-
-        // Close the shift
-        const closedShift = await prisma.shift.update({
-            where: { id: parseInt(shiftId) },
-            data: {
-                status: "CLOSED",
-                reviewedById: manager.id,
-                reviewedAt: new Date()
-            },
-            include: {
-                user: true,
-                reviewedBy: true,
-                branch: true
-            }
-        });
-
-        res.json(closedShift);
-    } catch (error) {
-        next(error);
+    if (!shiftId || !managerUsername || !managerPassword) {
+      return res.status(400).json({
+        error: "Shift ID, manager username, and password are required",
+      });
     }
+
+    // Find the shift
+    const shift = await prisma.shift.findUnique({
+      where: { id: parseInt(shiftId) },
+      include: { branch: true },
+    });
+
+    if (!shift) {
+      return res.status(404).json({ error: "Shift not found" });
+    }
+
+    // Validate shift status - must be PENDING_REVIEW
+    if (shift.status !== "PENDING_REVIEW") {
+      return res.status(400).json({
+        error: `Cannot approve shift with status: ${shift.status}`,
+        message:
+          shift.status === "CLOSED"
+            ? "هذه الوردية تم إغلاقها بالفعل"
+            : "هذه الوردية لا تحتاج موافقة حالياً",
+      });
+    }
+
+    // Authenticate the manager
+    const manager = await prisma.user.findUnique({
+      where: { username: managerUsername },
+      include: { role: true },
+    });
+
+    if (!manager) {
+      return res.status(401).json({ error: "Invalid manager credentials" });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(
+      managerPassword,
+      manager.password,
+    );
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid manager credentials" });
+    }
+
+    // Verify manager is from same branch
+    if (manager.branchId !== shift.branchId) {
+      return res.status(403).json({
+        error: "Access denied. Manager must be from the same branch.",
+      });
+    }
+
+    // Verify manager has appropriate role (TODO: Add permission check if needed)
+    // For now, assuming "Manager" role or Superadmin
+    const isAuthorized =
+      manager.role.name === "Superadmin" ||
+      manager.role.name === "Manager" ||
+      manager.role.name === "Branch Manager";
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        error: "Access denied. Only managers can approve shifts.",
+      });
+    }
+
+    // Close the shift
+    const closedShift = await prisma.shift.update({
+      where: { id: parseInt(shiftId) },
+      data: {
+        status: "CLOSED",
+        reviewedById: manager.id,
+        reviewedAt: new Date(),
+      },
+      include: {
+        user: true,
+        reviewedBy: true,
+        branch: true,
+      },
+    });
+
+    res.json(closedShift);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Get active shift for a user
 router.get("/active/:userId", async (req, res, next) => {
-    try {
-        const userId = parseInt(req.params.userId);
+  try {
+    const userId = parseInt(req.params.userId);
 
-        const activeShift = await prisma.shift.findFirst({
-            where: {
-                userId: userId,
-                status: "OPEN",
-            },
-        });
+    const activeShift = await prisma.shift.findFirst({
+      where: {
+        userId: userId,
+        status: "OPEN",
+      },
+    });
 
-        if (!activeShift) {
-            return res.json(null);
-        }
-
-        res.json(activeShift);
-    } catch (error) {
-        next(error);
+    if (!activeShift) {
+      return res.json(null);
     }
+
+    res.json(activeShift);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Get pending shift for a branch (for manager review)
 router.get("/pending/:branchId", async (req, res, next) => {
-    try {
-        const branchId = parseInt(req.params.branchId);
+  try {
+    const branchId = parseInt(req.params.branchId);
 
-        // Validate branch access
-        const allowedBranchId = await getUserBranchFilter(req.user.id);
-        if (allowedBranchId && allowedBranchId !== branchId) {
-            return res.status(403).json({ error: "Access denied" });
-        }
-
-        const pendingShift = await prisma.shift.findFirst({
-            where: {
-                branchId: branchId,
-                status: "PENDING_REVIEW",
-            },
-            include: {
-                user: true,
-                branch: true
-            },
-            orderBy: { endTime: "desc" }
-        });
-
-        res.json(pendingShift);
-    } catch (error) {
-        next(error);
+    // Validate branch access
+    const allowedBranchId = await getUserBranchFilter(req.user.id);
+    if (allowedBranchId && allowedBranchId !== branchId) {
+      return res.status(403).json({ error: "Access denied" });
     }
+
+    // Check for ANY blocking shift (OPEN or PENDING_REVIEW)
+    // This allows frontend to see if someone else has an open shift
+    const blockingShift = await prisma.shift.findFirst({
+      where: {
+        branchId: branchId,
+        status: { in: ["OPEN", "PENDING_REVIEW"] },
+      },
+      include: {
+        user: true,
+        branch: true,
+      },
+      orderBy: { startTime: "desc" },
+    });
+
+    res.json(blockingShift);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Get Shift Report - Requires POS or REPORTS permission
-router.get("/:id/report", requireAnyPermission(["POS", "REPORTS"]), async (req, res, next) => {
+router.get(
+  "/:id/report",
+  requireAnyPermission(["POS", "REPORTS"]),
+  async (req, res, next) => {
     try {
-        const shiftId = parseInt(req.params.id);
+      const shiftId = parseInt(req.params.id);
 
-        const shift = await prisma.shift.findUnique({
-            where: { id: shiftId },
-            include: {
-                user: true,
-                branch: true,
-                reviewedBy: true,
-                expenses: true
-            },
+      const shift = await prisma.shift.findUnique({
+        where: { id: shiftId },
+        include: {
+          user: true,
+          branch: true,
+          reviewedBy: true,
+          expenses: true,
+        },
+      });
+
+      if (!shift) {
+        return res.status(404).json({ error: "Shift not found" });
+      }
+
+      // Validate Branch Access for Report
+      const allowedBranchId = await getUserBranchFilter(req.user.id);
+      if (allowedBranchId && allowedBranchId !== shift.branchId) {
+        return res.status(403).json({
+          error: "Access denied. You cannot view reports for this branch.",
         });
+      }
 
-        if (!shift) {
-            return res.status(404).json({ error: "Shift not found" });
-        }
-
-        // Validate Branch Access for Report
-        const allowedBranchId = await getUserBranchFilter(req.user.id);
-        if (allowedBranchId && allowedBranchId !== shift.branchId) {
-            return res.status(403).json({ error: "Access denied. You cannot view reports for this branch." });
-        }
-
-        // Aggregate Sales Data
-        const sales = await prisma.sale.findMany({
-            where: {
-                shiftId: shiftId,
-                status: "COMPLETED",
-            },
+      // Aggregate Sales Data
+      const sales = await prisma.sale.findMany({
+        where: {
+          shiftId: shiftId,
+          status: "COMPLETED",
+        },
+        include: {
+          client: { select: { name: true } }, // Include Client Name
+          items: {
             include: {
-                items: {
+              item: {
+                include: {
+                  categories: {
                     include: {
-                        item: {
-                            include: {
-                                categories: {
-                                    include: {
-                                        category: true,
-                                    },
-                                },
-                            },
-                        },
+                      category: true,
                     },
+                  },
                 },
+              },
             },
-        });
+          },
+        },
+        orderBy: { createdAt: "desc" }, // Order by latest first
+      });
 
-        // Calculate Totals
-        let totalSales = 0;
-        let cashSales = 0;
-        let cardSales = 0;
-        const itemsMap = new Map();
+      // Calculate Totals
+      let totalSales = 0;
+      let cashSales = 0;
+      let cardSales = 0;
+      const itemsMap = new Map();
 
-        sales.forEach((sale) => {
-            totalSales += parseFloat(sale.total);
+      // Map sales to simplified orders format
+      const orders = sales.map((sale) => ({
+        id: sale.id,
+        saleNumber: sale.saleNumber,
+        time: sale.createdAt,
+        total: parseFloat(sale.total),
+        paymentMethod: sale.paymentMethod,
+        clientName: sale.client ? sale.client.name : "عميل نقدي",
+      }));
 
-            const paymentMethod = sale.paymentMethod;
-            if (paymentMethod === "CASH") {
-                cashSales += parseFloat(sale.total);
-            } else {
-                cardSales += parseFloat(sale.total);
-            }
+      sales.forEach((sale) => {
+        totalSales += parseFloat(sale.total);
 
-            // Aggregate Items
-            sale.items.forEach((saleItem) => {
-                const itemKey = saleItem.item.name;
-                const categoryName = saleItem.item.categories.length > 0
-                    ? saleItem.item.categories[0].category.name
-                    : "أخرى";
+        const paymentMethod = sale.paymentMethod;
+        if (paymentMethod === "CASH") {
+          cashSales += parseFloat(sale.total);
+        } else {
+          cardSales += parseFloat(sale.total);
+        }
 
-                if (!itemsMap.has(itemKey)) {
-                    itemsMap.set(itemKey, {
-                        type: categoryName,
-                        name: saleItem.item.name,
-                        count: 0,
-                        total: 0
-                    });
-                }
+        // Aggregate Items
+        sale.items.forEach((saleItem) => {
+          const itemKey = saleItem.item.name;
+          const categoryName =
+            saleItem.item.categories.length > 0
+              ? saleItem.item.categories[0].category.name
+              : "أخرى";
 
-                const existing = itemsMap.get(itemKey);
-                existing.count += parseFloat(saleItem.quantity);
-                existing.total += parseFloat(saleItem.total);
+          if (!itemsMap.has(itemKey)) {
+            itemsMap.set(itemKey, {
+              type: categoryName,
+              name: saleItem.item.name,
+              count: 0,
+              total: 0,
             });
+          }
+
+          const existing = itemsMap.get(itemKey);
+          existing.count += parseFloat(saleItem.quantity);
+          existing.total += parseFloat(saleItem.total);
         });
+      });
 
-        const salesDetails = Array.from(itemsMap.values());
+      const salesDetails = Array.from(itemsMap.values());
 
-        // Calculate expenses
-        let totalExpenses = 0;
-        shift.expenses.forEach(expense => {
-            totalExpenses += parseFloat(expense.amount);
-        });
+      // Calculate expenses
+      let totalExpenses = 0;
+      shift.expenses.forEach((expense) => {
+        totalExpenses += parseFloat(expense.amount);
+      });
 
-        const report = {
-            shiftId: shift.id,
-            shiftType: shift.type,
-            employeeName: shift.user.name,
-            shiftName: shift.type === "MORNING" ? "وردية صباحية" : "وردية مسائية",
-            date: shift.startTime,
-            startTime: shift.startTime,
-            endTime: shift.endTime,
-            status: shift.status,
+      const report = {
+        shiftId: shift.id,
+        shiftType: shift.type,
+        employeeName: shift.user.name,
+        shiftName: shift.type === "MORNING" ? "وردية صباحية" : "وردية مسائية",
+        date: shift.startTime,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        status: shift.status,
 
-            // Cash tracking
-            startCash: parseFloat(shift.startCash) || 0,
-            endCash: parseFloat(shift.endCash) || 0,
-            systemExpectedCash: parseFloat(shift.systemExpectedCash) || 0,
-            actualCash: parseFloat(shift.actualCash) || 0,
-            shortage: parseFloat(shift.shortage) || 0,
+        // Cash tracking
+        startCash: parseFloat(shift.startCash) || 0,
+        endCash: parseFloat(shift.endCash) || 0,
+        systemExpectedCash: parseFloat(shift.systemExpectedCash) || 0,
+        actualCash: parseFloat(shift.actualCash) || 0,
+        shortage: parseFloat(shift.shortage) || 0,
 
-            // Sales
-            totalSales,
-            cashReceived: cashSales,
-            cardPayments: cardSales,
-            salesDetails: salesDetails,
+        // Sales
+        totalSales,
+        cashReceived: cashSales,
+        cardPayments: cardSales,
+        salesDetails: salesDetails,
+        orders: orders, // Add Orders History
 
-            // Expenses
-            totalExpenses,
-            expenses: shift.expenses.map(e => ({
-                description: e.description,
-                amount: parseFloat(e.amount),
-                paymentMethod: e.paymentMethod
-            })),
+        // Expenses
+        totalExpenses,
+        expenses: shift.expenses.map((e) => ({
+          description: e.description,
+          amount: parseFloat(e.amount),
+          paymentMethod: e.paymentMethod,
+        })),
 
-            // Review info
-            reviewedBy: shift.reviewedBy ? shift.reviewedBy.name : null,
-            reviewedAt: shift.reviewedAt
-        };
+        // Review info
+        reviewedBy: shift.reviewedBy ? shift.reviewedBy.name : null,
+        reviewedAt: shift.reviewedAt,
+      };
 
-        res.json(report);
-
+      res.json(report);
     } catch (error) {
-        next(error);
+      next(error);
     }
-});
+  },
+);
 
 module.exports = router;
-

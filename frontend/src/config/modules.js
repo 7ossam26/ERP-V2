@@ -82,6 +82,16 @@ export const MODULES = [
     category: "CREATION",
   },
 
+  {
+    id: "creates_delivery_men",
+    code: "CREATES_DELIVERY_MEN",
+    label: "الطيارين",
+    description: "إدارة بيانات الطيارين",
+    icon: "delivery_dining",
+    path: "/delivery-men",
+    category: "CREATION",
+  },
+
   // --- Management Modules (Main Dashboard) ---
   {
     id: "purchases",
@@ -200,7 +210,15 @@ export const MODULES = [
     path: "/transfer-management",
     category: "MANAGEMENT",
   },
-
+  {
+    id: "shifts",
+    code: "SHIFTS",
+    label: "إدارة الورديات",
+    description: "متابعة الورديات والموافقة عليها",
+    icon: "schedule",
+    path: "/shifts",
+    category: "MANAGEMENT",
+  },
 ];
 
 export const getCreationModules = () =>

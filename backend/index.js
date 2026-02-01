@@ -13,7 +13,7 @@ const envBackendLocal = path.resolve(__dirname, ".env.local");
 
 // Determine if we're in production early
 // This prevents .env.local from corrupting production settings
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === "production";
 
 // 1. Root .env (Base)
 if (fs.existsSync(envRoot)) {
@@ -23,7 +23,9 @@ if (fs.existsSync(envRoot)) {
 
 // 2. Backend .env (Backend Specifics - Override Root)
 if (fs.existsSync(envBackend)) {
-  console.log(`>>> [ENV] Found .env at BACKEND (${envBackend}). Loading/Overriding...`);
+  console.log(
+    `>>> [ENV] Found .env at BACKEND (${envBackend}). Loading/Overriding...`,
+  );
   require("dotenv").config({ path: envBackend, override: true });
 }
 
@@ -31,17 +33,21 @@ if (fs.existsSync(envBackend)) {
 if (!isProduction) {
   // 3. Root .env.local (Local Dev Overrides)
   if (fs.existsSync(envRootLocal)) {
-    console.log(`>>> [ENV] Found .env.local at ROOT (${envRootLocal}). Overriding for development...`);
+    console.log(
+      `>>> [ENV] Found .env.local at ROOT (${envRootLocal}). Overriding for development...`,
+    );
     require("dotenv").config({ path: envRootLocal, override: true });
   }
 
   // 4. Backend .env.local (Local Backend Overrides)
   if (fs.existsSync(envBackendLocal)) {
-    console.log(`>>> [ENV] Found .env.local at BACKEND (${envBackendLocal}). Overriding for development...`);
+    console.log(
+      `>>> [ENV] Found .env.local at BACKEND (${envBackendLocal}). Overriding for development...`,
+    );
     require("dotenv").config({ path: envBackendLocal, override: true });
   }
 } else {
-  console.log('>>> [ENV] Production mode detected - skipping .env.local files');
+  console.log(">>> [ENV] Production mode detected - skipping .env.local files");
 }
 // ---------------------------------------
 
@@ -62,13 +68,17 @@ const originalLog = console.log;
 const originalError = console.error;
 
 console.log = function (...args) {
-  const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  const msg = args
+    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
+    .join(" ");
   logToFile(`INFO: ${msg}`);
   originalLog.apply(console, args);
 };
 
 console.error = function (...args) {
-  const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  const msg = args
+    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
+    .join(" ");
   logToFile(`ERROR: ${msg}`);
   originalError.apply(console, args);
 };
@@ -78,11 +88,13 @@ console.log(`>>> [BOOT] Logging to file: ${LOG_FILE}`);
 
 const app = express();
 // Enable proxy trust for Hostinger Load Balancer (fixes rate limit error)
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 const PORT = process.env.PORT || 3001;
 
-console.log(`>>> [BOOT] Environment detected. PORT: ${PORT}, PID: ${process.pid}`);
+console.log(
+  `>>> [BOOT] Environment detected. PORT: ${PORT}, PID: ${process.pid}`,
+);
 console.log(`>>> [BOOT] NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(">>> [BOOT] Attempting to set up server...");
 
@@ -100,12 +112,15 @@ app.use(
         imgSrc: ["'self'", "data:", "https:"],
       },
     },
-    hsts: process.env.NODE_ENV === "production" ? {
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true,
-    } : false, // Disable HSTS in development
-  })
+    hsts:
+      process.env.NODE_ENV === "production"
+        ? {
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+          }
+        : false, // Disable HSTS in development
+  }),
 );
 
 // CORS configuration
@@ -127,14 +142,16 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        console.error(`>>> [CORS] BLOCKED: Origin '${origin}' not in allowed list.`);
+        console.error(
+          `>>> [CORS] BLOCKED: Origin '${origin}' not in allowed list.`,
+        );
         callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 const rateLimit = require("express-rate-limit");
@@ -214,6 +231,7 @@ app.use("/api/shifts", require("./routes/shifts"));
 app.use("/api/supplier-accounts", require("./routes/supplierAccounts"));
 app.use("/api/deposits", require("./routes/deposits"));
 app.use("/api/users", require("./routes/users"));
+app.use("/api/delivery-men", require("./routes/delivery.routes"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
@@ -235,17 +253,19 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
 
     if (fs.existsSync(migrationPath)) {
       console.log(`>>> [SETUP] Found migration SQL at: ${migrationPath}`);
-      const sqlContent = fs.readFileSync(migrationPath, 'utf8');
+      const sqlContent = fs.readFileSync(migrationPath, "utf8");
 
       // Split by semi-colon to get individual statements logic
       // Note: extensive SQL might need smarter splitting, but for Prisma DDL dumps, simple split usually suffices.
       // We filter out empty lines/whitespace.
       const statements = sqlContent
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+        .split(";")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
 
-      console.log(`>>> [SETUP] Found ${statements.length} SQL statements to execute.`);
+      console.log(
+        `>>> [SETUP] Found ${statements.length} SQL statements to execute.`,
+      );
 
       for (let i = 0; i < statements.length; i++) {
         const statement = statements[i];
@@ -254,12 +274,13 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
         } catch (sqlErr) {
           // Log but continue (tables might exist)
           // We save the error to report it if needed
-          console.error(`>>> [SETUP] SQL Statement ${i} Warning: ${sqlErr.message}`);
+          console.error(
+            `>>> [SETUP] SQL Statement ${i} Warning: ${sqlErr.message}`,
+          );
           migrationResult.push({ index: i, error: sqlErr.message });
         }
       }
       console.log(">>> [SETUP] SQL Migration loop finished.");
-
     } else {
       console.log(">>> [SETUP] No migration.sql found. Skipping DDL step.");
       migrationResult.push("No migration.sql found");
@@ -272,7 +293,10 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
     try {
       await prisma.role.count();
     } catch (checkErr) {
-      throw new Error("Tables do not appear to exist after migration. SQL Execution might have failed completely. Details: " + checkErr.message);
+      throw new Error(
+        "Tables do not appear to exist after migration. SQL Execution might have failed completely. Details: " +
+          checkErr.message,
+      );
     }
 
     await seedMain();
@@ -280,18 +304,19 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
     res.json({
       message: "Database setup completed successfully! (SQL Mode)",
       sqlMigrationWarnings: migrationResult,
-      seedOutput: "Seeding executed in-process successfully."
+      seedOutput: "Seeding executed in-process successfully.",
     });
-
   } catch (error) {
     console.error(`>>> [SETUP] CRITICAL ERROR: ${error.message}`);
-    return res.status(500).json({ step: "setup", error: error.message, stack: error.stack });
+    return res
+      .status(500)
+      .json({ step: "setup", error: error.message, stack: error.stack });
   }
 });
 // ---------------------------------------
 
 // Serve Static Frontend Files (Production)
-// Note: 'path' is required at the top, but defining here for clarity in context if needed, though usually top-level is better. 
+// Note: 'path' is required at the top, but defining here for clarity in context if needed, though usually top-level is better.
 // We already added 'path' to top imports in previous step.
 const CLIENT_DIST_PATH = path.join(__dirname, "../frontend/dist");
 
@@ -311,14 +336,18 @@ if (fs.existsSync(CLIENT_DIST_PATH)) {
 } else {
   console.log("⚠️ [STATIC] Frontend build NOT found at:", CLIENT_DIST_PATH);
   console.log("    This is expected if you are only running the backend API.");
-  console.log("    If this is a production deployment including frontend, run 'npm run build:ui' first.");
+  console.log(
+    "    If this is a production deployment including frontend, run 'npm run build:ui' first.",
+  );
 }
 
 // Start server
 console.log(">>> [BOOT] Calling app.listen...");
 const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
-  console.log(`📍 [SERVER] Health check available at: http://localhost:${PORT}/api/health`);
+  console.log(
+    `📍 [SERVER] Health check available at: http://localhost:${PORT}/api/health`,
+  );
 });
 
 server.on("error", (error) => {

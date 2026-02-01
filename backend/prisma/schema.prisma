@@ -93,6 +93,7 @@ enum Module {
   WAREHOUSES
   SETTINGS
   EXPENSES
+  SHIFTS
 
   // Creation Permissions (CREATES)
   CREATES_WAREHOUSES
@@ -106,6 +107,7 @@ enum Module {
 
   DEPOSITS
   CREATES_DEPOSITS
+  CREATES_DELIVERY_MEN
 }
 
 model Permission {
@@ -283,12 +285,13 @@ model Branch {
   isActive      Boolean  @default(true) @map("is_active")
 
   // Relations
-  warehouse Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  treasury  Treasury   @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  employees Employee[]
-  users     User[]
-  sales     Sale[]
-  shifts    Shift[]
+  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  treasury    Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  employees   Employee[]
+  users       User[]
+  sales       Sale[]
+  shifts      Shift[]
+  DeliveryMan DeliveryMan[]
 
   @@map("branches")
 }
@@ -528,6 +531,7 @@ model Sale {
   treasuryId    Int               @map("treasury_id")
   warehouseId   Int?              @map("warehouse_id")
   shiftId       Int?              @map("shift_id")
+  deliveryManId Int?              @map("delivery_man_id")
   subtotal      Decimal           @db.Decimal(10, 2)
   taxRate       Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
   taxAmount     Decimal           @map("tax_amount") @db.Decimal(10, 2)
@@ -541,14 +545,15 @@ model Sale {
   updatedAt     DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  client    Client     @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  employee  Employee?  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  user      User?      @relation(fields: [userId], references: [id], onDelete: Restrict)
-  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  treasury  Treasury   @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  shift     Shift?     @relation(fields: [shiftId], references: [id], onDelete: Restrict)
-  items     SaleItem[]
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  employee    Employee?    @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  user        User?        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch      Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  treasury    Treasury     @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  warehouse   Warehouse?   @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  shift       Shift?       @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  deliveryMan DeliveryMan? @relation(fields: [deliveryManId], references: [id], onDelete: SetNull)
+  items       SaleItem[]
 
   @@map("sales")
 }
@@ -770,4 +775,26 @@ model Deposit {
   createdBy User     @relation("DepositCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
   @@map("deposits")
+}
+
+// ============================================
+// Delivery Management
+// ============================================
+
+model DeliveryMan {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phone       String
+  nationalId  String?  @map("national_id")
+  vehicleType String?  @map("vehicle_type") // motorcycle, car, van, etc.
+  branchId    Int      @map("branch_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales  Sale[]
+
+  @@map("delivery_men")
 }

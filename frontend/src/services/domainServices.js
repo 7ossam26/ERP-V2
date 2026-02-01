@@ -16,6 +16,7 @@ import shiftService from "./shiftService";
 import { reportService } from "./reportService";
 import { expenseService } from "./expenseService";
 import { supplierAccountService } from "./supplierAccountService";
+import { deliveryService } from "./deliveryService";
 
 // Employee, Treasury, Branch, Warehouse, Client, Supplier, Category, Item, Purchase, and Sales services use real API
 export {
@@ -36,6 +37,7 @@ export {
   reportService,
   expenseService,
   supplierAccountService,
+  deliveryService,
 };
 
 export const deductionService = {

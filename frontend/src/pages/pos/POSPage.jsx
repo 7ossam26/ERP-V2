@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
 import StartShiftModal from "./StartShiftModal";
+import ShiftBlockedModal from "./ShiftBlockedModal";
 import EndShiftModal from "../../components/pos/EndShiftModal";
 import ShiftVerificationModal from "../../components/pos/ShiftVerificationModal";
 import Modal from "../../components/ui/Modal";
@@ -15,6 +16,7 @@ import {
   inventoryService,
   settingsService,
   shiftService,
+  deliveryService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { confirmAction, showErrorToast } from "../../utils/toastUtils";
@@ -32,16 +34,21 @@ const POSPage = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentShiftId, setCurrentShiftId] = useState(null);
   const [isStartShiftModalOpen, setIsStartShiftModalOpen] = useState(false);
+  const [isShiftBlocked, setIsShiftBlocked] = useState(false); // Added state
+  const [blockingShiftDetails, setBlockingShiftDetails] = useState(null); // Added state
   const [currentShift, setCurrentShift] = useState("صباحية");
   const [currentDate, setCurrentDate] = useState(
-    new Date().toLocaleDateString("en-CA")
+    new Date().toLocaleDateString("en-CA"),
   ); // YYYY-MM-DD
   const [currentTime, setCurrentTime] = useState(
-    new Date().toLocaleTimeString("en-US", { hour12: false })
+    new Date().toLocaleTimeString("en-US", { hour12: false }),
   );
 
   // Mobile Tab State
   const [activeMobileTab, setActiveMobileTab] = useState("products"); // 'products' or 'cart'
+
+  // System Settings State
+  const [taxRate, setTaxRate] = useState(0.14);
 
   useEffect(() => {
     const user = AuthService.getCurrentUser();
@@ -81,31 +88,67 @@ const POSPage = () => {
 
   const checkActiveShift = async (user) => {
     try {
-      // 1. Check for active shift for this user
+      console.log("🔍 Checking active shift for user:", user.id);
+
+      // 1. Check for active shift specifically for THIS user
       const activeShift = await shiftService.checkActive(user.id);
+      console.log("🔍 Active Shift Result:", activeShift);
 
       if (activeShift) {
-        console.log("Found active shift:", activeShift);
+        console.log("✅ Found active shift:", activeShift);
         setCurrentShiftId(activeShift.id);
         setCurrentShift(activeShift.type === "MORNING" ? "صباحية" : "مسائية");
-      } else {
-        // 2. No active shift - check if there's a pending shift blocking us
-        const pendingShift = await shiftService.getPending(user.branch.id);
 
-        if (pendingShift) {
-          console.log("Found pending shift blocking start:", pendingShift);
-          // There's a pending shift - can't start new one
-          setIsStartShiftModalOpen(false);
-          // Show blocking message - we'll handle this in the UI
-          toast.error("الوردية السابقة تحتاج موافقة المدير");
+        // Notify user about their own existing shift
+        toast.success(
+          `يوجد وردية مفتوحة بالفعل\n\n` +
+            `👤 بدأها: ${user.name}\n` +
+            `💰 رصيد البداية: ${activeShift.startCash || 0} ج.م`,
+          { duration: 5000, icon: "ℹ️", position: "top-center" },
+        );
+      } else {
+        // 2. User has no active shift. Check if the BRANCH is blocked by someone else.
+        console.log("ℹ️ No active shift for user. Checking branch status...");
+
+        // We use the pending endpoint which now returns ANY blocking shift (Open or Pending)
+        const blockingShift = await shiftService.getPending(user.branch.id);
+        console.log("🔍 Branch Blocking Shift Result:", blockingShift);
+
+        if (blockingShift) {
+          console.log("⚠️ Found blocking shift:", blockingShift);
+
+          const isPending = blockingShift.status === "PENDING_REVIEW";
+          const isMyShift = blockingShift.userId === user.id;
+
+          // STRICT BLOCKING:
+          // 1. If OPEN shift by ANOTHER user -> BLOCK
+          // 2. If PENDING shift by ANYONE (even me) -> BLOCK (waiting for approval)
+
+          if ((blockingShift.status === "OPEN" && !isMyShift) || isPending) {
+            console.log(
+              `⛔ ACCESS DENIED: Branch occupied by ${isMyShift ? "MY pending" : "ANOTHER user's"} shift`,
+            );
+            setBlockingShiftDetails(blockingShift);
+            setIsShiftBlocked(true);
+            return;
+          }
         } else {
-          // 3. No active or pending shift - open modal to start one
-          console.log("No active shift, opening start modal...");
+          // 3. No active shift for user, and no blocking shift in branch -> Open Modal
+          console.log(
+            "✨ No active or pending shift. Opening StartShiftModal...",
+          );
+
+          toast(
+            `مرحباً ${user.name} 👋\n` +
+              `لا توجد وردية نشطة. يرجى بدء وردية جديدة.`,
+            { duration: 4000, icon: "🆕", position: "top-center" },
+          );
+
           setIsStartShiftModalOpen(true);
         }
       }
     } catch (error) {
-      console.error("Error checking shift:", error);
+      console.error("❌ Error checking shift:", error);
       toast.error("حدث خطأ في التحقق من الورديات");
     }
   };
@@ -126,13 +169,16 @@ const POSPage = () => {
       setCurrentShiftId(newShift.id);
       setCurrentShift(newShift.type === "MORNING" ? "صباحية" : "مسائية");
       setIsStartShiftModalOpen(false);
-      toast.success(`تم بدء الوردية ${newShift.type === "MORNING" ? "الصباحية" : "المسائية"} بنجاح`);
+      toast.success(
+        `تم بدء الوردية ${newShift.type === "MORNING" ? "الصباحية" : "المسائية"} بنجاح`,
+      );
     } catch (error) {
       console.error("Error starting shift:", error);
 
       // Handle specific blocking error
       if (error.response?.data?.previousShiftStatus) {
-        const message = error.response.data.message || "الوردية السابقة تحتاج موافقة المدير";
+        const message =
+          error.response.data.message || "الوردية السابقة تحتاج موافقة المدير";
         toast.error(message);
         setIsStartShiftModalOpen(false);
       } else {
@@ -141,12 +187,27 @@ const POSPage = () => {
     }
   };
 
-
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+
+  // Delivery Man State
+  const [deliveryMen, setDeliveryMen] = useState([]);
+  const [selectedDeliveryMan, setSelectedDeliveryMan] = useState(null);
+
+  useEffect(() => {
+    const fetchDeliveryMen = async () => {
+      try {
+        const data = await deliveryService.getAll();
+        setDeliveryMen(data);
+      } catch (error) {
+        console.error("Failed to fetch delivery men", error);
+      }
+    };
+    fetchDeliveryMen();
+  }, []);
 
   // Hold Cart State
   const [heldCarts, setHeldCarts] = useState([]);
@@ -193,7 +254,7 @@ const POSPage = () => {
     setSelectedClient(client);
     setClientSearchTerm(client ? client.name : "");
     setIsClientDropdownOpen(false);
-    // On mobile, switch to cart to see client details if needed, or stay. 
+    // On mobile, switch to cart to see client details if needed, or stay.
     // Usually selecting a client is part of cart operations.
   };
 
@@ -202,6 +263,20 @@ const POSPage = () => {
 
   const loadInventory = async () => {
     try {
+      // Fetch Settings Global Config (Tax, etc.)
+      let settings = null;
+      try {
+        settings = await settingsService.get();
+        if (settings) {
+          if (settings.taxRate !== undefined) {
+            setTaxRate(Number(settings.taxRate) / 100);
+            console.log("💰 Applied Tax Rate:", settings.taxRate + "%");
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load settings", e);
+      }
+
       // Fetch Settings to know which warehouse to check
       let warehouseId = null;
 
@@ -211,21 +286,16 @@ const POSPage = () => {
         warehouseId = user.branch.warehouseId;
         console.log(
           "🏭 Loading Inventory for Branch Warehouse ID:",
-          warehouseId
+          warehouseId,
         );
       } else {
         // FALLBACK: System Main Warehouse
-        try {
-          const settings = await settingsService.get();
-          if (settings && settings.mainWarehouseId) {
-            warehouseId = settings.mainWarehouseId;
-            console.log(
-              "🏭 Loading Inventory for Main Warehouse ID (Settings):",
-              warehouseId
-            );
-          }
-        } catch (e) {
-          console.error("Failed to load settings", e);
+        if (settings && settings.mainWarehouseId) {
+          warehouseId = settings.mainWarehouseId;
+          console.log(
+            "🏭 Loading Inventory for Main Warehouse ID (Settings):",
+            warehouseId,
+          );
         }
       }
 
@@ -337,11 +407,11 @@ const POSPage = () => {
         return prevItems.map((item) =>
           item.id === product.id
             ? {
-              ...item,
-              quantity: item.quantity + quantity,
-              total: (item.quantity + quantity) * price,
-            }
-            : item
+                ...item,
+                quantity: item.quantity + quantity,
+                total: (item.quantity + quantity) * price,
+              }
+            : item,
         );
       } else {
         return [
@@ -390,7 +460,7 @@ const POSPage = () => {
 
   // Calculations
   const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
-  const taxRate = 0.14;
+  // taxRate comes from state now
   const tax = subtotal * taxRate;
   const total = subtotal + tax; // Total NEVER rounds - always exact decimals
 
@@ -420,14 +490,97 @@ const POSPage = () => {
         actualCash: actualCash,
       });
 
-      console.log("Shift ended, pending manager approval:", updatedShift);
+      console.log("Shift ended:", updatedShift);
 
-      // Store shift data for verification modal
-      setPendingShiftData(updatedShift);
+      // Show detailed toast (Twist)
+      const shortage = updatedShift.shortage;
+      const amountColor =
+        shortage === 0
+          ? "text-green-600"
+          : shortage > 0
+            ? "text-green-600"
+            : "text-red-600";
+      const statusText =
+        shortage === 0 ? "متطابق تماماً" : shortage > 0 ? "زيادة" : "عجز";
 
-      // Close blind count modal, open verification modal
+      const breakdown = updatedShift.calculationBreakdown || {};
+
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? "animate-enter" : "animate-leave"
+            } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 font-cairo`}
+            dir="rtl">
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5 ml-3">
+                  <span className="text-3xl">🧾</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-gray-900 border-b pb-2 mb-2">
+                    تم إغلاق الوردية بنجاح
+                  </p>
+                  <div className="text-xs text-gray-500 space-y-1">
+                    {breakdown.startCash !== undefined && (
+                      <div className="flex justify-between">
+                        <span>رصيد البداية:</span>
+                        <span className="font-mono">{breakdown.startCash}</span>
+                      </div>
+                    )}
+                    {breakdown.cashSales !== undefined && (
+                      <div className="flex justify-between text-green-600">
+                        <span>+ مبيعات كاش:</span>
+                        <span className="font-mono">{breakdown.cashSales}</span>
+                      </div>
+                    )}
+                    {breakdown.cashExpenses !== undefined && (
+                      <div className="flex justify-between text-red-600">
+                        <span>- مصروفات:</span>
+                        <span className="font-mono">
+                          {breakdown.cashExpenses}
+                        </span>
+                      </div>
+                    )}
+                    <div className="border-t border-dashed my-1"></div>
+                    <div className="flex justify-between font-bold text-gray-700">
+                      <span>= المتوقع:</span>
+                      <span className="font-mono">
+                        {updatedShift.systemExpectedCash} ج.م
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>الفعلي (العد):</span>
+                      <span className="font-mono font-bold text-blue-600">
+                        {updatedShift.actualCash} ج.م
+                      </span>
+                    </div>
+                    <div
+                      className={`flex justify-between font-bold mt-2 pt-2 border-t ${amountColor}`}>
+                      <span>الفرق ({statusText}):</span>
+                      <span>{Math.abs(shortage)} ج.م</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-gray-200">
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                إغلاق
+              </button>
+            </div>
+          </div>
+        ),
+        { duration: 6000 },
+      );
+
+      // Close blind count modal
       setIsEndShiftModalOpen(false);
-      setIsVerificationModalOpen(true);
+
+      // Redirect to dashboard immediately
+      navigate("/dashboard");
     } catch (error) {
       console.error("Failed to end shift:", error);
       toast.error(error.response?.data?.error || "فشل إغلاق الوردية");
@@ -459,7 +612,8 @@ const POSPage = () => {
       toast.success("تم إغلاق الوردية بنجاح");
     } catch (error) {
       console.error("Manager verification failed:", error);
-      const errorMsg = error.response?.data?.error || "فشلت المصادقة. تحقق من بيانات المدير";
+      const errorMsg =
+        error.response?.data?.error || "فشلت المصادقة. تحقق من بيانات المدير";
       toast.error(errorMsg);
       throw error; // Re-throw to keep modal open
     }
@@ -470,11 +624,11 @@ const POSPage = () => {
     if (selectedProductForQuantity) {
       const success = addToCartWithQuantity(
         selectedProductForQuantity,
-        quantity
+        quantity,
       );
       if (success) {
         toast.success(
-          `تمت إضافة ${quantity} ${selectedProductForQuantity.name} إلى السلة`
+          `تمت إضافة ${quantity} ${selectedProductForQuantity.name} إلى السلة`,
         );
       }
       setKeypadMode("default");
@@ -488,7 +642,7 @@ const POSPage = () => {
       const success = addToCartWithQuantity(selectedProductForQuantity, weight);
       if (success) {
         toast.success(
-          `تمت إضافة ${weight} كجم من ${selectedProductForQuantity.name} إلى السلة`
+          `تمت إضافة ${weight} كجم من ${selectedProductForQuantity.name} إلى السلة`,
         );
       }
       setKeypadMode("default");
@@ -581,6 +735,7 @@ const POSPage = () => {
     const saleData = {
       clientId: selectedClient ? selectedClient.id : 1, // Default to walk-in client (ID: 1)
       userId: currentUser ? currentUser.id : null,
+      deliveryManId: selectedDeliveryMan ? selectedDeliveryMan.id : null,
       // employeeId: 7, // REMOVED hardcoded employee
       paymentMethod: normalizedPaymentMethod,
       subtotal: parseFloat(subtotal.toFixed(2)),
@@ -604,11 +759,11 @@ const POSPage = () => {
       console.log("✅ Sale created successfully:", createdSale);
 
       toast.success(
-        `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`
+        `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`,
       );
       if (createdSale.warnings && createdSale.warnings.length > 0) {
         createdSale.warnings.forEach((warning) =>
-          toast(warning, { icon: "⚠️", duration: 5000 })
+          toast(warning, { icon: "⚠️", duration: 5000 }),
         );
       }
 
@@ -630,8 +785,10 @@ const POSPage = () => {
       setIsPaymentConfirmOpen(false);
       setPendingPaymentMethod(null);
       setCashPaidAmount("");
+      setCashPaidAmount("");
       clearCart();
       setSelectedClient(null);
+      setSelectedDeliveryMan(null);
 
       // Auto-print after successful payment
       setTimeout(() => {
@@ -662,16 +819,19 @@ const POSPage = () => {
 
   const handleSaveClient = async (formData) => {
     try {
-      const savedClient = await clientService.create(formData, { checkIfExists: true });
+      const savedClient = await clientService.create(formData, {
+        checkIfExists: true,
+      });
       setIsClientModalOpen(false);
 
       // Auto-select the client
       handleSelectClient(savedClient);
 
       // Determine message based on whether it was created or found
-      // We can infer it was found if We sent checkIfExists and got a result. 
+      // We can infer it was found if We sent checkIfExists and got a result.
       // The backend adds _isExisting flag if found.
-      const isExisting = savedClient.id && clients.find(c => c.id === savedClient.id);
+      const isExisting =
+        savedClient.id && clients.find((c) => c.id === savedClient.id);
 
       // Note: Since we fetch all clients on mount/modal open, if it was just created it won't be in 'clients' state yet unless we update it.
       // But we just want to show a relevant toast.
@@ -681,9 +841,8 @@ const POSPage = () => {
       } else {
         toast.success("تم إضافة العميل واختياره بنجاح");
         // Add to local list so it appears in search immediately without refetch
-        setClients(prev => [...prev, savedClient]);
+        setClients((prev) => [...prev, savedClient]);
       }
-
     } catch (error) {
       console.error("Failed to save client", error);
       toast.error("حدث خطأ أثناء حفظ العميل");
@@ -723,7 +882,7 @@ const POSPage = () => {
     if (cartItems.length > 0) {
       confirmAction(
         "يوجد أصناف في السلة الحالية. هل تريد استبدالها بالفاتورة المعلقة؟",
-        proceedRetrieval
+        proceedRetrieval,
       );
     } else {
       proceedRetrieval();
@@ -842,10 +1001,11 @@ const POSPage = () => {
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`material-symbols-outlined text-3xl ${pendingPaymentMethod === "cash"
-                    ? "text-green-500"
-                    : "text-blue-500"
-                    }`}>
+                  className={`material-symbols-outlined text-3xl ${
+                    pendingPaymentMethod === "cash"
+                      ? "text-green-500"
+                      : "text-blue-500"
+                  }`}>
                   {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
                 </span>
                 <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -886,8 +1046,8 @@ const POSPage = () => {
                 </label>
                 <div className="w-full px-4 py-3 text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
                   {cashPaidAmount &&
-                    !isNaN(parseFloat(cashPaidAmount)) &&
-                    parseFloat(cashPaidAmount) >= total
+                  !isNaN(parseFloat(cashPaidAmount)) &&
+                  parseFloat(cashPaidAmount) >= total
                     ? Math.round(parseFloat(cashPaidAmount) - total)
                     : 0}{" "}
                   ج.م
@@ -919,10 +1079,11 @@ const POSPage = () => {
             </button>
             <button
               onClick={handleConfirmPayment}
-              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${pendingPaymentMethod === "cash"
-                ? "bg-green-500 hover:bg-green-600"
-                : "bg-blue-500 hover:bg-blue-600"
-                }`}>
+              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+                pendingPaymentMethod === "cash"
+                  ? "bg-green-500 hover:bg-green-600"
+                  : "bg-blue-500 hover:bg-blue-600"
+              }`}>
               <span className="material-symbols-outlined">check_circle</span>
               <span>تأكيد الدفع</span>
             </button>
@@ -936,7 +1097,9 @@ const POSPage = () => {
           <div className="flex items-center gap-1 md:gap-2">
             <span className="material-symbols-outlined text-lg">person</span>
             <span className="font-bold hidden md:inline">اسم الموظف:</span>
-            <span className="text-sm md:text-base">{currentUser?.name || currentUser?.username || "Guest"}</span>
+            <span className="text-sm md:text-base">
+              {currentUser?.name || currentUser?.username || "Guest"}
+            </span>
           </div>
           <div className="hidden md:flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">store</span>
@@ -948,7 +1111,9 @@ const POSPage = () => {
             <span className="font-bold hidden md:inline">الوردية:</span>
             <div className="flex flex-col leading-tight">
               <span className="text-sm md:text-base">{currentShift}</span>
-              <span className="text-[10px] md:text-xs font-mono opacity-80 hidden md:block" dir="ltr">
+              <span
+                className="text-[10px] md:text-xs font-mono opacity-80 hidden md:block"
+                dir="ltr">
                 {currentTime}
               </span>
             </div>
@@ -970,25 +1135,33 @@ const POSPage = () => {
         </button>
       </div>
 
+      {/* Blocking Modal - appears if another user has active shift */}
+      <ShiftBlockedModal
+        isOpen={isShiftBlocked}
+        blockerInfo={blockingShiftDetails}
+      />
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden print:hidden relative">
         {/* Mobile Tab Navigation */}
         <div className="md:hidden bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 flex text-xs font-bold shrink-0 z-50 order-last">
           <button
             onClick={() => setActiveMobileTab("products")}
-            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${activeMobileTab === "products"
-              ? "text-primary bg-primary/5 border-t-2 border-primary"
-              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
-              }`}>
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
+              activeMobileTab === "products"
+                ? "text-primary bg-primary/5 border-t-2 border-primary"
+                : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+            }`}>
             <span className="material-symbols-outlined">grid_view</span>
             <span>المنتجات</span>
           </button>
           <button
             onClick={() => setActiveMobileTab("cart")}
-            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors relative ${activeMobileTab === "cart"
-              ? "text-primary bg-primary/5 border-t-2 border-primary"
-              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
-              }`}>
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors relative ${
+              activeMobileTab === "cart"
+                ? "text-primary bg-primary/5 border-t-2 border-primary"
+                : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+            }`}>
             <span className="material-symbols-outlined">shopping_cart</span>
             <span>السلة ({cartItems.length})</span>
             {cartItems.length > 0 && (
@@ -997,7 +1170,9 @@ const POSPage = () => {
           </button>
         </div>
         {/* Product Grid Area - Hidden on mobile if tab is 'cart' */}
-        <div className={`flex-1 flex flex-col overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700 ${activeMobileTab === 'cart' ? 'hidden md:flex' : 'flex'
+        <div
+          className={`flex-1 flex flex-col overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700 ${
+            activeMobileTab === "cart" ? "hidden md:flex" : "flex"
           }`}>
           {/* Top Bar */}
           <div className="flex items-center justify-between p-3 md:p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0 gap-2">
@@ -1062,10 +1237,11 @@ const POSPage = () => {
                   <div
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
-                      ? "bg-primary text-white shadow-md"
-                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                      }`}>
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
+                      activeCategory === cat.id
+                        ? "bg-primary text-white shadow-md"
+                        : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                    }`}>
                     {cat.name}
                   </div>
                 ))}
@@ -1104,7 +1280,7 @@ const POSPage = () => {
                     <div className="mt-auto">
                       <span className="block text-primary dark:text-primary/90 font-bold text-base">
                         {Number(
-                          product.sellPrice || product.price || 0
+                          product.sellPrice || product.price || 0,
                         ).toFixed(2)}{" "}
                         ج.م
                         {product.unit && (
@@ -1122,7 +1298,9 @@ const POSPage = () => {
         </div>
 
         {/* Cart/Sidebar Area - Hidden on mobile if tab is 'products', full width on mobile */}
-        <div className={`w-full md:w-[600px] flex flex-col flex-1 md:flex-none bg-card-light dark:bg-card-dark shadow-xl z-20 ${activeMobileTab === 'products' ? 'hidden md:flex' : 'flex'
+        <div
+          className={`w-full md:w-[600px] flex flex-col flex-1 md:flex-none bg-card-light dark:bg-card-dark shadow-xl z-20 ${
+            activeMobileTab === "products" ? "hidden md:flex" : "flex"
           }`}>
           {/* Client Selection */}
           <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-card-dark shrink-0 z-20 relative">
@@ -1197,9 +1375,41 @@ const POSPage = () => {
             </div>
           </div>
 
+          {/* Delivery Man Selection */}
+          <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-card-dark shrink-0 z-10 relative">
+            <div className="relative">
+              <select
+                className="w-full bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 rounded-lg py-2.5 pr-10 pl-10 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-sm font-bold appearance-none cursor-pointer"
+                value={selectedDeliveryMan ? selectedDeliveryMan.id : ""}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  const man = deliveryMen.find((m) => m.id === parseInt(id));
+                  setSelectedDeliveryMan(man || null);
+                }}>
+                <option value="">-- بدون طيار --</option>
+                {deliveryMen.map((man) => (
+                  <option key={man.id} value={man.id}>
+                    🛵 {man.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400">
+                <span className="material-symbols-outlined text-sm">
+                  expand_more
+                </span>
+              </div>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-primary">
+                <span className="material-symbols-outlined">
+                  delivery_dining
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div
-            className={`${keypadMode === "default" ? "flex-1" : "h-[45%]"
-              } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
+            className={`${
+              keypadMode === "default" ? "flex-1" : "h-[45%]"
+            } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 h-64">
@@ -1213,10 +1423,11 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${selectedItemId === item.id
-                      ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
-                      : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
-                      }`}>
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${
+                      selectedItemId === item.id
+                        ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
+                        : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+                    }`}>
                     {/* Delete icon - appears when selected */}
                     {selectedItemId === item.id ? (
                       <button
@@ -1349,12 +1560,13 @@ const POSPage = () => {
             <div className="h-[55%] flex flex-col bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 transition-all duration-300">
               {/* Dynamic Keypad Area - Changes based on mode */}
               <div
-                className={`grid h-full bg-white dark:bg-zinc-800 ${keypadMode === "piece"
-                  ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
-                  : keypadMode === "weight"
-                    ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
-                    : "grid-cols-5"
-                  }`}
+                className={`grid h-full bg-white dark:bg-zinc-800 ${
+                  keypadMode === "piece"
+                    ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
+                    : keypadMode === "weight"
+                      ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
+                      : "grid-cols-5"
+                }`}
                 dir="ltr">
                 {/* PIECE QUANTITY SELECTOR MODE */}
                 {keypadMode === "piece" && selectedProductForQuantity && (
@@ -1588,7 +1800,7 @@ const POSPage = () => {
                   <td className="py-2 text-center">{item.quantity}</td>
                   <td className="py-2 text-left">{item.total.toFixed(2)}</td>
                 </tr>
-              )
+              ),
             )}
           </tbody>
         </table>
@@ -1605,7 +1817,7 @@ const POSPage = () => {
             <span>قيمة الضريبة</span>
             <span>
               {(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(
-                2
+                2,
               )}{" "}
               ج.م
             </span>
