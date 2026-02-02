@@ -445,21 +445,41 @@ const PurchasesPage = () => {
           <label className="block text-sm font-medium mb-1 text-text-muted dark:text-accent">
             اسم المورد
           </label>
-          <div className="relative">
-            <select
-              className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors"
-              value={selectedSupplierId}
-              onChange={(e) => setSelectedSupplierId(e.target.value)}>
-              <option value="">اختر المورد...</option>
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-            <span className="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">
-              expand_more
-            </span>
+          <div className="flex gap-2">
+            <div className="relative flex-grow">
+              <select
+                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block p-2.5 appearance-none transition-colors"
+                value={selectedSupplierId}
+                onChange={(e) => setSelectedSupplierId(e.target.value)}>
+                <option value="">اختر المورد...</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+              <span className="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">
+                expand_more
+              </span>
+            </div>
+            <button
+              type="button"
+              className={`flex items-center justify-center p-2.5 rounded-lg border transition-colors ${selectedSupplierId
+                  ? "bg-white dark:bg-surface-dark border-border-light dark:border-border-dark text-primary hover:bg-primary/10"
+                  : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed"
+                }`}
+              disabled={!selectedSupplierId}
+              onClick={() =>
+                window.open(
+                  `/supplier-accounts?supplierId=${selectedSupplierId}`,
+                  "_blank"
+                )
+              }
+              title="عرض حساب المورد">
+              <span className="material-symbols-outlined">
+                account_balance_wallet
+              </span>
+            </button>
           </div>
         </div>
       </section>

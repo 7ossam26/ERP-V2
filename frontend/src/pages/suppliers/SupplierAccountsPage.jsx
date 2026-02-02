@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     supplierAccountService,
     treasuryService,
@@ -10,6 +10,7 @@ import Modal from "../../components/ui/Modal";
 import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
 
 const SupplierAccountsPage = () => {
+    const [searchParams] = useSearchParams();
     const [accounts, setAccounts] = useState([]);
     const [selectedAccount, setSelectedAccount] = useState(null);
     const [payments, setPayments] = useState([]);
@@ -32,9 +33,24 @@ const SupplierAccountsPage = () => {
     });
 
     useEffect(() => {
-        fetchAccounts();
-        fetchTreasuries();
-    }, []);
+        const initPage = async () => {
+            await fetchTreasuries();
+            const fetchedAccounts = await fetchAccounts();
+
+            // Check for supplierId in query params
+            const supplierIdParam = searchParams.get("supplierId");
+            if (supplierIdParam && fetchedAccounts.length > 0) {
+                const targetAccount = fetchedAccounts.find(
+                    (acc) => acc.supplierId === parseInt(supplierIdParam)
+                );
+                if (targetAccount) {
+                    handleAccountClick(targetAccount);
+                }
+            }
+        };
+
+        initPage();
+    }, [searchParams]);
 
     const fetchAccounts = async () => {
         try {
