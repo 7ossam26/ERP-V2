@@ -180,12 +180,18 @@ router.post("/transfer", async (req, res) => {
       // 1. Check source balance
       const source = await tx.treasury.findUnique({
         where: { id: parseInt(fromTreasuryId) },
+        include: { branch: true },
       });
 
       if (!source) throw new Error("Source treasury not found");
 
       // --- ENFORCE READ-ONLY FOR ALL BRANCHES ---
-      if (source.name === "All Branches Treasury" || source.id === 4) {
+      // Check if it's the "All Branches" treasury via name (legacy) or relation
+      const isAllBranchesTreasury =
+        source.name === "All Branches Treasury" ||
+        (source.branch && source.branch.isAllBranches);
+
+      if (isAllBranchesTreasury) {
         throw new Error("Cannot transfer funds FROM 'All Branches Treasury'. It is a read-only view.");
       }
       // ----------------------------------------
