@@ -289,8 +289,9 @@ router.post("/:supplierId/payments", async (req, res) => {
                 },
             });
 
-            // 8. Update purchase payment status if linked to a purchase
+            // 8. Update purchase payment status
             if (purchaseId) {
+                // Specific purchase linked
                 const purchase = await prisma.purchase.findUnique({
                     where: { id: parseInt(purchaseId) },
                 });
@@ -316,6 +317,49 @@ router.post("/:supplierId/payments", async (req, res) => {
                             paymentStatus: newStatus,
                         },
                     });
+                }
+            } else {
+                // General payment - distribute to oldest unpaid purchases first
+                let remainingPayment = Number(amount);
+
+                // Find all unpaid or partially paid purchases for this supplier
+                const unpaidPurchases = await prisma.purchase.findMany({
+                    where: {
+                        supplierId: supplierId,
+                        paymentStatus: { in: ["UNPAID", "PARTIALLY_PAID"] }
+                    },
+                    orderBy: { createdAt: "asc" } // Oldest first
+                });
+
+                for (const purchase of unpaidPurchases) {
+                    if (remainingPayment <= 0) break;
+
+                    const purchaseRemaining = Number(purchase.remaining);
+                    const paymentForThisPurchase = Math.min(remainingPayment, purchaseRemaining);
+
+                    if (paymentForThisPurchase > 0) {
+                        const newPaidAmount = Number(purchase.paidAmount) + paymentForThisPurchase;
+                        const newRemaining = Number(purchase.netTotal) - newPaidAmount;
+
+                        let newStatus;
+                        // Use small epsilon for float comparison safety or just check if very close to 0
+                        if (newRemaining <= 0.01) {
+                            newStatus = "PAID";
+                        } else {
+                            newStatus = "PARTIALLY_PAID";
+                        }
+
+                        await prisma.purchase.update({
+                            where: { id: purchase.id },
+                            data: {
+                                paidAmount: newPaidAmount,
+                                remaining: Math.max(0, newRemaining),
+                                paymentStatus: newStatus
+                            }
+                        });
+
+                        remainingPayment -= paymentForThisPurchase;
+                    }
                 }
             }
 
