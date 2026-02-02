@@ -244,6 +244,88 @@ console.log("🔄 Server updated");
 const { spawn } = require("child_process");
 const seedMain = require("./scripts/seed-production.js");
 
+// --- DANGEROUS: Complete Database Reset & Re-seed ---
+app.get("/api/dangerous-reset-db", async (req, res) => {
+  console.log(">>> [RESET] Request received to WIPE database...");
+
+  // 1. Security Check
+  if (req.query.secret !== "RESET_MY_DB_NOW") {
+    console.warn(">>> [RESET] Access denied. Invalid secret.");
+    return res.status(403).json({ error: "Access denied. Invalid secret key." });
+  }
+
+  const log = [];
+  const logMsg = (msg) => {
+    console.log(`>>> [RESET] ${msg}`);
+    log.push(msg);
+  };
+
+  try {
+    // 2. Drop All Tables
+    logMsg("Starting table wipe...");
+
+    // Disable foreign key checks to allow arbitrary drop order
+    await prisma.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 0;");
+
+    // Get all tables
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = DATABASE();
+    `;
+
+    logMsg(`Found ${tables.length} tables to drop.`);
+
+    for (const table of tables) {
+      const tableName = table.table_name || table.TABLE_NAME;
+      // Skip internal tables if any, or dropped implicitly
+      logMsg(`Dropping table: ${tableName}`);
+      await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS \`${tableName}\`;`);
+    }
+
+    await prisma.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 1;");
+    logMsg("All tables dropped successfully.");
+
+    // 3. Re-run Migration logic (reusing logic from setup endpoint would be ideal, but for safety/isolation we copy-paste standard run)
+    const migrationPath = path.join(__dirname, "prisma/migration.sql");
+    if (fs.existsSync(migrationPath)) {
+      logMsg("Applying migration.sql...");
+      const sqlContent = fs.readFileSync(migrationPath, "utf8");
+      const statements = sqlContent.split(";").map(s => s.trim()).filter(s => s.length > 0);
+
+      for (let i = 0; i < statements.length; i++) {
+        try {
+          await prisma.$executeRawUnsafe(statements[i]);
+        } catch (err) {
+          // Ignore "already exists" if we just dropped them (shouldn't happen) or other non-criticals
+          logMsg(`Warning on stmt ${i}: ${err.message}`);
+        }
+      }
+    } else {
+      throw new Error("migration.sql not found!");
+    }
+
+    // 4. Run Seeder
+    logMsg("Running seeder...");
+    seedMain()
+      .then(() => {
+        logMsg("Seeding Execution Function returned.");
+        res.json({
+          message: "Database reset and re-seeded successfully!",
+          log: log
+        });
+      })
+      .catch((seedErr) => {
+        logMsg(`Seeding failed: ${seedErr.message}`);
+        res.status(500).json({ error: "Seeding failed", details: seedErr.message, log });
+      });
+
+  } catch (error) {
+    console.error(">>> [RESET] Critical Error:", error);
+    res.status(500).json({ error: "Reset failed", details: error.message, log });
+  }
+});
+
 app.get("/api/setup-production-db-securely", async (req, res) => {
   console.log(">>> [SETUP] Starting Database Setup (SQL Execution Mode)...");
 
