@@ -176,13 +176,15 @@ const GenericPageManager = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingItem ? `تعديل ${title}` : `إضافة ${title}`}>
-        <FormComponent
-          initialData={editingItem}
-          onClose={() => setIsModalOpen(false)}
-          onSave={handleSave}
-          isSaving={isSaving}
-          data={data}
-        />
+        {FormComponent && (
+          <FormComponent
+            initialData={editingItem}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleSave}
+            isSaving={isSaving}
+            data={data}
+          />
+        )}
       </Modal>
 
       {/* Toast Notifications */}
