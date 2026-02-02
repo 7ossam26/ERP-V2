@@ -10,6 +10,7 @@ const BranchesSalesPage = () => {
   const [mainTreasury, setMainTreasury] = useState(null);
   const [bankTreasury, setBankTreasury] = useState(null);
   const [percentageChange, setPercentageChange] = useState(0);
+  const [branchesTotalBalance, setBranchesTotalBalance] = useState(0);
   const [isPositive, setIsPositive] = useState(true);
 
   useEffect(() => {
@@ -42,11 +43,12 @@ const BranchesSalesPage = () => {
         }));
         setBranches(branchesWithBalance);
 
-        // Fetch Financial Summary for percentage change
+        // Fetch Financial Summary for percentage change and total balance
         const summaryData = await branchService.getSummary();
         const pct = parseFloat(summaryData.percentageChange);
         setPercentageChange(Math.abs(pct));
         setIsPositive(pct >= 0);
+        setBranchesTotalBalance(Number(summaryData.totalBalance || 0));
       } catch (error) {
         console.error("Failed to fetch branch data", error);
       }
@@ -97,7 +99,7 @@ const BranchesSalesPage = () => {
                     lock
                   </span>
                   <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-                    {mainTreasury?.name || "الخزينة الرئيسية"}
+                    {mainTreasury?.name || "الخزينة الرئيسية"} + الفروع
                   </span>
                 </div>
                 <div>
@@ -105,20 +107,20 @@ const BranchesSalesPage = () => {
                     الرصيد الإجمالي الحالي
                   </p>
                   <h2 className="text-5xl md:text-6xl font-black tracking-tight text-white">
-                    {mainTreasury
-                      ? Number(mainTreasury.balance).toLocaleString()
-                      : "0"}{" "}
+                    {(
+                      (mainTreasury ? Number(mainTreasury.balance) : 0) +
+                      branchesTotalBalance
+                    ).toLocaleString()}{" "}
                     جنيه مصري
                   </h2>
                 </div>
               </div>
               <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
                 <div
-                  className={`flex items-center gap-2 ${
-                    isPositive
-                      ? "text-green-400 bg-green-400/10 border-green-400/20"
-                      : "text-red-400 bg-red-400/10 border-red-400/20"
-                  } px-3 py-1.5 rounded-lg border`}>
+                  className={`flex items-center gap-2 ${isPositive
+                    ? "text-green-400 bg-green-400/10 border-green-400/20"
+                    : "text-red-400 bg-red-400/10 border-red-400/20"
+                    } px-3 py-1.5 rounded-lg border`}>
                   <span className="material-symbols-outlined text-[18px]">
                     {isPositive ? "trending_up" : "trending_down"}
                   </span>
@@ -127,9 +129,8 @@ const BranchesSalesPage = () => {
                     {percentageChange}%
                   </span>
                   <span
-                    className={`text-xs ${
-                      isPositive ? "text-green-400/80" : "text-red-400/80"
-                    }`}>
+                    className={`text-xs ${isPositive ? "text-green-400/80" : "text-red-400/80"
+                      }`}>
                     مقارنة بالأمس
                   </span>
                 </div>
