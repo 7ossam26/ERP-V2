@@ -444,25 +444,24 @@ const SupplierAccountsPage = () => {
                 title="سداد دفعة">
                 <form onSubmit={handlePaymentSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">المبلغ *</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max={selectedAccount?.balance || 0}
-                            value={paymentData.amount}
+                        <label className="block text-sm font-medium mb-1">
+                            ربط بفاتورة محددة (اختياري)
+                        </label>
+                        <select
+                            value={paymentData.purchaseId}
                             onChange={(e) =>
-                                setPaymentData({ ...paymentData, amount: e.target.value })
+                                setPaymentData({ ...paymentData, purchaseId: e.target.value })
                             }
-                            className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5"
-                            placeholder="0.00"
-                            required
-                        />
-                        {selectedAccount && (
-                            <p className="text-xs text-text-muted mt-1">
-                                الحد الأقصى: {Number(selectedAccount.balance).toFixed(2)} EGP
-                            </p>
-                        )}
+                            className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5">
+                            <option value="">الكل</option>
+                            {purchases.filter(
+                                (p) => p.paymentStatus !== "PAID"
+                            ).map((purchase) => (
+                                <option key={purchase.id} value={purchase.id}>
+                                    #{purchase.id} - {Number(purchase.remaining).toFixed(2)} EGP
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>
@@ -484,24 +483,25 @@ const SupplierAccountsPage = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">
-                            ربط بفاتورة محددة (اختياري)
-                        </label>
-                        <select
-                            value={paymentData.purchaseId}
+                        <label className="block text-sm font-medium mb-1">المبلغ *</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={selectedAccount?.balance || 0}
+                            value={paymentData.amount}
                             onChange={(e) =>
-                                setPaymentData({ ...paymentData, purchaseId: e.target.value })
+                                setPaymentData({ ...paymentData, amount: e.target.value })
                             }
-                            className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5">
-                            <option value="">الكل</option>
-                            {purchases.filter(
-                                (p) => p.paymentStatus !== "PAID"
-                            ).map((purchase) => (
-                                <option key={purchase.id} value={purchase.id}>
-                                    #{purchase.id} - {Number(purchase.remaining).toFixed(2)} EGP
-                                </option>
-                            ))}
-                        </select>
+                            className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5"
+                            placeholder="0.00"
+                            required
+                        />
+                        {selectedAccount && (
+                            <p className="text-xs text-text-muted mt-1">
+                                الحد الأقصى: {Number(selectedAccount.balance).toFixed(2)} EGP
+                            </p>
+                        )}
                     </div>
 
                     <div>
