@@ -14,7 +14,16 @@ import { ItemForm } from "../items/ItemManager";
 
 const PurchasesPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH, CREDIT, DEFERRED, MIXED
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState([
+    {
+      id: Date.now(),
+      name: "",
+      itemId: null,
+      quantity: 1,
+      purchasePrice: 0,
+      sellPrice: 0,
+    },
+  ]);
   const [discountType, setDiscountType] = useState("percent"); // percent, value
 
   const [discountValue, setDiscountValue] = useState(0);
@@ -140,10 +149,10 @@ const PurchasesPage = () => {
   // Filter items by selected supplier
   const availableItems = selectedSupplierId
     ? allItems.filter(
-        (item) =>
-          item.suppliers &&
-          item.suppliers.includes(parseInt(selectedSupplierId))
-      )
+      (item) =>
+        item.suppliers &&
+        item.suppliers.includes(parseInt(selectedSupplierId))
+    )
     : allItems;
 
   const addItem = () => {
@@ -178,11 +187,11 @@ const PurchasesPage = () => {
         items.map((item) =>
           item.id === rowId
             ? {
-                ...item,
-                itemId: selectedItem.id,
-                name: selectedItem.name,
-                sellPrice: selectedItem.price || 0,
-              }
+              ...item,
+              itemId: selectedItem.id,
+              name: selectedItem.name,
+              sellPrice: selectedItem.price || 0,
+            }
             : item
         )
       );
@@ -301,7 +310,16 @@ const PurchasesPage = () => {
       setPurchases(fetchedPurchases);
 
       // Reset form
-      setItems([]);
+      setItems([
+        {
+          id: Date.now(),
+          name: "",
+          itemId: null,
+          quantity: 1,
+          purchasePrice: 0,
+          sellPrice: 0,
+        },
+      ]);
       setSelectedSupplierId("");
       setSupplierInvoiceNo("");
       setDiscountType("percent");
@@ -540,11 +558,13 @@ const PurchasesPage = () => {
                   </td>
                   <td className="px-4 py-3">
                     <input
-                      className="w-full bg-gray-100 dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-md p-2 text-text-light dark:text-text-dark text-center cursor-not-allowed opacity-75"
+                      className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-text-light dark:text-text-dark text-center"
                       placeholder="0.00"
                       type="number"
                       value={item.sellPrice || ""}
-                      readOnly
+                      onChange={(e) =>
+                        updateItem(item.id, "sellPrice", e.target.value)
+                      }
                     />
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -565,11 +585,10 @@ const PurchasesPage = () => {
           <button
             onClick={addItem}
             disabled={!selectedSupplierId}
-            className={`w-full py-3 rounded-lg border border-dashed flex justify-center items-center transition-all group ${
-              selectedSupplierId
-                ? "bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark border-primary/40 dark:border-primary/60 cursor-pointer"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
-            }`}>
+            className={`w-full py-3 rounded-lg border border-dashed flex justify-center items-center transition-all group ${selectedSupplierId
+              ? "bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark border-primary/40 dark:border-primary/60 cursor-pointer"
+              : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
+              }`}>
             <span className="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform text-primary">
               add_circle
             </span>
@@ -730,7 +749,7 @@ const PurchasesPage = () => {
                 paymentMethod === "CREDIT" ||
                 paymentMethod === "MIXED") &&
               selectedTreasuryBalance <
-                (paymentMethod === "MIXED" ? paidAmount : totals.net) && (
+              (paymentMethod === "MIXED" ? paidAmount : totals.net) && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
                   <p className="text-xs text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">

@@ -197,6 +197,16 @@ router.post("/", async (req, res) => {
         });
       }
 
+      // 2.5 Update Item Selling Price
+      for (const item of items) {
+        if (item.sellPrice && Number(item.sellPrice) > 0) {
+          await prisma.item.update({
+            where: { id: parseInt(item.itemId) },
+            data: { price: Number(item.sellPrice) },
+          });
+        }
+      }
+
       // 3. Handle Payment Methods and Treasury/Expense Logic
       // CASH: Pay with cash now - deduct full amount, create full expense
       // CREDIT: Pay with card now - deduct full amount, create expense as CARD
