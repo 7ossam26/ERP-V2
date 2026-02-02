@@ -11,6 +11,7 @@ import {
 } from "../../services/domainServices";
 import Modal from "../../components/ui/Modal";
 import { ItemForm } from "../items/ItemManager";
+import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
 
 const PurchasesPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH, CREDIT, DEFERRED, MIXED
@@ -39,6 +40,10 @@ const PurchasesPage = () => {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [allItems, setAllItems] = useState([]);
   const [purchases, setPurchases] = useState([]);
+
+  // Receipt Modal State
+  const [createdPurchase, setCreatedPurchase] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -279,6 +284,20 @@ const PurchasesPage = () => {
         return;
       }
 
+      // Validate sell price >= purchase price
+      const invalidSellPriceItems = items.filter(
+        (item) => Number(item.sellPrice) < Number(item.purchasePrice)
+      );
+      if (invalidSellPriceItems.length > 0) {
+        const itemNames = invalidSellPriceItems
+          .map((item) => item.name)
+          .join("، ");
+        toast.error(
+          `عذرًا، لا يمكن أن يكون سعر البيع أقل من سعر الشراء.\nيرجى مراجعة الأسعار للأصناف التالية: ${itemNames}`
+        );
+        return;
+      }
+
       const purchaseData = {
         supplierId: parseInt(selectedSupplierId),
         treasuryId: parseInt(selectedTreasuryId),
@@ -302,8 +321,12 @@ const PurchasesPage = () => {
       };
 
       console.log("Sending purchase data:", purchaseData);
-      await purchaseService.create(purchaseData);
+      const newPurchase = await purchaseService.create(purchaseData);
       toast.success("تم حفظ فاتورة المشتريات بنجاح");
+
+      // Show Receipt
+      setCreatedPurchase(newPurchase);
+      setIsReceiptModalOpen(true);
 
       // Refresh purchases list to update next ID
       const fetchedPurchases = await purchaseService.getAll();
@@ -341,6 +364,12 @@ const PurchasesPage = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
+      <PurchaseDetailsModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        purchase={createdPurchase}
+      />
+
       <Modal
         isOpen={isItemModalOpen}
         onClose={() => setIsItemModalOpen(false)}
@@ -465,8 +494,8 @@ const PurchasesPage = () => {
             <button
               type="button"
               className={`flex items-center justify-center p-2.5 rounded-lg border transition-colors ${selectedSupplierId
-                  ? "bg-white dark:bg-surface-dark border-border-light dark:border-border-dark text-primary hover:bg-primary/10"
-                  : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed"
+                ? "bg-white dark:bg-surface-dark border-border-light dark:border-border-dark text-primary hover:bg-primary/10"
+                : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed"
                 }`}
               disabled={!selectedSupplierId}
               onClick={() =>

@@ -8,7 +8,8 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
     const upperMethod = method.toUpperCase();
     const methods = {
       CASH: "نقدي",
-      CREDIT: "آجل",
+      CREDIT: "بطاقة ائتمان",
+      DEFERRED: "آجل",
       MIXED: "متنوع",
     };
     return methods[upperMethod] || method;
@@ -233,11 +234,10 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                         المتبقي:
                       </span>
                       <span
-                        className={`text-lg font-bold ${
-                          Number(purchase.remaining || 0) > 0
+                        className={`text-lg font-bold ${Number(purchase.remaining || 0) > 0
                             ? "text-red-600"
                             : "text-green-600"
-                        }`}>
+                          }`}>
                         {Number(purchase.remaining || 0).toFixed(2)} ج.م
                       </span>
                     </div>
