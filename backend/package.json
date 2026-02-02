@@ -9,6 +9,7 @@
     "start:prod": "node index.js",
     "build:ui": "node scripts/prepare-production.js",
     "build": "npm run build:ui",
+    "refresh-migration": "node scripts/refresh-migration-sql.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
