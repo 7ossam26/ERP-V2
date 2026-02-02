@@ -16,7 +16,7 @@ try {
     // Ignoring 'migration_lock.toml' and any other non-directories
     const migrationDirs = items.filter(item => {
         const itemPath = path.join(migrationsDir, item);
-        return fs.statSync(itemPath).isDirectory() && /^\d{14}_/.test(item);
+        return fs.statSync(itemPath).isDirectory() && /^\d+_/.test(item);
     });
 
     // 3. Sort chronologically (timestamps ensure alphabetical sort works)
