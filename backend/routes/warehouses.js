@@ -18,19 +18,24 @@ router.get("/", async (req, res) => {
     });
 
     // --- VISIBILITY FILTER ---
-    // Hide "All Branches Warehouse" if user is not Superadmin AND not assigned to All Branches
+    // Rule:
+    // 1. Superadmin -> Sees ALL
+    // 2. "All Branches" Branch User -> Sees ALL
+    // 3. Regular Branch User -> Sees ONLY their branch's warehouse
+
     if (req.user.role !== "Superadmin") {
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
         include: { branch: true },
       });
 
-      if (!user || !user.branch?.isAllBranches) {
-        // Filter out All Branches Warehouse (ID 4)
+      const isAllBranches = user?.branch?.isAllBranches;
+      const userWarehouseId = user?.branch?.warehouseId;
+
+      if (!isAllBranches) {
+        // Filter to only include the user's branch warehouse
         return res.json(
-          warehouses.filter(
-            (w) => w.id !== 1 && w.name !== "All Branches Warehouse"
-          )
+          warehouses.filter((w) => w.id === userWarehouseId)
         );
       }
     }

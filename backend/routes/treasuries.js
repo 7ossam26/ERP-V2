@@ -42,19 +42,27 @@ router.get("/", async (req, res) => {
     // --------------------------------------
 
     // --- VISIBILITY FILTER ---
-    // Hide "All Branches Treasury" if user is not Superadmin AND not assigned to All Branches
+    // Rule:
+    // 1. Superadmin -> Sees ALL
+    // 2. "All Branches" Branch User -> Sees ALL
+    // 3. Regular Branch User -> Sees ONLY their branch's treasury
+
     if (req.user.role !== "Superadmin") {
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
         include: { branch: true },
       });
 
-      if (!user || !user.branch?.isAllBranches) {
-        // Filter out All Branches Treasury (ID 4)
+      // Validating current user, if for some reason user not found or no branch, return empty or safe default
+      // ideally every user has a branch if they are not superadmin, but let's be safe.
+
+      const isAllBranches = user?.branch?.isAllBranches;
+      const userTreasuryId = user?.branch?.treasuryId;
+
+      if (!isAllBranches) {
+        // Filter to only include the user's branch treasury
         return res.json(
-          treasuries.filter(
-            (t) => t.id !== 4 && t.name !== "All Branches Treasury"
-          )
+          treasuries.filter((t) => t.id === userTreasuryId)
         );
       }
     }

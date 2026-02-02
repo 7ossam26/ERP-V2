@@ -88,8 +88,8 @@ router.get("/", async (req, res, next) => {
       let totalQuantity = 0;
       let availableWarehouses = [];
 
-      // Treat "All Branches Warehouse" (ID 1) as "all" for viewing purposes
-      const isAllWarehouses = !warehouseId || warehouseId === "all" || parseInt(warehouseId) === 1;
+      // Treat "All Branches Warehouse" as "all" (if we had a specific ID for it, currently relying on "all" string)
+      const isAllWarehouses = !warehouseId || warehouseId === "all";
 
       if (!isAllWarehouses) {
         const stock = item.inventory.find(
@@ -222,8 +222,8 @@ router.get("/stats", async (req, res, next) => {
     items.forEach((item) => {
       let totalQuantity = 0;
 
-      // Treat "All Branches Warehouse" (ID 1) as "all"
-      const isAllWarehouses = !warehouseId || warehouseId === "all" || parseInt(warehouseId) === 1;
+      // Treat "All Branches Warehouse" as "all"
+      const isAllWarehouses = !warehouseId || warehouseId === "all";
 
       if (!isAllWarehouses) {
         const stock = item.inventory.find(

@@ -117,18 +117,19 @@ router.post("/", async (req, res) => {
     let effectiveWarehouseId = warehouseId;
 
     if (!effectiveWarehouseId) {
-      // Fallback to Main Warehouse from System Config if not provided
-      const systemConfig = await prisma.systemConfiguration.findUnique({
-        where: { id: 1 },
-        select: { mainWarehouseId: true },
+      // Fallback to user's branch warehouse if not provided
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: { branch: true },
       });
 
-      if (!systemConfig || !systemConfig.mainWarehouseId) {
+      if (!user || !user.branch || !user.branch.warehouseId) {
         return res.status(400).json({
-          error: "Warehouse is required and no Main Warehouse is configured.",
+          error: "Warehouse is required and user's branch warehouse is not configured.",
         });
       }
-      effectiveWarehouseId = systemConfig.mainWarehouseId;
+      effectiveWarehouseId = user.branch.warehouseId;
+      console.log(`📍 Using branch warehouse ID: ${effectiveWarehouseId} for user's branch: ${user.branch.name}`);
     }
 
     if (!items || items.length === 0) {
