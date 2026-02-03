@@ -345,6 +345,12 @@ const POSPage = () => {
 
   // Handle product clicks - check unit type and show appropriate selector
   const handleProductClick = (product) => {
+    // Check stock availability first
+    if (!product.quantity || product.quantity <= 0) {
+      toast.error(`الكمية غير متوفرة! المتاح: ${product.quantity || 0}`);
+      return;
+    }
+
     const unit = product.unit?.toLowerCase();
 
     setSelectedProductForQuantity(product);
@@ -1412,6 +1418,9 @@ const POSPage = () => {
                     <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-1 line-clamp-2 leading-tight">
                       {product.name}
                     </h3>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">
+                      المتاح: {Number(product.quantity || 0)} {getArabicUnit(product.unit)}
+                    </div>
                     <div className="mt-auto">
                       <span className="block text-primary dark:text-primary/90 font-bold text-base">
                         {Number(
