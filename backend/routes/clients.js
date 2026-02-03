@@ -81,7 +81,7 @@ router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) =>
 // PUT update client
 // PUT update client
 // PUT update client - Requires SENSITIVE ACCESS
-router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS"]), requireSensitiveAccess, async (req, res) => {
+router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS", "POS", "SALES"]), async (req, res) => {
   try {
     const { name, phoneNumber, address } = req.body;
 
