@@ -1607,7 +1607,10 @@ const POSPage = () => {
                     <button
                       onClick={() => {
                         if (!selectedClient) {
-                          toast.error("يرجى اختيار عميل أولاً");
+                          toast.error("يرجى اختيار العميل أولاً");
+                          if (clientInputRef.current) {
+                            clientInputRef.current.focus();
+                          }
                           return;
                         }
                         setIsDeliveryModalOpen(true);

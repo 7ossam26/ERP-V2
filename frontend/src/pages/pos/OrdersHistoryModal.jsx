@@ -60,9 +60,12 @@ const OrdersHistoryModal = ({ isOpen, onClose, shiftId, onRefundClick }) => {
   return createPortal(
     <div
       className="fixed inset-0 z-40 flex items-start justify-end bg-black/20 backdrop-blur-sm"
-      style={{ direction: "rtl" }}>
+      style={{ direction: "rtl" }}
+      onClick={onClose}>
       {/* Sidebar-like Modal from Right (or Left in RTL, actually 'start' is Right in RTL) */}
-      <div className="bg-white dark:bg-gray-800 w-full max-w-lg h-full shadow-2xl flex flex-col transform transition-transform animate-slide-in-right border-l border-gray-200 dark:border-gray-700">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-gray-800 w-full max-w-lg h-full shadow-2xl flex flex-col transform transition-transform animate-slide-in-right border-l border-gray-200 dark:border-gray-700">
         {/* Header */}
         <div className="bg-blue-600 p-4 text-white flex justify-between items-center shadow-md z-10">
           <h2 className="text-xl font-bold flex items-center gap-2">
