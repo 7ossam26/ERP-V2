@@ -47,9 +47,13 @@ export const itemService = {
   async create(itemData) {
     const backendData = {
       name: itemData.name,
-      price: itemData.price,
-      unit: itemData.unit,
-      suppliers: itemData.suppliers,
+      price: Number(itemData.price) || 0,
+      unit: itemData.unit || "piece",
+      reorderPoint: Number(itemData.reorderPoint) || 10,
+      // Deduplicate and ensure numbers for suppliers
+      suppliers: itemData.suppliers
+        ? [...new Set(itemData.suppliers.map((id) => parseInt(id)))].filter((id) => !isNaN(id))
+        : [],
       categories: itemData.categories,
     };
     const data = await api.post(ITEMS_URL, backendData);

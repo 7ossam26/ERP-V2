@@ -245,7 +245,17 @@ const PurchasesPage = () => {
       setAllItems(fetchedItems);
     } catch (error) {
       console.error("Failed to save item", error);
-      toast.error("حدث خطأ أثناء حفظ الصنف");
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        "حدث خطأ أثناء حفظ الصنف";
+
+      if (errorMessage.includes("Item name already exists")) {
+        toast.error("اسم الصنف موجود بالفعل، يرجى اختيار اسم آخر");
+      } else {
+        toast.error(`خطأ: ${errorMessage}`);
+      }
     }
   };
 
@@ -379,7 +389,7 @@ const PurchasesPage = () => {
           onClose={() => setIsItemModalOpen(false)}
           onSave={handleSaveNewItem}
           initialData={{
-            suppliers: selectedSupplierId ? [selectedSupplierId] : [],
+            suppliers: selectedSupplierId ? [parseInt(selectedSupplierId)] : [],
           }}
         />
       </Modal>

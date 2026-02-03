@@ -66,6 +66,8 @@ router.post("/", requireCreatePermission("CREATES_ITEMS"), async (req, res) => {
   try {
     const { name, price, unit, reorderPoint, suppliers, categories } = req.body;
 
+    console.log(`[ITEM CREATE] Name: ${name}, Price: ${price}, Suppliers: ${JSON.stringify(suppliers)}`);
+
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
     }
@@ -73,7 +75,7 @@ router.post("/", requireCreatePermission("CREATES_ITEMS"), async (req, res) => {
     const item = await prisma.item.create({
       data: {
         name,
-        price,
+        price: parseFloat(price) || 0,
         unit: unit || "piece",
         reorderPoint: parseInt(reorderPoint) || 10,
         // Explicit relations creation
@@ -98,7 +100,17 @@ router.post("/", requireCreatePermission("CREATES_ITEMS"), async (req, res) => {
     res.status(201).json(item);
   } catch (error) {
     if (error.code === "P2002") {
-      return res.status(400).json({ error: "Item name already exists" });
+      const target = error.meta?.target;
+      if (target && target.includes("name")) {
+        return res.status(400).json({ error: "Item name already exists" });
+      }
+      if (target === "PRIMARY") {
+        return res.status(500).json({
+          error: "System ID conflict (Auto-increment sync error)",
+          details: "Please contact support to reset database counters."
+        });
+      }
+      return res.status(400).json({ error: "Duplicate value for unique field: " + target });
     }
     res
       .status(500)
@@ -119,7 +131,7 @@ router.put("/:id", requireAnyPermission(["ITEMS", "CREATES_ITEMS"]), requireSens
         where: { id: itemId },
         data: {
           name,
-          price,
+          price: parseFloat(price) || 0,
           unit,
           reorderPoint: parseInt(reorderPoint) || 10,
         },
