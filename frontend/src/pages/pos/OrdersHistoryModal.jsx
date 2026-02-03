@@ -81,12 +81,7 @@ const OrdersHistoryModal = ({ isOpen, onClose, shiftId, onRefundClick }) => {
             <span>
               عدد الفواتير: <strong>{orders.length}</strong>
             </span>
-            <span>
-              إجمالي المبيعات:{" "}
-              <strong>
-                {orders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}
-              </strong>
-            </span>
+
           </div>
         </div>
 
