@@ -104,7 +104,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
             <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
               <div className="flex items-center gap-3 mb-2 text-purple-600">
                 <FaCreditCard />
-                <h4 className="font-bold">مبيعات شبكة</h4>
+                <h4 className="font-bold">مبيعات عن طريق الفيزا</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
                 {report.cardPayments.toLocaleString()} ج.م

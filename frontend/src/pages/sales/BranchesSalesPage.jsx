@@ -22,7 +22,7 @@ const BranchesSalesPage = () => {
         // Fetch Main Treasury if configured
         if (settings.mainTreasuryId) {
           const mainTreasuryData = await treasuryService.getById(
-            settings.mainTreasuryId
+            settings.mainTreasuryId,
           );
           setMainTreasury(mainTreasuryData);
         }
@@ -30,7 +30,7 @@ const BranchesSalesPage = () => {
         // Fetch Bank Treasury if configured
         if (settings.bankTreasuryId) {
           const bankTreasuryData = await treasuryService.getById(
-            settings.bankTreasuryId
+            settings.bankTreasuryId,
           );
           setBankTreasury(bankTreasuryData);
         }
@@ -65,7 +65,7 @@ const BranchesSalesPage = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <h1 className="text-text-light dark:text-text-dark text-3xl font-black leading-tight tracking-tight">
-                مبيعات الفروع
+                أرصدة الفروع
               </h1>
               <p className="text-primary/80 dark:text-accent/80 text-sm md:text-base font-normal">
                 نظرة عامة على السيولة النقدية في جميع الفروع والخزينة الرئيسية
@@ -117,10 +117,11 @@ const BranchesSalesPage = () => {
               </div>
               <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
                 <div
-                  className={`flex items-center gap-2 ${isPositive
-                    ? "text-green-400 bg-green-400/10 border-green-400/20"
-                    : "text-red-400 bg-red-400/10 border-red-400/20"
-                    } px-3 py-1.5 rounded-lg border`}>
+                  className={`flex items-center gap-2 ${
+                    isPositive
+                      ? "text-green-400 bg-green-400/10 border-green-400/20"
+                      : "text-red-400 bg-red-400/10 border-red-400/20"
+                  } px-3 py-1.5 rounded-lg border`}>
                   <span className="material-symbols-outlined text-[18px]">
                     {isPositive ? "trending_up" : "trending_down"}
                   </span>
@@ -129,8 +130,9 @@ const BranchesSalesPage = () => {
                     {percentageChange}%
                   </span>
                   <span
-                    className={`text-xs ${isPositive ? "text-green-400/80" : "text-red-400/80"
-                      }`}>
+                    className={`text-xs ${
+                      isPositive ? "text-green-400/80" : "text-red-400/80"
+                    }`}>
                     مقارنة بالأمس
                   </span>
                 </div>

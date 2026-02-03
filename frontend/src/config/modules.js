@@ -141,7 +141,7 @@ export const MODULES = [
   {
     id: "branches_sales",
     code: "BRANCHES",
-    label: "مبيعات الفروع",
+    label: "أرصدة الفروع",
     description: "تقارير الفروع",
     icon: "storefront",
     path: "/branches-sales",
@@ -159,7 +159,7 @@ export const MODULES = [
   {
     id: "reports",
     code: "REPORTS",
-    label: "تقارير",
+    label: "التقارير والسجلات",
     description: "تحليل البيانات",
     icon: "bar_chart",
     path: "/reports",

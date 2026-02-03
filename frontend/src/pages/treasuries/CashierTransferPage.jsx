@@ -18,11 +18,19 @@ const CashierTransferPage = () => {
     const fetchTreasuries = async () => {
       try {
         let data = await treasuryService.getAll();
+        // Set treasuries
         setTreasuries(data);
 
-        // Auto-select the first available treasury if any exist
-        if (data.length > 0) {
-          setSourceTreasuryId(data[0].id);
+        // Auto-select preference:
+        // 1. User's branch treasury
+        // 2. First available treasury
+        const userBranchTreasury = data.find(
+          (t) => t.branchId === currentUser?.branchId,
+        );
+        if (userBranchTreasury) {
+          setSourceTreasuryId(userBranchTreasury.id.toString());
+        } else if (data.length > 0) {
+          setSourceTreasuryId(data[0].id.toString());
         }
       } catch (error) {
         toast.error("فشل في تحميل بيانات الخزائن");
@@ -174,13 +182,11 @@ const CashierTransferPage = () => {
                     <option value="" disabled>
                       اختر الوجهة
                     </option>
-                    {treasuries
-                      .filter((t) => t.id !== parseInt(sourceTreasuryId)) // Prevent selecting same treasury
-                      .map((t) => (
-                        <option key={t.id} value={t.id} className="text-black">
-                          {t.name}
-                        </option>
-                      ))}
+                    {treasuries.map((t) => (
+                      <option key={t.id} value={t.id} className="text-black">
+                        {t.name}
+                      </option>
+                    ))}
                   </select>
                   <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
                     يتم التحويل كطلب معلق
