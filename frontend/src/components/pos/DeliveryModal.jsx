@@ -21,6 +21,8 @@ const DeliveryModal = ({
   const [selectedZone, setSelectedZone] = useState(null);
   const [clientAddress, setClientAddress] = useState("");
   const [riderDebts, setRiderDebts] = useState([]);
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [selectedSettlementDriver, setSelectedSettlementDriver] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -135,8 +137,7 @@ const DeliveryModal = ({
 
   if (!isOpen) return null;
 
-  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
-  const [selectedSettlementDriver, setSelectedSettlementDriver] = useState(null);
+
 
   const handleOpenSettlement = (rider) => {
     // Construct a delivery man object compatible with the modal
@@ -156,7 +157,7 @@ const DeliveryModal = ({
     fetchRiderDebts(); // Refresh list
   };
 
-  if (!isOpen) return null;
+
 
   return (
     <>
