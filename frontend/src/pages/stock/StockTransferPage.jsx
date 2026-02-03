@@ -22,7 +22,6 @@ const StockTransferPage = () => {
   const [allWarehouses, setAllWarehouses] = useState([]); // Store all for selection
   const [fromWarehouseId, setFromWarehouseId] = useState("");
 
-
   // Transfer state
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
   const [notes, setNotes] = useState("");
@@ -106,12 +105,12 @@ const StockTransferPage = () => {
         if (item.id === id) {
           const newQty = Math.max(
             1,
-            Math.min(item.quantity, (item.transferQty || 0) + change)
+            Math.min(item.quantity, (item.transferQty || 0) + change),
           );
           return { ...item, transferQty: newQty };
         }
         return item;
-      })
+      }),
     );
   };
 
@@ -126,7 +125,7 @@ const StockTransferPage = () => {
           };
         }
         return item;
-      })
+      }),
     );
   };
 
@@ -225,7 +224,7 @@ const StockTransferPage = () => {
   const totalItems = selectedItems.length;
   const totalQuantity = selectedItems.reduce(
     (sum, item) => sum + (item.transferQty || 0),
-    0
+    0,
   );
 
   return (
@@ -245,7 +244,8 @@ const StockTransferPage = () => {
                   من المخزن:
                 </span>
                 <span className="font-bold text-gray-800 dark:text-gray-100">
-                  {allWarehouses.find(w => w.id === parseInt(fromWarehouseId))?.name || "..."}
+                  {allWarehouses.find((w) => w.id === parseInt(fromWarehouseId))
+                    ?.name || "..."}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -254,8 +254,9 @@ const StockTransferPage = () => {
                 </span>
                 <span className="font-bold text-primary">
                   {
-                    allWarehouses.find((w) => w.id === parseInt(selectedWarehouse))
-                      ?.name
+                    allWarehouses.find(
+                      (w) => w.id === parseInt(selectedWarehouse),
+                    )?.name
                   }
                 </span>
               </div>
@@ -353,10 +354,11 @@ const StockTransferPage = () => {
                 <div
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
-                    ? "bg-primary text-white shadow-md"
-                    : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                    }`}>
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
+                    activeCategory === cat.id
+                      ? "bg-primary text-white shadow-md"
+                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                  }`}>
                   {cat.name}
                 </div>
               ))}
@@ -395,22 +397,27 @@ const StockTransferPage = () => {
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-gray-500">متاح</span>
                         <span
-                          className={`font-bold px-1.5 py-0.5 rounded ${product.quantity <= product.reorderPoint
-                            ? "text-red-600 bg-red-50 dark:bg-red-900/20"
-                            : product.quantity < 50
-                              ? "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
-                              : "text-green-600 bg-green-50 dark:bg-green-900/20"
-                            }`}>
+                          className={`font-bold px-1.5 py-0.5 rounded ${
+                            product.quantity <= product.reorderPoint
+                              ? "text-red-600 bg-red-50 dark:bg-red-900/20"
+                              : product.quantity < 50
+                                ? "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
+                                : "text-green-600 bg-green-50 dark:bg-green-900/20"
+                          }`}>
                           {product.quantity} {product.unit}
                         </span>
                       </div>
 
                       {/* Show available branches if no source warehouse selected */}
-                      {!fromWarehouseId && product.warehouses && product.warehouses.length > 0 && (
-                        <div className="text-[10px] text-gray-400 mt-1 truncate" title={product.warehouses.join(", ")}>
-                          في: {product.warehouses.join("، ")}
-                        </div>
-                      )}
+                      {!fromWarehouseId &&
+                        product.warehouses &&
+                        product.warehouses.length > 0 && (
+                          <div
+                            className="text-[10px] text-gray-400 mt-1 truncate"
+                            title={product.warehouses.join(", ")}>
+                            في: {product.warehouses.join("، ")}
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -457,7 +464,9 @@ const StockTransferPage = () => {
                 onChange={(e) => setSelectedWarehouse(e.target.value)}>
                 <option value="">-- اختر المخزن --</option>
                 {allWarehouses
-                  .filter(wh => wh.id.toString() !== fromWarehouseId.toString())
+                  .filter(
+                    (wh) => wh.id.toString() !== fromWarehouseId.toString(),
+                  )
                   .map((wh) => (
                     <option key={wh.id} value={wh.id}>
                       {wh.name}
@@ -510,7 +519,9 @@ const StockTransferPage = () => {
                     <div className="font-bold text-gray-800 dark:text-gray-100 text-sm">
                       {item.name}
                     </div>
-                    <div className="text-[10px] text-gray-400">#{item.code}</div>
+                    <div className="text-[10px] text-gray-400">
+                      #{item.code}
+                    </div>
                   </div>
                   <div className="col-span-2 text-center">
                     <span className="text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-zinc-700 px-2 py-1 rounded">
