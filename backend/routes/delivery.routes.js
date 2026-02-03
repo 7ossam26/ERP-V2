@@ -15,6 +15,8 @@ router.post(
   deliveryController.createDeliveryMan,
 );
 
+router.get("/stats", deliveryController.getDeliveryStats);
+
 router.get(
   "/",
   // requirePermission('POS'), // Or relevant permission to view delivery men

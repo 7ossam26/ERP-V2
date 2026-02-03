@@ -35,7 +35,7 @@ const POSPage = () => {
   const [isPrinting, setIsPrinting] = useState(false);
 
   // User & Shift State
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(AuthService.getCurrentUser());
   const [currentShiftId, setCurrentShiftId] = useState(null);
   const [isStartShiftModalOpen, setIsStartShiftModalOpen] = useState(false);
   const [isShiftBlocked, setIsShiftBlocked] = useState(false); // Added state
@@ -55,10 +55,8 @@ const POSPage = () => {
   const [taxRate, setTaxRate] = useState(0.14);
 
   useEffect(() => {
-    const user = AuthService.getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-      checkActiveShift(user);
+    if (currentUser) {
+      checkActiveShift(currentUser);
     }
 
     //## Implementation Phase (10 Granular Phases)
@@ -725,26 +723,24 @@ const POSPage = () => {
     setIsPaymentConfirmOpen(true);
   };
 
-  const handleConfirmPayment = async () => {
-    const methodName = pendingPaymentMethod === "cash" ? "نقدي" : "بطاقة";
+  // Main sale completion function
+  const handleCompleteSale = async (
+    paymentMethod,
+    deliveryDataOverride = null,
+    paidAmount = null,
+    changeAmount = null,
+  ) => {
+    // Use override if provided, otherwise use state
+    const activeDeliveryData = deliveryDataOverride || deliveryData;
+    console.log("🛒 Processing Sale with Delivery Data:", activeDeliveryData);
 
-    // For cash, validate paid amount
-    if (pendingPaymentMethod === "cash") {
-      const paid = parseFloat(cashPaidAmount);
-      if (isNaN(paid) || paid < total) {
-        toast.error("المبلغ المدفوع أقل من الإجمالي");
-        return;
-      }
-    }
-
-    // Calculate final amounts with rounding for cash only
+    // Determine payment amounts
     let finalPaidAmount, finalChangeAmount;
-
-    if (pendingPaymentMethod === "cash") {
-      const paid = parseFloat(cashPaidAmount);
-      finalPaidAmount = Math.round(paid);
-      finalChangeAmount = Math.round(paid - total);
+    if (paidAmount !== null && changeAmount !== null) {
+      finalPaidAmount = paidAmount;
+      finalChangeAmount = changeAmount;
     } else {
+      // Auto-calculate for delivery orders (always CASH with exact amount)
       finalPaidAmount = parseFloat(total.toFixed(2));
       finalChangeAmount = 0;
     }
@@ -752,7 +748,11 @@ const POSPage = () => {
     // Prepare sale data for backend
     // Normalize payment method: if not CASH, treat as CARD (covers VISA, MASTERCARD, etc.)
     const normalizedPaymentMethod =
-      pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "CARD";
+      typeof paymentMethod === "string"
+        ? paymentMethod.toUpperCase() === "CASH"
+          ? "CASH"
+          : "CARD"
+        : "CASH"; // Default to CASH for delivery orders
 
     const currentUser = AuthService.getCurrentUser();
     const saleData = {
@@ -767,13 +767,13 @@ const POSPage = () => {
       paidAmount: finalPaidAmount,
       changeAmount: finalChangeAmount,
       status: "COMPLETED",
-      deliveryManId: deliveryData?.riderId,
-      deliveryZoneId: deliveryData?.zoneId,
-      deliveryFee: deliveryData?.zoneFee
-        ? parseFloat(deliveryData.zoneFee)
+      deliveryManId: activeDeliveryData?.riderId,
+      deliveryZoneId: activeDeliveryData?.zoneId,
+      deliveryFee: activeDeliveryData?.zoneFee
+        ? parseFloat(activeDeliveryData.zoneFee)
         : null,
-      deliveryAddress: deliveryData?.address,
-      deliveryStatus: deliveryData ? "PENDING" : null,
+      deliveryAddress: activeDeliveryData?.address,
+      deliveryStatus: activeDeliveryData ? "OUT_FOR_DELIVERY" : null,
       items: cartItems.map((item) => ({
         itemId: item.id,
         quantity: item.quantity,
@@ -786,6 +786,9 @@ const POSPage = () => {
       // Create sale via API
       const createdSale = await salesService.create(saleData);
       console.log("✅ Sale created successfully:", createdSale);
+
+      // Determine method name for display
+      const methodName = normalizedPaymentMethod === "CASH" ? "نقدي" : "بطاقة";
 
       toast.success(
         `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`,
@@ -809,6 +812,11 @@ const POSPage = () => {
         branchName: currentUser?.branch?.name || "الفرع الرئيسي",
         employeeName: currentUser?.name || currentUser?.username,
         date: new Date().toLocaleString("ar-EG"),
+        // Delivery information
+        riderName: activeDeliveryData?.riderName,
+        zoneName: activeDeliveryData?.zoneName,
+        deliveryFee: activeDeliveryData?.zoneFee,
+        deliveryAddress: activeDeliveryData?.address,
       });
 
       setIsPaymentConfirmOpen(false);
@@ -818,7 +826,9 @@ const POSPage = () => {
       clearCart();
       setSelectedClient(null);
       setSelectedDeliveryMan(null);
-      setDeliveryData(null); // Clear delivery data
+      if (!deliveryDataOverride) {
+        setDeliveryData(null); // Clear delivery data only if not auto-called
+      }
 
       // Auto-print after successful payment
       setTimeout(() => {
@@ -828,6 +838,41 @@ const POSPage = () => {
       console.error("❌ Error creating sale:", error);
       showErrorToast(error, "حدث خطأ أثناء حفظ الفاتورة");
     }
+  };
+
+  // Wrapper for payment confirmation (original flow)
+  const handleConfirmPayment = async () => {
+    const methodName = pendingPaymentMethod === "cash" ? "نقدي" : "بطاقة";
+
+    // For cash, validate paid amount
+    if (pendingPaymentMethod === "cash") {
+      const paid = parseFloat(cashPaidAmount);
+      if (isNaN(paid) || paid < total) {
+        toast.error("المبلغ المدفوع أقل من الإجمالي");
+        return;
+      }
+    }
+
+    // Calculate final amounts with rounding for cash only
+    let finalPaidAmount, finalChangeAmount;
+    if (pendingPaymentMethod === "cash") {
+      const paid = parseFloat(cashPaidAmount);
+      finalPaidAmount = Math.round(paid);
+      finalChangeAmount = Math.round(paid - total);
+    } else {
+      finalPaidAmount = parseFloat(total.toFixed(2));
+      finalChangeAmount = 0;
+    }
+
+    // Call main completion function
+    const normalizedPaymentMethod =
+      pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "CARD";
+    await handleCompleteSale(
+      normalizedPaymentMethod,
+      null,
+      finalPaidAmount,
+      finalChangeAmount,
+    );
   };
 
   const handleConfirmShift = async () => {
@@ -1142,16 +1187,26 @@ const POSPage = () => {
       <DeliveryModal
         isOpen={isDeliveryModalOpen}
         onClose={() => setIsDeliveryModalOpen(false)}
-        onConfirm={(data) => {
+        onConfirm={async (data) => {
+          // Save delivery data first
           setDeliveryData(data);
-          setIsDeliveryModalOpen(false);
-          toast.success(
-            `تم تحديد التوصيل: ${data.zoneName} - ${data.riderName}`,
-          );
+
+          // Auto-complete sale with CASH payment method
+          try {
+            await handleCompleteSale("CASH", data);
+            setIsDeliveryModalOpen(false);
+            toast.success(
+              `تم تأكيد طلب التوصيل: ${data.zoneName} - ${data.riderName}`,
+            );
+          } catch (error) {
+            console.error("Failed to save delivery order:", error);
+            toast.error("فشل حفظ طلب التوصيل");
+          }
         }}
         selectedClient={selectedClient}
         deliveryMen={deliveryMen}
         currentShiftId={currentShiftId}
+        branchId={currentUser?.branch?.id}
       />
 
       {/* Header */}
@@ -1455,37 +1510,6 @@ const POSPage = () => {
                   </div>
                 </>
               )}
-            </div>
-          </div>
-
-          {/* Delivery Man Selection */}
-          <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-card-dark shrink-0 z-10 relative">
-            <div className="relative">
-              <select
-                className="w-full bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 rounded-lg py-2.5 pr-10 pl-10 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-sm font-bold appearance-none cursor-pointer"
-                value={selectedDeliveryMan ? selectedDeliveryMan.id : ""}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  const man = deliveryMen.find((m) => m.id === parseInt(id));
-                  setSelectedDeliveryMan(man || null);
-                }}>
-                <option value="">-- بدون طيار --</option>
-                {deliveryMen?.map((man) => (
-                  <option key={man.id} value={man.id}>
-                    🛵 {man.name}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400">
-                <span className="material-symbols-outlined text-sm">
-                  expand_more
-                </span>
-              </div>
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-primary">
-                <span className="material-symbols-outlined">
-                  delivery_dining
-                </span>
-              </div>
             </div>
           </div>
 
@@ -1885,6 +1909,38 @@ const POSPage = () => {
           </div>
         </div>
 
+        {/* Delivery Information - Only show if delivery data exists */}
+        {(deliveryData || lastSale?.deliveryAddress) && (
+          <>
+            <div className="border-b border-gray-300 my-2"></div>
+            <div className="text-xs mb-3 space-y-1 bg-gray-50 p-2 rounded">
+              <div className="font-bold mb-1">🚚 معلومات التوصيل</div>
+              {(deliveryData?.riderName || lastSale?.riderName) && (
+                <div className="flex justify-between">
+                  <span>الطيار:</span>
+                  <span className="font-bold">
+                    {deliveryData?.riderName || lastSale?.riderName}
+                  </span>
+                </div>
+              )}
+              {(deliveryData?.zoneName || lastSale?.zoneName) && (
+                <div className="flex justify-between">
+                  <span>المنطقة:</span>
+                  <span>{deliveryData?.zoneName || lastSale?.zoneName}</span>
+                </div>
+              )}
+              {(deliveryData?.address || lastSale?.deliveryAddress) && (
+                <div className="mt-1">
+                  <span className="font-semibold">العنوان:</span>
+                  <p className="text-[10px] mt-0.5 pr-2">
+                    {deliveryData?.address || lastSale?.deliveryAddress}
+                  </p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
         <div className="border-b border-gray-300 my-2"></div>
 
         <table className="w-full text-xs text-right">
@@ -1925,6 +1981,18 @@ const POSPage = () => {
               ج.م
             </span>
           </div>
+          {/* Delivery Fee - Only show if delivery exists */}
+          {(deliveryData?.zoneFee || lastSale?.deliveryFee) && (
+            <div className="flex justify-between opacity-80">
+              <span>رسوم التوصيل</span>
+              <span>
+                {parseFloat(
+                  deliveryData?.zoneFee || lastSale?.deliveryFee || 0,
+                ).toFixed(2)}{" "}
+                ج.م
+              </span>
+            </div>
+          )}
           <div className="flex justify-between opacity-80">
             <span>طريقة الدفع</span>
             <span>{lastSale?.paymentMethod === "CASH" ? "نقدي" : "بطاقة"}</span>

@@ -99,3 +99,87 @@ exports.deleteDeliveryMan = async (req, res) => {
     res.status(500).json({ error: "Failed to delete delivery man" });
   }
 };
+exports.getDeliveryStats = async (req, res) => {
+  try {
+    const { branchId, shiftId } = req.query;
+
+    console.log("📊 Fetching delivery stats with:", { branchId, shiftId });
+
+    if (!branchId || !shiftId) {
+      return res
+        .status(400)
+        .json({ error: "Branch ID and Shift ID are required" });
+    }
+
+    // 1. Fetch all active delivery men for the branch
+    const deliveryMen = await prisma.deliveryMan.findMany({
+      where: {
+        branchId: parseInt(branchId),
+        isActive: true,
+      },
+    });
+
+    console.log(`✅ Found ${deliveryMen.length} delivery men`);
+
+    // 2. Fetch all relevant sales for these delivery men
+    // preventing empty IN clause if no delivery men
+    if (deliveryMen.length === 0) {
+      return res.json([]);
+    }
+
+    const deliveryManIds = deliveryMen.map((dm) => dm.id);
+
+    const sales = await prisma.sale.findMany({
+      where: {
+        deliveryManId: {
+          in: deliveryManIds,
+        },
+        paymentMethod: "CASH",
+        deliveryStatus: "OUT_FOR_DELIVERY", // Only show pending deliveries
+        status: "COMPLETED", // Only completed sales
+        shiftId: parseInt(shiftId),
+      },
+      select: {
+        id: true,
+        total: true, // Decimal
+        deliveryFee: true, // Decimal?
+        deliveryManId: true,
+      },
+    });
+
+    console.log(`📦 Found ${sales.length} pending cash sales`);
+
+    // 3. Map sales to delivery men
+    const stats = deliveryMen.map((man) => {
+      const manSales = sales.filter((s) => s.deliveryManId === man.id);
+
+      const totalCash = manSales.reduce((sum, sale) => {
+        return sum + Number(sale.total);
+      }, 0);
+
+      return {
+        id: man.id,
+        name: man.name,
+        totalCash: totalCash,
+        orderCount: manSales.length,
+        orders: manSales.map((sale) => ({
+          id: sale.id,
+          total: sale.total,
+          deliveryFee: sale.deliveryFee,
+        })),
+      };
+    });
+
+    console.log("✅ Stats calculated successfully, sending response");
+    res.json(stats);
+  } catch (error) {
+    console.error("❌ Error fetching delivery stats:", error);
+    console.error("Error stack:", error.stack);
+    res
+      .status(500)
+      .json({
+        error: "Failed to fetch delivery stats",
+        details: error.message,
+      });
+  }
+};

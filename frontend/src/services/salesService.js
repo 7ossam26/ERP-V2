@@ -52,4 +52,8 @@ export const salesService = {
   async refund(refundData) {
     return await api.post(`${SALES_URL}/refund`, refundData);
   },
+
+  async markDelivered(saleId) {
+    return await api.patch(`${SALES_URL}/${saleId}/mark-delivered`);
+  },
 };

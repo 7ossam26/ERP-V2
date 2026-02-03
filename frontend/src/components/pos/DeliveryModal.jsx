@@ -2,324 +2,513 @@ import React, { useState, useEffect } from "react";
 import { deliveryService } from "../../services/deliveryService";
 import { deliveryZoneService } from "../../services/deliveryZoneService";
 import { clientService } from "../../services/domainServices";
+import { salesService } from "../../services/salesService";
 import toast from "react-hot-toast";
 
 const DeliveryModal = ({
-    isOpen,
-    onClose,
-    onConfirm,
-    selectedClient,
-    deliveryMen,
-    currentShiftId,
+  isOpen,
+  onClose,
+  onConfirm,
+  selectedClient,
+  deliveryMen,
+  currentShiftId,
+  branchId,
 }) => {
-    const [activeTab, setActiveTab] = useState("riders");
-    const [deliveryZones, setDeliveryZones] = useState([]);
-    const [selectedRider, setSelectedRider] = useState(null);
-    const [selectedZone, setSelectedZone] = useState(null);
-    const [clientAddress, setClientAddress] = useState("");
-    const [riderDebts, setRiderDebts] = useState([]);
+  const [activeTab, setActiveTab] = useState("riders");
+  const [deliveryZones, setDeliveryZones] = useState([]);
+  const [selectedRider, setSelectedRider] = useState(null);
+  const [selectedZone, setSelectedZone] = useState(null);
+  const [clientAddress, setClientAddress] = useState("");
+  const [riderDebts, setRiderDebts] = useState([]);
 
-    useEffect(() => {
-        if (isOpen) {
-            fetchDeliveryZones();
-            setClientAddress(selectedClient?.address || "");
-            setClientAddress(selectedClient?.address || "");
-        }
-    }, [isOpen, selectedClient]);
+  useEffect(() => {
+    if (isOpen) {
+      fetchDeliveryZones();
+      setClientAddress(selectedClient?.address || "");
+      setClientAddress(selectedClient?.address || "");
+    }
+  }, [isOpen, selectedClient, branchId]);
 
-    const fetchDeliveryZones = async () => {
-        try {
-            const data = await deliveryZoneService.getAll({ isActive: true });
-            setDeliveryZones(data);
-        } catch (error) {
-            console.error("Failed to fetch delivery zones:", error);
-            toast.error("فشل تحميل مناطق التوصيل");
-        }
-    };
+  useEffect(() => {
+    if (isOpen && activeTab === "debts") {
+      fetchRiderDebts();
+    }
+  }, [isOpen, activeTab, branchId, currentShiftId]);
 
-    const handleConfirm = async () => {
-        if (!selectedRider) {
-            toast.error("يرجى اختيار طيار التوصيل");
-            return;
-        }
+  const fetchRiderDebts = async () => {
+    try {
+      console.log("Fetching rider debts with:", {
+        branchId,
+        currentShiftId,
+        typeBranch: typeof branchId,
+        typeShift: typeof currentShiftId,
+      });
 
-        if (!selectedZone) {
-            toast.error("يرجى اختيار منطقة التوصيل");
-            return;
-        }
+      // Explicitly check for undefined strings which might be passed effectively as truthy "undefined"
+      if (!branchId || branchId === "undefined") {
+        console.error("No branchId provided");
+        toast.error("لا يوجد فرع محدد");
+        return;
+      }
 
-        if (!clientAddress.trim()) {
-            toast.error("يرجى إضافة عنوان التوصيل");
-            return;
-        }
+      if (!currentShiftId) {
+        console.error("No currentShiftId provided");
+        toast.error("لا توجد وردية نشطة");
+        setRiderDebts([]); // Clear the table
+        return;
+      }
 
-        // Auto-save address if changed
-        if (selectedClient && clientAddress !== selectedClient.address) {
-            try {
-                await clientService.update(selectedClient.id, {
-                    ...selectedClient,
-                    address: clientAddress,
-                });
-            } catch (error) {
-                console.error("Failed to save address:", error);
-                toast.error("فشل حفظ العنوان الجديد");
-                return;
-            }
-        }
+      const data = await deliveryService.getStats({
+        branchId,
+        shiftId: currentShiftId,
+      });
+      console.log("Rider debts data:", data);
+      setRiderDebts(data);
+    } catch (error) {
+      console.error("Failed to fetch rider debts:", error);
+      toast.error("فشل تحميل ديون الطيارين");
+    }
+  };
 
-        onConfirm({
-            riderId: selectedRider.id,
-            riderName: selectedRider.name,
-            zoneId: selectedZone.id,
-            zoneName: selectedZone.name,
-            zoneFee: selectedZone.fee,
-            address: clientAddress,
+  const fetchDeliveryZones = async () => {
+    try {
+      const params = { isActive: true };
+      if (branchId) params.branchId = branchId;
+
+      const data = await deliveryZoneService.getAll(params);
+      setDeliveryZones(data);
+    } catch (error) {
+      console.error("Failed to fetch delivery zones:", error);
+      toast.error("فشل تحميل مناطق التوصيل");
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedRider) {
+      toast.error("يرجى اختيار طيار التوصيل");
+      return;
+    }
+
+    if (!selectedZone) {
+      toast.error("يرجى اختيار منطقة التوصيل");
+      return;
+    }
+
+    if (!clientAddress.trim()) {
+      toast.error("يرجى إضافة عنوان التوصيل");
+      return;
+    }
+
+    // Auto-save address if changed
+    if (selectedClient && clientAddress !== selectedClient.address) {
+      try {
+        await clientService.update(selectedClient.id, {
+          ...selectedClient,
+          address: clientAddress,
         });
+      } catch (error) {
+        console.error("Failed to save address:", error);
+        toast.error("فشل حفظ العنوان الجديد");
+        return;
+      }
+    }
 
-        onClose();
+    const confirmationPayload = {
+      riderId: selectedRider.id,
+      riderName: selectedRider.name,
+      zoneId: selectedZone.id,
+      zoneName: selectedZone.name,
+      zoneFee: selectedZone.fee,
+      address: clientAddress,
     };
 
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-                {/* Header */}
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="material-icons-round text-primary text-3xl">
-                                local_shipping
-                            </span>
-                            <div>
-                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    إدارة التوصيل
-                                </h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    العميل: {selectedClient?.name}
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                            <span className="material-icons-round text-gray-500">close</span>
-                        </button>
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="flex gap-2 mt-4">
-                        <button
-                            onClick={() => setActiveTab("riders")}
-                            className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "riders"
-                                ? "bg-primary text-white shadow-md"
-                                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                                }`}>
-                            <span className="material-icons-round text-sm align-middle mr-1">
-                                delivery_dining
-                            </span>
-                            الطيارين
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("zones")}
-                            className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "zones"
-                                ? "bg-primary text-white shadow-md"
-                                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                                }`}>
-                            <span className="material-icons-round text-sm align-middle mr-1">
-                                map
-                            </span>
-                            المناطق
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("debts")}
-                            className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "debts"
-                                ? "bg-primary text-white shadow-md"
-                                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                                }`}>
-                            <span className="material-icons-round text-sm align-middle mr-1">
-                                account_balance_wallet
-                            </span>
-                            ديون الطيارين
-                        </button>
-                    </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
-                    {/* Address Section (always visible) */}
-                    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                        <div className="flex items-start justify-between mb-2">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                عنوان التوصيل
-                            </label>
-                        </div>
-                        <div className="space-y-2">
-                            <textarea
-                                className="w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent resize-y min-h-[60px]"
-                                value={clientAddress}
-                                onChange={(e) => setClientAddress(e.target.value)}
-                                placeholder="أدخل عنوان التوصيل..."
-                                rows={2}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Tab Content */}
-                    {activeTab === "riders" && (
-                        <div className="space-y-3">
-                            <h3 className="font-bold text-gray-900 dark:text-white mb-3">
-                                اختر الطيار
-                            </h3>
-                            {deliveryMen.length === 0 ? (
-                                <p className="text-center text-gray-500 py-8">
-                                    لا يوجد طيارين متاحين
-                                </p>
-                            ) : (
-                                deliveryMen.map((rider) => (
-                                    <button
-                                        key={rider.id}
-                                        onClick={() => setSelectedRider(rider)}
-                                        className={`w-full p-4 rounded-xl border-2 transition-all text-right ${selectedRider?.id === rider.id
-                                            ? "border-primary bg-primary/10 dark:bg-primary/20"
-                                            : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
-                                            }`}>
-                                        <div className="flex items-center gap-3">
-                                            <span className="material-icons-round text-primary text-2xl">
-                                                delivery_dining
-                                            </span>
-                                            <div className="flex-1">
-                                                <p className="font-bold text-gray-900 dark:text-white">
-                                                    {rider.name}
-                                                </p>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {rider.phone} • {rider.vehicleType || "غير محدد"}
-                                                </p>
-                                            </div>
-                                            {selectedRider?.id === rider.id && (
-                                                <span className="material-icons-round text-primary">
-                                                    check_circle
-                                                </span>
-                                            )}
-                                        </div>
-                                    </button>
-                                ))
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === "zones" && (
-                        <div className="space-y-3">
-                            <h3 className="font-bold text-gray-900 dark:text-white mb-3">
-                                اختر المنطقة
-                            </h3>
-                            {deliveryZones.length === 0 ? (
-                                <p className="text-center text-gray-500 py-8">
-                                    لا توجد مناطق توصيل متاحة
-                                </p>
-                            ) : (
-                                deliveryZones.map((zone) => (
-                                    <button
-                                        key={zone.id}
-                                        onClick={() => setSelectedZone(zone)}
-                                        className={`w-full p-4 rounded-xl border-2 transition-all text-right ${selectedZone?.id === zone.id
-                                            ? "border-primary bg-primary/10 dark:bg-primary/20"
-                                            : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
-                                            }`}>
-                                        <div className="flex items-center gap-3">
-                                            <span className="material-icons-round text-primary text-2xl">
-                                                location_on
-                                            </span>
-                                            <div className="flex-1">
-                                                <p className="font-bold text-gray-900 dark:text-white">
-                                                    {zone.name}
-                                                </p>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                    رسوم التوصيل: {parseFloat(zone.fee).toFixed(2)} ج.م
-                                                </p>
-                                            </div>
-                                            {selectedZone?.id === zone.id && (
-                                                <span className="material-icons-round text-primary">
-                                                    check_circle
-                                                </span>
-                                            )}
-                                        </div>
-                                    </button>
-                                ))
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === "debts" && (
-                        <div className="space-y-3">
-                            <h3 className="font-bold text-gray-900 dark:text-white mb-3">
-                                ديون الطيارين (الوردية الحالية)
-                            </h3>
-                            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                    <span className="material-icons-round text-sm align-middle mr-1">
-                                        info
-                                    </span>
-                                    هذا العرض يوضح إجمالي المبالغ النقدية لطلبات التوصيل التي لم
-                                    يتم تحصيلها بعد من كل طيار.
-                                </p>
-                            </div>
-                            <div className="text-center text-gray-500 py-8">
-                                <span className="material-icons-round text-4xl text-gray-400 mb-2">
-                                    construction
-                                </span>
-                                <p>قريباً - سيتم إضافة نظام تتبع الديون</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                    {/* Summary */}
-                    <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600 dark:text-gray-400">الطيار:</span>
-                            <span className="font-bold text-gray-900 dark:text-white">
-                                {selectedRider?.name || "-"}
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm mt-2">
-                            <span className="text-gray-600 dark:text-gray-400">المنطقة:</span>
-                            <span className="font-bold text-gray-900 dark:text-white">
-                                {selectedZone?.name || "-"}
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm mt-2">
-                            <span className="text-gray-600 dark:text-gray-400">
-                                رسوم التوصيل:
-                            </span>
-                            <span className="font-bold text-primary text-lg">
-                                {selectedZone ? `${parseFloat(selectedZone.fee).toFixed(2)} ج.م` : "-"}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 px-6 py-3 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
-                            إلغاء
-                        </button>
-                        <button
-                            onClick={handleConfirm}
-                            disabled={!selectedRider || !selectedZone || !clientAddress.trim()}
-                            className="flex-1 px-6 py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg">
-                            <span className="material-icons-round text-sm align-middle mr-1">
-                                check
-                            </span>
-                            تأكيد التوصيل
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    console.log(
+      "🚚 DeliveryModal Confirming with payload:",
+      confirmationPayload,
     );
+
+    onConfirm(confirmationPayload);
+
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="material-icons-round text-primary text-3xl">
+                local_shipping
+              </span>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  إدارة التوصيل
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  العميل: {selectedClient?.name}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+              <span className="material-icons-round text-gray-500">close</span>
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => setActiveTab("riders")}
+              className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
+                activeTab === "riders"
+                  ? "bg-primary text-white shadow-md"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              }`}>
+              <span className="material-icons-round text-sm align-middle mr-1">
+                delivery_dining
+              </span>
+              الطيارين
+            </button>
+            <button
+              onClick={() => setActiveTab("zones")}
+              className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
+                activeTab === "zones"
+                  ? "bg-primary text-white shadow-md"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              }`}>
+              <span className="material-icons-round text-sm align-middle mr-1">
+                map
+              </span>
+              المناطق
+            </button>
+            <button
+              onClick={() => setActiveTab("debts")}
+              className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
+                activeTab === "debts"
+                  ? "bg-primary text-white shadow-md"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              }`}>
+              <span className="material-icons-round text-sm align-middle mr-1">
+                account_balance_wallet
+              </span>
+              ديون الطيارين
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Address Section (always visible) */}
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+            <div className="flex items-start justify-between mb-2">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                عنوان التوصيل
+              </label>
+            </div>
+            <div className="space-y-2">
+              <textarea
+                className="w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent resize-y min-h-[60px]"
+                value={clientAddress}
+                onChange={(e) => setClientAddress(e.target.value)}
+                placeholder="أدخل عنوان التوصيل..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === "riders" && (
+            <div className="space-y-3">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-3">
+                اختر الطيار
+              </h3>
+              {deliveryMen.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">
+                  لا يوجد طيارين متاحين
+                </p>
+              ) : (
+                deliveryMen.map((rider) => (
+                  <button
+                    key={rider.id}
+                    onClick={() => setSelectedRider(rider)}
+                    className={`w-full p-4 rounded-xl border-2 transition-all text-right ${
+                      selectedRider?.id === rider.id
+                        ? "border-primary bg-primary/10 dark:bg-primary/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
+                    }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="material-icons-round text-primary text-2xl">
+                        delivery_dining
+                      </span>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 dark:text-white">
+                          {rider.name}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {rider.phone} • {rider.vehicleType || "غير محدد"}
+                        </p>
+                      </div>
+                      {selectedRider?.id === rider.id && (
+                        <span className="material-icons-round text-primary">
+                          check_circle
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === "zones" && (
+            <div className="space-y-3">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-3">
+                اختر المنطقة
+              </h3>
+              {deliveryZones.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">
+                  لا توجد مناطق توصيل متاحة
+                </p>
+              ) : (
+                deliveryZones.map((zone) => (
+                  <button
+                    key={zone.id}
+                    onClick={() => setSelectedZone(zone)}
+                    className={`w-full p-4 rounded-xl border-2 transition-all text-right ${
+                      selectedZone?.id === zone.id
+                        ? "border-primary bg-primary/10 dark:bg-primary/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
+                    }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="material-icons-round text-primary text-2xl">
+                        location_on
+                      </span>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 dark:text-white">
+                          {zone.name}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          رسوم التوصيل: {parseFloat(zone.fee).toFixed(2)} ج.م
+                        </p>
+                      </div>
+                      {selectedZone?.id === zone.id && (
+                        <span className="material-icons-round text-primary">
+                          check_circle
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === "debts" && (
+            <div className="space-y-3">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-3">
+                ديون الطيارين (الوردية الحالية)
+              </h3>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="material-icons-round text-sm align-middle mr-1">
+                    info
+                  </span>
+                  هذا العرض يوضح إجمالي المبالغ النقدية لطلبات التوصيل التي لم
+                  يتم تحصيلها بعد من كل طيار.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                <table className="w-full text-sm text-right">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300">
+                    <tr>
+                      <th className="px-4 py-3 font-bold">الطيار</th>
+                      <th className="px-4 py-3 font-bold">عدد الطلبات</th>
+                      <th className="px-4 py-3 font-bold">إجمالي النقدية</th>
+                      <th className="px-4 py-3 font-bold">إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {riderDebts.length > 0 ? (
+                      riderDebts.map((rider) => (
+                        <React.Fragment key={rider.id}>
+                          {/* Main Rider Row */}
+                          <tr className="bg-gray-50 dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-600">
+                            <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
+                              {rider.name}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                              {rider.orderCount} طلب
+                            </td>
+                            <td className="px-4 py-3 font-bold text-red-600 dark:text-red-400">
+                              {parseFloat(rider.totalCash).toFixed(2)} ج.م
+                            </td>
+                            <td className="px-4 py-3">
+                              {rider.orders?.length > 0 && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      if (
+                                        !window.confirm(
+                                          `هل تريد تحصيل كل الطلبات من ${rider.name}?\nالإجمالي: ${parseFloat(
+                                            rider.totalCash,
+                                          ).toFixed(2)} ج.م`,
+                                        )
+                                      ) {
+                                        return;
+                                      }
+
+                                      for (const order of rider.orders) {
+                                        await salesService.markDelivered(
+                                          order.id,
+                                        );
+                                      }
+                                      toast.success(
+                                        `تم تحصيل ${parseFloat(
+                                          rider.totalCash,
+                                        ).toFixed(2)} ج.م من ${rider.name}`,
+                                      );
+                                      fetchRiderDebts();
+                                    } catch (error) {
+                                      console.error(
+                                        "Failed to collect all:",
+                                        error,
+                                      );
+                                      toast.error("فشل تحصيل الديون");
+                                    }
+                                  }}
+                                  className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-bold transition-colors">
+                                  💰 تحصيل الكل
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+
+                          {/* Individual Orders */}
+                          {rider.orders?.map((order, idx) => (
+                            <tr
+                              key={order.id}
+                              className="hover:bg-gray-100 dark:hover:bg-gray-700/30 border-b border-gray-200 dark:border-gray-700">
+                              <td className="px-4 py-2 pr-8 text-sm text-gray-600 dark:text-gray-400">
+                                └ طلب #{idx + 1}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                —
+                              </td>
+                              <td className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                {parseFloat(order.total).toFixed(2)} ج.م
+                              </td>
+                              <td className="px-4 py-2">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await salesService.markDelivered(
+                                        order.id,
+                                      );
+                                      toast.success(
+                                        `تم تحصيل ${parseFloat(
+                                          order.total,
+                                        ).toFixed(2)} ج.م`,
+                                      );
+                                      fetchRiderDebts();
+                                    } catch (error) {
+                                      console.error(
+                                        "Failed to collect order:",
+                                        error,
+                                      );
+                                      toast.error("فشل تحصيل الطلب");
+                                    }
+                                  }}
+                                  className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-bold transition-colors">
+                                  ✔ تحصيل
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="4"
+                          className="px-4 py-8 text-center text-gray-500">
+                          {!currentShiftId ? (
+                            <div className="space-y-2">
+                              <p className="text-yellow-600 font-semibold">
+                                ⚠️ لا توجد وردية نشطة
+                              </p>
+                              <p className="text-sm">
+                                يرجى بدء وردية جديدة لعرض ديون الطيارين
+                              </p>
+                            </div>
+                          ) : (
+                            "لا توجد بيانات متاحة"
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+          {/* Summary */}
+          <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">الطيار:</span>
+              <span className="font-bold text-gray-900 dark:text-white">
+                {selectedRider?.name || "-"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm mt-2">
+              <span className="text-gray-600 dark:text-gray-400">المنطقة:</span>
+              <span className="font-bold text-gray-900 dark:text-white">
+                {selectedZone?.name || "-"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm mt-2">
+              <span className="text-gray-600 dark:text-gray-400">
+                رسوم التوصيل:
+              </span>
+              <span className="font-bold text-primary text-lg">
+                {selectedZone
+                  ? `${parseFloat(selectedZone.fee).toFixed(2)} ج.م`
+                  : "-"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-6 py-3 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              إلغاء
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={
+                !selectedRider || !selectedZone || !clientAddress.trim()
+              }
+              className="flex-1 px-6 py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg">
+              <span className="material-icons-round text-sm align-middle mr-1">
+                check
+              </span>
+              تأكيد التوصيل
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default DeliveryModal;

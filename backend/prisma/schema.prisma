@@ -295,6 +295,7 @@ model Branch {
   sales       Sale[]
   shifts      Shift[]
   DeliveryMan DeliveryMan[]
+  deliveryZones DeliveryZone[]
 
   @@map("branches")
 }
@@ -818,14 +819,17 @@ model DeliveryMan {
 
 model DeliveryZone {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
+  name      String
   fee       Decimal  @db.Decimal(10, 2)
+  branchId  Int?     @map("branch_id")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  sales Sale[]
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sales    Sale[]
 
+  @@unique([branchId, name])
   @@map("delivery_zones")
 }

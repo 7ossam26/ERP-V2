@@ -402,7 +402,15 @@ router.post(
         // 2. Update Treasury/Bank Balance
         const method = (paymentMethod || "CASH").toUpperCase();
 
-        if (method === "CASH") {
+        // Skip treasury update for delivery orders (money still with rider)
+        const isDeliveryOrder =
+          sale.deliveryStatus === "OUT_FOR_DELIVERY" && sale.deliveryManId;
+
+        if (isDeliveryOrder) {
+          console.log(
+            "🚚 Delivery order detected. Skipping treasury update (money with rider).",
+          );
+        } else if (method === "CASH") {
           console.log(
             `💰 Payment is CASH. Updating Branch Treasury ID ${treasuryId}...`,
           );
@@ -492,6 +500,70 @@ router.post(
       // );
       // console.log("============================================");
       res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// PATCH mark delivery as collected - Requires POS permission
+router.patch(
+  "/:id/mark-delivered",
+  authenticateToken,
+  requireAnyPermission(["POS", "SALES"]),
+  async (req, res, next) => {
+    try {
+      const saleId = parseInt(req.params.id);
+
+      // Fetch the sale to verify it's a delivery order
+      const sale = await prisma.sale.findUnique({
+        where: { id: saleId },
+        include: {
+          branch: { include: { treasury: true } },
+        },
+      });
+
+      if (!sale) {
+        return res.status(404).json({ error: "Sale not found" });
+      }
+
+      if (!sale.deliveryManId) {
+        return res.status(400).json({ error: "This is not a delivery order" });
+      }
+
+      // Execute transaction: Update delivery status + Update treasury
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Update delivery status to DELIVERED
+        const updatedSale = await tx.sale.update({
+          where: { id: saleId },
+          data: {
+            deliveryStatus: "DELIVERED",
+          },
+          include: {
+            client: true,
+            deliveryMan: true,
+            deliveryZone: true,
+          },
+        });
+
+        // 2. Add money to treasury (collection from rider)
+        const method = (sale.paymentMethod || "CASH").toUpperCase();
+
+        if (method === "CASH" && sale.treasuryId) {
+          console.log(
+            `💰 Collecting delivery payment. Updating Treasury ID ${sale.treasuryId}...`,
+          );
+          await tx.treasury.update({
+            where: { id: sale.treasuryId },
+            data: { balance: { increment: parseFloat(sale.total) } },
+          });
+          console.log("✅ Treasury updated after delivery collection.");
+        }
+
+        return updatedSale;
+      });
+
+      res.json(result);
     } catch (error) {
       next(error);
     }

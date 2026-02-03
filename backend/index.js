@@ -115,10 +115,10 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-          maxAge: 31536000,
-          includeSubDomains: true,
-          preload: true,
-        }
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+          }
         : false, // Disable HSTS in development
   }),
 );
@@ -251,7 +251,9 @@ app.get("/api/dangerous-reset-db", async (req, res) => {
   // 1. Security Check
   if (req.query.secret !== "RESET_MY_DB_NOW") {
     console.warn(">>> [RESET] Access denied. Invalid secret.");
-    return res.status(403).json({ error: "Access denied. Invalid secret key." });
+    return res
+      .status(403)
+      .json({ error: "Access denied. Invalid secret key." });
   }
 
   const log = [];
@@ -291,7 +293,10 @@ app.get("/api/dangerous-reset-db", async (req, res) => {
     if (fs.existsSync(migrationPath)) {
       logMsg("Applying migration.sql...");
       const sqlContent = fs.readFileSync(migrationPath, "utf8");
-      const statements = sqlContent.split(";").map(s => s.trim()).filter(s => s.length > 0);
+      const statements = sqlContent
+        .split(";")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
 
       for (let i = 0; i < statements.length; i++) {
         try {
@@ -312,17 +317,20 @@ app.get("/api/dangerous-reset-db", async (req, res) => {
         logMsg("Seeding Execution Function returned.");
         res.json({
           message: "Database reset and re-seeded successfully!",
-          log: log
+          log: log,
         });
       })
       .catch((seedErr) => {
         logMsg(`Seeding failed: ${seedErr.message}`);
-        res.status(500).json({ error: "Seeding failed", details: seedErr.message, log });
+        res
+          .status(500)
+          .json({ error: "Seeding failed", details: seedErr.message, log });
       });
-
   } catch (error) {
     console.error(">>> [RESET] Critical Error:", error);
-    res.status(500).json({ error: "Reset failed", details: error.message, log });
+    res
+      .status(500)
+      .json({ error: "Reset failed", details: error.message, log });
   }
 });
 
@@ -378,7 +386,7 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
     } catch (checkErr) {
       throw new Error(
         "Tables do not appear to exist after migration. SQL Execution might have failed completely. Details: " +
-        checkErr.message,
+          checkErr.message,
       );
     }
 
@@ -444,3 +452,6 @@ process.on("unhandledRejection", (reason, promise) => {
 process.on("uncaughtException", (error) => {
   console.error("❌ Uncaught Exception:", error);
 });
+
+// Force restart trigger
+console.log("🔄 Server updated");
