@@ -70,7 +70,9 @@ function App() {
 
   return (
     <Router>
-      <Toaster position="top-center" reverseOrder={false} />
+      <div className="no-print">
+        <Toaster position="top-center" reverseOrder={false} />
+      </div>
       <SessionTimeoutWarning />
       <Routes>
         {/* Public Route: Login */}
