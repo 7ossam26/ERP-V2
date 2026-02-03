@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { supplierService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import { validateEgyptianPhone } from "../../utils/validationUtils";
+import toast from "react-hot-toast";
 
 const SupplierForm = ({ initialData, onClose, onSave, data }) => {
   // Calculate next ID if creating new supplier
@@ -22,6 +24,14 @@ const SupplierForm = ({ initialData, onClose, onSave, data }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Validation
+    const phoneValidation = validateEgyptianPhone(formData.phone);
+    if (!phoneValidation.isValid) {
+      toast.error(phoneValidation.message);
+      return;
+    }
+
     onSave(formData);
   };
 

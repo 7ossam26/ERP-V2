@@ -3,6 +3,8 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { deliveryService } from "../../services/deliveryService";
 import { branchService } from "../../services/branchService";
 import AuthService from "../../services/authService";
+import { validateEgyptianPhone } from "../../utils/validationUtils";
+import toast from "react-hot-toast";
 
 const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   // Calculate next ID if creating new delivery man
@@ -43,6 +45,14 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Validation
+    const phoneValidation = validateEgyptianPhone(formData.phone);
+    if (!phoneValidation.isValid) {
+      toast.error(phoneValidation.message);
+      return;
+    }
+
     onSave(formData);
   };
 
@@ -285,8 +295,8 @@ const DeliveryMenPage = () => {
       render: (item) => (
         <span
           className={`px-3 py-1 rounded-full text-xs font-bold ${item.isActive
-              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
             }`}>
           {item.isActive ? "نشط" : "غير نشط"}
         </span>
