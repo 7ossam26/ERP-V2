@@ -144,11 +144,25 @@ const CashierTransferPage = () => {
                     <option value="" disabled>
                       اختر الخزينة
                     </option>
-                    {treasuries.map((t) => (
-                      <option key={t.id} value={t.id} className="text-black">
-                        {t.name}
-                      </option>
-                    ))}
+                    {treasuries
+                      .filter((t) => {
+                        const userBranchId =
+                          currentUser?.branchId || currentUser?.branch?.id;
+
+                        // Strict filter: If user has a branch, ONLY show treasuries linked to that branch
+                        if (userBranchId) {
+                          // Treasury has a nested branch object, not a direct ID
+                          return Number(t.branch?.id) === Number(userBranchId);
+                        }
+
+                        // If no user branch (Superadmin?), show all
+                        return true;
+                      })
+                      .map((t) => (
+                        <option key={t.id} value={t.id} className="text-black">
+                          {t.name}
+                        </option>
+                      ))}
                   </select>
                   <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
                     {selectedSource
