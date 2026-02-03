@@ -20,18 +20,9 @@ const CashierTransferPage = () => {
         let data = await treasuryService.getAll();
         setTreasuries(data);
 
-        // Filter Source Candidates
-        const validSources = data.filter((t) => {
-          // For Managers: Filter by their branch
-          if (currentUser?.role === "Manager" && currentUser?.branch) {
-            return t.branch?.id === currentUser.branch.id;
-          }
-          return true;
-        });
-
-        // Auto-select the first valid source option if available
-        if (validSources.length > 0) {
-          setSourceTreasuryId(validSources[0].id);
+        // Auto-select the first available treasury if any exist
+        if (data.length > 0) {
+          setSourceTreasuryId(data[0].id);
         }
       } catch (error) {
         toast.error("فشل في تحميل بيانات الخزائن");
@@ -41,7 +32,7 @@ const CashierTransferPage = () => {
   }, [currentUser?.id, currentUser?.branch?.id]);
 
   const selectedSource = treasuries.find(
-    (t) => t.id === parseInt(sourceTreasuryId)
+    (t) => t.id === parseInt(sourceTreasuryId),
   );
   const currentBalance = selectedSource ? Number(selectedSource.balance) : 0;
 
@@ -145,22 +136,11 @@ const CashierTransferPage = () => {
                     <option value="" disabled>
                       اختر الخزينة
                     </option>
-                    {treasuries
-                      .filter((t) => {
-                        // For Managers: Filter by their branch
-                        if (
-                          currentUser?.role === "Manager" &&
-                          currentUser?.branch
-                        ) {
-                          return t.branch?.id === currentUser.branch.id;
-                        }
-                        return true;
-                      })
-                      .map((t) => (
-                        <option key={t.id} value={t.id} className="text-black">
-                          {t.name}
-                        </option>
-                      ))}
+                    {treasuries.map((t) => (
+                      <option key={t.id} value={t.id} className="text-black">
+                        {t.name}
+                      </option>
+                    ))}
                   </select>
                   <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
                     {selectedSource
@@ -195,7 +175,7 @@ const CashierTransferPage = () => {
                       اختر الوجهة
                     </option>
                     {treasuries
-                      .filter(t => t.id !== parseInt(sourceTreasuryId)) // Prevent selecting same treasury
+                      .filter((t) => t.id !== parseInt(sourceTreasuryId)) // Prevent selecting same treasury
                       .map((t) => (
                         <option key={t.id} value={t.id} className="text-black">
                           {t.name}

@@ -23,16 +23,16 @@ router.get("/", async (req, res) => {
     // --- ALL BRANCHES AGGREGATION LOGIC ---
     // 1. Calculate total balance of all "real" treasuries
     const allBranchesTreasury = treasuries.find(
-      (t) => t.name === "All Branches Treasury" || t.id === 4 // Fallback to ID 4 if name matches
+      (t) => t.name === "All Branches Treasury" || t.id === 4, // Fallback to ID 4 if name matches
     );
 
     if (allBranchesTreasury) {
       const realTreasuries = treasuries.filter(
-        (t) => t.id !== allBranchesTreasury.id
+        (t) => t.id !== allBranchesTreasury.id,
       );
       const totalBalance = realTreasuries.reduce(
         (sum, t) => sum + Number(t.balance),
-        0
+        0,
       );
 
       // 2. Overwrite the balance in the response (Virtual View)
@@ -41,34 +41,13 @@ router.get("/", async (req, res) => {
     }
     // --------------------------------------
 
-    // --- VISIBILITY FILTER ---
-    // Rule:
-    // 1. Superadmin -> Sees ALL
-    // 2. "All Branches" Branch User -> Sees ALL
-    // 3. Regular Branch User -> Sees ONLY their branch's treasury
+    // All authenticated users can see all treasuries for cashier transfers
+    // Exclude "All Branches Treasury" - it's a system treasury, not for transfers
+    const filteredTreasuries = treasuries.filter(
+      (t) => t.name !== "All Branches Treasury",
+    );
 
-    if (req.user.role !== "Superadmin") {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        include: { branch: true },
-      });
-
-      // Validating current user, if for some reason user not found or no branch, return empty or safe default
-      // ideally every user has a branch if they are not superadmin, but let's be safe.
-
-      const isAllBranches = user?.branch?.isAllBranches;
-      const userTreasuryId = user?.branch?.treasuryId;
-
-      if (!isAllBranches) {
-        // Filter to only include the user's branch treasury
-        return res.json(
-          treasuries.filter((t) => t.id === userTreasuryId)
-        );
-      }
-    }
-    // -------------------------
-
-    res.json(treasuries);
+    res.json(filteredTreasuries);
   } catch (error) {
     res
       .status(500)
@@ -151,7 +130,7 @@ router.post("/transfer", async (req, res) => {
 
         if (!mainTreasury) {
           throw new Error(
-            "Main Treasury not found. Please configure it in System Settings."
+            "Main Treasury not found. Please configure it in System Settings.",
           );
         }
         destinationTreasuryId = mainTreasury.id;
@@ -172,7 +151,7 @@ router.post("/transfer", async (req, res) => {
     }
 
     // Block transfers from "All Branches Treasury" (ID 4 or Name check)
-    // We fetch source details in transaction anyway, but let's check basic ID first if known, 
+    // We fetch source details in transaction anyway, but let's check basic ID first if known,
     // or better, check after fetching source.
 
     // Use transaction to ensure data integrity
@@ -192,7 +171,9 @@ router.post("/transfer", async (req, res) => {
         (source.branch && source.branch.isAllBranches);
 
       if (isAllBranchesTreasury) {
-        throw new Error("Cannot transfer funds FROM 'All Branches Treasury'. It is a read-only view.");
+        throw new Error(
+          "Cannot transfer funds FROM 'All Branches Treasury'. It is a read-only view.",
+        );
       }
       // ----------------------------------------
 
@@ -316,7 +297,7 @@ router.post(
         .status(500)
         .json({ error: "Failed to create treasury", message: error.message });
     }
-  }
+  },
 );
 
 // PUT update treasury
@@ -336,21 +317,25 @@ router.put(
         .status(500)
         .json({ error: "Failed to update treasury", message: error.message });
     }
-  }
+  },
 );
 
 // DELETE treasury
 // DELETE treasury
-router.delete("/:id", requirePermission("TREASURIES"), async (req, res, next) => {
-  try {
-    await prisma.treasury.update({
-      where: { id: parseInt(req.params.id) },
-      data: { isActive: false },
-    });
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-});
+router.delete(
+  "/:id",
+  requirePermission("TREASURIES"),
+  async (req, res, next) => {
+    try {
+      await prisma.treasury.update({
+        where: { id: parseInt(req.params.id) },
+        data: { isActive: false },
+      });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 module.exports = router;
