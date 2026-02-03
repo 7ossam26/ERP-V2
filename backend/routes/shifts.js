@@ -133,7 +133,7 @@ async function determineShiftType() {
     const isInMorningShift =
       morningEnd > morningStart
         ? currentTimeInMinutes >= morningStart &&
-        currentTimeInMinutes < morningEnd
+          currentTimeInMinutes < morningEnd
         : false; // Morning shift doesn't cross midnight
 
     // Check if current time is in evening shift (may cross midnight)
@@ -691,6 +691,7 @@ router.get(
       const report = {
         shiftId: shift.id,
         shiftType: shift.type,
+        branchName: shift.branch?.name,
         employeeName: shift.user.name,
         shiftName: shift.type === "MORNING" ? "وردية صباحية" : "وردية مسائية",
         date: shift.startTime,

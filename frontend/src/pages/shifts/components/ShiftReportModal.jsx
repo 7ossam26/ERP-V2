@@ -57,18 +57,22 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               <p className="font-bold text-lg">{report.employeeName}</p>
             </div>
             <div>
+              <p className="text-gray-500">الفرع</p>
+              <p className="font-bold">{report.branchName}</p>
+            </div>
+            <div>
               <p className="text-gray-500">نوع الوردية</p>
               <p className="font-bold">{report.shiftName}</p>
             </div>
             <div>
               <p className="text-gray-500">بداية الوردية</p>
-              <p className="font-mono" dir="ltr">
+              <p className="font-mono font-bold" dir="ltr">
                 {new Date(report.startTime).toLocaleString("ar-EG")}
               </p>
             </div>
             <div>
               <p className="text-gray-500">نهاية الوردية</p>
-              <p className="font-mono" dir="ltr">
+              <p className="font-mono font-bold" dir="ltr">
                 {report.endTime
                   ? new Date(report.endTime).toLocaleString("ar-EG")
                   : "مفتوحة"}
