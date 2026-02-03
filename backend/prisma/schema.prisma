@@ -37,6 +37,7 @@ model User {
   reviewedShifts      Shift[]               @relation("ShiftReviewer")
   refreshTokens       RefreshToken[]
   deposits            Deposit[]             @relation("DepositCreator")
+  createdDeliveryTransactions DeliveryManTransaction[]
 
   @@map("users")
 }
@@ -806,6 +807,7 @@ model DeliveryMan {
   nationalId  String?  @map("national_id")
   vehicleType String?  @map("vehicle_type") // motorcycle, car, van, etc.
   branchId    Int      @map("branch_id")
+  walletBalance Decimal @default(0) @map("wallet_balance") @db.Decimal(10, 2)
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -813,8 +815,25 @@ model DeliveryMan {
   // Relations
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
   sales  Sale[]
+  transactions DeliveryManTransaction[]
 
   @@map("delivery_men")
+}
+
+model DeliveryManTransaction {
+  id            Int      @id @default(autoincrement())
+  deliveryManId Int      @map("delivery_man_id")
+  amount        Decimal  @db.Decimal(10, 2)
+  type          String   // "DEBT_ACCRUED" (Order), "PAYMENT" (Settlement)
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdById   Int?     @map("created_by_id")
+
+  // Relations
+  deliveryMan DeliveryMan @relation(fields: [deliveryManId], references: [id], onDelete: Cascade)
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@map("delivery_man_transactions")
 }
 
 model DeliveryZone {

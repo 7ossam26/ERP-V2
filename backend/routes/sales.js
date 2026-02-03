@@ -407,9 +407,23 @@ router.post(
           sale.deliveryStatus === "OUT_FOR_DELIVERY" && sale.deliveryManId;
 
         if (isDeliveryOrder) {
-          console.log(
-            "🚚 Delivery order detected. Skipping treasury update (money with rider).",
-          );
+          const totalDebt = parseFloat(total) + (deliveryFee ? parseFloat(deliveryFee) : 0);
+          console.log(`🚚 Delivery order detected. Adding to Driver Wallet: ${totalDebt} (Total: ${total} + Fee: ${deliveryFee})`);
+
+          await tx.deliveryMan.update({
+            where: { id: parseInt(sale.deliveryManId) },
+            data: { walletBalance: { increment: totalDebt } },
+          });
+
+          await tx.deliveryManTransaction.create({
+            data: {
+              deliveryManId: parseInt(sale.deliveryManId),
+              amount: parseFloat(total),
+              type: "DEBT_ACCRUED",
+              description: `Order #${saleNumber} Debt`,
+              createdById: finalUserId || null,
+            },
+          });
         } else if (method === "CASH") {
           console.log(
             `💰 Payment is CASH. Updating Branch Treasury ID ${treasuryId}...`,
@@ -545,20 +559,6 @@ router.patch(
             deliveryZone: true,
           },
         });
-
-        // 2. Add money to treasury (collection from rider)
-        const method = (sale.paymentMethod || "CASH").toUpperCase();
-
-        if (method === "CASH" && sale.treasuryId) {
-          console.log(
-            `💰 Collecting delivery payment. Updating Treasury ID ${sale.treasuryId}...`,
-          );
-          await tx.treasury.update({
-            where: { id: sale.treasuryId },
-            data: { balance: { increment: parseFloat(sale.total) } },
-          });
-          console.log("✅ Treasury updated after delivery collection.");
-        }
 
         return updatedSale;
       });

@@ -5,6 +5,7 @@ const {
     authenticateToken,
     requirePermission,
     requireCreatePermission,
+    requireAnyPermission,
 } = require("../middleware/auth");
 
 // Protect all routes with authentication
@@ -27,7 +28,7 @@ router.get("/", requirePermission("DEPOSITS"), async (req, res, next) => {
 });
 
 // POST Create new deposit
-router.post("/", requireCreatePermission("CREATES_DEPOSITS"), async (req, res, next) => {
+router.post("/", requireAnyPermission(["DEPOSITS", "CREATES_DEPOSITS"]), async (req, res, next) => {
     try {
         const { amount, treasuryId, description, date } = req.body;
         const depositAmount = Number(amount);

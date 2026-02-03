@@ -835,9 +835,7 @@ const POSPage = () => {
       clearCart();
       setSelectedClient(null);
       setSelectedDeliveryMan(null);
-      if (!deliveryDataOverride) {
-        setDeliveryData(null); // Clear delivery data only if not auto-called
-      }
+      setDeliveryData(null); // Always clear delivery data after sale
 
       // Auto-print after successful payment
       setTimeout(() => {
@@ -1974,7 +1972,10 @@ const POSPage = () => {
           <div className="flex justify-between font-bold text-sm">
             <span>الإجمالي</span>
             <span>
-              {(cartItems.length > 0 ? total : lastSale?.total || 0).toFixed(2)}{" "}
+              {(
+                (cartItems.length > 0 ? total : parseFloat(lastSale?.total || 0)) +
+                parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0)
+              ).toFixed(2)}{" "}
               ج.م
             </span>
           </div>

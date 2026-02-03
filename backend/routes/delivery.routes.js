@@ -15,6 +15,11 @@ router.post(
   deliveryController.createDeliveryMan,
 );
 
+router.post(
+  "/settle",
+  deliveryController.settleDeliveryMan,
+);
+
 router.get("/stats", deliveryController.getDeliveryStats);
 
 router.get(

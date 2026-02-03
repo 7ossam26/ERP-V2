@@ -415,6 +415,22 @@ router.post("/approve", async (req, res, next) => {
       });
     }
 
+    // CHECK FOR PENDING DELIVERY SETTLEMENTS
+    const pendingDeliveryOrders = await prisma.sale.count({
+      where: {
+        shiftId: parseInt(shiftId),
+        deliveryStatus: "OUT_FOR_DELIVERY",
+      },
+    });
+
+    if (pendingDeliveryOrders > 0) {
+      return res.status(400).json({
+        error: "Cannot close shift. There are pending delivery orders.",
+        message: `لا يمكن إغلاق الوردية. يوجد ${pendingDeliveryOrders} طلبات توصيل معلقة (لم يتم تسويتها).`,
+        pendingCount: pendingDeliveryOrders,
+      });
+    }
+
     // Authenticate the manager
     const manager = await prisma.user.findUnique({
       where: { username: managerUsername },
@@ -567,6 +583,7 @@ router.get(
         },
         include: {
           client: { select: { name: true } }, // Include Client Name
+          deliveryMan: { select: { name: true } }, // Include Delivery Man Name
           items: {
             include: {
               item: {
@@ -633,6 +650,36 @@ router.get(
         });
       });
 
+      // Delivery Breakdown
+      const deliveryMap = new Map();
+      sales.forEach((sale) => {
+        if (sale.deliveryManId && sale.deliveryMan) {
+          const key = sale.deliveryMan.name;
+          if (!deliveryMap.has(key)) {
+            deliveryMap.set(key, {
+              name: key, // Delivery Man Name
+              count: 0,
+              total: 0,
+              paidCount: 0, // Delivered/Settled
+              pendingCount: 0, // Out for delivery
+            });
+          }
+          const stats = deliveryMap.get(key);
+          stats.count += 1;
+          stats.total += parseFloat(sale.deliveryFee || 0); // OR Total sale amount? User likely wants Total Cash collected.
+          // User: "delivery order numbers and it's amount details" -> likely Total Amount (Order + Fee)
+          // Let's assume Total Sale Amount for now as that's what constitutes the debt.
+          stats.total += parseFloat(sale.total);
+
+          if (sale.deliveryStatus === "DELIVERED") {
+            stats.paidCount += 1;
+          } else {
+            stats.pendingCount += 1;
+          }
+        }
+      });
+      const deliveryDetails = Array.from(deliveryMap.values());
+
       const salesDetails = Array.from(itemsMap.values());
 
       // Calculate expenses
@@ -663,6 +710,7 @@ router.get(
         cashReceived: cashSales,
         cardPayments: cardSales,
         salesDetails: salesDetails,
+        deliveryDetails: deliveryDetails, // Add Delivery Breakdown
         orders: orders, // Add Orders History
 
         // Expenses

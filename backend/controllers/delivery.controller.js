@@ -183,3 +183,64 @@ exports.getDeliveryStats = async (req, res) => {
       });
   }
 };
+
+// Settle delivery man debt
+exports.settleDeliveryMan = async (req, res) => {
+  try {
+    const { deliveryManId, amount, notes, treasuryId, userId } = req.body;
+
+    if (!deliveryManId || !amount || !treasuryId) {
+      return res.status(400).json({
+        error: "Delivery Man ID, Amount, and Treasury ID are required"
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Decrement Wallet Balance
+      const updatedDeliveryMan = await tx.deliveryMan.update({
+        where: { id: parseInt(deliveryManId) },
+        data: { walletBalance: { decrement: parseFloat(amount) } },
+      });
+
+      // 2. Increment Treasury Balance
+      await tx.treasury.update({
+        where: { id: parseInt(treasuryId) },
+        data: { balance: { increment: parseFloat(amount) } },
+      });
+
+      // 3. Log Delivery Transaction (Payment)
+      const settlementTx = await tx.deliveryManTransaction.create({
+        data: {
+          deliveryManId: parseInt(deliveryManId),
+          amount: parseFloat(amount),
+          type: "PAYMENT",
+          description: notes || "Manual Settlement",
+          createdById: userId ? parseInt(userId) : null,
+        },
+      });
+
+      // 4. Mark all 'OUT_FOR_DELIVERY' orders for this driver as 'DELIVERED'
+      // This is crucial to unblock Shift Approval
+      await tx.sale.updateMany({
+        where: {
+          deliveryManId: parseInt(deliveryManId),
+          deliveryStatus: "OUT_FOR_DELIVERY",
+        },
+        data: {
+          deliveryStatus: "DELIVERED",
+        },
+      });
+
+      return {
+        deliveryMan: updatedDeliveryMan,
+        transaction: settlementTx,
+      };
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    console.error("❌ Error settling delivery man:", error);
+    res.status(500).json({ error: "Failed to settle delivery man" });
+  }
+};
