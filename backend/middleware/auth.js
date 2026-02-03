@@ -17,7 +17,7 @@ const authenticateToken = (req, res, next) => {
     process.env.JWT_SECRET || "fallback_secret_key_change_me",
     (err, user) => {
       if (err) {
-        return res.status(403).json({
+        return res.status(401).json({
           error: "Invalid or expired token.",
           resolution: "Please log out and log back in to refresh your session."
         });
