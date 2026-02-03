@@ -67,7 +67,18 @@ const PurchasesPage = () => {
 
         // Auto-select first treasury and warehouse if available
         if (fetchedTreasuries.length > 0) {
-          setSelectedTreasuryId(fetchedTreasuries[0].id);
+          // Default to Main Treasury if exists
+          const mainTreasury = fetchedTreasuries.find(
+            (t) =>
+              t.name.includes("Main Treasury") ||
+              t.name.includes("الخزينة الرئيسية") ||
+              t.name.includes("Main")
+          );
+          if (mainTreasury) {
+            setSelectedTreasuryId(mainTreasury.id);
+          } else {
+            setSelectedTreasuryId(fetchedTreasuries[0].id);
+          }
         }
 
         // Fetch Settings to set Main Warehouse

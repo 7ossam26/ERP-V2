@@ -9,7 +9,7 @@ router.use(authenticateToken);
 
 // GET all clients
 // GET all clients - Requires VIEW permission (CLIENTS) or usage permissions (POS, SALES)
-router.get("/", requireAnyPermission(["CLIENTS", "POS", "SALES"]), async (req, res) => {
+router.get("/", requireAnyPermission(["CLIENTS", "POS", "SALES", "CREATES_CLIENTS"]), async (req, res) => {
   try {
     const clients = await prisma.client.findMany({
       orderBy: { createdAt: "asc" },
