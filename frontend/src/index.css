@@ -16,6 +16,7 @@
 }
 
 @layer utilities {
+
   /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar,
   .scrollbar-hide::-webkit-scrollbar {
@@ -94,6 +95,13 @@
   #thermal-receipt h2 {
     font-size: 16px;
     margin-bottom: 5px;
+  }
+
+  #thermal-receipt img {
+    max-width: 40%;
+    margin: 0 auto 5px auto;
+    display: block;
+    filter: grayscale(100%) contrast(150%);
   }
 
   #thermal-receipt p {

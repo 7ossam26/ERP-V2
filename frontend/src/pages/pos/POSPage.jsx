@@ -1897,6 +1897,9 @@ const POSPage = () => {
       {/* Thermal Receipt Template - Invisible on screen, visible on print */}
       <div id="thermal-receipt" className="hidden print:block">
         <div className="text-center mb-4">
+          <div className="flex justify-center mb-2">
+            <img src="/assets/logo.png" alt="Logo" className="w-[50mm] h-auto object-contain" />
+          </div>
           <h2 className="text-xl font-bold uppercase tracking-wider">
             {currentUser?.branch?.name || "Elghonemy ERP"}
           </h2>
@@ -1963,8 +1966,8 @@ const POSPage = () => {
           <thead>
             <tr className="border-b border-gray-200">
               <th className="py-1">الصنف</th>
-              <th className="py-1 text-center">ك</th>
-              <th className="py-1 text-left">ق</th>
+              <th className="py-1 text-center">كمية</th>
+              <th className="py-1 text-left">سعر</th>
             </tr>
           </thead>
           <tbody>
