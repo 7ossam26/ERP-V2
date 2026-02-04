@@ -36,6 +36,10 @@ export const salesService = {
     return await api.get(`${SALES_URL}/number/${saleNumber}`);
   },
 
+  async search(query) {
+    return await api.get(`${SALES_URL}/search`, { params: { query } });
+  },
+
   async create(saleData) {
     return await api.post(SALES_URL, saleData);
   },

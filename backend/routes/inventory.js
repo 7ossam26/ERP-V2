@@ -44,12 +44,12 @@ router.get("/", async (req, res, next) => {
     */
 
     // Determine warehouse limitation based on user branch
-    const branchId = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id);
     let inventoryWhere = {};
 
-    if (branchId) {
+    if (branchFilter) {
       const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
+        where: { id: branchFilter.id },
         select: { warehouseId: true },
       });
       if (branch && branch.warehouseId) {
@@ -186,12 +186,12 @@ router.get("/stats", async (req, res, next) => {
     }
 
     // Determine warehouse limitation based on user branch
-    const branchId = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id);
     let inventoryWhere = {};
 
-    if (branchId) {
+    if (branchFilter) {
       const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
+        where: { id: branchFilter.id },
         select: { warehouseId: true },
       });
       if (branch && branch.warehouseId) {

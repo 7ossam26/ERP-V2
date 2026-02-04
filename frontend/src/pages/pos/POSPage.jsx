@@ -218,7 +218,19 @@ const POSPage = () => {
   }, []);
 
   // Hold Cart State
-  const [heldCarts, setHeldCarts] = useState([]);
+  const [heldCarts, setHeldCarts] = useState(() => {
+    try {
+      const saved = localStorage.getItem("heldCarts");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load held carts", e);
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("heldCarts", JSON.stringify(heldCarts));
+  }, [heldCarts]);
   const [isHeldCartsModalOpen, setIsHeldCartsModalOpen] = useState(false);
   const [isPaymentConfirmOpen, setIsPaymentConfirmOpen] = useState(false);
   const [pendingPaymentMethod, setPendingPaymentMethod] = useState(null);
@@ -1674,7 +1686,7 @@ const POSPage = () => {
                     <span className="material-symbols-outlined mb-1">
                       {cartItems.length > 0 ? "pause_circle" : "history"}
                     </span>
-                    <span>{cartItems.length > 0 ? "تعليق" : "استرجاع"}</span>
+                    <span>{cartItems.length > 0 ? "تعليق" : "فواتير معلقة"}</span>
                     {heldCarts.length > 0 && cartItems.length > 0 && (
                       <span className="absolute top-1 right-1 flex h-3 w-3">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>

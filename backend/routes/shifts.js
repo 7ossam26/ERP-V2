@@ -38,9 +38,9 @@ router.get(
         whereClause.branchId = parseInt(branchId);
       } else {
         // Enforce branch access if not filtering by specific branch
-        const allowedBranchId = await getUserBranchFilter(req.user.id);
-        if (allowedBranchId) {
-          whereClause.branchId = allowedBranchId;
+        const branchFilter = await getUserBranchFilter(req.user.id);
+        if (branchFilter) {
+          whereClause.branchId = branchFilter.id;
         }
       }
 
@@ -133,7 +133,7 @@ async function determineShiftType() {
     const isInMorningShift =
       morningEnd > morningStart
         ? currentTimeInMinutes >= morningStart &&
-          currentTimeInMinutes < morningEnd
+        currentTimeInMinutes < morningEnd
         : false; // Morning shift doesn't cross midnight
 
     // Check if current time is in evening shift (may cross midnight)
@@ -228,8 +228,8 @@ router.post("/start", async (req, res, next) => {
     }
 
     // Validate Branch Access
-    const allowedBranchId = await getUserBranchFilter(req.user.id);
-    if (allowedBranchId && allowedBranchId !== parseInt(branchId)) {
+    const branchFilter = await getUserBranchFilter(req.user.id);
+    if (branchFilter && branchFilter.id !== parseInt(branchId)) {
       return res.status(403).json({
         error: "Access denied. You cannot start a shift in this branch.",
       });
@@ -520,8 +520,8 @@ router.get("/pending/:branchId", async (req, res, next) => {
     const branchId = parseInt(req.params.branchId);
 
     // Validate branch access
-    const allowedBranchId = await getUserBranchFilter(req.user.id);
-    if (allowedBranchId && allowedBranchId !== branchId) {
+    const branchFilter = await getUserBranchFilter(req.user.id);
+    if (branchFilter && branchFilter.id !== branchId) {
       return res.status(403).json({ error: "Access denied" });
     }
 
@@ -568,8 +568,8 @@ router.get(
       }
 
       // Validate Branch Access for Report
-      const allowedBranchId = await getUserBranchFilter(req.user.id);
-      if (allowedBranchId && allowedBranchId !== shift.branchId) {
+      const branchFilter = await getUserBranchFilter(req.user.id);
+      if (branchFilter && branchFilter.id !== shift.branchId) {
         return res.status(403).json({
           error: "Access denied. You cannot view reports for this branch.",
         });

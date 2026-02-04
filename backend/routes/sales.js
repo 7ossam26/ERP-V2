@@ -89,7 +89,9 @@ router.get(
   "/:id",
   authenticateToken,
   requireAnyPermission(["SALES", "POS"]),
-  async (req, res) => {
+  async (req, res, next) => {
+    // If id is "search", skip to the search route defined below
+    if (req.params.id === "search") return next("route");
     try {
       const sale = await prisma.sale.findUnique({
         where: { id: parseInt(req.params.id) },
@@ -117,6 +119,59 @@ router.get(
       next(error);
     }
   },
+);
+
+// GET search sales - Requires SALES or POS permission
+router.get(
+  "/search",
+  authenticateToken,
+  requireAnyPermission(["SALES", "POS"]),
+  async (req, res, next) => {
+    try {
+      const { query } = req.query;
+
+      if (!query || query.trim().length === 0) {
+        return res.json([]);
+      }
+
+      const searchTerm = query.trim();
+      const branchFilter = await getUserBranchFilter(req.user.id);
+
+      const whereClause = {
+        OR: [
+          { saleNumber: { contains: searchTerm } },
+          { client: { name: { contains: searchTerm } } },
+          { client: { phoneNumber: { contains: searchTerm } } },
+        ],
+      };
+
+      // Add branch filter if applicable
+      if (branchFilter) {
+        whereClause.branchId = branchFilter.id;
+      }
+
+      const sales = await prisma.sale.findMany({
+        where: whereClause,
+        take: 20, // Limit results
+        orderBy: { createdAt: "desc" },
+        include: {
+          client: true,
+          employee: true,
+          branch: true,
+          treasury: true,
+          items: {
+            include: {
+              item: true,
+            },
+          },
+        },
+      });
+
+      res.json(sales);
+    } catch (error) {
+      next(error);
+    }
+  }
 );
 
 // GET sale by sale number - Requires SALES or POS permission
@@ -716,16 +771,15 @@ router.post(
         });
       }
 
-      // Check if manager has SALES permission
-      const hasSalesPermission = manager.role.permissions.some(
-        (p) => p.module === "SALES" && p.canAccess,
-      );
+      // Check if manager has appropriate role
+      const allowedRoles = ["Superadmin", "Manager", "Branch Manager"];
+      const isAuthorized = allowedRoles.includes(manager.role.name);
 
-      if (!hasSalesPermission) {
+      if (!isAuthorized) {
         return res.status(403).json({
-          error: "Manager does not have SALES permission",
+          error: "Access denied. Role not authorized.",
           resolution:
-            "Only managers with SALES permissions can authorize refunds.",
+            "Only Branch Managers, Managers, or Superadmins can authorize refunds.",
         });
       }
 

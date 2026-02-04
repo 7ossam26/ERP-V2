@@ -15,8 +15,8 @@ router.get("/branch-managers/:branchId", async (req, res, next) => {
         const branchId = parseInt(req.params.branchId);
 
         // Validate branch access
-        const allowedBranchId = await getUserBranchFilter(req.user.id);
-        if (allowedBranchId && allowedBranchId !== branchId) {
+        const branchFilter = await getUserBranchFilter(req.user.id);
+        if (branchFilter && branchFilter.id !== branchId) {
             return res.status(403).json({ error: "Access denied" });
         }
 

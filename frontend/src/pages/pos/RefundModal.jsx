@@ -12,62 +12,72 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
   const [loading, setLoading] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [refundNote, setRefundNote] = useState("");
+  const [searchResults, setSearchResults] = useState([]); // List of found sales for selection
 
   // Effect to auto-load if saleId provided
   useEffect(() => {
     if (isOpen && initialSaleId) {
       setSearchSaleId(initialSaleId);
-      handleSearch(null, initialSaleId);
+      // If ID is provided directly, fetch just that one
+      fetchSpecificSale(initialSaleId);
     } else if (isOpen) {
       // Reset state
       setSearchSaleId("");
       setSaleData(null);
       setRefundItems([]);
       setRefundNote("");
+      setSearchResults([]);
     }
   }, [isOpen, initialSaleId]);
 
-  const handleSearch = async (e, idOverride) => {
-    if (e) e.preventDefault();
-    const saleNumber = idOverride || searchSaleId;
-
-    if (!saleNumber) return;
-
+  const fetchSpecificSale = async (idOrNumber) => {
     setLoading(true);
     try {
-      // Fetch sale details by sale number
-      // Accept formats like "SALE-202602-00004" or just "202602-00004" or "4"
-      let formattedSaleNumber = saleNumber.toString().trim();
-
-      // If user entered just a number, try to format it as SALE-number
-      if (/^\d+$/.test(formattedSaleNumber)) {
-        // Check if it looks like a full sale number without prefix
-        // or just a sequence number
-        const sale = await salesService.getBySaleNumber(
-          `SALE-${formattedSaleNumber}`,
-        );
-        if (sale) {
-          setSaleData(sale);
-          initializeRefundItems(sale);
-          return;
-        }
-      }
-
-      // Otherwise use as-is
-      const sale = await salesService.getBySaleNumber(formattedSaleNumber);
-
+      const sale = await salesService.getBySaleNumber(idOrNumber);
       if (sale) {
-        setSaleData(sale);
-        initializeRefundItems(sale);
+        selectSale(sale);
       }
     } catch (error) {
-      console.error("Fetch sale failed:", error);
-      toast.error("لم يتم العثور على الفاتورة");
-      setSaleData(null);
-      setRefundItems([]);
+      // Silent fail or minimal log, specific fetch might fail if ID is partial
     } finally {
       setLoading(false);
     }
+  }
+
+  const handleSearch = async (e) => {
+    if (e) e.preventDefault();
+    if (!searchSaleId) return;
+
+    setLoading(true);
+    setSearchResults([]);
+    setSaleData(null);
+
+    try {
+      const results = await salesService.search(searchSaleId);
+
+      if (results && results.length > 0) {
+        if (results.length === 1) {
+          // If only one match, select it immediately
+          selectSale(results[0]);
+        } else {
+          // Multiple matches, show list
+          setSearchResults(results);
+        }
+      } else {
+        toast.error("لم يتم العثور على أي فواتير مطابقة");
+      }
+    } catch (error) {
+      console.error("Search failed:", error);
+      toast.error("حدث خطأ أثناء البحث");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectSale = (sale) => {
+    setSaleData(sale);
+    setSearchResults([]); // Clear list
+    initializeRefundItems(sale);
   };
 
   const initializeRefundItems = (sale) => {
@@ -181,7 +191,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
               type="text"
               value={searchSaleId}
               onChange={(e) => setSearchSaleId(e.target.value)}
-              placeholder="أدخل رقم الفاتورة (مثال: 12345)"
+              placeholder="بحث برقم الفاتورة، اسم العميل، أو رقم الهاتف..."
               className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:border-red-500"
               autoFocus
             />
@@ -192,6 +202,43 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
               <FaSearch /> بحث
             </button>
           </form>
+          {/* Search Results List */}
+          {searchResults.length > 0 && !saleData && (
+            <div className="animate-fade-in space-y-2">
+              <h3 className="font-bold text-gray-700 dark:text-gray-300">نتائج البحث:</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-gray-100 dark:bg-gray-900">
+                    <tr>
+                      <th className="p-3">رقم الفاتورة</th>
+                      <th className="p-3">العميل</th>
+                      <th className="p-3">التاريخ</th>
+                      <th className="p-3">الإجمالي</th>
+                      <th className="p-3">إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {searchResults.map((sale) => (
+                      <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="p-3 font-medium">{sale.saleNumber}</td>
+                        <td className="p-3">{sale.client?.name || "عميل نقدى"}</td>
+                        <td className="p-3">{new Date(sale.createdAt).toLocaleDateString("ar-EG")}</td>
+                        <td className="p-3 font-bold">{parseFloat(sale.total).toFixed(2)}</td>
+                        <td className="p-3">
+                          <button
+                            onClick={() => selectSale(sale)}
+                            className="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded-lg text-xs font-bold transition-colors"
+                          >
+                            اختيار
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Sale Details */}
           {saleData && (
