@@ -338,12 +338,6 @@ app.get("/api/dangerous-reset-db", async (req, res) => {
 app.get("/api/setup-tables", async (req, res) => {
   console.log(">>> [SETUP] Starting Table Creation (SQL Execution Mode)...");
 
-  // Isolated Client
-  const { PrismaClient } = require("@prisma/client");
-  const migrationPrisma = new PrismaClient({
-    log: ['warn', 'error'],
-  });
-
   try {
     const migrationPath = path.join(__dirname, "prisma/migration.sql");
     const migrationResult = [];
@@ -363,7 +357,7 @@ app.get("/api/setup-tables", async (req, res) => {
         try {
           // Throttling: 10ms
           await new Promise(r => setTimeout(r, 10));
-          await migrationPrisma.$executeRawUnsafe(statements[i]);
+          await prisma.$executeRawUnsafe(statements[i]);
         } catch (sqlErr) {
           if (sqlErr.message && (sqlErr.message.includes("PANIC") || sqlErr.message.includes("timer has gone away"))) {
             console.error(`>>> [SETUP] CRITICAL ENGINE PANIC at stmt ${i}: ${sqlErr.message}`);
@@ -380,8 +374,6 @@ app.get("/api/setup-tables", async (req, res) => {
   } catch (error) {
     console.error(`>>> [SETUP] Critical Error: ${error.message}`);
     res.status(500).json({ error: error.message });
-  } finally {
-    await migrationPrisma.$disconnect();
   }
 });
 
