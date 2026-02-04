@@ -92,7 +92,7 @@ const requirePermission = (module) => {
 const requireAnyPermission = (modules) => {
   return async (req, res, next) => {
     try {
-      if (req.user.role === "Superadmin") return next();
+      if (req.user.role === "Superadmin" || req.user.role === "Admin") return next();
 
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
@@ -169,8 +169,8 @@ const requireCreatePermission = (createModule) => {
 
 // Check if user has sensitive access (for update/delete operations)
 const requireSensitiveAccess = async (req, res, next) => {
-  // Superadmin always has sensitive access
-  if (req.user.role === "Superadmin") {
+  // Superadmin and Admin always have sensitive access
+  if (req.user.role === "Superadmin" || req.user.role === "Admin") {
     return next();
   }
 

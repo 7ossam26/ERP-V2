@@ -7,6 +7,7 @@ const TreasuryForm = ({ initialData, onClose, onSave, data = [] }) => {
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
   });
+  const [keepOpen, setKeepOpen] = useState(false);
 
   // Calculate next ID for new treasury
   const getNextId = () => {
@@ -24,9 +25,16 @@ const TreasuryForm = ({ initialData, onClose, onSave, data = [] }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+    await onSave(formData, !keepOpen);
+
+    if (keepOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        name: "",
+      }));
+    }
   };
 
   return (
@@ -76,11 +84,23 @@ const TreasuryForm = ({ initialData, onClose, onSave, data = [] }) => {
           className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all min-h-touch">
           إلغاء
         </button>
+
+        {!initialData && (
+          <button
+            type="submit"
+            onClick={() => setKeepOpen(true)}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20">
+            <span className="material-icons-round text-lg">playlist_add</span>
+            <span>حفظ وإضافة آخر</span>
+          </button>
+        )}
+
         <button
           type="submit"
+          onClick={() => setKeepOpen(false)}
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 min-h-touch">
           <span className="material-icons-round text-lg">save</span>
-          <span>حفظ التغييرات</span>
+          <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
         </button>
       </div>
     </form>

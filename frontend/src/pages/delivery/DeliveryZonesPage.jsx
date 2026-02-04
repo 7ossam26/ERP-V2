@@ -24,6 +24,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     fee: initialData?.fee || "",
     branchId: initialData?.branchId || "",
   });
+  const [keepOpen, setKeepOpen] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,9 +34,19 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+    await onSave(formData, !keepOpen);
+
+    if (keepOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        id: parseInt(prev.id) + 1,
+        name: "",
+        fee: "",
+        // Keep branch sticky
+      }));
+    }
   };
 
   return (
@@ -138,8 +149,21 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed">
           إلغاء
         </button>
+
+        {!initialData && (
+          <button
+            type="submit"
+            onClick={() => setKeepOpen(true)}
+            disabled={isSaving}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span className="material-icons-round text-lg">playlist_add</span>
+            <span>حفظ وإضافة آخر</span>
+          </button>
+        )}
+
         <button
           type="submit"
+          onClick={() => setKeepOpen(false)}
           disabled={isSaving}
           className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSaving ? (
@@ -152,7 +176,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           ) : (
             <>
               <span className="material-icons-round text-lg">save</span>
-              <span>حفظ التغييرات</span>
+              <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
             </>
           )}
         </button>
@@ -214,11 +238,10 @@ const DeliveryZonesPage = () => {
       accessor: "isActive",
       render: (item) => (
         <span
-          className={`px-3 py-1 rounded-full text-xs font-bold ${
-            item.isActive
+          className={`px-3 py-1 rounded-full text-xs font-bold ${item.isActive
               ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
               : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-          }`}>
+            }`}>
           {item.isActive ? "نشط" : "غير نشط"}
         </span>
       ),

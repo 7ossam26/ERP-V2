@@ -60,7 +60,7 @@ const GenericPageManager = ({
     };
   }, [isModalOpen, navigate, backPath]);
 
-  const handleSave = async (formData) => {
+  const handleSave = async (formData, shouldClose = true) => {
     setIsSaving(true);
     try {
       if (editingItem) {
@@ -70,8 +70,12 @@ const GenericPageManager = ({
         await service.create(formData);
         showToast("تمت الإضافة بنجاح", "success");
       }
-      setIsModalOpen(false);
-      setEditingItem(null);
+
+      if (shouldClose) {
+        setIsModalOpen(false);
+        setEditingItem(null);
+      }
+
       await loadData();
     } catch (error) {
       console.error("Failed to save data", error);

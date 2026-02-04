@@ -25,6 +25,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     salary: initialData?.salary || "",
     title: initialData?.title || "",
   });
+  const [keepOpen, setKeepOpen] = useState(false);
 
   React.useEffect(() => {
     const fetchBranches = async () => {
@@ -46,7 +47,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validation
@@ -56,7 +57,19 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
       return;
     }
 
-    onSave(formData);
+    await onSave(formData, !keepOpen);
+
+    if (keepOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        id: parseInt(prev.id) + 1,
+        name: "",
+        phone: "",
+        nationalId: "",
+        salary: "",
+        // Keep branch, title, workDays, workHours, weekend as sticky
+      }));
+    }
   };
 
   return (
@@ -274,8 +287,21 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed">
           إلغاء
         </button>
+
+        {!initialData && (
+          <button
+            type="submit"
+            onClick={() => setKeepOpen(true)}
+            disabled={isSaving}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span className="material-icons-round text-lg">playlist_add</span>
+            <span>حفظ وإضافة آخر</span>
+          </button>
+        )}
+
         <button
           type="submit"
+          onClick={() => setKeepOpen(false)}
           disabled={isSaving}
           className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSaving ? (
@@ -288,7 +314,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           ) : (
             <>
               <span className="material-icons-round text-lg">save</span>
-              <span>حفظ التغييرات</span>
+              <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
             </>
           )}
         </button>

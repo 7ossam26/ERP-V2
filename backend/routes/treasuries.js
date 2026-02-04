@@ -6,6 +6,7 @@ const {
   requirePermission,
   requireCreatePermission,
   requireAnyPermission,
+  getUserBranchFilter,
 } = require("../middleware/auth");
 
 // Protect all routes with authentication

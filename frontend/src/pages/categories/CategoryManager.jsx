@@ -13,15 +13,24 @@ const CategoryForm = ({ initialData, onSave, onClose, data }) => {
   const [formData, setFormData] = React.useState(
     initialData || { name: "", id: nextId }
   );
+  const [keepOpen, setKeepOpen] = React.useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+    await onSave(formData, !keepOpen);
+
+    if (keepOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        id: parseInt(prev.id) + 1,
+        name: "",
+      }));
+    }
   };
 
   return (
@@ -51,17 +60,30 @@ const CategoryForm = ({ initialData, onSave, onClose, data }) => {
           placeholder="أدخل اسم التصنيف"
         />
       </div>
-      <div className="flex justify-end gap-3 mt-6">
+      <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <button
           type="button"
           onClick={onClose}
-          className="px-6 py-2 rounded-lg border border-border-light dark:border-border-dark text-text-light dark:text-text-dark hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all min-h-touch">
           إلغاء
         </button>
+
+        {!initialData && (
+          <button
+            type="submit"
+            onClick={() => setKeepOpen(true)}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20">
+            <span className="material-icons-round text-lg">playlist_add</span>
+            <span>حفظ وإضافة آخر</span>
+          </button>
+        )}
+
         <button
           type="submit"
-          className="px-6 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white font-medium transition-colors shadow-lg shadow-primary/30">
-          حفظ
+          onClick={() => setKeepOpen(false)}
+          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 min-h-touch">
+          <span className="material-icons-round text-lg">save</span>
+          <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
         </button>
       </div>
     </form>

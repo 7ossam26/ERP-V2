@@ -103,14 +103,29 @@ const StockTransferPage = () => {
     setSelectedItems(selectedItems.filter((item) => item.id !== id));
   };
 
-  const handleQtyChange = (id, change) => {
+  const isDecimalUnit = (unit) => {
+    return unit && (unit.includes("كيلو") || unit.toLowerCase().includes("kg"));
+  };
+
+  const handleQtyChange = (id, direction) => {
     setSelectedItems(
       selectedItems.map((item) => {
         if (item.id === id) {
-          const newQty = Math.max(
-            1,
-            Math.min(item.quantity, (item.transferQty || 0) + change),
-          );
+          const isDecimal = isDecimalUnit(item.unit);
+          const step = isDecimal ? 0.25 : 1;
+          const change = direction * step;
+
+          let newQty = (item.transferQty || 0) + change;
+
+          // Ensure min quantity is at least the step size (e.g. 0.25) or 1
+          const minQty = isDecimal ? 0.25 : 1;
+          newQty = Math.max(minQty, Math.min(item.quantity, newQty));
+
+          // Fix floating point precision
+          if (isDecimal) {
+            newQty = parseFloat(newQty.toFixed(2));
+          }
+
           return { ...item, transferQty: newQty };
         }
         return item;
@@ -119,10 +134,17 @@ const StockTransferPage = () => {
   };
 
   const handleManualQtyChange = (id, value) => {
-    const qty = parseInt(value) || 0;
     setSelectedItems(
       selectedItems.map((item) => {
         if (item.id === id) {
+          let qty;
+          if (isDecimalUnit(item.unit)) {
+            qty = parseFloat(value);
+            if (isNaN(qty)) qty = 0;
+          } else {
+            qty = parseInt(value) || 0;
+          }
+
           return {
             ...item,
             transferQty: Math.max(0, Math.min(item.quantity, qty)),
@@ -359,8 +381,8 @@ const StockTransferPage = () => {
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
                   className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
-                      ? "bg-primary text-white shadow-md"
-                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
                     }`}>
                   {cat.name}
                 </div>
@@ -401,10 +423,10 @@ const StockTransferPage = () => {
                         <span className="text-gray-500">متاح</span>
                         <span
                           className={`font-bold px-1.5 py-0.5 rounded ${product.quantity <= product.reorderPoint
-                              ? "text-red-600 bg-red-50 dark:bg-red-900/20"
-                              : product.quantity < 50
-                                ? "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
-                                : "text-green-600 bg-green-50 dark:bg-green-900/20"
+                            ? "text-red-600 bg-red-50 dark:bg-red-900/20"
+                            : product.quantity < 50
+                              ? "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
+                              : "text-green-600 bg-green-50 dark:bg-green-900/20"
                             }`}>
                           {product.quantity} {product.unit}
                         </span>
@@ -539,6 +561,7 @@ const StockTransferPage = () => {
                     <input
                       className="w-14 text-center border border-gray-300 dark:border-zinc-600 rounded py-1 px-1 text-sm font-bold bg-white dark:bg-zinc-800 focus:border-primary focus:ring-0"
                       type="number"
+                      step={isDecimalUnit(item.unit) ? "0.01" : "1"}
                       value={item.transferQty}
                       onChange={(e) =>
                         handleManualQtyChange(item.id, e.target.value)
