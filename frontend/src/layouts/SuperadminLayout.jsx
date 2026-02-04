@@ -40,15 +40,17 @@ const SuperadminLayout = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group min-h-touch ${isActive
-                  ? "bg-red-600 text-white shadow-lg shadow-red-900/20"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                  }`}>
+                className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group min-h-touch ${
+                  isActive
+                    ? "bg-red-600 text-white shadow-lg shadow-red-900/20"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                }`}>
                 <span
-                  className={`material-icons-round text-xl ${isActive
-                    ? "text-white"
-                    : "text-slate-400 group-hover:text-white"
-                    }`}>
+                  className={`material-icons-round text-xl ${
+                    isActive
+                      ? "text-white"
+                      : "text-slate-400 group-hover:text-white"
+                  }`}>
                   {item.icon}
                 </span>
                 <span className="font-medium text-sm">{item.label}</span>
@@ -84,6 +86,15 @@ const SuperadminLayout = () => {
 
       {/* Main Content - Full width on mobile, margin for sidebar on desktop */}
       <main className="flex-1 lg:ml-64 flex flex-col">
+        {/* Top Header with Back Button */}
+        <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 h-16 flex items-center px-4 sm:px-8 sticky top-0 z-40">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+            <span className="material-icons-round text-xl">arrow_forward</span>
+            <span className="font-medium">رجوع</span>
+          </button>
+        </header>
         <div className="flex-grow p-4 sm:p-8">
           <div className="max-w-6xl mx-auto">
             <Outlet />
