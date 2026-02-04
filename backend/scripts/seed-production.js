@@ -101,7 +101,8 @@ async function main() {
         if (warehouseRows.length > 0) {
             warehouseId = warehouseRows[0].id;
         } else {
-            const [result] = await query("INSERT INTO warehouses (name, updated_at) VALUES (?, NOW())", [MAIN_WAREHOUSE_NAME]);
+            // FIX: Removed destructuring, as INSERT returns an object (ResultSetHeader), not an array
+            const result = await query("INSERT INTO warehouses (name, updated_at) VALUES (?, NOW())", [MAIN_WAREHOUSE_NAME]);
             warehouseId = result.insertId;
             console.log(`✅ Created ${MAIN_WAREHOUSE_NAME} (ID: ${warehouseId})`);
         }
@@ -112,7 +113,8 @@ async function main() {
         if (treasuryRows.length > 0) {
             treasuryId = treasuryRows[0].id;
         } else {
-            const [result] = await query("INSERT INTO treasuries (name, balance, updated_at) VALUES (?, 0, NOW())", [MAIN_TREASURY_NAME]);
+            // FIX: Removed destructuring
+            const result = await query("INSERT INTO treasuries (name, balance, updated_at) VALUES (?, 0, NOW())", [MAIN_TREASURY_NAME]);
             treasuryId = result.insertId;
             console.log(`✅ Created ${MAIN_TREASURY_NAME} (ID: ${treasuryId})`);
         }
@@ -123,7 +125,8 @@ async function main() {
         if (branchRows.length > 0) {
             branchId = branchRows[0].id;
         } else {
-            const [result] = await query(
+            // FIX: Removed destructuring
+            const result = await query(
                 "INSERT INTO branches (name, address, warehouse_id, treasury_id, updated_at) VALUES (?, 'Headquarters', ?, ?, NOW())",
                 [MAIN_BRANCH_NAME, warehouseId, treasuryId]
             );
@@ -136,14 +139,16 @@ async function main() {
         // General Client
         const [clientRows] = await connection.execute("SELECT id FROM clients WHERE name = 'عميل عام'");
         if (clientRows.length === 0) {
-            const [result] = await query("INSERT INTO clients (name, phone_number, updated_at) VALUES ('عميل عام', '00000000000', NOW())", []);
+            // FIX: Removed destructuring
+            const result = await query("INSERT INTO clients (name, phone_number, updated_at) VALUES ('عميل عام', '00000000000', NOW())", []);
             console.log(`✅ Created General Client (ID: ${result.insertId})`);
         }
 
         // General Supplier
         const [supplierRows] = await connection.execute("SELECT id FROM suppliers WHERE name = 'مورد عام'");
         if (supplierRows.length === 0) {
-            const [result] = await query("INSERT INTO suppliers (name, phone_number, updated_at) VALUES ('مورد عام', '00000000000', NOW())", []);
+            // FIX: Removed destructuring
+            const result = await query("INSERT INTO suppliers (name, phone_number, updated_at) VALUES ('مورد عام', '00000000000', NOW())", []);
             console.log(`✅ Created General Supplier (ID: ${result.insertId})`);
         }
 
@@ -157,7 +162,8 @@ async function main() {
         const [userRows] = await connection.execute("SELECT id FROM users WHERE username = ?", [adminUsername]);
 
         if (userRows.length === 0) {
-            const [result] = await query(
+            // FIX: Removed destructuring
+            const result = await query(
                 `INSERT INTO users (name, username, password, role_id, branch_id, is_active, has_sensitive_access, updated_at) 
                  VALUES ('Superadmin', ?, ?, ?, NULL, true, true, NOW())`,
                 [adminUsername, hashedPassword, superadminRoleId]
