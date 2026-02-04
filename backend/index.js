@@ -334,18 +334,17 @@ app.get("/api/dangerous-reset-db", async (req, res) => {
   }
 });
 
-app.get("/api/setup-production-db-securely", async (req, res) => {
-  console.log(">>> [SETUP] Starting Database Setup (SQL Execution Mode)...");
+// --- 1. TABLES SETUP ENDPOINT ---
+app.get("/api/setup-tables", async (req, res) => {
+  console.log(">>> [SETUP] Starting Table Creation (SQL Execution Mode)...");
 
-  // Create a dedicated Prisma Client for this operation to isolate potential panics
-  // and prevent crashing the main application connection pool.
+  // Isolated Client
   const { PrismaClient } = require("@prisma/client");
   const migrationPrisma = new PrismaClient({
     log: ['warn', 'error'],
   });
 
   try {
-    // 1. Execute SQL Migration
     const migrationPath = path.join(__dirname, "prisma/migration.sql");
     const migrationResult = [];
 
@@ -358,65 +357,54 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
 
-      console.log(
-        `>>> [SETUP] Found ${statements.length} SQL statements to execute.`,
-      );
+      console.log(`>>> [SETUP] Found ${statements.length} SQL statements...`);
 
       for (let i = 0; i < statements.length; i++) {
-        const statement = statements[i];
         try {
-          // Add a small delay to prevent overwhelming the engine/event loop
+          // Throttling: 10ms
           await new Promise(r => setTimeout(r, 10));
-          await migrationPrisma.$executeRawUnsafe(statement);
+          await migrationPrisma.$executeRawUnsafe(statements[i]);
         } catch (sqlErr) {
-          // Critical: Check for Panic or "timer has gone away"
           if (sqlErr.message && (sqlErr.message.includes("PANIC") || sqlErr.message.includes("timer has gone away"))) {
-            console.error(`>>> [SETUP] CRITICAL ENGINE PANIC at statement ${i}: ${sqlErr.message}`);
-            throw sqlErr; // Abort immediately, do not continue
+            console.error(`>>> [SETUP] CRITICAL ENGINE PANIC at stmt ${i}: ${sqlErr.message}`);
+            throw sqlErr;
           }
-
-          // Log normal SQL errors (e.g. "Table exists") but continue
-          console.error(
-            `>>> [SETUP] SQL Statement ${i} Warning: ${sqlErr.message}`,
-          );
+          console.error(`>>> [SETUP] Warning at stmt ${i}: ${sqlErr.message}`);
           migrationResult.push({ index: i, error: sqlErr.message });
         }
       }
-      console.log(">>> [SETUP] SQL Migration loop finished.");
+      res.json({ message: "Tables setup finished", warnings: migrationResult });
     } else {
-      console.log(">>> [SETUP] No migration.sql found. Skipping DDL step.");
-      migrationResult.push("No migration.sql found");
+      res.status(404).json({ error: "migration.sql not found" });
     }
-
-    // 2. Run Seed Script (In-Process)
-    console.log(">>> [SETUP] Starting In-Process Seeding...");
-
-    // Safety check using the ISOLATED client
-    try {
-      await migrationPrisma.role.count();
-    } catch (checkErr) {
-      throw new Error(
-        "Tables do not appear to exist after migration. SQL Execution might have failed completely. Details: " +
-        checkErr.message,
-      );
-    }
-
-    // Seed script uses its own internal Prisma Client, so it is safe.
-    await seedMain();
-
-    res.json({
-      message: "Database setup completed successfully! (SQL Mode)",
-      sqlMigrationWarnings: migrationResult,
-      seedOutput: "Seeding executed in-process successfully.",
-    });
   } catch (error) {
-    console.error(`>>> [SETUP] CRITICAL ERROR: ${error.message}`);
-    return res
-      .status(500)
-      .json({ step: "setup", error: error.message, stack: error.stack });
+    console.error(`>>> [SETUP] Critical Error: ${error.message}`);
+    res.status(500).json({ error: error.message });
   } finally {
-    // Always disconnect the dedicated client
     await migrationPrisma.$disconnect();
+  }
+});
+
+// --- 2. SEED ENDPOINT ---
+app.get("/api/setup-seed", async (req, res) => {
+  console.log(">>> [SETUP] Starting Seeding...");
+  try {
+    // Check if tables exist first by using the MAIN prisma client (connection pool)
+    // If this fails, the user needs to run /api/setup-tables first
+    try {
+      await prisma.role.count();
+    } catch (e) {
+      return res.status(400).json({
+        error: "Database tables not found. Please run /api/setup-tables first.",
+        details: e.message
+      });
+    }
+
+    await seedMain();
+    res.json({ message: "Seeding completed successfully" });
+  } catch (error) {
+    console.error(`>>> [SETUP] Seed Error: ${error.message}`);
+    res.status(500).json({ error: error.message });
   }
 });
 // ---------------------------------------
