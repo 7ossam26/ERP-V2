@@ -336,7 +336,11 @@ app.get("/api/dangerous-reset-db", async (req, res) => {
 
 // --- 1. TABLES SETUP ENDPOINT ---
 app.get("/api/setup-tables", async (req, res) => {
-  console.log(">>> [SETUP] Starting Table Creation (SQL Execution Mode)...");
+  console.log(">>> [SETUP] Starting Table Creation (Direct MySQL Mode)...");
+
+  // Use mysql2 directly to bypass Prisma engine panics on large schema execution
+  const mysql = require("mysql2/promise");
+  let connection;
 
   try {
     const migrationPath = path.join(__dirname, "prisma/migration.sql");
@@ -344,6 +348,10 @@ app.get("/api/setup-tables", async (req, res) => {
 
     if (fs.existsSync(migrationPath)) {
       console.log(`>>> [SETUP] Found migration SQL at: ${migrationPath}`);
+
+      console.log(">>> [SETUP] Connecting to database via mysql2...");
+      connection = await mysql.createConnection(process.env.DATABASE_URL);
+
       const sqlContent = fs.readFileSync(migrationPath, "utf8");
 
       const statements = sqlContent
@@ -355,25 +363,27 @@ app.get("/api/setup-tables", async (req, res) => {
 
       for (let i = 0; i < statements.length; i++) {
         try {
-          // Throttling: 10ms
-          await new Promise(r => setTimeout(r, 10));
-          await prisma.$executeRawUnsafe(statements[i]);
+          await connection.query(statements[i]);
         } catch (sqlErr) {
-          if (sqlErr.message && (sqlErr.message.includes("PANIC") || sqlErr.message.includes("timer has gone away"))) {
-            console.error(`>>> [SETUP] CRITICAL ENGINE PANIC at stmt ${i}: ${sqlErr.message}`);
-            throw sqlErr;
-          }
           console.error(`>>> [SETUP] Warning at stmt ${i}: ${sqlErr.message}`);
           migrationResult.push({ index: i, error: sqlErr.message });
         }
       }
-      res.json({ message: "Tables setup finished", warnings: migrationResult });
+      res.json({ message: "Tables setup finished (via mysql2)", warnings: migrationResult });
     } else {
       res.status(404).json({ error: "migration.sql not found" });
     }
   } catch (error) {
     console.error(`>>> [SETUP] Critical Error: ${error.message}`);
     res.status(500).json({ error: error.message });
+  } finally {
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (e) {
+        console.error(">>> [SETUP] Error closing connection:", e.message);
+      }
+    }
   }
 });
 
