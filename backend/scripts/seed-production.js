@@ -8,9 +8,11 @@ const dotenv = require('dotenv');
 const envPath = path.resolve(__dirname, '../../.env.local');
 dotenv.config({ path: envPath });
 
-const prisma = new PrismaClient();
+const prismaGlobal = new PrismaClient();
 
-async function main() {
+async function main(prismaInstance = null) {
+    // Use the passed instance or fall back to the local one
+    const prisma = prismaInstance || prismaGlobal;
     console.log('🌱 Starting Production Seeding...');
 
     // 1. ROLES
@@ -177,7 +179,7 @@ if (require.main === module) {
     main()
         .then(() => {
             console.log('✨ Seeding execution finished.');
-            return prisma.$disconnect();
+            return prismaGlobal.$disconnect();
         })
         .catch((e) => {
             console.error(e);

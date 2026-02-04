@@ -402,7 +402,7 @@ app.get("/api/setup-seed", async (req, res) => {
       });
     }
 
-    await seedMain();
+    await seedMain(prisma);
     res.json({ message: "Seeding completed successfully" });
   } catch (error) {
     console.error(`>>> [SETUP] Seed Error: ${error.message}`);
