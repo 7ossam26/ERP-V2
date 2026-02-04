@@ -37,28 +37,46 @@ exports.createDeliveryZone = async (req, res) => {
   }
 };
 
+const { getUserBranchFilter } = require("../middleware/auth");
+
 // Get all delivery zones
 exports.getAllDeliveryZones = async (req, res) => {
   try {
     const { isActive, branchId } = req.query;
-    const where = {};
 
-    // Filter by branch if provided
+    // 1. Get User's Branch Filter
+    const branchFilter = await getUserBranchFilter(req.user.id);
+
+    // 2. Build Where Clause
+    const where = {
+      ...(branchFilter && { branchId: branchFilter.id }),
+    };
+
+
+    // Filter by branch if provided, provided it's allowed
     if (branchId) {
-      where.branchId = parseInt(branchId);
+      const requestedAndAllowed = !branchFilter || branchFilter.id === parseInt(branchId);
+      if (requestedAndAllowed) {
+        where.branchId = parseInt(branchId);
+      }
     }
 
     // Filter by active status if provided
     if (isActive !== undefined) {
       where.isActive = isActive === "true";
     } else {
-      // Default: only show active zones
       where.isActive = true;
     }
 
+    // 3. Optimized Fetch
     const deliveryZones = await prisma.deliveryZone.findMany({
       where,
-      include: {
+      select: { // Optimized Selection
+        id: true,
+        name: true,
+        fee: true,
+        branchId: true,
+        isActive: true,
         branch: {
           select: { id: true, name: true },
         },

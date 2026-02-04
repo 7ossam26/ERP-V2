@@ -30,22 +30,49 @@ exports.createDeliveryMan = async (req, res) => {
   }
 };
 
+const { getUserBranchFilter } = require("../middleware/auth");
+
 // Get all delivery men
 exports.getAllDeliveryMen = async (req, res) => {
   try {
     const { branchId } = req.query;
-    const where = { isActive: true };
 
+    // 1. Get User's Branch Filter (Enforce Scoping)
+    const branchFilter = await getUserBranchFilter(req.user.id);
+
+    // 2. Build Where Clause
+    const where = {
+      isActive: true,
+      ...(branchFilter && { branchId: branchFilter.id }), // Enforce user's branch if not admin
+    };
+
+    // Allow filtering by specific branch if user has access to all (Admin/Superadmin)
+    // or if the requested branch matches their assigned branch
     if (branchId) {
-      where.branchId = parseInt(branchId);
+      const requestedAndAllowed = !branchFilter || branchFilter.id === parseInt(branchId);
+      if (requestedAndAllowed) {
+        where.branchId = parseInt(branchId);
+      } else {
+        // If user requests a branch they don't have access to, return empty or adhere to their filter
+        // In this logic, 'where' already has the forced branchId, so we just ignore the query param
+      }
     }
 
+    // 3. Optimized Fetch
     const deliveryMen = await prisma.deliveryMan.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        vehicleType: true,
+        branchId: true,
+        walletBalance: true,
+        isActive: true,
+        nationalId: true,
         branch: {
-          select: { name: true },
-        },
+          select: { name: true }
+        }
       },
       orderBy: { createdAt: "desc" },
     });
