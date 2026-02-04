@@ -201,7 +201,6 @@ const getUserBranchFilter = async (userId) => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        branch: true,
         role: true, // Include role to check name
       },
     });
@@ -210,18 +209,18 @@ const getUserBranchFilter = async (userId) => {
       throw new Error("User not found");
     }
 
-    // Superadmin sees ALL (return null)
-    if (user.role && user.role.name === "Superadmin") {
+    // Superadmin OR Admin sees ALL (return null)
+    if (user.role && (user.role.name === "Superadmin" || user.role.name === "Admin")) {
       return null;
     }
 
-    // If user is assigned to "All Branches", return null (no filter)
-    if (user.branch.isAllBranches === true) {
-      return null;
+    // If user is not an admin and has no branch assigned, they see nothing
+    if (!user.branchId) {
+      return { id: 0 }; // Impossible ID, effectively returns empty list
     }
 
     // Otherwise, return the branch ID to filter by
-    return user.branchId;
+    return { id: user.branchId };
   } catch (error) {
     console.error("Branch filter error:", error);
     throw error;

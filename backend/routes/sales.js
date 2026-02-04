@@ -59,8 +59,8 @@ router.get(
   requireAnyPermission(["SALES", "REPORTS"]),
   async (req, res, next) => {
     try {
-      const branchId = await getUserBranchFilter(req.user.id);
-      const whereClause = branchId ? { branchId } : {};
+      const branchFilter = await getUserBranchFilter(req.user.id);
+      const whereClause = branchFilter ? { branchId: branchFilter.id } : {};
 
       const sales = await prisma.sale.findMany({
         where: whereClause,

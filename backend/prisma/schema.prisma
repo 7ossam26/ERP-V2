@@ -19,13 +19,13 @@ model User {
   roleId             Int      @map("role_id")
   isActive           Boolean  @default(true) @map("is_active")
   hasSensitiveAccess Boolean  @default(false) @map("has_sensitive_access")
-  branchId           Int      @map("branch_id")
+  branchId           Int?     @map("branch_id")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
   role                Role                  @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  branch              Branch                @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  branch              Branch?               @relation(fields: [branchId], references: [id], onDelete: Restrict)
   sales               Sale[]
   auditLogs           AuditLog[]
   stockTransfers      StockTransfer[]
@@ -283,7 +283,6 @@ model Branch {
   address       String
   warehouseId   Int      @unique @map("warehouse_id")
   treasuryId    Int      @unique @map("treasury_id")
-  isAllBranches Boolean  @default(false) @map("is_all_branches")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   isActive      Boolean  @default(true) @map("is_active")

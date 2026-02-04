@@ -14,40 +14,23 @@ router.use(authenticateToken);
 // GET all treasuries
 router.get("/", async (req, res) => {
   try {
+    const branchFilter = await getUserBranchFilter(req.user.id);
+
+    // Build query: Active treasuries
+    const where = { isActive: true };
+
+    // If scoped to a branch, only show that branch's treasury
+    if (branchFilter) {
+      where.branch = { id: branchFilter.id };
+    }
+
     const treasuries = await prisma.treasury.findMany({
-      where: { isActive: true },
+      where,
       include: { branch: true },
       orderBy: { createdAt: "asc" },
     });
 
-    // --- ALL BRANCHES AGGREGATION LOGIC ---
-    // 1. Calculate total balance of all "real" treasuries
-    const allBranchesTreasury = treasuries.find(
-      (t) => t.name === "All Branches Treasury" || t.id === 4, // Fallback to ID 4 if name matches
-    );
-
-    if (allBranchesTreasury) {
-      const realTreasuries = treasuries.filter(
-        (t) => t.id !== allBranchesTreasury.id,
-      );
-      const totalBalance = realTreasuries.reduce(
-        (sum, t) => sum + Number(t.balance),
-        0,
-      );
-
-      // 2. Overwrite the balance in the response (Virtual View)
-      allBranchesTreasury.balance = totalBalance;
-      allBranchesTreasury.isVirtual = true; // Flag for frontend if needed
-    }
-    // --------------------------------------
-
-    // All authenticated users can see all treasuries for cashier transfers
-    // Exclude "All Branches Treasury" - it's a system treasury, not for transfers
-    const filteredTreasuries = treasuries.filter(
-      (t) => t.name !== "All Branches Treasury",
-    );
-
-    res.json(filteredTreasuries);
+    res.json(treasuries);
   } catch (error) {
     res
       .status(500)
@@ -164,17 +147,6 @@ router.post("/transfer", async (req, res) => {
 
       if (!source) throw new Error("Source treasury not found");
 
-      // --- ENFORCE READ-ONLY FOR ALL BRANCHES ---
-      // Check if it's the "All Branches" treasury via name (legacy) or relation
-      const isAllBranchesTreasury =
-        source.name === "All Branches Treasury" ||
-        (source.branch && source.branch.isAllBranches);
-
-      if (isAllBranchesTreasury) {
-        throw new Error(
-          "Cannot transfer funds FROM 'All Branches Treasury'. It is a read-only view.",
-        );
-      }
       // ----------------------------------------
 
       if (Number(source.balance) < transferAmount) {

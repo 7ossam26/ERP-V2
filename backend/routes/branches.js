@@ -6,10 +6,17 @@ const { authenticateToken, requirePermission, requireCreatePermission, getUserBr
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// GET all branches - Accessible to all auth users, no filter (for transfers etc)
+// GET all branches
 router.get("/", async (req, res, next) => {
   try {
+    // Determine visibility based on user role/branch assignment
+    const branchFilter = await getUserBranchFilter(req.user.id);
+
+    // Build query
     const where = { isActive: true };
+    if (branchFilter) {
+      where.id = branchFilter.id;
+    }
 
     const branches = await prisma.branch.findMany({
       where,
@@ -19,21 +26,6 @@ router.get("/", async (req, res, next) => {
       },
       orderBy: { createdAt: "asc" },
     });
-
-    // Check if user is allowed to see "All Branches"
-    // Superadmins OR Users assigned to "All Branches" can see it.
-    // Others should not see the "All Branches" option in dropdowns.
-    if (req.user.role !== "Superadmin") {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        include: { branch: true },
-      });
-
-      if (!user || !user.branch?.isAllBranches) {
-        // Filter out "All Branches" (isAllBranches: true)
-        return res.json(branches.filter((b) => !b.isAllBranches));
-      }
-    }
 
     res.json(branches);
   } catch (error) {

@@ -44,7 +44,8 @@ async function main() {
         "SUPPLIER_ACCOUNTS", "INVENTORY_COUNT",
         "CREATES_WAREHOUSES", "CREATES_EMPLOYEES", "CREATES_SUPPLIERS",
         "CREATES_CLIENTS", "CREATES_CATEGORIES", "CREATES_ITEMS",
-        "CREATES_TREASURIES", "CREATES_BRANCHES", "CREATES_DEPOSITS"
+        "CREATES_TREASURIES", "CREATES_BRANCHES", "CREATES_DEPOSITS",
+        "DELIVERY_MEN", "CREATES_DELIVERY_MEN", "DELIVERY_ZONES", "CREATES_DELIVERY_ZONES"
     ];
 
     for (const module of modules) {
@@ -75,61 +76,7 @@ async function main() {
         console.log('✅ Employee Permissions synced');
     }
 
-    // 3. INFRASTRUCTURE: "ALL BRANCHES" (Global/System Default) - MUST BE ID 1
-    // -------------------------------------------------------------
-    const ALL_BRANCHES_NAME = 'All Branches';
-
-    // A. Global Warehouse (ID 1)
-    let allWh = await prisma.warehouse.findUnique({ where: { id: 1 } });
-    if (!allWh) {
-        // Try creating with explicit ID
-        allWh = await prisma.warehouse.create({
-            data: { id: 1, name: `${ALL_BRANCHES_NAME} Warehouse` }
-        });
-        console.log(`✅ Created ${ALL_BRANCHES_NAME} Warehouse (ID: 1)`);
-    } else {
-        // Ensure name is correct if it exists
-        if (!allWh.name.includes(ALL_BRANCHES_NAME)) {
-            await prisma.warehouse.update({ where: { id: 1 }, data: { name: `${ALL_BRANCHES_NAME} Warehouse` } });
-            console.log(`✅ Updated Warehouse ID 1 to be ${ALL_BRANCHES_NAME}`);
-        }
-    }
-
-    // B. Global Treasury (ID 1)
-    let allTr = await prisma.treasury.findUnique({ where: { id: 1 } });
-    if (!allTr) {
-        allTr = await prisma.treasury.create({
-            data: { id: 1, name: `${ALL_BRANCHES_NAME} Treasury`, balance: 0 }
-        });
-        console.log(`✅ Created ${ALL_BRANCHES_NAME} Treasury (ID: 1)`);
-    } else {
-        if (!allTr.name.includes(ALL_BRANCHES_NAME)) {
-            await prisma.treasury.update({ where: { id: 1 }, data: { name: `${ALL_BRANCHES_NAME} Treasury` } });
-        }
-    }
-
-    // C. Global Branch (ID 1)
-    let allBranch = await prisma.branch.findUnique({ where: { id: 1 } });
-    if (!allBranch) {
-        allBranch = await prisma.branch.create({
-            data: {
-                id: 1,
-                name: ALL_BRANCHES_NAME,
-                address: 'Virtual Branch',
-                warehouseId: 1,
-                treasuryId: 1,
-                isAllBranches: true
-            }
-        });
-        console.log(`✅ Created ${ALL_BRANCHES_NAME} (ID: 1)`);
-    } else {
-        if (!allBranch.isAllBranches) {
-            await prisma.branch.update({ where: { id: 1 }, data: { isAllBranches: true, name: ALL_BRANCHES_NAME } });
-            console.log(`✅ Forced Branch ID 1 to be ${ALL_BRANCHES_NAME}`);
-        }
-    }
-
-    // 4. INFRASTRUCTURE: PHYSICAL MAIN BRANCH (Secondary)
+    // 3. INFRASTRUCTURE: MAIN BRANCH
     // -------------------------------------------------------------
     const MAIN_BRANCH_NAME = 'Main Branch';
     const MAIN_WAREHOUSE_NAME = 'Main Warehouse';
@@ -158,32 +105,62 @@ async function main() {
                 address: 'Headquarters',
                 warehouseId: warehouse.id,
                 treasuryId: treasury.id,
-                isAllBranches: false
             }
         });
         console.log(`✅ Created ${MAIN_BRANCH_NAME} (ID: ${branch.id})`);
     }
 
+    // 4. PLACEHOLDERS (General Client & Supplier)
+    // -------------------------------------------------------------
+    // General Client (ID 1) target
+    let generalClient = await prisma.client.findFirst({ where: { name: "عميل عام" } });
+    if (!generalClient) {
+        // Since DB is reset, this should get ID 1 effectively, or we just create it.
+        // We can't force ID 1 easily in Prisma create for MySQL without raw SQL if strictly enforced.
+        // Let's just create it.
+        generalClient = await prisma.client.create({
+            data: {
+                name: "عميل عام",
+                phoneNumber: "00000000000",
+                // type removed as it is not in schema
+            }
+        });
+        console.log(`✅ Created General Client (ID: ${generalClient.id})`);
+    }
+
+    // General Supplier (ID 1) target
+    let generalSupplier = await prisma.supplier.findFirst({ where: { name: "مورد عام" } });
+    if (!generalSupplier) {
+        generalSupplier = await prisma.supplier.create({
+            data: {
+                name: "مورد عام",
+                phoneNumber: "00000000000",
+                // contactPerson removed as it is not in schema
+            }
+        });
+        console.log(`✅ Created General Supplier (ID: ${generalSupplier.id})`);
+    }
+
     // 5. SUPERADMIN USER
     // -------------------------------------------------------------
     const adminUsername = process.env.ADMIN_USERNAME || 'superadmin';
-    const adminPassword = process.env.ADMIN_PASSWORD || '246810@Ad'; // Strong default, but recommend changing
+    const adminPassword = process.env.ADMIN_PASSWORD || '246810@Ad'; // Strong default
 
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     const adminUser = await prisma.user.upsert({
         where: { username: adminUsername },
         update: {
-            // Don't update password on re-seed to avoid locking out. 
-            // Only update metadata if needed.
             roleId: superadminRole.id,
+            // Ensure superadmin has global access (branchId = null)
+            branchId: null,
         },
         create: {
             name: 'Superadmin',
             username: adminUsername,
             password: hashedPassword,
             roleId: superadminRole.id,
-            branchId: branch.id,
+            branchId: null, // Global access
             isActive: true,
             hasSensitiveAccess: true,
         },
@@ -191,9 +168,7 @@ async function main() {
 
     console.log(`✅ Superadmin User: ${adminUser.username} (ID: ${adminUser.id})`);
     console.log('✨ Seeding Complete!');
-    console.log('✨ Seeding Complete!');
 
-    // Return the promise so it can be awaited
     return adminUser;
 }
 
@@ -202,7 +177,6 @@ if (require.main === module) {
     main()
         .then(() => {
             console.log('✨ Seeding execution finished.');
-            // Don't force exit, let connection close naturally
             return prisma.$disconnect();
         })
         .catch((e) => {

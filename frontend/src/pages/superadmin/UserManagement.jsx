@@ -356,10 +356,14 @@ const UserManagement = () => {
                     const selectedRole = roles.find(r => r.id == selectedRoleId);
                     // Auto-set hasSensitiveAccess based on role
                     const shouldHaveSensitive = ['Superadmin', 'Admin', 'Manager'].includes(selectedRole?.name);
+                    // Check if role is global (Superadmin/Admin)
+                    const isGlobal = ['Superadmin', 'Admin'].includes(selectedRole?.name);
+
                     setFormData({
                       ...formData,
                       roleId: selectedRoleId,
-                      hasSensitiveAccess: shouldHaveSensitive
+                      hasSensitiveAccess: shouldHaveSensitive,
+                      branchId: isGlobal ? "" : formData.branchId
                     });
                   }}>
                   <option value="" disabled>
@@ -373,27 +377,36 @@ const UserManagement = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Branch
-                </label>
-                <select
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-transparent dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                  value={formData.branchId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, branchId: e.target.value })
-                  }>
-                  <option value="" disabled>
-                    Select a branch
-                  </option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id} className={branch.isAllBranches ? "font-bold text-primary" : ""}>
-                      {branch.isAllBranches ? `★ ${branch.name}` : branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {(() => {
+                const selectedRoleName = roles.find(r => r.id == formData.roleId)?.name;
+                const isGlobalRole = ['Superadmin', 'Admin'].includes(selectedRoleName);
+
+                if (isGlobalRole) return null;
+
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Branch
+                    </label>
+                    <select
+                      required
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-transparent dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      value={formData.branchId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, branchId: e.target.value })
+                      }>
+                      <option value="" disabled>
+                        Select a branch
+                      </option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id} className={branch.isAllBranches ? "font-bold text-primary" : ""}>
+                          {branch.isAllBranches ? `★ ${branch.name}` : branch.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
 
               <div className="flex items-center gap-2 pt-2">
                 <label className="relative inline-flex items-center cursor-pointer">

@@ -37,9 +37,13 @@ const StockTransferPage = () => {
         const warehousesList = await warehouseService.getAll();
         setAllWarehouses(warehousesList);
 
+        const user = authService.getCurrentUser();
+
         let initialSourceId = "";
 
-        if (settings && settings.mainWarehouseId) {
+        if (user?.branch?.warehouseId) {
+          initialSourceId = user.branch.warehouseId.toString();
+        } else if (settings && settings.mainWarehouseId) {
           initialSourceId = settings.mainWarehouseId.toString();
         } else if (warehousesList.length > 0) {
           initialSourceId = warehousesList[0].id.toString();
@@ -354,11 +358,10 @@ const StockTransferPage = () => {
                 <div
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
-                    activeCategory === cat.id
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
                       ? "bg-primary text-white shadow-md"
                       : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                  }`}>
+                    }`}>
                   {cat.name}
                 </div>
               ))}
@@ -397,13 +400,12 @@ const StockTransferPage = () => {
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-gray-500">متاح</span>
                         <span
-                          className={`font-bold px-1.5 py-0.5 rounded ${
-                            product.quantity <= product.reorderPoint
+                          className={`font-bold px-1.5 py-0.5 rounded ${product.quantity <= product.reorderPoint
                               ? "text-red-600 bg-red-50 dark:bg-red-900/20"
                               : product.quantity < 50
                                 ? "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
                                 : "text-green-600 bg-green-50 dark:bg-green-900/20"
-                          }`}>
+                            }`}>
                           {product.quantity} {product.unit}
                         </span>
                       </div>
