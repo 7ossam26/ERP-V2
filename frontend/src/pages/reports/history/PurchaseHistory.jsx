@@ -91,19 +91,21 @@ const PurchaseHistory = () => {
 
   return (
     <>
-      <GenericPageManager
-        title="سجل المشتريات"
-        subtitle="أرشيف فواتير الشراء"
-        icon="shopping_cart"
-        service={purchaseService}
-        columns={columns}
-        customActions={customActions}
-        FormComponent={({ onFilter }) => (
-          <ReportFilterForm onFilter={onFilter} />
-        )}
-        backPath="/reports/detailed"
-        hideAddButton={true}
-      />
+      <div className="print:hidden">
+        <GenericPageManager
+          title="سجل المشتريات"
+          subtitle="أرشيف فواتير الشراء"
+          icon="shopping_cart"
+          service={purchaseService}
+          columns={columns}
+          customActions={customActions}
+          FormComponent={({ onFilter }) => (
+            <ReportFilterForm onFilter={onFilter} />
+          )}
+          backPath="/reports/detailed"
+          hideAddButton={true}
+        />
+      </div>
 
       <PurchaseDetailsModal
         isOpen={isDetailsModalOpen}

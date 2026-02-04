@@ -20,7 +20,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
     code: initialData?.code || "",
     price: initialData?.price || "",
     unit: initialData?.unit || "piece",
-    reorderPoint: initialData?.reorderPoint || 10,
+    reorderPoint: initialData?.reorderPoint ?? 10,
     suppliers: initialData?.suppliers || [],
     categories: initialData?.categories || [],
   });
@@ -347,7 +347,7 @@ const ItemManager = () => {
       accessor: "reorderPoint",
       render: (item) => (
         <span className="text-gray-900 dark:text-white font-medium">
-          {item.reorderPoint || 10}
+          {item.reorderPoint ?? 10}
         </span>
       ),
     },
