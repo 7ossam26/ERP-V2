@@ -388,21 +388,14 @@ app.get("/api/setup-tables", async (req, res) => {
 });
 
 // --- 2. SEED ENDPOINT ---
+// --- 2. SEED ENDPOINT ---
 app.get("/api/setup-seed", async (req, res) => {
-  console.log(">>> [SETUP] Starting Seeding...");
+  console.log(">>> [SETUP] Starting Seeding (via mysql2)...");
   try {
-    // Check if tables exist first by using the MAIN prisma client (connection pool)
-    // If this fails, the user needs to run /api/setup-tables first
-    try {
-      await prisma.role.count();
-    } catch (e) {
-      return res.status(400).json({
-        error: "Database tables not found. Please run /api/setup-tables first.",
-        details: e.message
-      });
-    }
+    // We skip the prisma.role.count() check because we are intentionally creating tables via mysql2
+    // and bypassing the flaky Prisma engine on this specific production environment.
 
-    await seedMain(prisma);
+    await seedMain();
     res.json({ message: "Seeding completed successfully" });
   } catch (error) {
     console.error(`>>> [SETUP] Seed Error: ${error.message}`);
