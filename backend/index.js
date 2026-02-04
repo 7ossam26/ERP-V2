@@ -115,10 +115,10 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-            maxAge: 31536000,
-            includeSubDomains: true,
-            preload: true,
-          }
+          maxAge: 31536000,
+          includeSubDomains: true,
+          preload: true,
+        }
         : false, // Disable HSTS in development
   }),
 );
@@ -337,8 +337,15 @@ app.get("/api/dangerous-reset-db", async (req, res) => {
 app.get("/api/setup-production-db-securely", async (req, res) => {
   console.log(">>> [SETUP] Starting Database Setup (SQL Execution Mode)...");
 
+  // Create a dedicated Prisma Client for this operation to isolate potential panics
+  // and prevent crashing the main application connection pool.
+  const { PrismaClient } = require("@prisma/client");
+  const migrationPrisma = new PrismaClient({
+    log: ['warn', 'error'],
+  });
+
   try {
-    // 1. Execute SQL Migration (No spawning, executing directly via connection)
+    // 1. Execute SQL Migration
     const migrationPath = path.join(__dirname, "prisma/migration.sql");
     const migrationResult = [];
 
@@ -346,9 +353,6 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
       console.log(`>>> [SETUP] Found migration SQL at: ${migrationPath}`);
       const sqlContent = fs.readFileSync(migrationPath, "utf8");
 
-      // Split by semi-colon to get individual statements logic
-      // Note: extensive SQL might need smarter splitting, but for Prisma DDL dumps, simple split usually suffices.
-      // We filter out empty lines/whitespace.
       const statements = sqlContent
         .split(";")
         .map((s) => s.trim())
@@ -361,10 +365,17 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
       for (let i = 0; i < statements.length; i++) {
         const statement = statements[i];
         try {
-          await prisma.$executeRawUnsafe(statement);
+          // Add a small delay to prevent overwhelming the engine/event loop
+          await new Promise(r => setTimeout(r, 10));
+          await migrationPrisma.$executeRawUnsafe(statement);
         } catch (sqlErr) {
-          // Log but continue (tables might exist)
-          // We save the error to report it if needed
+          // Critical: Check for Panic or "timer has gone away"
+          if (sqlErr.message && (sqlErr.message.includes("PANIC") || sqlErr.message.includes("timer has gone away"))) {
+            console.error(`>>> [SETUP] CRITICAL ENGINE PANIC at statement ${i}: ${sqlErr.message}`);
+            throw sqlErr; // Abort immediately, do not continue
+          }
+
+          // Log normal SQL errors (e.g. "Table exists") but continue
           console.error(
             `>>> [SETUP] SQL Statement ${i} Warning: ${sqlErr.message}`,
           );
@@ -380,16 +391,17 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
     // 2. Run Seed Script (In-Process)
     console.log(">>> [SETUP] Starting In-Process Seeding...");
 
-    // Safety check: Ensure at least one critical table exists before seeding
+    // Safety check using the ISOLATED client
     try {
-      await prisma.role.count();
+      await migrationPrisma.role.count();
     } catch (checkErr) {
       throw new Error(
         "Tables do not appear to exist after migration. SQL Execution might have failed completely. Details: " +
-          checkErr.message,
+        checkErr.message,
       );
     }
 
+    // Seed script uses its own internal Prisma Client, so it is safe.
     await seedMain();
 
     res.json({
@@ -402,6 +414,9 @@ app.get("/api/setup-production-db-securely", async (req, res) => {
     return res
       .status(500)
       .json({ step: "setup", error: error.message, stack: error.stack });
+  } finally {
+    // Always disconnect the dedicated client
+    await migrationPrisma.$disconnect();
   }
 });
 // ---------------------------------------
