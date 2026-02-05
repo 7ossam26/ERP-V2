@@ -107,7 +107,12 @@ const POSPage = () => {
           `يوجد وردية مفتوحة بالفعل\n\n` +
             `👤 بدأها: ${user.name}\n` +
             `💰 رصيد البداية: ${activeShift.startCash || 0} ج.م`,
-          { duration: 5000, icon: "ℹ️", position: "top-center" },
+          {
+            duration: 5000,
+            icon: "ℹ️",
+            position: "top-center",
+            id: "active-shift-notification",
+          },
         );
       } else {
         // 2. User has no active shift. Check if the BRANCH is blocked by someone else.
