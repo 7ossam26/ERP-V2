@@ -293,12 +293,12 @@ const POSPage = () => {
     setClientSearchTerm(client ? client.name : "");
     setIsClientDropdownOpen(false);
 
-    // Address Notification Logic
-    if (client) {
-      if (!client.address || client.address.trim() === "") {
-        toast("لا يوجد عنوان مسجل لهذا العميل", { icon: "ℹ️" });
-      }
-    }
+    // Address Notification Logic - TOAST REMOVED in favor of UI display
+    // if (client) {
+    //   if (!client.address || client.address.trim() === "") {
+    //     toast("لا يوجد عنوان مسجل لهذا العميل", { icon: "ℹ️" });
+    //   }
+    // }
 
     // On mobile, switch to cart to see client details if needed, or stay.
     // Usually selecting a client is part of cart operations.
@@ -1528,12 +1528,32 @@ const POSPage = () => {
               </div>
 
               {/* Display Address if selected */}
-              {selectedClient && selectedClient.address && (
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-start gap-1 px-1">
-                  <span className="material-symbols-outlined text-[14px] mt-0.5">
-                    location_on
-                  </span>
-                  <span>{selectedClient.address}</span>
+              {selectedClient && (
+                <div className="mt-3 px-1">
+                  {selectedClient.address ? (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-3 flex items-start gap-3 transition-all animate-fade-in">
+                      <span className="material-symbols-outlined text-blue-500 text-lg mt-0.5">
+                        location_on
+                      </span>
+                      <div>
+                        <div className="text-xs text-blue-400 font-bold mb-0.5">
+                          العنوان
+                        </div>
+                        <div className="text-sm text-gray-700 dark:text-gray-200 leading-snug">
+                          {selectedClient.address}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 dark:bg-zinc-800 border-2 border-dashed border-gray-200 dark:border-zinc-700 rounded-lg p-3 flex items-center justify-center gap-2 text-gray-400 transition-all">
+                      <span className="material-symbols-outlined text-lg">
+                        location_off
+                      </span>
+                      <span className="text-xs font-medium">
+                        لا يوجد عنوان مسجل
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
