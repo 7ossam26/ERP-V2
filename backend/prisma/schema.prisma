@@ -27,6 +27,7 @@ model User {
   // Relations
   role                Role                  @relation(fields: [roleId], references: [id], onDelete: Restrict)
   branch              Branch?               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  accessibleBranches  Branch[]              @relation("AccessibleBranches")
   sales               Sale[]
   auditLogs           AuditLog[]
   stockTransfers      StockTransfer[]
@@ -289,13 +290,14 @@ model Branch {
   isActive      Boolean  @default(true) @map("is_active")
 
   // Relations
-  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  treasury    Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  employees   Employee[]
-  users       User[]
-  sales       Sale[]
-  shifts      Shift[]
-  DeliveryMan DeliveryMan[]
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  treasury      Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  employees     Employee[]
+  users         User[] // Main branch users (employees, branch managers)
+  accessibleUsers User[] @relation("AccessibleBranches") // Users who have access to this branch (e.g. Area Managers)
+  sales         Sale[]
+  shifts        Shift[]
+  DeliveryMan   DeliveryMan[]
   deliveryZones DeliveryZone[]
 
   @@map("branches")

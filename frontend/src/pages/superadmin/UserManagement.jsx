@@ -23,6 +23,7 @@ const UserManagement = () => {
     password: "",
     roleId: "",
     branchId: "",
+    accessibleBranchIds: [],
     isActive: true,
     hasSensitiveAccess: false,
   });
@@ -164,6 +165,7 @@ const UserManagement = () => {
       password: "",
       roleId: "",
       branchId: "",
+      accessibleBranchIds: [],
       isActive: true,
       hasSensitiveAccess: false,
     });
@@ -177,6 +179,7 @@ const UserManagement = () => {
       password: "", // User can leave empty to keep current
       roleId: user.roleId || user.role?.id || "",
       branchId: user.branchId || user.branch?.id || "",
+      accessibleBranchIds: user.accessibleBranches ? user.accessibleBranches.map(b => b.id) : [],
       isActive: user.isActive,
       hasSensitiveAccess: user.hasSensitiveAccess || false,
     });
@@ -380,30 +383,67 @@ const UserManagement = () => {
               {(() => {
                 const selectedRoleName = roles.find(r => r.id == formData.roleId)?.name;
                 const isGlobalRole = ['Superadmin', 'Admin'].includes(selectedRoleName);
+                const isGeneralManager = selectedRoleName === 'General Manager';
 
                 if (isGlobalRole) return null;
 
                 return (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                      Branch
-                    </label>
-                    <select
-                      required
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-transparent dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                      value={formData.branchId}
-                      onChange={(e) =>
-                        setFormData({ ...formData, branchId: e.target.value })
-                      }>
-                      <option value="" disabled>
-                        Select a branch
-                      </option>
-                      {branches.map((branch) => (
-                        <option key={branch.id} value={branch.id} className={branch.isAllBranches ? "font-bold text-primary" : ""}>
-                          {branch.isAllBranches ? `★ ${branch.name}` : branch.name}
+                  <div className="space-y-4">
+                    {/* Primary Branch (Home Branch) */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Home Branch <span className="text-xs text-slate-400 font-normal">(Primary Assignment)</span>
+                      </label>
+                      <select
+                        required
+                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-transparent dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                        value={formData.branchId}
+                        onChange={(e) =>
+                          setFormData({ ...formData, branchId: e.target.value })
+                        }>
+                        <option value="" disabled>
+                          Select a branch
                         </option>
-                      ))}
-                    </select>
+                        {branches.map((branch) => (
+                          <option key={branch.id} value={branch.id} className={branch.isAllBranches ? "font-bold text-primary" : ""}>
+                            {branch.isAllBranches ? `★ ${branch.name}` : branch.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Accessible Branches (Only for General Manager) */}
+                    {isGeneralManager && (
+                      <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-700/30">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                          Accessible Branches
+                          <span className="block text-xs text-slate-400 font-normal">Select additional branches this manager can access</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                          {branches.map((branch) => (
+                            <label key={branch.id} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-white dark:hover:bg-slate-600 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-500 transition-colors">
+                              <input
+                                type="checkbox"
+                                className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+                                checked={formData.accessibleBranchIds?.includes(parseInt(branch.id))}
+                                onChange={(e) => {
+                                  const branchId = parseInt(branch.id);
+                                  const currentIds = formData.accessibleBranchIds || [];
+                                  let newIds;
+                                  if (e.target.checked) {
+                                    newIds = [...currentIds, branchId];
+                                  } else {
+                                    newIds = currentIds.filter(id => id !== branchId);
+                                  }
+                                  setFormData({ ...formData, accessibleBranchIds: newIds });
+                                }}
+                              />
+                              <span className="text-sm text-slate-700 dark:text-slate-300">{branch.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}

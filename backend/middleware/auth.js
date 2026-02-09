@@ -202,6 +202,9 @@ const getUserBranchFilter = async (userId) => {
       where: { id: userId },
       include: {
         role: true, // Include role to check name
+        accessibleBranches: {
+          select: { id: true }
+        }
       },
     });
 
@@ -214,13 +217,28 @@ const getUserBranchFilter = async (userId) => {
       return null;
     }
 
-    // If user is not an admin and has no branch assigned, they see nothing
-    if (!user.branchId) {
+    // Collect all allowed branch IDs
+    const allowedBranchIds = [];
+    if (user.branchId) allowedBranchIds.push(user.branchId);
+    if (user.accessibleBranches && user.accessibleBranches.length > 0) {
+      user.accessibleBranches.forEach(b => allowedBranchIds.push(b.id));
+    }
+
+    // Remove duplicates
+    const uniqueIds = [...new Set(allowedBranchIds)];
+
+    // If user has no access to any branch
+    if (uniqueIds.length === 0) {
       return { id: 0 }; // Impossible ID, effectively returns empty list
     }
 
-    // Otherwise, return the branch ID to filter by
-    return { id: user.branchId };
+    // If only one branch, return simple filter
+    if (uniqueIds.length === 1) {
+      return { id: uniqueIds[0] };
+    }
+
+    // Return IN filter for multiple branches
+    return { id: { in: uniqueIds } };
   } catch (error) {
     console.error("Branch filter error:", error);
     throw error;

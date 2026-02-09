@@ -434,7 +434,12 @@ router.post("/approve", async (req, res, next) => {
     // Authenticate the manager
     const manager = await prisma.user.findUnique({
       where: { username: managerUsername },
-      include: { role: true },
+      include: {
+        role: true,
+        accessibleBranches: {
+          select: { id: true }
+        }
+      },
     });
 
     if (!manager) {
@@ -450,10 +455,15 @@ router.post("/approve", async (req, res, next) => {
       return res.status(401).json({ error: "Invalid manager credentials" });
     }
 
-    // Verify manager is from same branch
-    if (manager.branchId !== shift.branchId) {
+    // Verify manager has access to this branch
+    const canAccessBranch =
+      manager.branchId === shift.branchId ||
+      (manager.accessibleBranches && manager.accessibleBranches.some(b => b.id === shift.branchId)) ||
+      manager.role.name === 'Superadmin'; // Superadmin can access all
+
+    if (!canAccessBranch) {
       return res.status(403).json({
-        error: "Access denied. Manager must be from the same branch.",
+        error: "Access denied. You do not have permission to manage this branch.",
       });
     }
 
