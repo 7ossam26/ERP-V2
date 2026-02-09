@@ -8,6 +8,7 @@ const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingOrders, setPendingOrders] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,10 +29,13 @@ const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
       handleClose();
     } catch (error) {
       console.error(error);
-      const msg =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        "فشل اعتماد الوردية";
+      const msg = error.data?.message || error.message || "فشل اعتماد الوردية";
+
+      // Check for pending orders in error data (APIError structure)
+      if (error.data?.pendingOrders) {
+        setPendingOrders(error.data.pendingOrders);
+      }
+
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -41,6 +45,7 @@ const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
   const handleClose = () => {
     setUsername("");
     setPassword("");
+    setPendingOrders(null);
     onClose();
   };
 
@@ -57,6 +62,34 @@ const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
           <strong className="font-bold">{shift.user?.name}</strong>. يرجى تأكيد
           العملية ببيانات الدخول الخاصة بالمدير.
         </div>
+
+        {pendingOrders && (
+          <div className="bg-red-50 p-4 rounded-lg border border-red-100 mb-4 max-h-60 overflow-y-auto">
+            <h4 className="text-red-800 font-bold text-sm mb-2 flex items-center gap-2">
+              ⚠️ طلبات معلقة ({pendingOrders.length})
+            </h4>
+            <ul className="space-y-2">
+              {pendingOrders.map((order, idx) => (
+                <li
+                  key={idx}
+                  className="bg-white p-2 rounded border border-red-100 text-sm flex justify-between items-center">
+                  <span className="font-bold flex items-center gap-2">
+                    📦 {order.saleNumber}
+                  </span>
+                  <div className="text-gray-600 text-xs flex flex-col items-end">
+                    <span>👤 {order.deliveryMan}</span>
+                    <span className="font-mono">
+                      {parseFloat(order.amount).toFixed(2)} ج.م
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 text-xs text-red-600 text-center">
+              يجب تسوية هذه الطلبات أولاً من شاشة "تسوية التوصيل"
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium mb-1 text-gray-700">

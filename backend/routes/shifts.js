@@ -420,18 +420,28 @@ router.post("/approve", async (req, res, next) => {
     }
 
     // CHECK FOR PENDING DELIVERY SETTLEMENTS
-    const pendingDeliveryOrders = await prisma.sale.count({
+    const pendingDeliveryOrders = await prisma.sale.findMany({
       where: {
         shiftId: parseInt(shiftId),
         deliveryStatus: "OUT_FOR_DELIVERY",
       },
+      include: {
+        deliveryMan: { select: { name: true } },
+      },
     });
 
-    if (pendingDeliveryOrders > 0) {
+    if (pendingDeliveryOrders.length > 0) {
+      const pendingDetails = pendingDeliveryOrders.map((order) => ({
+        saleNumber: order.saleNumber,
+        deliveryMan: order.deliveryMan?.name || "Unknown",
+        amount: order.total,
+      }));
+
       return res.status(400).json({
         error: "Cannot close shift. There are pending delivery orders.",
-        message: `لا يمكن إغلاق الوردية. يوجد ${pendingDeliveryOrders} طلبات توصيل معلقة (لم يتم تسويتها).`,
-        pendingCount: pendingDeliveryOrders,
+        message: `لا يمكن إغلاق الوردية. يوجد ${pendingDeliveryOrders.length} طلبات توصيل معلقة (خرجت ولم يتم تسويتها).`,
+        pendingCount: pendingDeliveryOrders.length,
+        pendingOrders: pendingDetails,
       });
     }
 
@@ -447,7 +457,10 @@ router.post("/approve", async (req, res, next) => {
     });
 
     if (!manager) {
-      return res.status(401).json({ error: "Invalid manager credentials" });
+      return res.status(401).json({
+        error: "Invalid manager credentials",
+        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+      });
     }
 
     // Verify password
@@ -456,7 +469,10 @@ router.post("/approve", async (req, res, next) => {
       manager.password,
     );
     if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid manager credentials" });
+      return res.status(401).json({
+        error: "Invalid manager credentials",
+        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+      });
     }
 
     // Verify manager has access to this branch
@@ -470,6 +486,7 @@ router.post("/approve", async (req, res, next) => {
       return res.status(403).json({
         error:
           "Access denied. You do not have permission to manage this branch.",
+        message: "عذراً، ليس لديك صلاحية لإدارة هذا الفرع",
       });
     }
 
@@ -485,6 +502,7 @@ router.post("/approve", async (req, res, next) => {
     if (!isAuthorized) {
       return res.status(403).json({
         error: "Access denied. Only managers can approve shifts.",
+        message: "عذراً، هذه العملية متاحة للمديرين فقط",
       });
     }
 
