@@ -473,7 +473,8 @@ router.post("/approve", async (req, res, next) => {
       manager.role.name === "Superadmin" ||
       manager.role.name === "Manager" ||
       manager.role.name === "Branch Manager" ||
-      manager.role.name === "Admin";
+      manager.role.name === "Admin" ||
+      manager.role.name === "General Manager";
 
     if (!isAuthorized) {
       return res.status(403).json({

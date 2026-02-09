@@ -4,6 +4,7 @@ const deliveryController = require("../controllers/delivery.controller");
 const {
   authenticateToken,
   requireCreatePermission,
+  requireAnyPermission,
 } = require("../middleware/auth");
 
 // All routes require authentication
@@ -38,6 +39,20 @@ router.delete(
   "/:id",
   requireCreatePermission("CREATES_DELIVERY_MEN"),
   deliveryController.deleteDeliveryMan,
+);
+
+// Get daily settlement report
+router.get(
+  "/daily-report",
+  requireAnyPermission(["DELIVERY_SETTLEMENT", "POS", "CREATES_DELIVERY_MEN"]),
+  deliveryController.getDailyReport,
+);
+
+// Get delivery man history
+router.get(
+  "/:id/history",
+  requireAnyPermission(["POS", "CREATES_DELIVERY_MEN"]),
+  deliveryController.getDeliveryHistory,
 );
 
 module.exports = router;

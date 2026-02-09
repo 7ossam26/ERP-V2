@@ -218,6 +218,15 @@ export const MODULES = [
     path: "/shifts",
     category: "MANAGEMENT",
   },
+  {
+    id: "delivery_settlement",
+    code: "DELIVERY_SETTLEMENT",
+    label: "تسوية الطيارين",
+    description: "إدارة مديونيات الطيارين والتسويات",
+    icon: "motorcycle",
+    path: "/delivery-settlement",
+    category: "MANAGEMENT",
+  },
 ];
 
 export const getCreationModules = () =>

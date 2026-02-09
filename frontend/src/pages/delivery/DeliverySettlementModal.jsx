@@ -13,14 +13,19 @@ const DeliverySettlementModal = ({ deliveryMan, onClose, onSettle }) => {
         const fetchTreasuries = async () => {
             try {
                 const data = await treasuryService.getAll();
-
-                // The backend already filters treasuries based on user permissions
-                // and returns valid accessible treasuries.
-                // We just need to ensure they are active.
                 const safes = data.filter((t) => t.isActive);
-                console.log("DEBUG: Using Safes:", safes);
-
                 setTreasuries(safes);
+
+                // Default to driver's branch treasury if available
+                if (deliveryMan?.branch?.treasuryId) {
+                    const branchTreasury = safes.find(t => t.id === deliveryMan.branch.treasuryId);
+                    if (branchTreasury) {
+                        setSelectedTreasury(branchTreasury.id);
+                        return;
+                    }
+                }
+
+                // Fallback to first available treasury
                 if (safes.length > 0) {
                     setSelectedTreasury(safes[0].id);
                 }
@@ -30,7 +35,7 @@ const DeliverySettlementModal = ({ deliveryMan, onClose, onSettle }) => {
             }
         };
         fetchTreasuries();
-    }, []);
+    }, [deliveryMan]);
 
     // Pre-fill amount with full debt if available
     useEffect(() => {

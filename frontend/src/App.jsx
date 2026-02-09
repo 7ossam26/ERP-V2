@@ -49,6 +49,7 @@ import ShiftManagementPage from "./pages/shifts/ShiftManagementPage";
 import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
 import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
 import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
+import DeliverySettlementPage from "./pages/delivery-settlement/DeliverySettlementPage";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
@@ -383,6 +384,15 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="CREATES_DELIVERY_ZONES">
                 <DeliveryZonesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-settlement"
+            element={
+              <ProtectedRoute
+                requiredPermission="DELIVERY_SETTLEMENT">
+                <DeliverySettlementPage />
               </ProtectedRoute>
             }
           />

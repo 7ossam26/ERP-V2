@@ -97,6 +97,7 @@ enum Module {
   SETTINGS
   EXPENSES
   SHIFTS
+  DELIVERY_SETTLEMENT
 
   // Creation Permissions (CREATES)
   CREATES_WAREHOUSES
@@ -550,6 +551,7 @@ model Sale {
   deliveryManId   Int?              @map("delivery_man_id")
   deliveryZoneId  Int?              @map("delivery_zone_id")
   deliveryFee     Decimal?          @map("delivery_fee") @db.Decimal(10, 2)
+  deliveryDriverShare Decimal?      @map("delivery_driver_share") @db.Decimal(10, 2)
   deliveryAddress String?           @map("delivery_address") @db.Text
   deliveryStatus  DeliveryStatus?   @map("delivery_status")
   subtotal        Decimal           @db.Decimal(10, 2)
@@ -842,6 +844,7 @@ model DeliveryZone {
   id        Int      @id @default(autoincrement())
   name      String
   fee       Decimal  @db.Decimal(10, 2)
+  driverShare Decimal @default(0) @map("driver_share") @db.Decimal(10, 2)
   branchId  Int?     @map("branch_id")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")

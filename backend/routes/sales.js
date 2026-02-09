@@ -462,20 +462,51 @@ router.post(
           sale.deliveryStatus === "OUT_FOR_DELIVERY" && sale.deliveryManId;
 
         if (isDeliveryOrder) {
-          const totalDebt = parseFloat(total) + (deliveryFee ? parseFloat(deliveryFee) : 0);
-          console.log(`🚚 Delivery order detected. Adding to Driver Wallet: ${totalDebt} (Total: ${total} + Fee: ${deliveryFee})`);
+          // ---------------------------------------------------------
+          // NEW: Driver Share Logic
+          // ---------------------------------------------------------
+          let driverShare = 0;
+          let netDebt = 0;
+
+          // 1. Fetch Delivery Zone to get the share config
+          if (sale.deliveryZoneId) {
+            const zone = await tx.deliveryZone.findUnique({
+              where: { id: sale.deliveryZoneId }
+            });
+            if (zone && zone.driverShare) {
+              driverShare = Number(zone.driverShare);
+            }
+          }
+
+          // 2. Update Sale with the calculated share
+          if (driverShare > 0) {
+            await tx.sale.update({
+              where: { id: sale.id },
+              data: { deliveryDriverShare: driverShare }
+            });
+          }
+
+          // 3. Calculate Net Debt for Driver's Wallet
+          // Total Cash Held by Driver = (Order Total + Delivery Fee)
+          // Driver Earns = driverShare
+          // Driver Owes = Total Cash Held - Driver Earns
+          const totalCashHeld = parseFloat(total) + (deliveryFee ? parseFloat(deliveryFee) : 0);
+          netDebt = totalCashHeld - driverShare;
+
+          console.log(`🚚 Delivery Order #${saleNumber} | Zone Share: ${driverShare}`);
+          console.log(`💰 Driver Wallet Update: Held ${totalCashHeld} - Earned ${driverShare} = Net Debt ${netDebt}`);
 
           await tx.deliveryMan.update({
             where: { id: parseInt(sale.deliveryManId) },
-            data: { walletBalance: { increment: totalDebt } },
+            data: { walletBalance: { increment: netDebt } },
           });
 
           await tx.deliveryManTransaction.create({
             data: {
               deliveryManId: parseInt(sale.deliveryManId),
-              amount: parseFloat(total),
+              amount: netDebt, // Recording the DEBT amount (what he owes us)
               type: "DEBT_ACCRUED",
-              description: `Order #${saleNumber} Debt`,
+              description: `Order #${saleNumber} Debt (Share deducted: ${driverShare})`,
               createdById: finalUserId || null,
             },
           });
