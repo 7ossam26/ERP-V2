@@ -133,7 +133,7 @@ async function determineShiftType() {
     const isInMorningShift =
       morningEnd > morningStart
         ? currentTimeInMinutes >= morningStart &&
-        currentTimeInMinutes < morningEnd
+          currentTimeInMinutes < morningEnd
         : false; // Morning shift doesn't cross midnight
 
     // Check if current time is in evening shift (may cross midnight)
@@ -229,10 +229,14 @@ router.post("/start", async (req, res, next) => {
 
     // Validate Branch Access
     const branchFilter = await getUserBranchFilter(req.user.id);
-    if (branchFilter && branchFilter.id !== parseInt(branchId)) {
-      return res.status(403).json({
-        error: "Access denied. You cannot start a shift in this branch.",
-      });
+    if (branchFilter) {
+      // Handle both single ID and IN clause
+      const allowedIds = branchFilter.id.in || [branchFilter.id];
+      if (!allowedIds.includes(parseInt(branchId))) {
+        return res.status(403).json({
+          error: "Access denied. You cannot start a shift in this branch.",
+        });
+      }
     }
 
     // Determine shift type based on time
@@ -437,8 +441,8 @@ router.post("/approve", async (req, res, next) => {
       include: {
         role: true,
         accessibleBranches: {
-          select: { id: true }
-        }
+          select: { id: true },
+        },
       },
     });
 
@@ -458,12 +462,14 @@ router.post("/approve", async (req, res, next) => {
     // Verify manager has access to this branch
     const canAccessBranch =
       manager.branchId === shift.branchId ||
-      (manager.accessibleBranches && manager.accessibleBranches.some(b => b.id === shift.branchId)) ||
-      manager.role.name === 'Superadmin'; // Superadmin can access all
+      (manager.accessibleBranches &&
+        manager.accessibleBranches.some((b) => b.id === shift.branchId)) ||
+      manager.role.name === "Superadmin"; // Superadmin can access all
 
     if (!canAccessBranch) {
       return res.status(403).json({
-        error: "Access denied. You do not have permission to manage this branch.",
+        error:
+          "Access denied. You do not have permission to manage this branch.",
       });
     }
 
@@ -532,8 +538,11 @@ router.get("/pending/:branchId", async (req, res, next) => {
 
     // Validate branch access
     const branchFilter = await getUserBranchFilter(req.user.id);
-    if (branchFilter && branchFilter.id !== branchId) {
-      return res.status(403).json({ error: "Access denied" });
+    if (branchFilter) {
+      const allowedIds = branchFilter.id.in || [branchFilter.id];
+      if (!allowedIds.includes(branchId)) {
+        return res.status(403).json({ error: "Access denied" });
+      }
     }
 
     // Check for ANY blocking shift (OPEN or PENDING_REVIEW)

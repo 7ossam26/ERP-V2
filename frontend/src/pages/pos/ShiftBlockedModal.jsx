@@ -76,6 +76,15 @@ const ShiftBlockedModal = ({ isOpen, blockerInfo }) => {
                 </p>
               </div>
             </div>
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="font-bold">الفرع:</span>{" "}
+                {blockerInfo?.branch?.name || "غير محدد"}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Shift ID: {blockerInfo?.id} | Branch ID: {blockerInfo?.branchId}
+              </p>
+            </div>
           </div>
 
           <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
