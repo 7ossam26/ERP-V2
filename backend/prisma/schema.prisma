@@ -380,7 +380,7 @@ model Item {
 model Inventory {
   itemId      Int      @map("item_id")
   warehouseId Int      @map("warehouse_id")
-  quantity    Decimal  @default(0) @db.Decimal(10, 2)
+  quantity    Decimal  @default(0) @db.Decimal(10, 6)
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
