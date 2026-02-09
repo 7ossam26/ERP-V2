@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { deliveryService } from "../../services/deliveryService";
+
 import { deliveryZoneService } from "../../services/deliveryZoneService";
 import { clientService } from "../../services/domainServices";
-import { salesService } from "../../services/salesService";
+
 import toast from "react-hot-toast";
-import DeliverySettlementModal from "../../pages/delivery/DeliverySettlementModal";
 
 const DeliveryModal = ({
   isOpen,
@@ -20,9 +19,6 @@ const DeliveryModal = ({
   const [selectedRider, setSelectedRider] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [clientAddress, setClientAddress] = useState("");
-  const [riderDebts, setRiderDebts] = useState([]);
-  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
-  const [selectedSettlementDriver, setSelectedSettlementDriver] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -31,47 +27,6 @@ const DeliveryModal = ({
       setClientAddress(selectedClient?.address || "");
     }
   }, [isOpen, selectedClient, branchId]);
-
-  useEffect(() => {
-    if (isOpen && activeTab === "debts") {
-      fetchRiderDebts();
-    }
-  }, [isOpen, activeTab, branchId, currentShiftId]);
-
-  const fetchRiderDebts = async () => {
-    try {
-      console.log("Fetching rider debts with:", {
-        branchId,
-        currentShiftId,
-        typeBranch: typeof branchId,
-        typeShift: typeof currentShiftId,
-      });
-
-      // Explicitly check for undefined strings which might be passed effectively as truthy "undefined"
-      if (!branchId || branchId === "undefined") {
-        console.error("No branchId provided");
-        toast.error("لا يوجد فرع محدد");
-        return;
-      }
-
-      if (!currentShiftId) {
-        console.error("No currentShiftId provided");
-        toast.error("لا توجد وردية نشطة");
-        setRiderDebts([]); // Clear the table
-        return;
-      }
-
-      const data = await deliveryService.getStats({
-        branchId,
-        shiftId: currentShiftId,
-      });
-      console.log("Rider debts data:", data);
-      setRiderDebts(data);
-    } catch (error) {
-      console.error("Failed to fetch rider debts:", error);
-      toast.error("فشل تحميل ديون الطيارين");
-    }
-  };
 
   const fetchDeliveryZones = async () => {
     try {
@@ -137,28 +92,6 @@ const DeliveryModal = ({
 
   if (!isOpen) return null;
 
-
-
-  const handleOpenSettlement = (rider) => {
-    // Construct a delivery man object compatible with the modal
-    const driverData = {
-      id: rider.id,
-      name: rider.name,
-      walletBalance: rider.totalCash // Use the calculated total cash from the stats as the current balance for context
-    };
-    setSelectedSettlementDriver(driverData);
-    setIsSettlementModalOpen(true);
-  };
-
-  const handleSettleSubmit = async (data) => {
-    await deliveryService.settle(data);
-    toast.success("تمت التسوية بنجاح");
-    setIsSettlementModalOpen(false);
-    fetchRiderDebts(); // Refresh list
-  };
-
-
-
   return (
     <>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -182,7 +115,9 @@ const DeliveryModal = ({
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                <span className="material-icons-round text-gray-500">close</span>
+                <span className="material-icons-round text-gray-500">
+                  close
+                </span>
               </button>
             </div>
 
@@ -190,10 +125,11 @@ const DeliveryModal = ({
             <div className="flex gap-2 mt-4">
               <button
                 onClick={() => setActiveTab("riders")}
-                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "riders"
-                  ? "bg-primary text-white shadow-md"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}>
+                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
+                  activeTab === "riders"
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                }`}>
                 <span className="material-icons-round text-sm align-middle mr-1">
                   delivery_dining
                 </span>
@@ -201,25 +137,15 @@ const DeliveryModal = ({
               </button>
               <button
                 onClick={() => setActiveTab("zones")}
-                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "zones"
-                  ? "bg-primary text-white shadow-md"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}>
+                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
+                  activeTab === "zones"
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                }`}>
                 <span className="material-icons-round text-sm align-middle mr-1">
                   map
                 </span>
                 المناطق
-              </button>
-              <button
-                onClick={() => setActiveTab("debts")}
-                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "debts"
-                  ? "bg-primary text-white shadow-md"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}>
-                <span className="material-icons-round text-sm align-middle mr-1">
-                  account_balance_wallet
-                </span>
-                ديون الطيارين
               </button>
             </div>
           </div>
@@ -259,10 +185,11 @@ const DeliveryModal = ({
                     <button
                       key={rider.id}
                       onClick={() => setSelectedRider(rider)}
-                      className={`w-full p-4 rounded-xl border-2 transition-all text-right ${selectedRider?.id === rider.id
-                        ? "border-primary bg-primary/10 dark:bg-primary/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
-                        }`}>
+                      className={`w-full p-4 rounded-xl border-2 transition-all text-right ${
+                        selectedRider?.id === rider.id
+                          ? "border-primary bg-primary/10 dark:bg-primary/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
+                      }`}>
                       <div className="flex items-center gap-3">
                         <span className="material-icons-round text-primary text-2xl">
                           delivery_dining
@@ -301,10 +228,11 @@ const DeliveryModal = ({
                     <button
                       key={zone.id}
                       onClick={() => setSelectedZone(zone)}
-                      className={`w-full p-4 rounded-xl border-2 transition-all text-right ${selectedZone?.id === zone.id
-                        ? "border-primary bg-primary/10 dark:bg-primary/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
-                        }`}>
+                      className={`w-full p-4 rounded-xl border-2 transition-all text-right ${
+                        selectedZone?.id === zone.id
+                          ? "border-primary bg-primary/10 dark:bg-primary/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
+                      }`}>
                       <div className="flex items-center gap-3">
                         <span className="material-icons-round text-primary text-2xl">
                           location_on
@@ -328,104 +256,6 @@ const DeliveryModal = ({
                 )}
               </div>
             )}
-
-            {activeTab === "debts" && (
-              <div className="space-y-3">
-                <h3 className="font-bold text-gray-900 dark:text-white mb-3">
-                  ديون الطيارين (الوردية الحالية)
-                </h3>
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    <span className="material-icons-round text-sm align-middle mr-1">
-                      info
-                    </span>
-                    هذا العرض يوضح إجمالي المبالغ النقدية لطلبات التوصيل التي لم
-                    يتم تحصيلها بعد من كل طيار.
-                  </p>
-                </div>
-
-                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                  <table className="w-full text-sm text-right">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300">
-                      <tr>
-                        <th className="px-4 py-3 font-bold">الطيار</th>
-                        <th className="px-4 py-3 font-bold">عدد الطلبات</th>
-                        <th className="px-4 py-3 font-bold">إجمالي النقدية</th>
-                        <th className="px-4 py-3 font-bold">إجراء</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {riderDebts.length > 0 ? (
-                        riderDebts.map((rider) => (
-                          <React.Fragment key={rider.id}>
-                            {/* Main Rider Row */}
-                            <tr className="bg-gray-50 dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-600">
-                              <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
-                                {rider.name}
-                              </td>
-                              <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                                {rider.orderCount} طلب
-                              </td>
-                              <td className="px-4 py-3 font-bold text-red-600 dark:text-red-400">
-                                {parseFloat(rider.totalCash).toFixed(2)} ج.م
-                              </td>
-                              <td className="px-4 py-3">
-                                <button
-                                  onClick={() => handleOpenSettlement(rider)}
-                                  className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-bold transition-colors flex items-center gap-1">
-                                  <span className="material-icons-round text-xs">payments</span>
-                                  تسوية
-                                </button>
-                              </td>
-                            </tr>
-
-                            {/* Individual Orders - Read Only View */}
-                            {rider.orders?.map((order, idx) => (
-                              <tr
-                                key={order.id}
-                                className="hover:bg-gray-100 dark:hover:bg-gray-700/30 border-b border-gray-200 dark:border-gray-700">
-                                <td className="px-4 py-2 pr-8 text-sm text-gray-600 dark:text-gray-400">
-                                  └ طلب #{idx + 1}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-                                  —
-                                </td>
-                                <td className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                  {parseFloat(order.total).toFixed(2)} ج.م
-                                </td>
-                                <td className="px-4 py-2">
-                                  {/* Disabled or removed individual actions since we do bulk settlement */}
-                                  <span className="text-xs text-gray-400">بانتظار التسوية</span>
-                                </td>
-                              </tr>
-                            ))}
-                          </React.Fragment>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan="4"
-                            className="px-4 py-8 text-center text-gray-500">
-                            {!currentShiftId ? (
-                              <div className="space-y-2">
-                                <p className="text-yellow-600 font-semibold">
-                                  ⚠️ لا توجد وردية نشطة
-                                </p>
-                                <p className="text-sm">
-                                  يرجى بدء وردية جديدة لعرض ديون الطيارين
-                                </p>
-                              </div>
-                            ) : (
-                              "لا توجد بيانات متاحة"
-                            )}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer */}
@@ -433,13 +263,17 @@ const DeliveryModal = ({
             {/* Summary */}
             <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">الطيار:</span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  الطيار:
+                </span>
                 <span className="font-bold text-gray-900 dark:text-white">
                   {selectedRider?.name || "-"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm mt-2">
-                <span className="text-gray-600 dark:text-gray-400">المنطقة:</span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  المنطقة:
+                </span>
                 <span className="font-bold text-gray-900 dark:text-white">
                   {selectedZone?.name || "-"}
                 </span>
@@ -477,17 +311,8 @@ const DeliveryModal = ({
           </div>
         </div>
       </div>
-
-      {isSettlementModalOpen && (
-        <DeliverySettlementModal
-          deliveryMan={selectedSettlementDriver}
-          onClose={() => setIsSettlementModalOpen(false)}
-          onSettle={handleSettleSubmit}
-        />
-      )}
     </>
   );
 };
-
 
 export default DeliveryModal;

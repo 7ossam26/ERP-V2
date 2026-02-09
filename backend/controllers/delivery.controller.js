@@ -134,7 +134,7 @@ exports.getDeliveryStats = async (req, res) => {
         deliveryManId: {
           in: deliveryManIds,
         },
-        paymentMethod: "CASH",
+        // paymentMethod: "CASH", // REMOVED: Fetch all payment methods so we can see all pending deliveries
         deliveryStatus: "OUT_FOR_DELIVERY", // Only show pending deliveries
         status: "COMPLETED", // Only completed sales
         shiftId: parseInt(shiftId),
@@ -144,17 +144,26 @@ exports.getDeliveryStats = async (req, res) => {
         total: true, // Decimal
         deliveryFee: true, // Decimal?
         deliveryManId: true,
+        paymentMethod: true, // Need this to calculate totalCash correctly
       },
     });
 
-    console.log(`📦 Found ${sales.length} pending cash sales`);
+    console.log(`📦 Found ${sales.length} pending sales (all methods)`);
 
     // 3. Map sales to delivery men
     const stats = deliveryMen.map((man) => {
       const manSales = sales.filter((s) => s.deliveryManId === man.id);
 
       const totalCash = manSales.reduce((sum, sale) => {
-        return sum + Number(sale.total);
+        // Only add to totalCash if payment method is CASH
+        // Check for various casing or just standard CASH/Card
+        const method = sale.paymentMethod
+          ? sale.paymentMethod.toUpperCase()
+          : "";
+        if (method === "CASH") {
+          return sum + Number(sale.total);
+        }
+        return sum;
       }, 0);
 
       return {
@@ -175,19 +184,25 @@ exports.getDeliveryStats = async (req, res) => {
   } catch (error) {
     console.error("❌ Error fetching delivery stats:", error);
     console.error("Error stack:", error.stack);
-    res
-      .status(500)
-      .json({
-        error: "Failed to fetch delivery stats",
-        details: error.message,
-      });
+    res.status(500).json({
+      error: "Failed to fetch delivery stats",
+      details: error.message,
+    });
   }
 };
 
 // Settle delivery man debt
 exports.settleDeliveryMan = async (req, res) => {
   try {
-    const { deliveryManId, deliveryMen, amount, notes, treasuryId, userId, saleIds } = req.body;
+    const {
+      deliveryManId,
+      deliveryMen,
+      amount,
+      notes,
+      treasuryId,
+      userId,
+      saleIds,
+    } = req.body;
 
     // Determine if this is a bulk settlement or single
     const isBulk = Array.isArray(deliveryMen) && deliveryMen.length > 0;
@@ -195,7 +210,9 @@ exports.settleDeliveryMan = async (req, res) => {
     if (isBulk) {
       // ===== BULK SETTLEMENT =====
       if (!treasuryId) {
-        return res.status(400).json({ error: "Treasury ID is required for bulk settlement" });
+        return res
+          .status(400)
+          .json({ error: "Treasury ID is required for bulk settlement" });
       }
 
       const result = await prisma.$transaction(async (tx) => {
@@ -229,8 +246,12 @@ exports.settleDeliveryMan = async (req, res) => {
             deliveryStatus: "OUT_FOR_DELIVERY",
           };
 
-          if (driver.saleIds && Array.isArray(driver.saleIds) && driver.saleIds.length > 0) {
-            whereClause.id = { in: driver.saleIds.map(id => parseInt(id)) };
+          if (
+            driver.saleIds &&
+            Array.isArray(driver.saleIds) &&
+            driver.saleIds.length > 0
+          ) {
+            whereClause.id = { in: driver.saleIds.map((id) => parseInt(id)) };
           }
 
           const updateResult = await tx.sale.updateMany({
@@ -241,7 +262,7 @@ exports.settleDeliveryMan = async (req, res) => {
           settlements.push({
             deliveryMan: updatedDriver,
             transaction: settlementTx,
-            updatedOrdersCount: updateResult.count
+            updatedOrdersCount: updateResult.count,
           });
 
           totalAmount += parseFloat(driver.amount);
@@ -254,7 +275,12 @@ exports.settleDeliveryMan = async (req, res) => {
           data: { balance: { increment: totalAmount } },
         });
 
-        return { settlements, totalAmount, totalOrdersUpdated, driversSettled: settlements.length };
+        return {
+          settlements,
+          totalAmount,
+          totalOrdersUpdated,
+          driversSettled: settlements.length,
+        };
       });
 
       return res.json(result);
@@ -263,7 +289,7 @@ exports.settleDeliveryMan = async (req, res) => {
     // ===== SINGLE SETTLEMENT (existing logic) =====
     if (!deliveryManId || !amount || !treasuryId) {
       return res.status(400).json({
-        error: "Delivery Man ID, Amount, and Treasury ID are required"
+        error: "Delivery Man ID, Amount, and Treasury ID are required",
       });
     }
 
@@ -299,7 +325,7 @@ exports.settleDeliveryMan = async (req, res) => {
 
       // If specific sales selected, only update those
       if (saleIds && Array.isArray(saleIds) && saleIds.length > 0) {
-        whereClause.id = { in: saleIds.map(id => parseInt(id)) };
+        whereClause.id = { in: saleIds.map((id) => parseInt(id)) };
       }
 
       const updateResult = await tx.sale.updateMany({
@@ -312,12 +338,11 @@ exports.settleDeliveryMan = async (req, res) => {
       return {
         deliveryMan: updatedDeliveryMan,
         transaction: settlementTx,
-        updatedOrdersCount: updateResult.count
+        updatedOrdersCount: updateResult.count,
       };
     });
 
     res.json(result);
-
   } catch (error) {
     console.error("❌ Error settling delivery man:", error);
     res.status(500).json({ error: "Failed to settle delivery man" });
@@ -353,7 +378,7 @@ exports.getDeliveryHistory = async (req, res) => {
         deliveryStatus: true,
         createdAt: true,
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
     // 2. Fetch Transactions (Payments)
@@ -363,13 +388,13 @@ exports.getDeliveryHistory = async (req, res) => {
         type: "PAYMENT", // Only payments
         ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
     // 3. Group Sales by Date
     const salesByDate = {};
-    sales.forEach(sale => {
-      const dateKey = new Date(sale.createdAt).toISOString().split('T')[0];
+    sales.forEach((sale) => {
+      const dateKey = new Date(sale.createdAt).toISOString().split("T")[0];
       if (!salesByDate[dateKey]) {
         salesByDate[dateKey] = {
           date: dateKey,
@@ -378,7 +403,7 @@ exports.getDeliveryHistory = async (req, res) => {
           totalDeliveryFee: 0,
           totalDriverShare: 0,
           totalNetDebt: 0,
-          status: 'Mixed' // Logic to determine if all settled?
+          status: "Mixed", // Logic to determine if all settled?
         };
       }
 
@@ -386,11 +411,11 @@ exports.getDeliveryHistory = async (req, res) => {
       const total = Number(sale.total) || 0;
       const fee = Number(sale.deliveryFee) || 0;
       const share = Number(sale.deliveryDriverShare) || 0;
-      const netDebt = (total + fee) - share;
+      const netDebt = total + fee - share;
 
       salesByDate[dateKey].orders.push({
         ...sale,
-        netDebt
+        netDebt,
       });
 
       salesByDate[dateKey].totalOrderAmount += total;
@@ -400,16 +425,19 @@ exports.getDeliveryHistory = async (req, res) => {
     });
 
     // Determine status per day (Simple logic: if any OUT_FOR_DELIVERY, it's Unsettled)
-    Object.values(salesByDate).forEach(day => {
-      const hasPending = day.orders.some(o => o.deliveryStatus === 'OUT_FOR_DELIVERY');
-      day.status = hasPending ? 'Unsettled' : 'Settled';
+    Object.values(salesByDate).forEach((day) => {
+      const hasPending = day.orders.some(
+        (o) => o.deliveryStatus === "OUT_FOR_DELIVERY",
+      );
+      day.status = hasPending ? "Unsettled" : "Settled";
     });
 
     res.json({
-      salesByDate: Object.values(salesByDate).sort((a, b) => new Date(b.date) - new Date(a.date)),
-      payments: transactions
+      salesByDate: Object.values(salesByDate).sort(
+        (a, b) => new Date(b.date) - new Date(a.date),
+      ),
+      payments: transactions,
     });
-
   } catch (error) {
     console.error("❌ Error fetching delivery history:", error);
     res.status(500).json({ error: "Failed to fetch history" });
@@ -443,26 +471,26 @@ exports.getDailyReport = async (req, res) => {
             id: true,
             name: true,
             branchId: true,
-          }
-        }
+          },
+        },
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
     // Filter out sales where deliveryMan was filtered out by branch
-    const filteredSales = sales.filter(s => s.deliveryMan !== null);
+    const filteredSales = sales.filter((s) => s.deliveryMan !== null);
 
     // Group by date
     const reportByDate = {};
-    filteredSales.forEach(sale => {
-      const dateKey = new Date(sale.createdAt).toISOString().split('T')[0];
+    filteredSales.forEach((sale) => {
+      const dateKey = new Date(sale.createdAt).toISOString().split("T")[0];
 
       if (!reportByDate[dateKey]) {
         reportByDate[dateKey] = {
           date: dateKey,
           drivers: {},
           totalDebt: 0,
-          totalOrders: 0
+          totalOrders: 0,
         };
       }
 
@@ -473,7 +501,7 @@ exports.getDailyReport = async (req, res) => {
           id: driverId,
           name: sale.deliveryMan.name,
           orders: [],
-          totalDebt: 0
+          totalDebt: 0,
         };
       }
 
@@ -481,7 +509,7 @@ exports.getDailyReport = async (req, res) => {
       const total = Number(sale.total) || 0;
       const fee = Number(sale.deliveryFee) || 0;
       const share = Number(sale.deliveryDriverShare) || 0;
-      const netDebt = (total + fee) - share;
+      const netDebt = total + fee - share;
 
       reportByDate[dateKey].drivers[driverId].orders.push({
         id: sale.id,
@@ -490,7 +518,7 @@ exports.getDailyReport = async (req, res) => {
         deliveryFee: fee,
         deliveryDriverShare: share,
         netDebt,
-        deliveryStatus: sale.deliveryStatus
+        deliveryStatus: sale.deliveryStatus,
       });
 
       reportByDate[dateKey].drivers[driverId].totalDebt += netDebt;
@@ -499,13 +527,14 @@ exports.getDailyReport = async (req, res) => {
     });
 
     // Convert to array format
-    const report = Object.values(reportByDate).map(day => ({
-      ...day,
-      drivers: Object.values(day.drivers)
-    })).sort((a, b) => new Date(b.date) - new Date(a.date));
+    const report = Object.values(reportByDate)
+      .map((day) => ({
+        ...day,
+        drivers: Object.values(day.drivers),
+      }))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     res.json(report);
-
   } catch (error) {
     console.error("❌ Error fetching daily report:", error);
     res.status(500).json({ error: "Failed to fetch daily report" });

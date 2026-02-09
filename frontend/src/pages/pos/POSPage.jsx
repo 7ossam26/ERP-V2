@@ -7,6 +7,7 @@ import ShiftBlockedModal from "./ShiftBlockedModal";
 import EndShiftModal from "../../components/pos/EndShiftModal";
 import ShiftVerificationModal from "../../components/pos/ShiftVerificationModal";
 import DeliveryModal from "../../components/pos/DeliveryModal";
+import DeliveryDebtsModal from "../../components/pos/DeliveryDebtsModal";
 import Modal from "../../components/ui/Modal";
 import RefundModal from "./RefundModal";
 import OrdersHistoryModal from "./OrdersHistoryModal";
@@ -23,7 +24,7 @@ import {
   deliveryService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
-import { confirmAction, showErrorToast } from "../../utils/toastUtils";
+import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -195,6 +196,9 @@ const POSPage = () => {
     }
   };
 
+  const [isPendingDeliveriesModalOpen, setIsPendingDeliveriesModalOpen] =
+    useState(false);
+  const [pendingDeliveries, setPendingDeliveries] = useState(null);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -208,15 +212,21 @@ const POSPage = () => {
   // Delivery Modal State
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [deliveryData, setDeliveryData] = useState(null); // {riderId, riderName, zoneId, zoneName, zoneFee, address}
+  const [isDeliveryDebtsModalOpen, setIsDeliveryDebtsModalOpen] =
+    useState(false);
 
   useEffect(() => {
     const fetchDeliveryMen = async () => {
       try {
-        const data = await deliveryService.getAll();
-        setDeliveryMen(data || []); // Ensure it's always an array
+        const params = {};
+        if (currentUser?.branch?.id) {
+          params.branchId = currentUser.branch.id;
+        }
+        const data = await deliveryService.getAll(params);
+        setDeliveryMen(data || []);
       } catch (error) {
         console.error("Failed to fetch delivery men", error);
-        setDeliveryMen([]); // Set empty array on error
+        setDeliveryMen([]);
       }
     };
     fetchDeliveryMen();
@@ -649,6 +659,15 @@ const POSPage = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to end shift:", error);
+
+      // Check for pending deliveries error
+      if (error.response?.data?.pendingOrders) {
+        setIsEndShiftModalOpen(false); // Close the blind count modal
+        setPendingDeliveries(error.response.data.pendingOrders);
+        setIsPendingDeliveriesModalOpen(true); // Open the blocking modal
+        return;
+      }
+
       toast.error(error.response?.data?.error || "فشل إغلاق الوردية");
     }
   };
@@ -1098,6 +1117,13 @@ const POSPage = () => {
         systemExpectedCash={0} // Hidden in blind count
       />
 
+      {/* Pending Deliveries Blocking Modal */}
+      <PendingDeliveriesModal
+        isOpen={isPendingDeliveriesModalOpen}
+        onClose={() => setIsPendingDeliveriesModalOpen(false)}
+        pendingOrders={pendingDeliveries}
+      />
+
       {/* Manager Verification Modal (Step 2) */}
       <ShiftVerificationModal
         isOpen={isVerificationModalOpen}
@@ -1255,6 +1281,13 @@ const POSPage = () => {
         branchId={currentUser?.branch?.id}
       />
 
+      <DeliveryDebtsModal
+        isOpen={isDeliveryDebtsModalOpen}
+        onClose={() => setIsDeliveryDebtsModalOpen(false)}
+        branchId={currentUser?.branch?.id}
+        currentShiftId={currentShiftId}
+      />
+
       {/* Header */}
       <div className="bg-primary dark:bg-primary text-white px-3 md:px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
         <div className="flex items-center gap-3 md:gap-6">
@@ -1298,6 +1331,15 @@ const POSPage = () => {
             className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
             <FaHistory />
             <span className="hidden md:inline">سجل الفواتير</span>
+          </button>
+
+          <button
+            onClick={() => setIsDeliveryDebtsModalOpen(true)}
+            className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-sm">
+              account_balance_wallet
+            </span>
+            <span className="hidden md:inline">ديون الطيارين</span>
           </button>
 
           <button
