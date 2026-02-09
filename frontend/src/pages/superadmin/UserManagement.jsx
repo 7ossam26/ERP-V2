@@ -179,7 +179,9 @@ const UserManagement = () => {
       password: "", // User can leave empty to keep current
       roleId: user.roleId || user.role?.id || "",
       branchId: user.branchId || user.branch?.id || "",
-      accessibleBranchIds: user.accessibleBranches ? user.accessibleBranches.map(b => b.id) : [],
+      accessibleBranchIds: user.accessibleBranches
+        ? user.accessibleBranches.map((b) => b.id)
+        : [],
       isActive: user.isActive,
       hasSensitiveAccess: user.hasSensitiveAccess || false,
     });
@@ -241,10 +243,11 @@ const UserManagement = () => {
                 <td className="p-4">
                   <button
                     onClick={() => handleToggleStatus(user.id)}
-                    className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${user.isActive
-                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200"
-                      : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200"
-                      }`}>
+                    className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${
+                      user.isActive
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200"
+                        : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200"
+                    }`}>
                     {user.isActive ? "Active" : "Inactive"}
                   </button>
                 </td>
@@ -356,17 +359,25 @@ const UserManagement = () => {
                   value={formData.roleId}
                   onChange={(e) => {
                     const selectedRoleId = e.target.value;
-                    const selectedRole = roles.find(r => r.id == selectedRoleId);
+                    const selectedRole = roles.find(
+                      (r) => r.id == selectedRoleId,
+                    );
                     // Auto-set hasSensitiveAccess based on role
-                    const shouldHaveSensitive = ['Superadmin', 'Admin', 'Manager'].includes(selectedRole?.name);
+                    const shouldHaveSensitive = [
+                      "Superadmin",
+                      "Admin",
+                      "Manager",
+                    ].includes(selectedRole?.name);
                     // Check if role is global (Superadmin/Admin)
-                    const isGlobal = ['Superadmin', 'Admin'].includes(selectedRole?.name);
+                    const isGlobal = ["Superadmin", "Admin"].includes(
+                      selectedRole?.name,
+                    );
 
                     setFormData({
                       ...formData,
                       roleId: selectedRoleId,
                       hasSensitiveAccess: shouldHaveSensitive,
-                      branchId: isGlobal ? "" : formData.branchId
+                      branchId: isGlobal ? "" : formData.branchId,
                     });
                   }}>
                   <option value="" disabled>
@@ -381,18 +392,130 @@ const UserManagement = () => {
               </div>
 
               {(() => {
-                const selectedRoleName = roles.find(r => r.id == formData.roleId)?.name;
-                const isGlobalRole = ['Superadmin', 'Admin'].includes(selectedRoleName);
-                const isGeneralManager = selectedRoleName === 'General Manager';
+                const selectedRoleName = roles.find(
+                  (r) => r.id == formData.roleId,
+                )?.name;
+                const isGlobalRole = ["Superadmin", "Admin"].includes(
+                  selectedRoleName,
+                );
+
+                // Roles that use the multi-branch checkbox UI
+                const isMultiBranchRole = [
+                  "General Manager",
+                  "Area Manager",
+                ].includes(selectedRoleName);
 
                 if (isGlobalRole) return null;
 
+                // --- Multi-Branch Input (Checkboxes) ---
+                if (isMultiBranchRole) {
+                  return (
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-700/30">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Assigned Branches
+                        <span className="block text-xs text-slate-400 font-normal">
+                          Select all branches this user oversees
+                        </span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                        {branches.map((branch) => {
+                          // Check if this branch is either the Primary BranchId OR in the Accessible list
+                          const isChecked =
+                            formData.branchId == branch.id ||
+                            formData.accessibleBranchIds?.includes(
+                              parseInt(branch.id),
+                            );
+
+                          return (
+                            <label
+                              key={branch.id}
+                              className={`flex items-center space-x-2 cursor-pointer p-2 rounded border transition-colors ${isChecked ? "bg-white dark:bg-slate-600 border-red-200 dark:border-red-900/50" : "border-transparent hover:bg-white dark:hover:bg-slate-600 hover:border-slate-200 dark:hover:border-slate-500"}`}>
+                              <input
+                                type="checkbox"
+                                className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const branchId = parseInt(branch.id);
+                                  const currentAccessible =
+                                    formData.accessibleBranchIds || [];
+
+                                  // Determine new selection state
+                                  let newAccessibleIds;
+
+                                  if (e.target.checked) {
+                                    // Add to accessible
+                                    newAccessibleIds = [
+                                      ...new Set([
+                                        ...currentAccessible,
+                                        branchId,
+                                      ]),
+                                    ];
+                                  } else {
+                                    // Remove
+                                    newAccessibleIds = currentAccessible.filter(
+                                      (id) => id !== branchId,
+                                    );
+                                  }
+
+                                  // Logic to maintain a valid branchId (Primary)
+                                  let newBranchId = formData.branchId;
+
+                                  if (e.target.checked) {
+                                    // If no primary branch set, use this one
+                                    if (!newBranchId) newBranchId = branchId;
+                                  } else {
+                                    // If unchecking the primary branch
+                                    if (newBranchId == branchId) {
+                                      // Pick the first one from the REMAINING list
+                                      // Note: newAccessibleIds contains the remaining accessible ones.
+                                      // But wait, newAccessibleIds might not contain the *old* primary if it wasn't in accessible list explicitly.
+                                      // Let's rely on the set of (newAccessibleIds) as the source of truth for "Selected Branches"
+                                      // Actually, simplified: Primary is just the first one of the checked set.
+                                      newBranchId =
+                                        newAccessibleIds.length > 0
+                                          ? newAccessibleIds[0]
+                                          : "";
+                                    }
+                                  }
+
+                                  setFormData({
+                                    ...formData,
+                                    accessibleBranchIds: newAccessibleIds,
+                                    branchId: newBranchId,
+                                  });
+                                }}
+                              />
+                              <span
+                                className={`text-sm ${isChecked ? "text-slate-900 dark:text-white font-medium" : "text-slate-700 dark:text-slate-300"}`}>
+                                {branch.name}
+                                {formData.branchId == branch.id && (
+                                  <span className="ml-2 text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                                    Primary
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-2">
+                        * The first selected branch will be automatically set as
+                        the primary branch.
+                      </p>
+                    </div>
+                  );
+                }
+
+                // --- Single Branch Input (Dropdown) - Default ---
                 return (
                   <div className="space-y-4">
                     {/* Primary Branch (Home Branch) */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                        Home Branch <span className="text-xs text-slate-400 font-normal">(Primary Assignment)</span>
+                        Home Branch{" "}
+                        <span className="text-xs text-slate-400 font-normal">
+                          (Primary Assignment)
+                        </span>
                       </label>
                       <select
                         required
@@ -405,45 +528,21 @@ const UserManagement = () => {
                           Select a branch
                         </option>
                         {branches.map((branch) => (
-                          <option key={branch.id} value={branch.id} className={branch.isAllBranches ? "font-bold text-primary" : ""}>
-                            {branch.isAllBranches ? `★ ${branch.name}` : branch.name}
+                          <option
+                            key={branch.id}
+                            value={branch.id}
+                            className={
+                              branch.isAllBranches
+                                ? "font-bold text-primary"
+                                : ""
+                            }>
+                            {branch.isAllBranches
+                              ? `★ ${branch.name}`
+                              : branch.name}
                           </option>
                         ))}
                       </select>
                     </div>
-
-                    {/* Accessible Branches (Only for General Manager) */}
-                    {isGeneralManager && (
-                      <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-700/30">
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                          Accessible Branches
-                          <span className="block text-xs text-slate-400 font-normal">Select additional branches this manager can access</span>
-                        </label>
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                          {branches.map((branch) => (
-                            <label key={branch.id} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-white dark:hover:bg-slate-600 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-500 transition-colors">
-                              <input
-                                type="checkbox"
-                                className="rounded border-slate-300 text-red-600 focus:ring-red-500"
-                                checked={formData.accessibleBranchIds?.includes(parseInt(branch.id))}
-                                onChange={(e) => {
-                                  const branchId = parseInt(branch.id);
-                                  const currentIds = formData.accessibleBranchIds || [];
-                                  let newIds;
-                                  if (e.target.checked) {
-                                    newIds = [...currentIds, branchId];
-                                  } else {
-                                    newIds = currentIds.filter(id => id !== branchId);
-                                  }
-                                  setFormData({ ...formData, accessibleBranchIds: newIds });
-                                }}
-                              />
-                              <span className="text-sm text-slate-700 dark:text-slate-300">{branch.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })()}
@@ -472,13 +571,18 @@ const UserManagement = () => {
                     className="sr-only peer"
                     checked={formData.hasSensitiveAccess}
                     onChange={(e) =>
-                      setFormData({ ...formData, hasSensitiveAccess: e.target.checked })
+                      setFormData({
+                        ...formData,
+                        hasSensitiveAccess: e.target.checked,
+                      })
                     }
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
                   <span className="ml-3 text-sm font-medium text-slate-700 dark:text-slate-300">
                     Sensitive Access
-                    <span className="block text-xs text-slate-400">Can edit/delete sensitive data</span>
+                    <span className="block text-xs text-slate-400">
+                      Can edit/delete sensitive data
+                    </span>
                   </span>
                 </label>
               </div>
