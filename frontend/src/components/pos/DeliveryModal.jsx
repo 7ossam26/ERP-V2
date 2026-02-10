@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 
 import { deliveryZoneService } from "../../services/deliveryZoneService";
 import { clientService } from "../../services/domainServices";
+import AuthService from "../../services/authService";
 
 import toast from "react-hot-toast";
 
@@ -19,6 +20,62 @@ const DeliveryModal = ({
   const [selectedRider, setSelectedRider] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [clientAddress, setClientAddress] = useState("");
+
+  // Quick Zone Creation State
+  const [isAddingZone, setIsAddingZone] = useState(false);
+  const [isCreatingZone, setIsCreatingZone] = useState(false);
+  const [newZoneData, setNewZoneData] = useState({ name: "", fee: "" });
+
+  const handleCreateZone = async () => {
+    if (!newZoneData.name.trim()) {
+      toast.error("يرجى إدخال اسم المنطقة");
+      return;
+    }
+    if (!newZoneData.fee || parseFloat(newZoneData.fee) < 0) {
+      toast.error("يرجى إدخال رسوم توصيل صحيحة");
+      return;
+    }
+
+    try {
+      setIsCreatingZone(true);
+      const payload = {
+        name: newZoneData.name,
+        fee: parseFloat(newZoneData.fee),
+        branchId: branchId, // Start with current branch
+        isActive: true,
+      };
+
+      const newZone = await deliveryZoneService.create(payload);
+      toast.success("تم إضافة المنطقة بنجاح");
+
+      // Reset form
+      setNewZoneData({ name: "", fee: "" });
+      setIsAddingZone(false);
+
+      // Refresh zones and auto-select
+      const updatedZones = await deliveryZoneService.getAll({
+        isActive: true,
+        branchId,
+      });
+      setDeliveryZones(updatedZones);
+
+      // Attempt to find the newly created zone in the list to select it
+      // Note: Backend might return the created object differently, but usually getAll returns list
+      const createdInList = updatedZones.find(z => z.name === newZone.name);
+      if (createdInList) {
+        setSelectedZone(createdInList);
+      } else {
+        // Fallback if not found by name immediately
+        setSelectedZone(newZone);
+      }
+
+    } catch (error) {
+      console.error("Failed to create zone:", error);
+      toast.error("فشل إضافة المنطقة");
+    } finally {
+      setIsCreatingZone(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -125,11 +182,10 @@ const DeliveryModal = ({
             <div className="flex gap-2 mt-4">
               <button
                 onClick={() => setActiveTab("riders")}
-                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
-                  activeTab === "riders"
-                    ? "bg-primary text-white shadow-md"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}>
+                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "riders"
+                  ? "bg-primary text-white shadow-md"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}>
                 <span className="material-icons-round text-sm align-middle mr-1">
                   delivery_dining
                 </span>
@@ -137,11 +193,10 @@ const DeliveryModal = ({
               </button>
               <button
                 onClick={() => setActiveTab("zones")}
-                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
-                  activeTab === "zones"
-                    ? "bg-primary text-white shadow-md"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}>
+                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "zones"
+                  ? "bg-primary text-white shadow-md"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}>
                 <span className="material-icons-round text-sm align-middle mr-1">
                   map
                 </span>
@@ -185,11 +240,10 @@ const DeliveryModal = ({
                     <button
                       key={rider.id}
                       onClick={() => setSelectedRider(rider)}
-                      className={`w-full p-4 rounded-xl border-2 transition-all text-right ${
-                        selectedRider?.id === rider.id
-                          ? "border-primary bg-primary/10 dark:bg-primary/20"
-                          : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
-                      }`}>
+                      className={`w-full p-4 rounded-xl border-2 transition-all text-right ${selectedRider?.id === rider.id
+                        ? "border-primary bg-primary/10 dark:bg-primary/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
+                        }`}>
                       <div className="flex items-center gap-3">
                         <span className="material-icons-round text-primary text-2xl">
                           delivery_dining
@@ -216,9 +270,58 @@ const DeliveryModal = ({
 
             {activeTab === "zones" && (
               <div className="space-y-3">
-                <h3 className="font-bold text-gray-900 dark:text-white mb-3">
-                  اختر المنطقة
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-gray-900 dark:text-white">
+                    اختر المنطقة
+                  </h3>
+                  {AuthService.hasPermission("CREATES_DELIVERY_ZONES") && (
+                    <button
+                      onClick={() => setIsAddingZone(!isAddingZone)}
+                      className="text-primary text-sm font-bold hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                      <span className="material-icons-round text-lg">add</span>
+                      {isAddingZone ? "إلغاء الإضافة" : "منطقة جديدة"}
+                    </button>
+                  )}
+                </div>
+
+                {isAddingZone && (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-dashed border-primary/50 mb-3 animate-fadeIn">
+                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200 mb-3">
+                      إضافة منطقة توصيل جديدة وسريعة
+                    </h4>
+                    <div className="flex gap-3 mb-3">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          placeholder="اسم المنطقة"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                          value={newZoneData.name}
+                          onChange={(e) =>
+                            setNewZoneData({ ...newZoneData, name: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="w-1/3">
+                        <input
+                          type="number"
+                          placeholder="الرسوم"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                          value={newZoneData.fee}
+                          onChange={(e) =>
+                            setNewZoneData({ ...newZoneData, fee: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCreateZone}
+                      disabled={isCreatingZone}
+                      className="w-full py-2 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary-hover transition-colors disabled:opacity-50">
+                      {isCreatingZone ? "جاري الإضافة..." : "حفظ المنطقة"}
+                    </button>
+                  </div>
+                )}
+
                 {deliveryZones.length === 0 ? (
                   <p className="text-center text-gray-500 py-8">
                     لا توجد مناطق توصيل متاحة
@@ -228,11 +331,10 @@ const DeliveryModal = ({
                     <button
                       key={zone.id}
                       onClick={() => setSelectedZone(zone)}
-                      className={`w-full p-4 rounded-xl border-2 transition-all text-right ${
-                        selectedZone?.id === zone.id
-                          ? "border-primary bg-primary/10 dark:bg-primary/20"
-                          : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
-                      }`}>
+                      className={`w-full p-4 rounded-xl border-2 transition-all text-right ${selectedZone?.id === zone.id
+                        ? "border-primary bg-primary/10 dark:bg-primary/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
+                        }`}>
                       <div className="flex items-center gap-3">
                         <span className="material-icons-round text-primary text-2xl">
                           location_on

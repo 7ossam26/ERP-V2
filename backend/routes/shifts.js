@@ -133,7 +133,7 @@ async function determineShiftType() {
     const isInMorningShift =
       morningEnd > morningStart
         ? currentTimeInMinutes >= morningStart &&
-          currentTimeInMinutes < morningEnd
+        currentTimeInMinutes < morningEnd
         : false; // Morning shift doesn't cross midnight
 
     // Check if current time is in evening shift (may cross midnight)
@@ -633,6 +633,15 @@ router.get(
                   },
                 },
               },
+              bom: {
+                include: {
+                  categories: {
+                    include: {
+                      category: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -667,16 +676,30 @@ router.get(
 
         // Aggregate Items
         sale.items.forEach((saleItem) => {
-          const itemKey = saleItem.item.name;
-          const categoryName =
-            saleItem.item.categories.length > 0
-              ? saleItem.item.categories[0].category.name
-              : "أخرى";
+          let itemKey = "Unknown";
+          let categoryName = "أخرى";
+          let itemName = "Unknown Item";
+
+          if (saleItem.item) {
+            itemKey = saleItem.item.name;
+            itemName = saleItem.item.name;
+            categoryName =
+              saleItem.item.categories.length > 0
+                ? saleItem.item.categories[0].category.name
+                : "أخرى";
+          } else if (saleItem.bom) {
+            itemKey = saleItem.bom.name;
+            itemName = saleItem.bom.name;
+            categoryName =
+              saleItem.bom.categories.length > 0
+                ? saleItem.bom.categories[0].category.name
+                : "أخرى";
+          }
 
           if (!itemsMap.has(itemKey)) {
             itemsMap.set(itemKey, {
               type: categoryName,
-              name: saleItem.item.name,
+              name: itemName,
               count: 0,
               total: 0,
             });
