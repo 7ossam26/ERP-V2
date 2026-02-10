@@ -383,6 +383,9 @@ const POSPage = () => {
   }, []);
 
   const filteredProducts = products.filter((product) => {
+    // Check if product is allowed in POS
+    if (product.showInPos === false) return false;
+
     // Check if product belongs to selected category (many-to-many)
     const matchesCategory =
       activeCategory === "All" ||
