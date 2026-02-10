@@ -28,6 +28,7 @@ router.get("/", async (req, res) => {
             category: true,
           },
         },
+        inventory: true,
       },
     });
     res.json(items);

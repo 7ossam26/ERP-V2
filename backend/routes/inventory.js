@@ -44,7 +44,7 @@ router.get("/", async (req, res, next) => {
     */
 
     // Only show items marked for POS
-    whereClause.showInPos = true;
+    // whereClause.showInPos = true; // REMOVED: Inventory should show all items including raw materials
 
     // Determine warehouse limitation based on user branch
     const branchFilter = await getUserBranchFilter(req.user.id);
@@ -163,6 +163,7 @@ router.get("/", async (req, res, next) => {
         id: item.id,
         name: item.name,
         code: item.id, // Using ID as code for now
+        inventory: item.inventory, // Include raw inventory data for frontend calculations
         category: primaryCategory,
         categoryColor: getCategoryColor(primaryCategory),
         quantity: totalQuantity,

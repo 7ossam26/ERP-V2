@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { bomService, itemService } from "../../services/domainServices";
+import { inventoryService } from "../../services/inventoryService";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 
@@ -13,6 +14,8 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     outputQuantity: initialData?.outputQuantity ?? 1,
     isActive: initialData?.isActive !== false,
     notes: initialData?.notes || "",
+    newItemPrice: initialData?.outputItem?.price || "",
+    newItemUnit: initialData?.outputItem?.unit || "piece",
     items:
       initialData?.items?.length > 0
         ? initialData.items.map((i) => ({
@@ -23,6 +26,38 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
         : [{ itemId: "", quantity: "", notes: "" }],
   });
   const [loading, setLoading] = useState(false);
+  const [estimatedCost, setEstimatedCost] = useState(0);
+  const [creationMode, setCreationMode] = useState("new"); // 'new' or 'existing'
+
+  // If editing, we behave like "new" mode (updating details), or we could just hide the toggle.
+  // For simplicity, let's treat editing as "modifying the existing item/bom".
+  const isEditMode = !!initialData;
+  const showItemInputs = isEditMode || creationMode === "new";
+
+  const handleExistingItemSelect = (e) => {
+    const itemId = e.target.value;
+    const selectedItem = allItems.find((i) => String(i.id) === String(itemId));
+    setFormData((prev) => ({
+      ...prev,
+      outputItemId: itemId,
+      name: selectedItem ? selectedItem.name : prev.name,
+    }));
+  };
+
+  // Calculate estimated cost whenever items change
+  useEffect(() => {
+    const total = formData.items.reduce((sum, item) => {
+      if (!item.itemId || !item.quantity) return sum;
+      const rawMaterial = allItems.find(
+        (i) => String(i.id) === String(item.itemId),
+      );
+      // Use price as proxy for cost if cost not available, or 0.
+      // ideally we should have average cost. For now assuming price implies standard cost/price.
+      const cost = rawMaterial ? parseFloat(rawMaterial.price || 0) : 0;
+      return sum + cost * parseFloat(item.quantity);
+    }, 0);
+    setEstimatedCost(total);
+  }, [formData.items, allItems]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -60,8 +95,12 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     if (!formData.name.trim()) {
       return toast.error("اسم الوصفة مطلوب");
     }
-    if (!formData.outputItemId) {
-      return toast.error("المنتج النهائي مطلوب");
+    if (!formData.name.trim()) {
+      return toast.error("اسم المنتج مطلوب");
+    }
+
+    if (!showItemInputs && !formData.outputItemId) {
+      return toast.error("يجب اختيار المنتج النهائي");
     }
 
     const validItems = formData.items.filter(
@@ -77,16 +116,24 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
       return toast.error("لا يمكن تكرار نفس المادة الخام");
     }
 
-    // Check if output item is in materials
-    if (
-      validItems.some((i) => String(i.itemId) === String(formData.outputItemId))
-    ) {
-      return toast.error("المنتج النهائي لا يمكن أن يكون ضمن المواد الخام");
-    }
+    // Check if output item is in materials (by name if we could, but difficult without ID.
+    // Backend will handle circular redundancy if item ID matches)
+    // We can't easily check circular dependency here since we don't know the ID of the new item yet.
+    // relying on backend or user common sense.
 
     setLoading(true);
     try {
-      await onSave({ ...formData, items: validItems }, true);
+      const payload = {
+        ...formData,
+        items: validItems,
+        newItem: showItemInputs
+          ? {
+              price: formData.newItemPrice,
+              unit: formData.newItemUnit,
+            }
+          : undefined,
+      };
+      await onSave(payload, true);
     } catch (err) {
       // handled by parent
     } finally {
@@ -98,9 +145,36 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {!isEditMode && (
+          <div className="md:col-span-2 flex justify-center pb-4">
+            <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
+              <button
+                type="button"
+                onClick={() => setCreationMode("new")}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  creationMode === "new"
+                    ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}>
+                إنشاء منتج جديد
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreationMode("existing")}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  creationMode === "existing"
+                    ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}>
+                استخدام منتج موجود
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-            اسم الوصفة / BOM
+            {showItemInputs ? "اسم المنتج الجديد" : "اسم المنتج (من القائمة)"}
           </label>
           <div className="relative">
             <input
@@ -111,6 +185,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
               placeholder="مثال: وجبة شاورما"
               type="text"
               required
+              readOnly={!showItemInputs}
             />
             <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
               receipt
@@ -118,29 +193,79 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-            المنتج النهائي
-          </label>
-          <div className="relative">
-            <select
-              className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-              name="outputItemId"
-              value={formData.outputItemId}
-              onChange={handleChange}
-              required>
-              <option value="">اختر المنتج النهائي</option>
-              {allItems.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-              inventory_2
-            </span>
+        {!showItemInputs && (
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+              اختر المنتج
+            </label>
+            <div className="relative">
+              <select
+                className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+                name="outputItemId"
+                value={formData.outputItemId}
+                onChange={handleExistingItemSelect}
+                required>
+                <option value="">اختر المنتج</option>
+                {allItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                inventory_2
+              </span>
+            </div>
           </div>
-        </div>
+        )}
+
+        {showItemInputs && (
+          <>
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                وحدة القياس
+              </label>
+              <div className="relative">
+                <select
+                  className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+                  name="newItemUnit"
+                  value={formData.newItemUnit}
+                  onChange={handleChange}>
+                  <option value="piece">قطعة (Piece)</option>
+                  <option value="kg">كيلوجرام (KG)</option>
+                  <option value="g">جرام (Gram)</option>
+                  <option value="liter">لتر (Liter)</option>
+                  <option value="box">علبة (Box)</option>
+                  <option value="carton">كرتونة (Carton)</option>
+                </select>
+                <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  straighten
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                سعر البيع
+              </label>
+              <div className="relative">
+                <input
+                  className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
+                  name="newItemPrice"
+                  value={formData.newItemPrice}
+                  onChange={handleChange}
+                  placeholder="0.00"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                />
+                <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  attach_money
+                </span>
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -194,8 +319,59 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
         />
       </div>
 
-      {/* Materials List */}
       <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-bold text-blue-800 dark:text-blue-300">
+              التكلفة التقديرية:
+            </span>
+            <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              {estimatedCost.toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-t sm:border-t-0 sm:border-r border-blue-200 dark:border-blue-700 pt-2 sm:pt-0 sm:pr-4">
+            <span className="text-sm font-bold text-blue-800 dark:text-blue-300">
+              أقصى إنتاج متاح:
+            </span>
+            {(() => {
+              const currentUser = AuthService.getCurrentUser();
+              const userWarehouseId = currentUser?.branch?.warehouseId;
+
+              const maxProd = formData.items.reduce((min, item) => {
+                if (!item.itemId || !item.quantity) return min;
+                const raw = allItems.find(
+                  (i) => String(i.id) === String(item.itemId),
+                );
+
+                let stock = 0;
+                if (raw?.inventory) {
+                  if (userWarehouseId) {
+                    const inv = raw.inventory.find(
+                      (i) => i.warehouseId === userWarehouseId,
+                    );
+                    stock = inv ? Number(inv.quantity) : 0;
+                  } else {
+                    stock = raw.inventory.reduce(
+                      (s, inv) => s + Number(inv.quantity),
+                      0,
+                    );
+                  }
+                }
+
+                if (stock === 0) return 0;
+                return Math.min(min, stock / item.quantity);
+              }, Infinity);
+              const val = maxProd === Infinity ? 0 : Math.floor(maxProd);
+              return (
+                <span
+                  className={`text-lg font-bold ${val === 0 ? "text-red-500" : "text-green-600"}`}>
+                  {maxProd === Infinity ? "-" : val}
+                </span>
+              );
+            })()}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between">
           <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
             المواد الخام
@@ -229,6 +405,38 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
                     </option>
                   ))}
                 </select>
+                {(() => {
+                  const currentUser = AuthService.getCurrentUser();
+                  const userWarehouseId = currentUser?.branch?.warehouseId;
+                  const selected = allItems.find(
+                    (i) => String(i.id) === String(item.itemId),
+                  );
+
+                  if (selected) {
+                    let stock = 0;
+                    if (selected.inventory) {
+                      if (userWarehouseId) {
+                        const inv = selected.inventory.find(
+                          (i) => i.warehouseId === userWarehouseId,
+                        );
+                        stock = inv ? Number(inv.quantity) : 0;
+                      } else {
+                        stock = selected.inventory.reduce(
+                          (s, inv) => s + Number(inv.quantity),
+                          0,
+                        );
+                      }
+                    }
+
+                    return (
+                      <div
+                        className={`text-xs mt-1 ${stock > 0 ? "text-green-600" : "text-red-500"}`}>
+                        الرصيد: {stock}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               <div className="w-28">
                 <input
@@ -285,6 +493,11 @@ const BOMManager = () => {
   const [boms, setBoms] = useState([]);
   const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(AuthService.getCurrentUser());
+
+  useEffect(() => {
+    fetchData();
+  }, []);
   const [showForm, setShowForm] = useState(false);
   const [editingBom, setEditingBom] = useState(null);
   const [expandedBom, setExpandedBom] = useState(null);
@@ -296,7 +509,7 @@ const BOMManager = () => {
     try {
       const [bomsData, itemsData] = await Promise.all([
         bomService.getAll(),
-        itemService.getAll(),
+        inventoryService.getInventory(),
       ]);
       setBoms(bomsData);
       setAllItems(itemsData);
@@ -486,6 +699,66 @@ const BOMManager = () => {
                         {bom.isActive ? "مفعّل" : "معطّل"}
                       </span>
                     </div>
+                    {/* Max Production Display */}
+                    <div className="mt-2 flex items-center gap-2">
+                      {(() => {
+                        // Calculate max possible production
+                        const maxProduction = bom.items.reduce(
+                          (min, bomItem) => {
+                            const rawMaterial = allItems.find(
+                              (i) => String(i.id) === String(bomItem.itemId),
+                            );
+                            // Filter inventory by user branch if available
+                            const userWarehouseId =
+                              currentUser?.branch?.warehouseId;
+
+                            let totalStock = 0;
+                            if (rawMaterial?.inventory) {
+                              if (userWarehouseId) {
+                                const stock = rawMaterial.inventory.find(
+                                  (inv) => inv.warehouseId === userWarehouseId,
+                                );
+                                totalStock = stock ? Number(stock.quantity) : 0;
+                              } else {
+                                totalStock = rawMaterial.inventory.reduce(
+                                  (sum, inv) => sum + Number(inv.quantity),
+                                  0,
+                                );
+                              }
+                            }
+
+                            const possible = totalStock / bomItem.quantity;
+                            return Math.min(min, possible);
+                          },
+                          Infinity,
+                        );
+
+                        const isInfinite = maxProduction === Infinity;
+                        const possibleCount = isInfinite
+                          ? 0
+                          : Math.floor(maxProduction);
+
+                        let colorClass = "text-gray-500";
+                        if (!isInfinite) {
+                          if (possibleCount === 0)
+                            colorClass = "text-red-500 font-bold";
+                          else if (possibleCount < 10)
+                            colorClass = "text-yellow-600 font-bold";
+                          else colorClass = "text-green-600 font-bold";
+                        }
+
+                        return (
+                          <span
+                            className={`text-sm flex items-center gap-1 ${colorClass}`}>
+                            <span className="material-icons-round text-sm">
+                              construction
+                            </span>
+                            إمكانية الإنتاج: {isInfinite ? "-" : possibleCount}{" "}
+                            وحدة
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -534,8 +807,11 @@ const BOMManager = () => {
                         <th className="text-right py-2 px-3 font-semibold">
                           المادة الخام
                         </th>
-                        <th className="text-center py-2 px-3 font-semibold">
+                        <th className="text-right py-2 px-3 font-semibold">
                           الكمية المطلوبة
+                        </th>
+                        <th className="text-center py-2 px-3 font-semibold">
+                          الرصيد المتاح
                         </th>
                         <th className="text-right py-2 px-3 font-semibold">
                           ملاحظات
@@ -543,24 +819,60 @@ const BOMManager = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {bom.items.map((item, idx) => (
-                        <tr
-                          key={item.id}
-                          className="border-b border-gray-100 dark:border-gray-700 last:border-0">
-                          <td className="py-2.5 px-3 text-sm text-gray-400 font-mono">
-                            {idx + 1}
-                          </td>
-                          <td className="py-2.5 px-3 text-sm font-medium text-text-light dark:text-text-dark">
-                            {item.itemName}
-                          </td>
-                          <td className="py-2.5 px-3 text-sm text-center font-bold text-primary">
-                            {item.quantity}
-                          </td>
-                          <td className="py-2.5 px-3 text-sm text-gray-500">
-                            {item.notes || "-"}
-                          </td>
-                        </tr>
-                      ))}
+                      {bom.items.map((item, idx) => {
+                        const rawMaterial = allItems.find(
+                          (i) => String(i.id) === String(item.itemId),
+                        );
+
+                        const userWarehouseId =
+                          currentUser?.branch?.warehouseId;
+                        let totalStock = 0;
+                        if (rawMaterial?.inventory) {
+                          if (userWarehouseId) {
+                            const stock = rawMaterial.inventory.find(
+                              (inv) => inv.warehouseId === userWarehouseId,
+                            );
+                            totalStock = stock ? Number(stock.quantity) : 0;
+                          } else {
+                            totalStock = rawMaterial.inventory.reduce(
+                              (sum, inv) => sum + Number(inv.quantity),
+                              0,
+                            );
+                          }
+                        }
+
+                        const maxOutput = Math.floor(
+                          totalStock / item.quantity,
+                        );
+
+                        return (
+                          <tr
+                            key={item.id}
+                            className="border-b border-gray-100 dark:border-gray-700 last:border-0">
+                            <td className="py-2.5 px-3 text-sm text-gray-400 font-mono">
+                              {idx + 1}
+                            </td>
+                            <td className="py-2.5 px-3 text-sm font-medium text-text-light dark:text-text-dark">
+                              {item.itemName}
+                            </td>
+                            <td className="py-2.5 px-3 text-sm text-right font-bold text-primary">
+                              {item.quantity}
+                            </td>
+                            <td className="py-2.5 px-3 text-sm text-center">
+                              <span
+                                className={`font-bold ${totalStock < item.quantity ? "text-red-500" : "text-green-600"}`}>
+                                {Number(totalStock).toFixed(2)}
+                              </span>
+                              <span className="text-xs text-gray-400 block">
+                                (يكفي {maxOutput})
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-sm text-gray-500">
+                              {item.notes || "-"}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                   {bom.notes && (
