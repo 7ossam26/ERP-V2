@@ -66,8 +66,15 @@ router.post(
   requireCreatePermission("CREATES_PRODUCTION"),
   async (req, res) => {
     try {
-      const { name, outputQuantity, isActive, notes, items, newItem } =
-        req.body;
+      const {
+        name,
+        outputItemId,
+        outputQuantity,
+        isActive,
+        notes,
+        items,
+        newItem,
+      } = req.body;
 
       if (!name) {
         return res
@@ -83,34 +90,56 @@ router.post(
 
       const result = await prisma.$transaction(async (tx) => {
         // 1. Find or Create/Update Item
-        let item = await tx.item.findFirst({
-          where: { name: name },
-        });
+        let item;
 
-        if (item) {
-          // Update existing item if newItem details provided
+        if (outputItemId) {
+          item = await tx.item.findUnique({
+            where: { id: parseInt(outputItemId) },
+          });
+          if (!item) throw new Error("Selected output item not found");
+
+          // Optional: Update item if newItem details provided
           if (newItem) {
-            item = await tx.item.update({
+            await tx.item.update({
               where: { id: item.id },
               data: {
                 price: parseFloat(newItem.price) || item.price,
                 unit: newItem.unit || item.unit,
-                showInPos: true, // Ensure it's visible if we are defining it
+                showInPos: true,
               },
             });
           }
         } else {
-          // Create new item
-          item = await tx.item.create({
-            data: {
-              name,
-              price: parseFloat(newItem?.price) || 0,
-              unit: newItem?.unit || "piece",
-              showInPos: true,
-              suppliers: {}, // No suppliers initially
-              categories: {},
-            },
+          // Fallback to Name Lookup
+          item = await tx.item.findFirst({
+            where: { name: name },
           });
+
+          if (item) {
+            // Update existing item if newItem details provided
+            if (newItem) {
+              item = await tx.item.update({
+                where: { id: item.id },
+                data: {
+                  price: parseFloat(newItem.price) || item.price,
+                  unit: newItem.unit || item.unit,
+                  showInPos: true, // Ensure it's visible if we are defining it
+                },
+              });
+            }
+          } else {
+            // Create new item
+            item = await tx.item.create({
+              data: {
+                name,
+                price: parseFloat(newItem?.price) || 0,
+                unit: newItem?.unit || "piece",
+                showInPos: true,
+                suppliers: {}, // No suppliers initially
+                categories: {},
+              },
+            });
+          }
         }
 
         // 2. Create BOM

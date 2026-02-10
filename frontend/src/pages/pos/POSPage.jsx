@@ -22,6 +22,7 @@ import {
   settingsService,
   shiftService,
   deliveryService,
+  bomService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
@@ -355,12 +356,72 @@ const POSPage = () => {
         }
       }
 
-      const [inventoryItems, dbCategories] = await Promise.all([
+      // FETCH DATA: Inventory (Stock Levels) + BOMs (Recipes)
+      // We need inventory to know stock of Raw Materials.
+      // We need BOMs to know what we can sell (Recipes).
+      const [inventoryItems, dbCategories, boms] = await Promise.all([
         inventoryService.getInventory({ warehouseId }),
         categoryService.getAll(),
+        bomService.getAll(),
       ]);
 
-      setProducts(inventoryItems);
+      // Map Inventory to a Helper Object for fast lookup
+      // inventoryItems contains items with their "current stock" in the selected warehouse (or total)
+      const inventoryMap = {}; // ItemID -> Quantity
+      inventoryItems.forEach((item) => {
+        inventoryMap[item.id] = item.quantity || 0;
+      });
+
+      // TRANSFORM BOMS TO PRODUCTS
+      // User Logic: "Fetch BOMs in POS".
+      // We treat each BOM as a sellable product.
+      // The Quantity available is the "Max Possible Production" based on Raw Materials.
+      const bomProducts = boms
+        .filter((bom) => bom.isActive) // Only active recipes
+        .map((bom) => {
+          // 1. Calculate Max Production based on Raw Material Stock
+          // Note: Inventory.js returns item stock based on warehouse if filtered, or total.
+          const maxProduction = bom.items.reduce((min, bomItem) => {
+            const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
+            const requiredQty = bomItem.quantity;
+            if (requiredQty <= 0) return min;
+
+            const possible = rawMaterialQty / requiredQty;
+            return Math.min(min, possible);
+          }, Infinity);
+
+          const quantity =
+            maxProduction === Infinity ? 0 : Math.floor(maxProduction);
+
+          // Find Output Item in Inventory to get basic details (categories, etc.)
+          const outputItem = inventoryItems.find(
+            (i) => i.id === bom.outputItemId,
+          );
+
+          // 2. Map to Product Structure used by POS
+          return {
+            id: bom.outputItemId, // CRITICAL: Sell the Output Item ID so Sales Module works
+            bomId: bom.id, // Traceability
+            name: bom.name, // Use BOM Name
+            price: outputItem?.price || 0,
+            purchasePrice: 0, // Not relevant for BOM sales usually
+            unit: outputItem?.unit || "piece",
+            categories: outputItem ? outputItem.categories : [], // Use categories from the item definition
+            quantity: quantity, // Max Possible Production
+            hasBom: true,
+            showInPos: true, // BOMs are meant for POS
+          };
+        });
+
+      // ALSO: Include Non-BOM items? (e.g. Water, Soda that are just bought/sold)
+      // The user wants to see "BOMs", but we shouldn't hide pure retail items unless requested.
+      // Strategy: Merge BOM Products + Inventory Items that DO NOT have a BOM.
+      // inventoryItems.hasBom is based on backend check (bomOutputs.length > 0)
+      const nonBomProducts = inventoryItems.filter((item) => !item.hasBom);
+
+      const distinctProducts = [...bomProducts, ...nonBomProducts];
+
+      setProducts(distinctProducts);
 
       // Build categories from database with "All" option
       const allCategories = [
@@ -375,6 +436,7 @@ const POSPage = () => {
       setCategories(allCategories);
     } catch (error) {
       console.error("Failed to fetch products and categories", error);
+      toast.error("فشل تحميل المنتجات: " + (error.message || "Unknown error"));
     }
   };
 

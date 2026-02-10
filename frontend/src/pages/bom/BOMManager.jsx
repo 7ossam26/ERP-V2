@@ -27,7 +27,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
   });
   const [loading, setLoading] = useState(false);
   const [estimatedCost, setEstimatedCost] = useState(0);
-  const [creationMode, setCreationMode] = useState("new"); // 'new' or 'existing'
+  const [creationMode, setCreationMode] = useState("existing"); // Default to existing to prevent accidental creation
 
   // If editing, we behave like "new" mode (updating details), or we could just hide the toggle.
   // For simplicity, let's treat editing as "modifying the existing item/bom".
@@ -95,9 +95,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     if (!formData.name.trim()) {
       return toast.error("اسم الوصفة مطلوب");
     }
-    if (!formData.name.trim()) {
-      return toast.error("اسم المنتج مطلوب");
-    }
+    // Duplicate check removed
 
     if (!showItemInputs && !formData.outputItemId) {
       return toast.error("يجب اختيار المنتج النهائي");
@@ -115,11 +113,6 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     if (new Set(itemIds).size !== itemIds.length) {
       return toast.error("لا يمكن تكرار نفس المادة الخام");
     }
-
-    // Check if output item is in materials (by name if we could, but difficult without ID.
-    // Backend will handle circular redundancy if item ID matches)
-    // We can't easily check circular dependency here since we don't know the ID of the new item yet.
-    // relying on backend or user common sense.
 
     setLoading(true);
     try {
@@ -150,23 +143,23 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
             <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
               <button
                 type="button"
-                onClick={() => setCreationMode("new")}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                  creationMode === "new"
-                    ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
-                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}>
-                إنشاء منتج جديد
-              </button>
-              <button
-                type="button"
                 onClick={() => setCreationMode("existing")}
                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                   creationMode === "existing"
                     ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
                     : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                 }`}>
-                استخدام منتج موجود
+                ربط بمنتج موجود
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreationMode("new")}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  creationMode === "new"
+                    ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}>
+                تعريف منتج جديد
               </button>
             </div>
           </div>
