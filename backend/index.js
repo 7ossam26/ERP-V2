@@ -115,10 +115,10 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-          maxAge: 31536000,
-          includeSubDomains: true,
-          preload: true,
-        }
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+          }
         : false, // Disable HSTS in development
   }),
 );
@@ -233,6 +233,7 @@ app.use("/api/deposits", require("./routes/deposits"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/delivery-men", require("./routes/delivery.routes"));
 app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
+app.use("/api/bom", require("./routes/bom"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
@@ -369,7 +370,10 @@ app.get("/api/setup-tables", async (req, res) => {
           migrationResult.push({ index: i, error: sqlErr.message });
         }
       }
-      res.json({ message: "Tables setup finished (via mysql2)", warnings: migrationResult });
+      res.json({
+        message: "Tables setup finished (via mysql2)",
+        warnings: migrationResult,
+      });
     } else {
       res.status(404).json({ error: "migration.sql not found" });
     }

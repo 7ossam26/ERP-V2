@@ -365,10 +365,12 @@ const POSPage = () => {
       // Build categories from database with "All" option
       const allCategories = [
         { id: "All", name: "كل المنتجات" },
-        ...dbCategories.map((cat) => ({
-          id: cat.id,
-          name: cat.name,
-        })),
+        ...dbCategories
+          .filter((cat) => cat.showInPos !== false)
+          .map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+          })),
       ];
       setCategories(allCategories);
     } catch (error) {
@@ -447,7 +449,8 @@ const POSPage = () => {
     const existingQty = existingItem ? existingItem.quantity : 0;
     const totalRequested = existingQty + quantity;
 
-    if (totalRequested > currentStock) {
+    // Skip stock check for BOM items (auto-manufactured)
+    if (!product.hasBom && totalRequested > currentStock) {
       toast.error(`الكمية غير متوفرة! المتاح: ${currentStock}`);
       return false; // Return failure
     }
@@ -456,7 +459,7 @@ const POSPage = () => {
     const reorderPoint = product.reorderPoint || 0;
     const remainingAfterSale = currentStock - totalRequested;
 
-    if (remainingAfterSale <= reorderPoint) {
+    if (!product.hasBom && remainingAfterSale <= reorderPoint) {
       toast(`تحذير: المخزون سيصبح منخفض (${remainingAfterSale})`, {
         icon: "⚠️",
       });

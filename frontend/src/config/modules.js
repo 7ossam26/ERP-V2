@@ -90,6 +90,15 @@ export const MODULES = [
     path: "/clients",
     category: "CREATION",
   },
+  {
+    id: "creates_production",
+    code: "CREATES_PRODUCTION",
+    label: "وصفات التصنيع",
+    description: "إدارة قوائم المواد (BOM)",
+    icon: "receipt",
+    path: "/bom",
+    category: "CREATION",
+  },
 
   // --- Management Modules (Main Dashboard) ---
   {

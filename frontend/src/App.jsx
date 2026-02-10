@@ -50,6 +50,7 @@ import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
 import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
 import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
 import DeliverySettlementPage from "./pages/delivery-settlement/DeliverySettlementPage";
+import BOMManager from "./pages/bom/BOMManager";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
@@ -390,9 +391,17 @@ function App() {
           <Route
             path="/delivery-settlement"
             element={
-              <ProtectedRoute
-                requiredPermission="DELIVERY_SETTLEMENT">
+              <ProtectedRoute requiredPermission="DELIVERY_SETTLEMENT">
                 <DeliverySettlementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bom"
+            element={
+              <ProtectedRoute
+                requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
+                <BOMManager />
               </ProtectedRoute>
             }
           />

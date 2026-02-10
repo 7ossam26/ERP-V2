@@ -115,6 +115,7 @@ enum Module {
   CREATES_DELIVERY_MEN
   DELIVERY_ZONES
   CREATES_DELIVERY_ZONES
+  CREATES_PRODUCTION
 }
 
 model Permission {
@@ -346,6 +347,7 @@ model Supplier {
 model Category {
   id        Int            @id @default(autoincrement())
   name      String         @unique
+  showInPos Boolean        @default(true) @map("show_in_pos")
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
   items     ItemCategory[]
@@ -363,6 +365,7 @@ model Item {
   price        Decimal  @db.Decimal(10, 2)
   unit         String
   reorderPoint Int      @default(10) @map("reorder_point")
+  showInPos    Boolean  @default(true) @map("show_in_pos")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -373,6 +376,8 @@ model Item {
   saleItems          SaleItem[]
   inventory          Inventory[]
   stockTransferItems StockTransferItem[]
+  bomOutputs         BOM[]                @relation("BOMOutput")
+  bomItems           BOMItem[]
 
   @@map("items")
 }
@@ -857,3 +862,40 @@ model DeliveryZone {
   @@unique([branchId, name])
   @@map("delivery_zones")
 }
+
+// ============================================
+// Production & BOM Management
+// ============================================
+
+model BOM {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  outputItemId   Int      @map("output_item_id")
+  outputQuantity Decimal  @default(1) @map("output_quantity") @db.Decimal(10, 2)
+  isActive       Boolean  @default(true) @map("is_active")
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  outputItem       Item              @relation("BOMOutput", fields: [outputItemId], references: [id], onDelete: Restrict)
+  items            BOMItem[]
+
+  @@map("bom")
+}
+
+model BOMItem {
+  id       Int     @id @default(autoincrement())
+  bomId    Int     @map("bom_id")
+  itemId   Int     @map("item_id")
+  quantity Decimal @db.Decimal(10, 4)
+  notes    String? @db.Text
+
+  // Relations
+  bom  BOM  @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([bomId, itemId])
+  @@map("bom_items")
+}
+
