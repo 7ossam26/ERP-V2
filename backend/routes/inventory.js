@@ -51,8 +51,8 @@ router.get("/", async (req, res, next) => {
     let inventoryWhere = {};
 
     if (branchFilter) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchFilter.id },
+      const branch = await prisma.branch.findFirst({
+        where: branchFilter,
         select: { warehouseId: true },
       });
       if (branch && branch.warehouseId) {
@@ -180,15 +180,15 @@ router.get("/", async (req, res, next) => {
         bom:
           item.bomOutputs && item.bomOutputs.length > 0
             ? {
-                id: item.bomOutputs[0].id,
-                name: item.bomOutputs[0].name,
-                outputQuantity: Number(item.bomOutputs[0].outputQuantity),
-                items: item.bomOutputs[0].items.map((bi) => ({
-                  itemId: bi.itemId,
-                  itemName: bi.item.name,
-                  quantity: Number(bi.quantity),
-                })),
-              }
+              id: item.bomOutputs[0].id,
+              name: item.bomOutputs[0].name,
+              outputQuantity: Number(item.bomOutputs[0].outputQuantity),
+              items: item.bomOutputs[0].items.map((bi) => ({
+                itemId: bi.itemId,
+                itemName: bi.item.name,
+                quantity: Number(bi.quantity),
+              })),
+            }
             : null,
       };
     });
@@ -220,8 +220,8 @@ router.get("/stats", async (req, res, next) => {
     let inventoryWhere = {};
 
     if (branchFilter) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchFilter.id },
+      const branch = await prisma.branch.findFirst({
+        where: branchFilter,
         select: { warehouseId: true },
       });
       if (branch && branch.warehouseId) {
