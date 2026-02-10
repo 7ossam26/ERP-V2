@@ -373,14 +373,12 @@ const POSPage = () => {
       });
 
       // TRANSFORM BOMS TO PRODUCTS
-      // User Logic: "Fetch BOMs in POS".
-      // We treat each BOM as a sellable product.
+      // We treat each active BOM as a sellable product.
       // The Quantity available is the "Max Possible Production" based on Raw Materials.
       const bomProducts = boms
-        .filter((bom) => bom.isActive) // Only active recipes
+        .filter((bom) => bom.isActive)
         .map((bom) => {
-          // 1. Calculate Max Production based on Raw Material Stock
-          // Note: Inventory.js returns item stock based on warehouse if filtered, or total.
+          // Calculate Max Production based on Raw Material Stock
           const maxProduction = bom.items.reduce((min, bomItem) => {
             const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
             const requiredQty = bomItem.quantity;
@@ -391,25 +389,30 @@ const POSPage = () => {
           }, Infinity);
 
           const quantity =
-            maxProduction === Infinity ? 0 : Math.floor(maxProduction);
+            maxProduction === Infinity
+              ? 0
+              : parseFloat(maxProduction.toFixed(2));
 
-          // Find Output Item in Inventory to get basic details (categories, etc.)
-          const outputItem = inventoryItems.find(
-            (i) => i.id === bom.outputItemId,
-          );
+          // Find linked Output Item for categories (if linked)
+          const outputItem = bom.outputItemId
+            ? inventoryItems.find((i) => i.id === bom.outputItemId)
+            : null;
 
-          // 2. Map to Product Structure used by POS
+          // Map to Product Structure used by POS
           return {
-            id: bom.outputItemId, // CRITICAL: Sell the Output Item ID so Sales Module works
-            bomId: bom.id, // Traceability
-            name: bom.name, // Use BOM Name
-            price: outputItem?.price || 0,
-            purchasePrice: 0, // Not relevant for BOM sales usually
-            unit: outputItem?.unit || "piece",
-            categories: outputItem ? outputItem.categories : [], // Use categories from the item definition
-            quantity: quantity, // Max Possible Production
+            id: bom.outputItemId || `bom_${bom.id}`, // Use Item ID if linked, otherwise BOM ID
+            bomId: bom.id,
+            name: bom.name,
+            price: parseFloat(bom.price) || 0, // Use BOM's own price
+            purchasePrice: 0,
+            unit: bom.unit || "piece", // Use BOM's own unit
+            // Use BOM's own categories, fall back to output item categories
+            categories:
+              bom.categories?.map((bc) => bc.category || bc) ||
+              (outputItem ? outputItem.categories : []),
+            quantity: quantity,
             hasBom: true,
-            showInPos: true, // BOMs are meant for POS
+            showInPos: true,
           };
         });
 

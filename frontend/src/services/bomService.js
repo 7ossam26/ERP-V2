@@ -5,9 +5,11 @@ const BOM_URL = "/bom";
 const toFrontend = (data) => ({
   id: data.id,
   name: data.name,
-  outputItemId: data.outputItemId,
+  outputItemId: data.outputItemId || null,
   outputItemName: data.outputItem?.name || "",
   outputQuantity: data.outputQuantity,
+  price: data.price,
+  unit: data.unit,
   isActive: data.isActive,
   notes: data.notes,
   items:
@@ -17,6 +19,11 @@ const toFrontend = (data) => ({
       itemName: bi.item?.name || "",
       quantity: bi.quantity,
       notes: bi.notes,
+    })) || [],
+  categories:
+    data.categories?.map((bc) => ({
+      id: bc.category?.id || bc.categoryId,
+      name: bc.category?.name || "",
     })) || [],
   createdAt: data.createdAt,
   updatedAt: data.updatedAt,
@@ -36,8 +43,12 @@ export const bomService = {
   async create(bomData) {
     const payload = {
       name: bomData.name,
-      outputItemId: parseInt(bomData.outputItemId),
+      outputItemId: bomData.outputItemId
+        ? parseInt(bomData.outputItemId)
+        : null,
       outputQuantity: parseFloat(bomData.outputQuantity) || 1,
+      price: parseFloat(bomData.price) || 0,
+      unit: bomData.unit || "piece",
       isActive: bomData.isActive !== false,
       notes: bomData.notes || null,
       items: (bomData.items || []).map((item) => ({
@@ -45,6 +56,7 @@ export const bomService = {
         quantity: parseFloat(item.quantity),
         notes: item.notes || null,
       })),
+      categoryIds: bomData.categoryIds || [],
     };
     const data = await api.post(BOM_URL, payload);
     return toFrontend(data);
@@ -53,8 +65,12 @@ export const bomService = {
   async update(id, bomData) {
     const payload = {
       name: bomData.name,
-      outputItemId: parseInt(bomData.outputItemId),
+      outputItemId: bomData.outputItemId
+        ? parseInt(bomData.outputItemId)
+        : null,
       outputQuantity: parseFloat(bomData.outputQuantity) || 1,
+      price: parseFloat(bomData.price) || 0,
+      unit: bomData.unit || "piece",
       isActive: bomData.isActive !== false,
       notes: bomData.notes || null,
       items: (bomData.items || []).map((item) => ({
@@ -62,6 +78,7 @@ export const bomService = {
         quantity: parseFloat(item.quantity),
         notes: item.notes || null,
       })),
+      categoryIds: bomData.categoryIds || [],
     };
     const data = await api.put(`${BOM_URL}/${id}`, payload);
     return toFrontend(data);

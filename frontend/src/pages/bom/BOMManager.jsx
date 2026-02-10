@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { bomService, itemService } from "../../services/domainServices";
+import {
+  bomService,
+  itemService,
+  categoryService,
+} from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
@@ -14,8 +18,8 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     outputQuantity: initialData?.outputQuantity ?? 1,
     isActive: initialData?.isActive !== false,
     notes: initialData?.notes || "",
-    newItemPrice: initialData?.outputItem?.price || "",
-    newItemUnit: initialData?.outputItem?.unit || "piece",
+    price: initialData?.price || "",
+    unit: initialData?.unit || "piece",
     items:
       initialData?.items?.length > 0
         ? initialData.items.map((i) => ({
@@ -27,12 +31,17 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
   });
   const [loading, setLoading] = useState(false);
   const [estimatedCost, setEstimatedCost] = useState(0);
-  const [creationMode, setCreationMode] = useState("existing"); // Default to existing to prevent accidental creation
+  const [linkToItem, setLinkToItem] = useState(!!initialData?.outputItemId);
+  const [allCategories, setAllCategories] = useState([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState(
+    initialData?.categories?.map((c) => c.id) || [],
+  );
 
-  // If editing, we behave like "new" mode (updating details), or we could just hide the toggle.
-  // For simplicity, let's treat editing as "modifying the existing item/bom".
+  useEffect(() => {
+    categoryService.getAll().then(setAllCategories).catch(console.error);
+  }, []);
+
   const isEditMode = !!initialData;
-  const showItemInputs = isEditMode || creationMode === "new";
 
   const handleExistingItemSelect = (e) => {
     const itemId = e.target.value;
@@ -40,7 +49,8 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     setFormData((prev) => ({
       ...prev,
       outputItemId: itemId,
-      name: selectedItem ? selectedItem.name : prev.name,
+      // Optional: Auto-fill name/price from item if empty
+      name: !prev.name && selectedItem ? selectedItem.name : prev.name,
     }));
   };
 
@@ -97,8 +107,12 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     }
     // Duplicate check removed
 
-    if (!showItemInputs && !formData.outputItemId) {
-      return toast.error("يجب اختيار المنتج النهائي");
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      return toast.error("يجب إدخال سعر البيع (أكبر من صفر)");
+    }
+
+    if (!formData.outputQuantity || parseFloat(formData.outputQuantity) <= 0) {
+      return toast.error("كمية الإنتاج (Yield) يجب أن تكون أكبر من صفر");
     }
 
     const validItems = formData.items.filter(
@@ -119,12 +133,8 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
       const payload = {
         ...formData,
         items: validItems,
-        newItem: showItemInputs
-          ? {
-              price: formData.newItemPrice,
-              unit: formData.newItemUnit,
-            }
-          : undefined,
+        outputItemId: linkToItem ? formData.outputItemId : null,
+        categoryIds: selectedCategoryIds,
       };
       await onSave(payload, true);
     } catch (err) {
@@ -138,36 +148,9 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {!isEditMode && (
-          <div className="md:col-span-2 flex justify-center pb-4">
-            <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
-              <button
-                type="button"
-                onClick={() => setCreationMode("existing")}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                  creationMode === "existing"
-                    ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
-                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}>
-                ربط بمنتج موجود
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreationMode("new")}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                  creationMode === "new"
-                    ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
-                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}>
-                تعريف منتج جديد
-              </button>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-            {showItemInputs ? "اسم المنتج الجديد" : "اسم المنتج (من القائمة)"}
+            اسم المنتج (الوصفة)
           </label>
           <div className="relative">
             <input
@@ -178,7 +161,6 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
               placeholder="مثال: وجبة شاورما"
               type="text"
               required
-              readOnly={!showItemInputs}
             />
             <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
               receipt
@@ -186,83 +168,89 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
           </div>
         </div>
 
-        {!showItemInputs && (
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-              اختر المنتج
-            </label>
-            <div className="relative">
-              <select
-                className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                name="outputItemId"
-                value={formData.outputItemId}
-                onChange={handleExistingItemSelect}
-                required>
-                <option value="">اختر المنتج</option>
-                {allItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                inventory_2
-              </span>
-            </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+            وحدة القياس
+          </label>
+          <div className="relative">
+            <select
+              className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+              name="unit"
+              value={formData.unit}
+              onChange={handleChange}>
+              <option value="piece">قطعة (Piece)</option>
+              <option value="kg">كيلوجرام (KG)</option>
+            </select>
+            <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+              straighten
+            </span>
           </div>
-        )}
-
-        {showItemInputs && (
-          <>
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                وحدة القياس
-              </label>
-              <div className="relative">
-                <select
-                  className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                  name="newItemUnit"
-                  value={formData.newItemUnit}
-                  onChange={handleChange}>
-                  <option value="piece">قطعة (Piece)</option>
-                  <option value="kg">كيلوجرام (KG)</option>
-                  <option value="g">جرام (Gram)</option>
-                  <option value="liter">لتر (Liter)</option>
-                  <option value="box">علبة (Box)</option>
-                  <option value="carton">كرتونة (Carton)</option>
-                </select>
-                <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  straighten
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                سعر البيع
-              </label>
-              <div className="relative">
-                <input
-                  className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
-                  name="newItemPrice"
-                  value={formData.newItemPrice}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                />
-                <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  attach_money
-                </span>
-              </div>
-            </div>
-          </>
-        )}
+        </div>
 
         <div className="space-y-2">
           <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-            كمية الإنتاج لكل وصفة
+            سعر البيع
+          </label>
+          <div className="relative">
+            <input
+              className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
+              name="price"
+              value={formData.price}
+              onChange={handleChange}
+              placeholder="0.00"
+              type="number"
+              step="0.01"
+              min="0"
+            />
+            <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+              attach_money
+            </span>
+          </div>
+        </div>
+
+        {/* Categories */}
+        <div className="md:col-span-2 space-y-2">
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+            التصنيفات
+          </label>
+          <div className="flex flex-wrap gap-2 p-3 bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-600 rounded-xl">
+            {allCategories.length === 0 && (
+              <span className="text-xs text-gray-400">لا توجد تصنيفات</span>
+            )}
+            {allCategories.map((cat) => (
+              <label
+                key={cat.id}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-all text-sm font-bold ${
+                  selectedCategoryIds.includes(cat.id)
+                    ? "bg-primary/10 border-primary text-primary dark:text-accent"
+                    : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary/40"
+                }`}>
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={selectedCategoryIds.includes(cat.id)}
+                  onChange={() => {
+                    setSelectedCategoryIds((prev) =>
+                      prev.includes(cat.id)
+                        ? prev.filter((id) => id !== cat.id)
+                        : [...prev, cat.id],
+                    );
+                  }}
+                />
+                <span className="material-icons-round text-base">
+                  {selectedCategoryIds.includes(cat.id)
+                    ? "check_circle"
+                    : "radio_button_unchecked"}
+                </span>
+                {cat.name}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+            كمية الإنتاج (Yield)
           </label>
           <div className="relative">
             <input
@@ -291,7 +279,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
               className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700"
             />
             <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-              مفعّل
+              متاح للبيع في نقطة البيع (POS)
             </span>
           </label>
         </div>
@@ -354,7 +342,8 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
                 if (stock === 0) return 0;
                 return Math.min(min, stock / item.quantity);
               }, Infinity);
-              const val = maxProd === Infinity ? 0 : Math.floor(maxProd);
+              const val =
+                maxProd === Infinity ? 0 : parseFloat(maxProd.toFixed(2));
               return (
                 <span
                   className={`text-lg font-bold ${val === 0 ? "text-red-500" : "text-green-600"}`}>
@@ -729,7 +718,7 @@ const BOMManager = () => {
                         const isInfinite = maxProduction === Infinity;
                         const possibleCount = isInfinite
                           ? 0
-                          : Math.floor(maxProduction);
+                          : parseFloat(maxProduction.toFixed(2));
 
                         let colorClass = "text-gray-500";
                         if (!isInfinite) {
@@ -834,8 +823,8 @@ const BOMManager = () => {
                           }
                         }
 
-                        const maxOutput = Math.floor(
-                          totalStock / item.quantity,
+                        const maxOutput = parseFloat(
+                          (totalStock / item.quantity).toFixed(2),
                         );
 
                         return (

@@ -351,6 +351,7 @@ model Category {
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
   items     ItemCategory[]
+  boms      BOMCategory[]
 
   @@map("categories")
 }
@@ -414,6 +415,16 @@ model ItemCategory {
 
   @@id([itemId, categoryId])
   @@map("item_categories")
+}
+
+model BOMCategory {
+  bom        BOM      @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  bomId      Int      @map("bom_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId Int      @map("category_id")
+
+  @@id([bomId, categoryId])
+  @@map("bom_categories")
 }
 
 // ============================================
@@ -589,14 +600,16 @@ model Sale {
 model SaleItem {
   id        Int     @id @default(autoincrement())
   saleId    Int     @map("sale_id")
-  itemId    Int     @map("item_id")
+  itemId    Int?    @map("item_id")
+  bomId     Int?    @map("bom_id")
   quantity  Decimal @db.Decimal(10, 2)
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
   total     Decimal @db.Decimal(10, 2)
 
   // Relations
   sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  item Item? @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  bom  BOM?  @relation(fields: [bomId], references: [id], onDelete: Restrict)
 
   @@map("sale_items")
 }
@@ -870,16 +883,20 @@ model DeliveryZone {
 model BOM {
   id             Int      @id @default(autoincrement())
   name           String   @unique
-  outputItemId   Int      @map("output_item_id")
+  outputItemId   Int?     @map("output_item_id")
   outputQuantity Decimal  @default(1) @map("output_quantity") @db.Decimal(10, 2)
+  price          Decimal  @default(0) @db.Decimal(10, 2)
+  unit           String   @default("piece")
   isActive       Boolean  @default(true) @map("is_active")
   notes          String?  @db.Text
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
-  outputItem       Item              @relation("BOMOutput", fields: [outputItemId], references: [id], onDelete: Restrict)
+  outputItem       Item?             @relation("BOMOutput", fields: [outputItemId], references: [id], onDelete: Restrict)
   items            BOMItem[]
+  saleItems        SaleItem[]
+  categories       BOMCategory[]
 
   @@map("bom")
 }

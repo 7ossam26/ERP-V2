@@ -429,12 +429,22 @@ router.post(
             status: status || "COMPLETED",
             notes,
             items: {
-              create: items.map((item) => ({
-                itemId: parseInt(item.itemId),
-                quantity: parseFloat(item.quantity),
-                unitPrice: parseFloat(item.unitPrice),
-                total: parseFloat(item.total),
-              })),
+              create: items.map((item) => {
+                const isBomOnly = String(item.itemId).startsWith("bom_");
+                const bomId = item.bomId
+                  ? parseInt(item.bomId)
+                  : isBomOnly
+                    ? parseInt(String(item.itemId).replace("bom_", ""))
+                    : null;
+                const itemId = isBomOnly ? null : parseInt(item.itemId);
+                return {
+                  itemId,
+                  bomId,
+                  quantity: parseFloat(item.quantity),
+                  unitPrice: parseFloat(item.unitPrice),
+                  total: parseFloat(item.total),
+                };
+              }),
             },
           },
           include: {
@@ -552,23 +562,32 @@ router.post(
 
         // 3. Update Inventory & Check Stock (BOM-aware)
         for (const item of items) {
-          const saleItemId = parseInt(item.itemId);
+          const isBomOnly = String(item.itemId).startsWith("bom_");
+          const saleItemId = isBomOnly ? null : parseInt(item.itemId);
+          const saleBomId = item.bomId
+            ? parseInt(item.bomId)
+            : isBomOnly
+              ? parseInt(String(item.itemId).replace("bom_", ""))
+              : null;
           const saleQty = parseFloat(item.quantity);
 
-          // Check if this item has an active BOM
-          const bom = await tx.bOM.findFirst({
-            where: {
-              outputItemId: saleItemId,
-              isActive: true,
-            },
-            include: {
-              items: {
-                include: {
-                  item: true,
-                },
+          // Find BOM: first by explicit bomId, then by outputItemId
+          let bom = null;
+          if (saleBomId) {
+            bom = await tx.bOM.findUnique({
+              where: { id: saleBomId },
+              include: { items: { include: { item: true } } },
+            });
+          }
+          if (!bom && saleItemId) {
+            bom = await tx.bOM.findFirst({
+              where: {
+                outputItemId: saleItemId,
+                isActive: true,
               },
-            },
-          });
+              include: { items: { include: { item: true } } },
+            });
+          }
 
           if (bom) {
             // === BOM AUTO-CONSUMPTION ===
@@ -631,8 +650,8 @@ router.post(
                 );
               }
             }
-          } else {
-            // === DIRECT ITEM DEDUCTION (no BOM) ===
+          } else if (saleItemId) {
+            // === DIRECT ITEM DEDUCTION (no BOM, only if we have a real itemId) ===
             const inventory = await tx.inventory.findUnique({
               where: {
                 itemId_warehouseId: {
@@ -794,13 +813,23 @@ router.put(
 
           if (items.length > 0) {
             await prisma.saleItem.createMany({
-              data: items.map((item) => ({
-                saleId,
-                itemId: parseInt(item.itemId),
-                quantity: parseFloat(item.quantity),
-                unitPrice: parseFloat(item.unitPrice),
-                total: parseFloat(item.total),
-              })),
+              data: items.map((item) => {
+                const isBomOnly = String(item.itemId).startsWith("bom_");
+                const bomId = item.bomId
+                  ? parseInt(item.bomId)
+                  : isBomOnly
+                    ? parseInt(String(item.itemId).replace("bom_", ""))
+                    : null;
+                const itemId = isBomOnly ? null : parseInt(item.itemId);
+                return {
+                  saleId,
+                  itemId,
+                  bomId,
+                  quantity: parseFloat(item.quantity),
+                  unitPrice: parseFloat(item.unitPrice),
+                  total: parseFloat(item.total),
+                };
+              }),
             });
           }
         }

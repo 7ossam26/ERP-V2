@@ -19,6 +19,7 @@ router.get("/", async (req, res) => {
       orderBy: { createdAt: "desc" },
       include: {
         outputItem: true,
+        categories: { include: { category: true } },
         items: {
           include: {
             item: true,
@@ -41,6 +42,7 @@ router.get("/:id", async (req, res) => {
       where: { id: parseInt(req.params.id) },
       include: {
         outputItem: true,
+        categories: { include: { category: true } },
         items: {
           include: {
             item: true,
@@ -60,7 +62,6 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create new BOM
-// POST create new BOM
 router.post(
   "/",
   requireCreatePermission("CREATES_PRODUCTION"),
@@ -73,13 +74,13 @@ router.post(
         isActive,
         notes,
         items,
-        newItem,
+        price,
+        unit,
+        categoryIds,
       } = req.body;
 
       if (!name) {
-        return res
-          .status(400)
-          .json({ error: "BOM name (Product Name) is required" });
+        return res.status(400).json({ error: "BOM Name is required" });
       }
 
       if (!items || items.length === 0) {
@@ -88,66 +89,26 @@ router.post(
           .json({ error: "At least one material item is required" });
       }
 
+      // Check if BOM name exists
+      const existing = await prisma.bOM.findUnique({ where: { name } });
+      if (existing) {
+        return res
+          .status(400)
+          .json({ error: "A BOM with this name already exists" });
+      }
+
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Find or Create/Update Item
-        let item;
+        // Create BOM
+        // If outputItemId is provided, we link it. If not, it's independent.
+        // We store price/unit directly on BOM now.
 
-        if (outputItemId) {
-          item = await tx.item.findUnique({
-            where: { id: parseInt(outputItemId) },
-          });
-          if (!item) throw new Error("Selected output item not found");
-
-          // Optional: Update item if newItem details provided
-          if (newItem) {
-            await tx.item.update({
-              where: { id: item.id },
-              data: {
-                price: parseFloat(newItem.price) || item.price,
-                unit: newItem.unit || item.unit,
-                showInPos: true,
-              },
-            });
-          }
-        } else {
-          // Fallback to Name Lookup
-          item = await tx.item.findFirst({
-            where: { name: name },
-          });
-
-          if (item) {
-            // Update existing item if newItem details provided
-            if (newItem) {
-              item = await tx.item.update({
-                where: { id: item.id },
-                data: {
-                  price: parseFloat(newItem.price) || item.price,
-                  unit: newItem.unit || item.unit,
-                  showInPos: true, // Ensure it's visible if we are defining it
-                },
-              });
-            }
-          } else {
-            // Create new item
-            item = await tx.item.create({
-              data: {
-                name,
-                price: parseFloat(newItem?.price) || 0,
-                unit: newItem?.unit || "piece",
-                showInPos: true,
-                suppliers: {}, // No suppliers initially
-                categories: {},
-              },
-            });
-          }
-        }
-
-        // 2. Create BOM
         const bom = await tx.bOM.create({
           data: {
-            name, // BOM name matches Item name
-            outputItemId: item.id,
+            name,
+            outputItemId: outputItemId ? parseInt(outputItemId) : null,
             outputQuantity: parseFloat(outputQuantity) || 1,
+            price: parseFloat(price) || 0,
+            unit: unit || "piece",
             isActive: isActive !== false,
             notes: notes || null,
             items: {
@@ -167,19 +128,29 @@ router.post(
             },
           },
         });
+        // Link categories if provided
+        if (categoryIds && categoryIds.length > 0) {
+          await tx.bOMCategory.createMany({
+            data: categoryIds.map((catId) => ({
+              bomId: bom.id,
+              categoryId: parseInt(catId),
+            })),
+          });
+        }
 
-        return bom;
+        return await tx.bOM.findUnique({
+          where: { id: bom.id },
+          include: {
+            outputItem: true,
+            categories: { include: { category: true } },
+            items: { include: { item: true } },
+          },
+        });
       });
 
       res.status(201).json(result);
     } catch (error) {
-      if (error.code === "P2002") {
-        // Check if it's the BOM name constraint
-        if (error.meta?.target?.includes("name"))
-          return res
-            .status(400)
-            .json({ error: "A BOM for this product already exists" });
-      }
+      console.error(error);
       res
         .status(500)
         .json({ error: "Failed to create BOM", message: error.message });
@@ -201,48 +172,33 @@ router.put(
         isActive,
         notes,
         items,
-        newItem,
+        price,
+        unit,
+        categoryIds,
       } = req.body;
       const bomId = parseInt(req.params.id);
 
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Get current BOM to find the Item ID if outputItemId not provided or different
         const currentBom = await tx.bOM.findUnique({ where: { id: bomId } });
         if (!currentBom) {
-          throw { code: "P2025" }; // Not Found
+          throw { code: "P2025" };
         }
 
-        // Determine Item to update. Usually it's the currentBom.outputItemId
-        // If outputItemId is passed and different, we might be switching items (unlikely but possible).
-        const targetItemId = outputItemId
-          ? parseInt(outputItemId)
-          : currentBom.outputItemId;
-
-        // 2. Update Item details (Name, Price, Unit)
-        if (newItem || name !== currentBom.name) {
-          await tx.item.update({
-            where: { id: targetItemId },
-            data: {
-              name: name, // Keep Item Name in sync with BOM Name
-              price: newItem?.price ? parseFloat(newItem.price) : undefined,
-              unit: newItem?.unit || undefined,
-            },
-          });
-        }
-
-        // 3. Update BOM basic fields
+        // Update BOM fields
         await tx.bOM.update({
           where: { id: bomId },
           data: {
             name,
-            outputItemId: targetItemId,
+            outputItemId: outputItemId ? parseInt(outputItemId) : null,
             outputQuantity: parseFloat(outputQuantity) || 1,
+            price: price !== undefined ? parseFloat(price) : currentBom.price,
+            unit: unit || currentBom.unit,
             isActive: isActive !== false,
             notes: notes || null,
           },
         });
 
-        // 4. Replace all BOM items
+        // Replace BOM items if provided
         if (items) {
           await tx.bOMItem.deleteMany({ where: { bomId } });
           if (items.length > 0) {
@@ -257,11 +213,24 @@ router.put(
           }
         }
 
-        // 5. Return updated BOM
+        // Replace categories if provided
+        if (categoryIds !== undefined) {
+          await tx.bOMCategory.deleteMany({ where: { bomId } });
+          if (categoryIds.length > 0) {
+            await tx.bOMCategory.createMany({
+              data: categoryIds.map((catId) => ({
+                bomId,
+                categoryId: parseInt(catId),
+              })),
+            });
+          }
+        }
+
         return await tx.bOM.findUnique({
           where: { id: bomId },
           include: {
             outputItem: true,
+            categories: { include: { category: true } },
             items: { include: { item: true } },
           },
         });
@@ -273,8 +242,9 @@ router.put(
         return res.status(404).json({ error: "BOM not found" });
       }
       if (error.code === "P2002") {
-        return res.status(400).json({ error: "BOM/Item name already exists" });
+        return res.status(400).json({ error: "BOM name already exists" });
       }
+      console.error(error);
       res
         .status(500)
         .json({ error: "Failed to update BOM", message: error.message });
