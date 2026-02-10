@@ -87,6 +87,8 @@ async function main() {
       "CREATES_DELIVERY_MEN",
       "DELIVERY_ZONES",
       "CREATES_DELIVERY_ZONES",
+      "DELIVERY_SETTLEMENT",
+      "CREATES_PRODUCTION",
     ];
 
     for (const module of modules) {

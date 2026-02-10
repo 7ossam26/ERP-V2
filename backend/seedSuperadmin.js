@@ -65,6 +65,12 @@ async function main() {
             "CREATES_TREASURIES",
             "CREATES_BRANCHES",
             "CREATES_DEPOSITS",
+            "DELIVERY_MEN",
+            "CREATES_DELIVERY_MEN",
+            "DELIVERY_ZONES",
+            "CREATES_DELIVERY_ZONES",
+            "DELIVERY_SETTLEMENT",
+            "CREATES_PRODUCTION",
           ];
 
           for (const module of modules) {
