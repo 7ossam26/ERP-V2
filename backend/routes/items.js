@@ -87,6 +87,7 @@ router.post("/", requireCreatePermission("CREATES_ITEMS"), async (req, res) => {
       data: {
         name,
         price: parseFloat(price) || 0,
+        costPrice: parseFloat(req.body.costPrice) || 0,
         unit: unit || "piece",
         reorderPoint: parseInt(reorderPoint) || 10,
         showInPos: showInPos !== undefined ? showInPos : true,
@@ -158,6 +159,7 @@ router.put(
           data: {
             name,
             price: parseFloat(price) || 0,
+            costPrice: req.body.costPrice !== undefined ? parseFloat(req.body.costPrice) : undefined,
             unit,
             reorderPoint: parseInt(reorderPoint) || 10,
             showInPos: showInPos !== undefined ? showInPos : undefined,
@@ -233,6 +235,12 @@ router.delete(
     } catch (error) {
       if (error.code === "P2025") {
         return res.status(404).json({ error: "Item not found" });
+      }
+      if (error.code === "P2003") {
+        return res.status(400).json({
+          error: "Cannot delete item",
+          message: "Item is referenced by other records (e.g., Sales, Purchases) and cannot be deleted."
+        });
       }
       res
         .status(500)

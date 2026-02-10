@@ -170,6 +170,7 @@ router.get("/", async (req, res, next) => {
         warehouses: availableWarehouses, // List of warehouses with stock
         unit: item.unit,
         purchasePrice: Number(avgPurchasePrice.toFixed(2)), // Calculated Avg Price
+        costPrice: Number(item.costPrice), // Stored Cost Price
         sellPrice: Number(item.price), // Using item price as sell price
         price: Number(item.price),
         status: totalQuantity <= item.reorderPoint ? "Low Stock" : "In Stock",

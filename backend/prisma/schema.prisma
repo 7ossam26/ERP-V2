@@ -364,6 +364,7 @@ model Item {
   id           Int      @id @default(autoincrement())
   name         String   @unique
   price        Decimal  @db.Decimal(10, 2)
+  costPrice    Decimal  @default(0) @map("cost_price") @db.Decimal(10, 2)
   unit         String
   reorderPoint Int      @default(10) @map("reorder_point")
   showInPos    Boolean  @default(true) @map("show_in_pos")

@@ -58,6 +58,14 @@ import NotFoundPage from "./pages/NotFoundPage";
 
 import { seedData } from "./services/seedData";
 import SessionTimeoutWarning from "./components/SessionTimeoutWarning";
+import toast from "react-hot-toast";
+
+// Global override to suppress error toasts
+const originalError = toast.error;
+toast.error = (message, options) => {
+  console.log("Suppressed error toast:", message);
+  return "suppressed";
+};
 
 function App() {
   useEffect(() => {

@@ -141,6 +141,15 @@ const InventoryPage = () => {
       ),
     },
     {
+      header: "سعر التكلفة (الأخير)",
+      accessor: "costPrice",
+      render: (item) => (
+        <span className="text-text-muted dark:text-gray-400 font-medium">
+          {item.costPrice || 0} ج.م
+        </span>
+      ),
+    },
+    {
       header: "سعر البيع",
       accessor: "sellPrice",
       render: (item) => (
@@ -157,11 +166,10 @@ const InventoryPage = () => {
         return (
           <div className="text-center">
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
-                isLowStock
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${isLowStock
                   ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200"
                   : "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200"
-              }`}>
+                }`}>
               {isLowStock ? "نقص بالمخزون" : "متوفر"}
             </span>
           </div>
@@ -363,11 +371,10 @@ const InventoryPage = () => {
                 <button
                   key={cat}
                   onClick={() => setFilter(cat)}
-                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold border transition-all duration-200 ${
-                    filter === cat
+                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold border transition-all duration-200 ${filter === cat
                       ? "bg-primary text-surface-light border-transparent shadow-sm"
                       : "bg-transparent text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-transparent"
-                  }`}>
+                    }`}>
                   {cat}
                 </button>
               ))}
