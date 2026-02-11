@@ -38,7 +38,7 @@ const DeliverySettlementPage = () => {
     const [printData, setPrintData] = useState(null);
 
     const handlePrint = useReactToPrint({
-        content: () => receiptRef.current,
+        contentRef: receiptRef,
         onAfterPrint: () => setPrintData(null),
     });
 
@@ -369,8 +369,8 @@ const DeliverySettlementPage = () => {
                     <button
                         onClick={() => setViewMode('settlement')}
                         className={`px-4 py-2 rounded-xl font-bold transition-all ${viewMode === 'settlement'
-                                ? 'bg-blue-600 text-white shadow-lg'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                     >
                         التسوية
@@ -378,8 +378,8 @@ const DeliverySettlementPage = () => {
                     <button
                         onClick={() => setViewMode('report')}
                         className={`px-4 py-2 rounded-xl font-bold transition-all ${viewMode === 'report'
-                                ? 'bg-blue-600 text-white shadow-lg'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                     >
                         التقرير اليومي
