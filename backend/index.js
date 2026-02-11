@@ -426,15 +426,23 @@ console.log(`>>> [STATIC] Checking for frontend build at: ${CLIENT_DIST_PATH}`);
 
 if (fs.existsSync(CLIENT_DIST_PATH)) {
   console.log("📂 [STATIC] Serving static frontend files.");
-  app.use(express.static(CLIENT_DIST_PATH));
+  try {
+    console.log(">>> [STATIC] About to call app.use(express.static)");
+    app.use(express.static(CLIENT_DIST_PATH));
+    console.log(">>> [STATIC] app.use(express.static) completed");
 
-  // SPA Catch-all: Request to non-API routes returns index.html
-  app.get("*", (req, res) => {
-    if (req.path.startsWith("/api")) {
-      return res.status(404).json({ error: "API endpoint not found" });
-    }
-    res.sendFile(path.join(CLIENT_DIST_PATH, "index.html"));
-  });
+    // SPA Catch-all: Request to non-API routes returns index.html
+    console.log(">>> [STATIC] About to register catch-all route");
+    app.get("*", (req, res) => {
+      if (req.path.startsWith("/api")) {
+        return res.status(404).json({ error: "API endpoint not found" });
+      }
+      res.sendFile(path.join(CLIENT_DIST_PATH, "index.html"));
+    });
+    console.log(">>> [STATIC] Catch-all route registered");
+  } catch (err) {
+    console.error("❌ [STATIC] CRASH during static setup:", err);
+  }
 } else {
   console.log("⚠️ [STATIC] Frontend build NOT found at:", CLIENT_DIST_PATH);
   console.log("    This is expected if you are only running the backend API.");
