@@ -3,9 +3,8 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { clientService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { validateEgyptianPhone } from "../../utils/validationUtils";
-import toast from "react-hot-toast";
 
-export const ClientForm = ({ initialData, onClose, onSave, data }) => {
+export const ClientForm = ({ initialData, onClose, onSave, data, showToast }) => {
   // Calculate next ID if creating new client
   const nextId =
     data && data.length > 0
@@ -27,10 +26,20 @@ export const ClientForm = ({ initialData, onClose, onSave, data }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
+    // Phone validation
     const phoneValidation = validateEgyptianPhone(formData.phone);
     if (!phoneValidation.isValid) {
-      toast.error(phoneValidation.message);
+      if (showToast) {
+        showToast(phoneValidation.message, "error");
+      }
       return;
     }
 
@@ -49,7 +58,7 @@ export const ClientForm = ({ initialData, onClose, onSave, data }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6">
+    <form onSubmit={handleSubmit} noValidate className="grid grid-cols-1 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
           الرقم التعريفي

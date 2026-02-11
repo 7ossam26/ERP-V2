@@ -44,8 +44,8 @@ const isSuperadmin = (req, res, next) => {
 const requirePermission = (module) => {
   return async (req, res, next) => {
     try {
-      // Superadmin has all permissions
-      if (req.user.role === "Superadmin") {
+      // Superadmin and Admin have all permissions
+      if (req.user.role === "Superadmin" || req.user.role === "Admin") {
         return next();
       }
 
@@ -126,8 +126,8 @@ const requireAnyPermission = (modules) => {
 const requireCreatePermission = (createModule) => {
   return async (req, res, next) => {
     try {
-      // Superadmin has all permissions
-      if (req.user.role === "Superadmin") {
+      // Superadmin and Admin have all permissions
+      if (req.user.role === "Superadmin" || req.user.role === "Admin") {
         return next();
       }
 

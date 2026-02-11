@@ -7,7 +7,7 @@ import {
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 
-export const ItemForm = ({ initialData, onClose, onSave, data }) => {
+export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
   // Calculate next ID if creating new item
   const nextId =
     data && data.length > 0
@@ -80,6 +80,15 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Manual Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
     await onSave(formData, !keepOpen);
     if (keepOpen) {
       setFormData((prev) => ({
@@ -95,6 +104,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">

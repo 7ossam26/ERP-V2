@@ -44,7 +44,7 @@ const UserManagement = () => {
         setUsers(usersResult.value);
       } else {
         console.error("Users load failed:", usersResult.reason);
-        toast.error(`Users load failed: ${usersResult.reason.message}`);
+        toast.error("فشل في تحميل قائمة المستخدمين. يرجى المحاولة مرة أخرى.");
       }
 
       // Handle Roles
@@ -52,7 +52,7 @@ const UserManagement = () => {
         setRoles(rolesResult.value);
       } else {
         console.error("Roles load failed:", rolesResult.reason);
-        toast.error(`Roles load failed: ${rolesResult.reason.message}`);
+        toast.error("فشل في تحميل قائمة الأدوار. يرجى المحاولة مرة أخرى.");
       }
 
       // Handle Branches
@@ -69,11 +69,11 @@ const UserManagement = () => {
         setBranches(sortedBranches);
       } else {
         console.error("Branches load failed:", branchesResult.reason);
-        toast.error(`Branches load failed: ${branchesResult.reason.message}`);
+        toast.error("فشل في تحميل قائمة الفروع. يرجى المحاولة مرة أخرى.");
       }
     } catch (error) {
       console.error("Unexpected error:", error);
-      toast.error("An unexpected error occurred");
+      toast.error("حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.");
     } finally {
       setIsLoading(false);
     }
@@ -89,11 +89,11 @@ const UserManagement = () => {
       if (editingUser) {
         // Update
         await SuperadminService.updateUser(editingUser.id, formData);
-        toast.success("User updated successfully");
+        toast.success("تم تحديث المستخدم بنجاح");
       } else {
         // Create
         await SuperadminService.createUser(formData);
-        toast.success("User created successfully");
+        toast.success("تم إنشاء المستخدم بنجاح");
       }
       setShowModal(false);
       // Check if we updated ourselves
@@ -106,9 +106,7 @@ const UserManagement = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      const errorMessage =
-        error.response?.data?.error || error.message || "Operation failed";
-      toast.error(errorMessage);
+      toast.error("فشل في حفظ بيانات المستخدم. يرجى التحقق من البيانات والمحاولة مرة أخرى.");
     }
   };
 
@@ -116,7 +114,7 @@ const UserManagement = () => {
     const currentUser = AuthService.getCurrentUser();
     // Ensure accurate ID comparison (convert to string if needed or rely on loose equality if types differ)
     if (currentUser && currentUser.id == user.id) {
-      toast.error("You cannot delete your own account");
+      toast.error("لا يمكن حذف حسابك الخاص");
       return;
     }
     setUserToDelete(user);
@@ -128,15 +126,13 @@ const UserManagement = () => {
 
     try {
       await SuperadminService.deleteUser(userToDelete.id);
-      toast.success("User deleted successfully");
+      toast.success("تم حذف المستخدم بنجاح");
       setDeleteModalOpen(false);
       setUserToDelete(null);
       fetchData();
     } catch (error) {
       console.error("Delete operation failed:", error);
-      const errorMessage =
-        error.response?.data?.error || error.message || "Delete failed";
-      toast.error(errorMessage);
+      toast.error("فشل في حذف المستخدم. يرجى المحاولة مرة أخرى.");
       setDeleteModalOpen(false);
     }
   };
@@ -150,10 +146,10 @@ const UserManagement = () => {
         await AuthService.refreshProfile();
       }
 
-      toast.success("User status updated");
+      toast.success("تم تحديث حالة المستخدم");
       fetchData();
     } catch (error) {
-      toast.error("Failed to update status");
+      toast.error("فشل في تحديث الحالة. يرجى المحاولة مرة أخرى.");
     }
   };
 
@@ -243,11 +239,10 @@ const UserManagement = () => {
                 <td className="p-4">
                   <button
                     onClick={() => handleToggleStatus(user.id)}
-                    className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${
-                      user.isActive
+                    className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${user.isActive
                         ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200"
                         : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200"
-                    }`}>
+                      }`}>
                     {user.isActive ? "Active" : "Inactive"}
                   </button>
                 </td>

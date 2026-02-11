@@ -5,7 +5,7 @@ import { branchService } from "../../services/branchService";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 
-const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
+const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   const [branches, setBranches] = useState([]);
 
   useEffect(() => {
@@ -39,6 +39,14 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
     // Validate that driver share cannot exceed delivery fee
     const parsedFee = parseFloat(formData.fee);
     const parsedDriverShare = parseFloat(formData.driverShare || 0);
@@ -65,6 +73,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">

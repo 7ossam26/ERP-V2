@@ -3,7 +3,7 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { categoryService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 
-const CategoryForm = ({ initialData, onSave, onClose, data }) => {
+const CategoryForm = ({ initialData, onSave, onClose, data, showToast }) => {
   // Calculate next ID if creating new category
   const nextId =
     data && data.length > 0
@@ -25,6 +25,15 @@ const CategoryForm = ({ initialData, onSave, onClose, data }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
     await onSave(formData, !keepOpen);
 
     if (keepOpen) {
@@ -38,7 +47,7 @@ const CategoryForm = ({ initialData, onSave, onClose, data }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-1">
           رقم التصنيف (ID)
@@ -124,11 +133,10 @@ const CategoryManager = () => {
       accessor: "showInPos",
       render: (cat) => (
         <span
-          className={`px-2 py-1 rounded text-xs font-bold ${
-            cat.showInPos !== false
+          className={`px-2 py-1 rounded text-xs font-bold ${cat.showInPos !== false
               ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
               : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-          }`}>
+            }`}>
           {cat.showInPos !== false ? "ظاهر" : "مخفي"}
         </span>
       ),
