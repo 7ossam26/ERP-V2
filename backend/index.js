@@ -409,9 +409,18 @@ app.get("/api/setup-seed", async (req, res) => {
 // ---------------------------------------
 
 // Serve Static Frontend Files (Production)
-// Note: 'path' is required at the top, but defining here for clarity in context if needed, though usually top-level is better.
-// We already added 'path' to top imports in previous step.
-const CLIENT_DIST_PATH = path.join(__dirname, "../frontend/dist");
+const CLIENT_DIST_PATH_PROD = path.join(__dirname, "client_dist");
+const CLIENT_DIST_PATH_LOCAL = path.join(__dirname, "../frontend/dist");
+
+let CLIENT_DIST_PATH = CLIENT_DIST_PATH_LOCAL; // Default fallback
+
+// Prioritize the production build folder (client_dist) if it exists
+if (fs.existsSync(CLIENT_DIST_PATH_PROD)) {
+  CLIENT_DIST_PATH = CLIENT_DIST_PATH_PROD;
+  console.log(`>>> [STATIC] Found production build at: ${CLIENT_DIST_PATH}`);
+} else {
+  console.log(`>>> [STATIC] fallback to local build at: ${CLIENT_DIST_PATH}`);
+}
 
 console.log(`>>> [STATIC] Checking for frontend build at: ${CLIENT_DIST_PATH}`);
 
@@ -420,7 +429,7 @@ if (fs.existsSync(CLIENT_DIST_PATH)) {
   app.use(express.static(CLIENT_DIST_PATH));
 
   // SPA Catch-all: Request to non-API routes returns index.html
-  app.get(/.*/, (req, res) => {
+  app.get("*", (req, res) => {
     if (req.path.startsWith("/api")) {
       return res.status(404).json({ error: "API endpoint not found" });
     }
