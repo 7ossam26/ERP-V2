@@ -22,7 +22,13 @@ router.get("/", async (req, res) => {
 
     // If scoped to a branch, only show that branch's treasury
     if (branchFilter) {
-      where.branch = { id: branchFilter.id };
+      if (branchFilter.id.in) {
+        // Multi-branch user (e.g., General Manager)
+        where.branch = { id: { in: branchFilter.id.in } };
+      } else {
+        // Single-branch user
+        where.branch = { id: branchFilter.id };
+      }
     }
 
     const treasuries = await prisma.treasury.findMany({

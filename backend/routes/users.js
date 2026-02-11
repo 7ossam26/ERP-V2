@@ -14,9 +14,26 @@ router.get("/branch-managers/:branchId", async (req, res, next) => {
     try {
         const branchId = parseInt(req.params.branchId);
 
-        // Validate branch access
-        const branchFilter = await getUserBranchFilter(req.user.id);
-        if (branchFilter && branchFilter.id !== branchId) {
+        // Validate branch access - check role and accessible branches
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            include: {
+                role: true,
+                accessibleBranches: {
+                    select: { id: true },
+                },
+            },
+        });
+
+        // Check if user has access to this branch
+        const canAccessBranch =
+            user.branchId === branchId ||
+            (user.accessibleBranches &&
+                user.accessibleBranches.some((b) => b.id === branchId)) ||
+            user.role.name === "Superadmin" ||
+            user.role.name === "General Manager";
+
+        if (!canAccessBranch) {
             return res.status(403).json({ error: "Access denied" });
         }
 

@@ -60,7 +60,16 @@ router.get(
   async (req, res, next) => {
     try {
       const branchFilter = await getUserBranchFilter(req.user.id);
-      const whereClause = branchFilter ? { branchId: branchFilter.id } : {};
+      const whereClause = {};
+      if (branchFilter) {
+        if (branchFilter.id.in) {
+          // Multi-branch user (e.g., General Manager)
+          whereClause.branchId = { in: branchFilter.id.in };
+        } else {
+          // Single-branch user
+          whereClause.branchId = branchFilter.id;
+        }
+      }
 
       const sales = await prisma.sale.findMany({
         where: whereClause,
@@ -147,7 +156,13 @@ router.get(
 
       // Add branch filter if applicable
       if (branchFilter) {
-        whereClause.branchId = branchFilter.id;
+        if (branchFilter.id.in) {
+          // Multi-branch user (e.g., General Manager)
+          whereClause.branchId = { in: branchFilter.id.in };
+        } else {
+          // Single-branch user
+          whereClause.branchId = branchFilter.id;
+        }
       }
 
       const sales = await prisma.sale.findMany({
@@ -917,7 +932,7 @@ router.post(
       }
 
       // Check if manager has appropriate role
-      const allowedRoles = ["Superadmin", "Manager", "Branch Manager"];
+      const allowedRoles = ["Superadmin", "Manager", "Branch Manager", "General Manager"];
       const isAuthorized = allowedRoles.includes(manager.role.name);
 
       if (!isAuthorized) {
