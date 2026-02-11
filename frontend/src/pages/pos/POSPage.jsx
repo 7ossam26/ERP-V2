@@ -631,6 +631,31 @@ const POSPage = () => {
 
       console.log("Shift ended:", updatedShift);
 
+      // CHECK FOR DELIVERY WARNINGS (SUCCESS RESPONSE)
+      if (updatedShift.deliveryWarnings && updatedShift.deliveryWarnings.length > 0) {
+        console.warn("⚠️ Delivery warnings detected:", updatedShift.deliveryWarnings);
+
+        // Format warnings into pendingOrders format for the modal
+        const formattedWarnings = updatedShift.deliveryWarnings.map((warning) => ({
+          deliveryMan: warning.driverName,
+          orderCount: warning.orderCount,
+          amount: warning.totalAmount,
+        }));
+
+        // Show warning modal
+        setIsEndShiftModalOpen(false); // Close the blind count modal
+        setPendingDeliveries(formattedWarnings);
+        setIsPendingDeliveriesModalOpen(true);
+
+        // Show a toast warning as well
+        toast.warning(
+          `تحذير: يوجد ${updatedShift.deliveryWarnings.length} طياريـن لديهم طلبات معلقة لم يتم تسويتها`,
+          { duration: 5000 }
+        );
+
+        return; // Don't redirect yet
+      }
+
       // Show detailed toast (Twist)
       const shortage = updatedShift.shortage;
       const amountColor =
@@ -1782,8 +1807,13 @@ const POSPage = () => {
                     </button>
                     <button
                       onClick={() => {
-                        if (!selectedClient) {
-                          toast.error("يرجى اختيار العميل أولاً");
+                        // Check if no client selected OR if it's the default "General Customer"
+                        if (
+                          !selectedClient ||
+                          selectedClient.name.includes("عميل عام")
+                        ) {
+                          toast.error("يرجى اختيار عميل محدد للتوصيل");
+                          setIsClientDropdownOpen(true); // Open the dropdown
                           if (clientInputRef.current) {
                             clientInputRef.current.focus();
                           }

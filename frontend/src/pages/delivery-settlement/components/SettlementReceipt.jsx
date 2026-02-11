@@ -64,7 +64,7 @@ const SettlementReceipt = forwardRef(({ data }, ref) => {
                             const total = parseFloat(order.total) || 0;
                             const fee = parseFloat(order.deliveryFee) || 0;
                             const share = parseFloat(order.deliveryDriverShare) || 0;
-                            const netDebt = (total + fee) - share;
+                            const netDebt = total - share;
 
                             return (
                                 <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -100,7 +100,7 @@ const SettlementReceipt = forwardRef(({ data }, ref) => {
             <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-bold text-blue-900 mb-2">طريقة الحساب:</h3>
                 <p className="text-blue-800">
-                    <span className="font-mono bg-white px-2 py-1 rounded">صافي الدين = (مبلغ الطلب + رسوم التوصيل) - حصة الطيار</span>
+                    <span className="font-mono bg-white px-2 py-1 rounded">صافي الدين = إجمالي الطلب - حصة الطيار</span>
                 </p>
             </div>
 

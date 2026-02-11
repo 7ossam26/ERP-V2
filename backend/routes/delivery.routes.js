@@ -21,6 +21,11 @@ router.post(
   deliveryController.settleDeliveryMan,
 );
 
+router.post(
+  "/verify-manager",
+  deliveryController.verifyManagerCredentials,
+);
+
 router.get("/stats", deliveryController.getDeliveryStats);
 
 router.get(

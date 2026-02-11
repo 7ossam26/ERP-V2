@@ -68,7 +68,6 @@ router.post(
   async (req, res) => {
     try {
       const {
-        name,
         outputItemId,
         outputQuantity,
         isActive,
@@ -79,8 +78,13 @@ router.post(
         categoryIds,
       } = req.body;
 
+      let { name } = req.body;
+      if (typeof name === 'string') {
+        name = name.trim();
+      }
+
       if (!name) {
-        return res.status(400).json({ error: "BOM Name is required" });
+        return res.status(400).json({ error: "اسم الوصفة مطلوب" }); // Localized "BOM Name is required"
       }
 
       if (!items || items.length === 0) {
@@ -94,7 +98,7 @@ router.post(
       if (existing) {
         return res
           .status(400)
-          .json({ error: "A BOM with this name already exists" });
+          .json({ error: "الوصفة موجودة بالفعل" });
       }
 
       const result = await prisma.$transaction(async (tx) => {
@@ -166,7 +170,6 @@ router.put(
   async (req, res) => {
     try {
       const {
-        name,
         outputItemId,
         outputQuantity,
         isActive,
@@ -176,6 +179,12 @@ router.put(
         unit,
         categoryIds,
       } = req.body;
+
+      let { name } = req.body;
+      if (typeof name === 'string') {
+        name = name.trim();
+      }
+
       const bomId = parseInt(req.params.id);
 
       const result = await prisma.$transaction(async (tx) => {
@@ -242,7 +251,7 @@ router.put(
         return res.status(404).json({ error: "BOM not found" });
       }
       if (error.code === "P2002") {
-        return res.status(400).json({ error: "BOM name already exists" });
+        return res.status(400).json({ error: "الوصفة موجودة بالفعل" });
       }
       console.error(error);
       res

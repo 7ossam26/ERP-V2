@@ -512,11 +512,10 @@ router.post(
           }
 
           // 3. Calculate Net Debt for Driver's Wallet
-          // Total Cash Held by Driver = (Order Total + Delivery Fee)
+          // Total Cash Held by Driver = Order Total (which includes delivery fee)
           // Driver Earns = driverShare
           // Driver Owes = Total Cash Held - Driver Earns
-          const totalCashHeld =
-            parseFloat(total) + (deliveryFee ? parseFloat(deliveryFee) : 0);
+          const totalCashHeld = parseFloat(total);
           netDebt = totalCashHeld - driverShare;
 
           console.log(
