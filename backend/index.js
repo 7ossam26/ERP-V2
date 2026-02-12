@@ -234,6 +234,7 @@ app.use("/api/users", require("./routes/users"));
 app.use("/api/delivery-men", require("./routes/delivery.routes"));
 app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
 app.use("/api/bom", require("./routes/bom"));
+app.use("/api/temp-debug", require("./routes/temp_debug")); // TEMPORARY DEBUG ROUTE
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
