@@ -212,8 +212,8 @@ const getUserBranchFilter = async (userId) => {
       throw new Error("User not found");
     }
 
-    // Superadmin OR Admin sees ALL (return null)
-    if (user.role && (user.role.name === "Superadmin" || user.role.name === "Admin")) {
+    // Superadmin, Admin, OR General Manager sees ALL (return null)
+    if (user.role && (user.role.name === "Superadmin" || user.role.name === "Admin" || user.role.name === "General Manager")) {
       return null;
     }
 
