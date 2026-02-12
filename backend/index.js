@@ -466,3 +466,26 @@ process.on("uncaughtException", (error) => {
 
 // Force restart trigger
 console.log("🔄 Server updated");
+
+// --- GRACEFUL SHUTDOWN ---
+const gracefulShutdown = async (signal) => {
+  console.log(`>>> [SHUTDOWN] Received ${signal}. Closing server...`);
+
+  if (server) {
+    server.close(() => {
+      console.log(">>> [SHUTDOWN] HTTP server closed.");
+    });
+  }
+
+  try {
+    await prisma.$disconnect();
+    console.log(">>> [SHUTDOWN] Prisma client disconnected.");
+    process.exit(0);
+  } catch (err) {
+    console.error(">>> [SHUTDOWN] Error during disconnection:", err);
+    process.exit(1);
+  }
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));

@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const bcrypt = require("bcryptjs");
+const { getUserBranchFilter } = require("../middleware/auth");
 
 // Create a new delivery man
 exports.createDeliveryMan = async (req, res) => {
@@ -37,8 +38,21 @@ exports.getAllDeliveryMen = async (req, res) => {
     const { branchId } = req.query;
     const where = { isActive: true };
 
+    // Apply branch access control
+    const branchFilter = await getUserBranchFilter(req.user.id);
+
     if (branchId) {
+      // If specific branch is requested, use it
       where.branchId = parseInt(branchId);
+    } else if (branchFilter) {
+      // Otherwise, apply user's branch filter
+      if (branchFilter.id.in) {
+        // Multi-branch user
+        where.branchId = { in: branchFilter.id.in };
+      } else {
+        // Single-branch user
+        where.branchId = branchFilter.id;
+      }
     }
 
     const deliveryMen = await prisma.deliveryMan.findMany({
