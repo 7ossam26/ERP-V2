@@ -14,8 +14,19 @@ const MainLayout = ({ children }) => {
   const [user, setUser] = useState(AuthService.getCurrentUser());
 
   // Refresh user profile on navigation to ensure permissions are up to date
+  // We use a ref to track the last refresh time to avoid excessive API calls
+  const lastRefreshRef = React.useRef(0);
+
   useEffect(() => {
     const refreshUser = async () => {
+      const now = Date.now();
+      // Only refresh if more than 10 seconds have passed since last check
+      // This prevents excessive calls when navigating quickly
+      if (now - lastRefreshRef.current < 10000) {
+        return;
+      }
+
+      lastRefreshRef.current = now;
       const updatedUser = await AuthService.refreshProfile();
       if (updatedUser) {
         setUser(updatedUser);
