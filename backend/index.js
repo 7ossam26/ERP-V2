@@ -124,8 +124,7 @@ app.use(
 );
 
 // CORS configuration
-const allowedOrigins = process.env.FRONTEND_URL?.split(",") || [
-  "http://elghonemydemo.kiko-tech.com",
+const allowedOrigins = [
   "https://elghonemydemo.kiko-tech.com",
   "http://elghonemy.kiko-tech.com",
   "https://elghonemy.kiko-tech.com",
