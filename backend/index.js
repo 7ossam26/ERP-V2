@@ -450,7 +450,7 @@ console.log(">>> [BOOT] Calling app.listen...");
 const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
   console.log(
-    `📍 [SERVER] Health check available at: http://localhost:${PORT}/api/health`,
+    `📍 [SERVER] Health check available at: http://elghonemydemo.kiko-tech.com:${PORT}/api/health`,
   );
 });
 
