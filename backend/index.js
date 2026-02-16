@@ -115,22 +115,24 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-          maxAge: 31536000,
-          includeSubDomains: true,
-          preload: true,
-        }
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+          }
         : false, // Disable HSTS in development
   }),
 );
 
 // CORS configuration
 const allowedOrigins = process.env.FRONTEND_URL?.split(",") || [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:3000",
-  `http://localhost:${PORT}`,
-  `http://127.0.0.1:${PORT}`,
   "http://elghonemydemo.kiko-tech.com",
+  "https://elghonemydemo.kiko-tech.com",
+  "http://elghonemy.kiko-tech.com",
+  "https://elghonemy.kiko-tech.com",
+  "http://www.elghonemy.kiko-tech.com",
+  "https://www.elghonemy.kiko-tech.com",
+  "http://www.elghonemydemo.kiko-tech.com",
+  "https://www.elghonemydemo.kiko-tech.com",
 ];
 
 console.log(`>>> [CORS] Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
