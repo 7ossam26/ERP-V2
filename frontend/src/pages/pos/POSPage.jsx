@@ -107,8 +107,8 @@ const POSPage = () => {
         // Notify user about their own existing shift
         toast.success(
           `يوجد وردية مفتوحة بالفعل\n\n` +
-            `👤 بدأها: ${user.name}\n` +
-            `💰 رصيد البداية: ${activeShift.startCash || 0} ج.م`,
+          `👤 بدأها: ${user.name}\n` +
+          `💰 رصيد البداية: ${activeShift.startCash || 0} ج.م`,
           {
             duration: 5000,
             icon: "ℹ️",
@@ -150,7 +150,7 @@ const POSPage = () => {
 
           toast(
             `مرحباً ${user.name} 👋\n` +
-              `لا توجد وردية نشطة. يرجى بدء وردية جديدة.`,
+            `لا توجد وردية نشطة. يرجى بدء وردية جديدة.`,
             { duration: 4000, icon: "🆕", position: "top-center" },
           );
 
@@ -269,12 +269,11 @@ const POSPage = () => {
         const fetchedClients = await clientService.getAll();
         setClients(fetchedClients);
 
-        // Auto-select "عميل نقدي" if no client is selected
+        // Auto-select "عميل عام" if no client is selected
         if (!selectedClient) {
           const defaultClient = fetchedClients.find(
             (c) =>
-              c.name.includes("عميل نقدي") ||
-              c.name.toLowerCase().includes("walk-in"),
+              c.name.includes("عميل عام"),
           );
           if (defaultClient) {
             setSelectedClient(defaultClient);
@@ -302,14 +301,7 @@ const POSPage = () => {
   const handleSelectClient = (client) => {
     setSelectedClient(client);
     setClientSearchTerm(client ? client.name : "");
-    setIsClientDropdownOpen(false);
-
-    // Address Notification Logic - TOAST REMOVED in favor of UI display
-    // if (client) {
-    //   if (!client.address || client.address.trim() === "") {
-    //     toast("لا يوجد عنوان مسجل لهذا العميل", { icon: "ℹ️" });
-    //   }
-    // }
+    setIsClientDropdownOpen(false)
 
     // On mobile, switch to cart to see client details if needed, or stay.
     // Usually selecting a client is part of cart operations.
@@ -540,10 +532,10 @@ const POSPage = () => {
         return prevItems.map((item) =>
           item.id === product.id
             ? {
-                ...item,
-                quantity: item.quantity + quantity,
-                total: (item.quantity + quantity) * price,
-              }
+              ...item,
+              quantity: item.quantity + quantity,
+              total: (item.quantity + quantity) * price,
+            }
             : item,
         );
       } else {
@@ -639,6 +631,31 @@ const POSPage = () => {
 
       console.log("Shift ended:", updatedShift);
 
+      // CHECK FOR DELIVERY WARNINGS (SUCCESS RESPONSE)
+      if (updatedShift.deliveryWarnings && updatedShift.deliveryWarnings.length > 0) {
+        console.warn("⚠️ Delivery warnings detected:", updatedShift.deliveryWarnings);
+
+        // Format warnings into pendingOrders format for the modal
+        const formattedWarnings = updatedShift.deliveryWarnings.map((warning) => ({
+          deliveryMan: warning.driverName,
+          orderCount: warning.orderCount,
+          amount: warning.totalAmount,
+        }));
+
+        // Show warning modal
+        setIsEndShiftModalOpen(false); // Close the blind count modal
+        setPendingDeliveries(formattedWarnings);
+        setIsPendingDeliveriesModalOpen(true);
+
+        // Show a toast warning as well
+        toast.warning(
+          `تحذير: يوجد ${updatedShift.deliveryWarnings.length} طياريـن لديهم طلبات معلقة لم يتم تسويتها`,
+          { duration: 5000 }
+        );
+
+        return; // Don't redirect yet
+      }
+
       // Show detailed toast (Twist)
       const shortage = updatedShift.shortage;
       const amountColor =
@@ -655,9 +672,8 @@ const POSPage = () => {
       toast.custom(
         (t) => (
           <div
-            className={`${
-              t.visible ? "animate-enter" : "animate-leave"
-            } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 font-cairo`}
+            className={`${t.visible ? "animate-enter" : "animate-leave"
+              } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 font-cairo`}
             dir="rtl">
             <div className="flex-1 w-0 p-4">
               <div className="flex items-start">
@@ -1075,7 +1091,11 @@ const POSPage = () => {
     };
     setHeldCarts((prev) => [newHeldCart, ...prev]);
     setCartItems([]);
-    setSelectedClient(null);
+
+    // Reset to default client "عميل عام"
+    const defaultClient = clients.find((c) => c.name.includes("عميل عام"));
+    setSelectedClient(defaultClient || null);
+
     toast.success("تم تعليق الفاتورة بنجاح");
   };
 
@@ -1236,11 +1256,10 @@ const POSPage = () => {
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`material-symbols-outlined text-3xl ${
-                    pendingPaymentMethod === "cash"
-                      ? "text-green-500"
-                      : "text-blue-500"
-                  }`}>
+                  className={`material-symbols-outlined text-3xl ${pendingPaymentMethod === "cash"
+                    ? "text-green-500"
+                    : "text-blue-500"
+                    }`}>
                   {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
                 </span>
                 <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -1281,8 +1300,8 @@ const POSPage = () => {
                 </label>
                 <div className="w-full px-4 py-3 text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
                   {cashPaidAmount &&
-                  !isNaN(parseFloat(cashPaidAmount)) &&
-                  parseFloat(cashPaidAmount) >= total
+                    !isNaN(parseFloat(cashPaidAmount)) &&
+                    parseFloat(cashPaidAmount) >= total
                     ? Math.round(parseFloat(cashPaidAmount) - total)
                     : 0}{" "}
                   ج.م
@@ -1314,11 +1333,10 @@ const POSPage = () => {
             </button>
             <button
               onClick={handleConfirmPayment}
-              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
-                pendingPaymentMethod === "cash"
-                  ? "bg-green-500 hover:bg-green-600"
-                  : "bg-blue-500 hover:bg-blue-600"
-              }`}>
+              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${pendingPaymentMethod === "cash"
+                ? "bg-green-500 hover:bg-green-600"
+                : "bg-blue-500 hover:bg-blue-600"
+                }`}>
               <span className="material-symbols-outlined">check_circle</span>
               <span>تأكيد الدفع</span>
             </button>
@@ -1444,21 +1462,19 @@ const POSPage = () => {
         <div className="md:hidden bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 flex text-xs font-bold shrink-0 z-50 order-last">
           <button
             onClick={() => setActiveMobileTab("products")}
-            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
-              activeMobileTab === "products"
-                ? "text-primary bg-primary/5 border-t-2 border-primary"
-                : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
-            }`}>
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${activeMobileTab === "products"
+              ? "text-primary bg-primary/5 border-t-2 border-primary"
+              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+              }`}>
             <span className="material-symbols-outlined">grid_view</span>
             <span>المنتجات</span>
           </button>
           <button
             onClick={() => setActiveMobileTab("cart")}
-            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors relative ${
-              activeMobileTab === "cart"
-                ? "text-primary bg-primary/5 border-t-2 border-primary"
-                : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
-            }`}>
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors relative ${activeMobileTab === "cart"
+              ? "text-primary bg-primary/5 border-t-2 border-primary"
+              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+              }`}>
             <span className="material-symbols-outlined">shopping_cart</span>
             <span>السلة ({cartItems.length})</span>
             {cartItems.length > 0 && (
@@ -1468,9 +1484,8 @@ const POSPage = () => {
         </div>
         {/* Product Grid Area - Hidden on mobile if tab is 'cart' */}
         <div
-          className={`flex-1 flex flex-col overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700 ${
-            activeMobileTab === "cart" ? "hidden md:flex" : "flex"
-          }`}>
+          className={`flex-1 flex flex-col overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700 ${activeMobileTab === "cart" ? "hidden md:flex" : "flex"
+            }`}>
           {/* Top Bar */}
           <div className="flex items-center justify-between p-3 md:p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0 gap-2">
             <div className="flex items-center text-gray-500 dark:text-gray-400 gap-2">
@@ -1534,11 +1549,10 @@ const POSPage = () => {
                   <div
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
-                      activeCategory === cat.id
-                        ? "bg-primary text-white shadow-md"
-                        : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                    }`}>
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
+                      ? "bg-primary text-white shadow-md"
+                      : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                      }`}>
                     {cat.name}
                   </div>
                 ))}
@@ -1600,9 +1614,8 @@ const POSPage = () => {
 
         {/* Cart/Sidebar Area - Hidden on mobile if tab is 'products', full width on mobile */}
         <div
-          className={`w-full md:w-[600px] flex flex-col flex-1 md:flex-none bg-card-light dark:bg-card-dark shadow-xl z-20 ${
-            activeMobileTab === "products" ? "hidden md:flex" : "flex"
-          }`}>
+          className={`w-full md:w-[600px] flex flex-col flex-1 md:flex-none bg-card-light dark:bg-card-dark shadow-xl z-20 ${activeMobileTab === "products" ? "hidden md:flex" : "flex"
+            }`}>
           {/* Client Selection */}
           <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-card-dark shrink-0 z-20 relative">
             <div className="relative">
@@ -1708,9 +1721,8 @@ const POSPage = () => {
           </div>
 
           <div
-            className={`${
-              keypadMode === "default" ? "flex-1" : "h-[45%]"
-            } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
+            className={`${keypadMode === "default" ? "flex-1" : "h-[45%]"
+              } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 h-64">
@@ -1724,11 +1736,10 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${
-                      selectedItemId === item.id
-                        ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
-                        : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
-                    }`}>
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${selectedItemId === item.id
+                      ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
+                      : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+                      }`}>
                     {/* Delete icon - appears when selected */}
                     {selectedItemId === item.id ? (
                       <button
@@ -1771,12 +1782,12 @@ const POSPage = () => {
                 {keypadMode === "default" && (
                   <div className="grid grid-cols-4 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
                     <button
-                      onClick={handlePrintClick}
+                      onClick={() => setIsClientModalOpen(true)}
                       className="flex flex-col items-center justify-center p-3 bg-[#6F4E37] hover:bg-[#5D4030] text-white transition-all duration-300 border-l border-white/10 group">
                       <span className="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">
-                        print
+                        person_add
                       </span>
-                      <span className="font-bold">طباعة</span>
+                      <span className="font-bold">تكويد عميل جديد</span>
                     </button>
                     <button
                       onClick={() => handleQuickPayment("cash")}
@@ -1796,8 +1807,13 @@ const POSPage = () => {
                     </button>
                     <button
                       onClick={() => {
-                        if (!selectedClient) {
-                          toast.error("يرجى اختيار العميل أولاً");
+                        // Check if no client selected OR if it's the default "General Customer"
+                        if (
+                          !selectedClient ||
+                          selectedClient.name.includes("عميل عام")
+                        ) {
+                          toast.error("يرجى اختيار عميل محدد للتوصيل");
+                          setIsClientDropdownOpen(true); // Open the dropdown
                           if (clientInputRef.current) {
                             clientInputRef.current.focus();
                           }
@@ -1839,12 +1855,12 @@ const POSPage = () => {
                 </div>
                 <div className="grid grid-cols-3 gap-0 border-b border-gray-200 dark:border-zinc-700 text-sm">
                   <button
-                    onClick={() => setIsClientModalOpen(true)}
+                    onClick={handlePrintClick}
                     className="flex flex-col items-center justify-center p-2 text-primary dark:text-primary-dark hover:bg-gray-100 dark:hover:bg-zinc-700 border-l border-gray-200 dark:border-zinc-700">
                     <span className="material-symbols-outlined mb-1">
-                      person_add
+                      print
                     </span>
-                    <span>تكويد عميل جديد</span>
+                    <span>طباعة</span>
                   </button>
                   <button
                     onClick={clearCart}
@@ -1886,13 +1902,12 @@ const POSPage = () => {
             <div className="h-[55%] flex flex-col bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 transition-all duration-300">
               {/* Dynamic Keypad Area - Changes based on mode */}
               <div
-                className={`grid h-full bg-white dark:bg-zinc-800 ${
-                  keypadMode === "piece"
-                    ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
-                    : keypadMode === "weight"
-                      ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
-                      : "grid-cols-5"
-                }`}
+                className={`grid h-full bg-white dark:bg-zinc-800 ${keypadMode === "piece"
+                  ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
+                  : keypadMode === "weight"
+                    ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
+                    : "grid-cols-5"
+                  }`}
                 dir="ltr">
                 {/* PIECE QUANTITY SELECTOR MODE */}
                 {keypadMode === "piece" && selectedProductForQuantity && (

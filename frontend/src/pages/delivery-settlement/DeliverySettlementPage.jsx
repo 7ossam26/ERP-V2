@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { deliveryService } from "../../services/deliveryService";
-import { treasuryService } from "../../services/treasuryService";
 import AuthService from "../../services/authService";
 import SettlementReceipt from "./components/SettlementReceipt";
+import ManagerVerificationModal from "../../components/shared/ManagerVerificationModal";
+import { toast } from "react-hot-toast";
 
 const DeliverySettlementPage = () => {
     // View mode: 'settlement' or 'report'
@@ -33,19 +34,22 @@ const DeliverySettlementPage = () => {
     const [loading, setLoading] = useState(false);
     const [settling, setSettling] = useState(false);
 
+    // Manager Verification
+    const [showManagerVerification, setShowManagerVerification] = useState(false);
+    const [settlementType, setSettlementType] = useState(null); // 'single' or 'bulk'
+
     // Printing
     const receiptRef = useRef();
     const [printData, setPrintData] = useState(null);
 
     const handlePrint = useReactToPrint({
-        content: () => receiptRef.current,
+        contentRef: receiptRef,
         onAfterPrint: () => setPrintData(null),
     });
 
     // Fetch Drivers with Debt
     useEffect(() => {
         fetchDrivers();
-        fetchTreasuries();
     }, []);
 
     // Apply search filter
@@ -75,21 +79,7 @@ const DeliverySettlementPage = () => {
         }
     };
 
-    const fetchTreasuries = async () => {
-        try {
-            const data = await treasuryService.getAll();
-            const activeTreasuries = data.filter(t => t.isActive);
-            setTreasuries(activeTreasuries);
 
-            // Set default treasury
-            const user = AuthService.getCurrentUser();
-            const userBranchTreasuryId = user?.branch?.treasuryId;
-            const defaultTreasury = activeTreasuries.find(t => t.id === userBranchTreasuryId) || activeTreasuries[0];
-            setSelectedTreasury(defaultTreasury?.id);
-        } catch (error) {
-            console.error("Failed to fetch treasuries", error);
-        }
-    };
 
     const fetchDailyReport = async () => {
         try {
@@ -183,21 +173,26 @@ const DeliverySettlementPage = () => {
     };
 
     const handleSettle = async () => {
-        if (!selectedTreasury) {
-            alert("الرجاء تحديد الخزنة");
-            return;
-        }
-
         // Bulk settlement
         if (selectedDrivers.length > 1) {
-            await handleBulkSettle();
+            setSettlementType('bulk');
+            setShowManagerVerification(true);
         } else if (selectedDriver && selectedSales.length > 0) {
-            // Single driver settlement (existing logic)
-            await handleSingleSettle();
+            // Single driver settlement
+            setSettlementType('single');
+            setShowManagerVerification(true);
         }
     };
 
-    const handleSingleSettle = async () => {
+    const handleManagerVerify = async (credentials) => {
+        if (settlementType === 'bulk') {
+            await handleBulkSettle(credentials);
+        } else if (settlementType === 'single') {
+            await handleSingleSettle(credentials);
+        }
+    };
+
+    const handleSingleSettle = async (credentials) => {
         if (selectedSales.length === 0) return;
         const amount = calculateTotal();
 
@@ -208,10 +203,10 @@ const DeliverySettlementPage = () => {
             await deliveryService.settleDeliveryMan({
                 deliveryManId: selectedDriver.id,
                 amount: amount,
-                treasuryId: selectedTreasury,
                 userId: user?.id,
                 notes: notes,
-                saleIds: selectedSales
+                saleIds: selectedSales,
+                ...credentials, // managerUsername, managerPassword
             });
 
             // Prepare Print Data
@@ -232,7 +227,7 @@ const DeliverySettlementPage = () => {
                 totalAmount: amount,
                 notes,
                 user,
-                treasury: treasuries.find(t => t.id === selectedTreasury)
+                treasury: { name: `خزنة فرع ${selectedDriver.branch?.name || 'الفرع'}` }
             });
 
             setTimeout(() => {
@@ -241,15 +236,18 @@ const DeliverySettlementPage = () => {
                 if (selectedDriver) handleSelectDriver(selectedDriver);
             }, 500);
 
+            setShowManagerVerification(false);
+            toast.success('تمت التسوية بنجاح');
+
         } catch (error) {
             console.error("Settlement failed", error);
-            alert("فشلت عملية التسوية");
+            toast.error(error.data?.message || "فشلت عملية التسوية");
         } finally {
             setSettling(false);
         }
     };
 
-    const handleBulkSettle = async () => {
+    const handleBulkSettle = async (credentials) => {
         try {
             setSettling(true);
             const user = AuthService.getCurrentUser();
@@ -262,21 +260,22 @@ const DeliverySettlementPage = () => {
 
             const result = await deliveryService.settleBulk({
                 deliveryMen,
-                treasuryId: selectedTreasury,
                 userId: user?.id,
-                notes: notes || "Bulk Settlement"
+                notes: notes || "Bulk Settlement",
+                ...credentials, // managerUsername, managerPassword
             });
 
-            alert(`تمت تسوية ${result.driversSettled} طيار بنجاح!\nإجمالي المبلغ: ${result.totalAmount.toFixed(2)} ج.م`);
+            toast.success(`تمت تسوية ${result.driversSettled} طيار بنجاح!\nإجمالي المبلغ: ${result.totalAmount.toFixed(2)} ج.م`);
 
             // Refresh data
             fetchDrivers();
             setSelectedDrivers([]);
             setSelectedDriver(null);
+            setShowManagerVerification(false);
 
         } catch (error) {
             console.error("Bulk settlement failed", error);
-            alert("فشلت عملية التسوية الجماعية");
+            toast.error(error.data?.message || "فشلت عملية التسوية الجماعية");
         } finally {
             setSettling(false);
         }
@@ -369,8 +368,8 @@ const DeliverySettlementPage = () => {
                     <button
                         onClick={() => setViewMode('settlement')}
                         className={`px-4 py-2 rounded-xl font-bold transition-all ${viewMode === 'settlement'
-                                ? 'bg-blue-600 text-white shadow-lg'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                     >
                         التسوية
@@ -378,8 +377,8 @@ const DeliverySettlementPage = () => {
                     <button
                         onClick={() => setViewMode('report')}
                         className={`px-4 py-2 rounded-xl font-bold transition-all ${viewMode === 'report'
-                                ? 'bg-blue-600 text-white shadow-lg'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                     >
                         التقرير اليومي
@@ -422,21 +421,17 @@ const DeliverySettlementPage = () => {
                                         }
                                     </p>
                                 </div>
+
+                                {/* Treasury Info (Read-only) */}
                                 <div className="flex items-center gap-4">
-                                    {/* Treasury Selector */}
-                                    <div className="text-left">
-                                        <label className="block text-sm text-gray-500 mb-1">الخزنة</label>
-                                        <select
-                                            value={selectedTreasury || ""}
-                                            onChange={(e) => setSelectedTreasury(parseInt(e.target.value))}
-                                            className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                                        >
-                                            {treasuries.map(t => (
-                                                <option key={t.id} value={t.id}>
-                                                    {t.name} ({parseFloat(t.balance).toFixed(2)})
-                                                </option>
-                                            ))}
-                                        </select>
+                                    <div className="text-left bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-xl border border-blue-200 dark:border-blue-700">
+                                        <span className="block text-xs text-blue-600 dark:text-blue-400">💰 الخزن المستهدفة</span>
+                                        <span className="block text-sm font-bold text-blue-700 dark:text-blue-300">
+                                            {selectedDrivers.length > 1
+                                                ? "خزن الفروع (تلقائي)"
+                                                : `خزنة فرع ${selectedDriver?.branch?.name || 'الفرع'}`
+                                            }
+                                        </span>
                                     </div>
 
                                     <div className="text-left">
@@ -450,10 +445,10 @@ const DeliverySettlementPage = () => {
                                     </div>
                                     <button
                                         onClick={handleSettle}
-                                        disabled={(selectedDrivers.length === 0 && selectedSales.length === 0) || settling || !selectedTreasury}
-                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                    >
-                                        {settling ? "جاري التسوية..." : "تسوية وطباعة"}
+                                        disabled={(selectedDrivers.length === 0 && selectedSales.length === 0) || settling}
+                                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                                        <span className="material-icons-round">lock</span>
+                                        {settling ? "جاري التسوية..." : "تأكيد المدير والتسوية"}
                                     </button>
                                 </div>
                             </div>
@@ -490,7 +485,7 @@ const DeliverySettlementPage = () => {
                                                     const total = parseFloat(order.total) || 0;
                                                     const fee = parseFloat(order.deliveryFee) || 0;
                                                     const share = parseFloat(order.deliveryDriverShare) || 0;
-                                                    const netDebt = (total + fee) - share;
+                                                    const netDebt = total - share;
 
                                                     return (
                                                         <div
@@ -604,7 +599,7 @@ const DeliverySettlementPage = () => {
                                                     const total = order.total || 0;
                                                     const fee = order.deliveryFee || 0;
                                                     const share = order.deliveryDriverShare || 0;
-                                                    const netDebt = (total + fee) - share;
+                                                    const netDebt = total - share;
 
                                                     return (
                                                         <div key={order.id} className="flex justify-between items-center text-sm bg-gray-50 dark:bg-gray-900 p-2 rounded">
@@ -632,6 +627,21 @@ const DeliverySettlementPage = () => {
             <div style={{ display: 'none' }}>
                 <SettlementReceipt ref={receiptRef} data={printData} />
             </div>
+
+            {/* Manager Verification Modal */}
+            <ManagerVerificationModal
+                isOpen={showManagerVerification}
+                onClose={() => setShowManagerVerification(false)}
+                onVerify={handleManagerVerify}
+                title="تأكيد التسوية"
+                description={
+                    settlementType === 'bulk'
+                        ? `أنت على وشك تسوية مديونية ${selectedDrivers.length} طيار بإجمالي ${calculateTotalDebtForSelectedDrivers().toFixed(2)} ج.م`
+                        : `أنت على وشك تسوية مديونية ${selectedDriver?.name} بمبلغ ${calculateTotal().toFixed(2)} ج.م`
+                }
+                loading={settling}
+                zIndex="z-[70]"
+            />
         </div>
     );
 };

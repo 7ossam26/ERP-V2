@@ -10,12 +10,32 @@ router.use(authenticateToken);
 router.get("/", async (req, res, next) => {
   try {
     // Determine visibility based on user role/branch assignment
-    const branchFilter = await getUserBranchFilter(req.user.id);
+    // Fetch user with role to check if they should see all branches
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { role: true },
+    });
 
     // Build query
     const where = { isActive: true };
-    if (branchFilter) {
-      where.id = branchFilter.id;
+
+    // General Manager and Superadmin see ALL branches
+    const canSeeAllBranches =
+      user.role.name === "Superadmin" ||
+      user.role.name === "General Manager";
+
+    // Apply branch filter only for non-global roles
+    if (!canSeeAllBranches) {
+      const branchFilter = await getUserBranchFilter(req.user.id);
+      if (branchFilter) {
+        if (branchFilter.id.in) {
+          // Multi-branch user
+          where.id = { in: branchFilter.id.in };
+        } else {
+          // Single-branch user
+          where.id = branchFilter.id;
+        }
+      }
     }
 
     const branches = await prisma.branch.findMany({

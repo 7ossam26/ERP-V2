@@ -115,10 +115,10 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-            maxAge: 31536000,
-            includeSubDomains: true,
-            preload: true,
-          }
+          maxAge: 31536000,
+          includeSubDomains: true,
+          preload: true,
+        }
         : false, // Disable HSTS in development
   }),
 );
@@ -410,9 +410,18 @@ app.get("/api/setup-seed", async (req, res) => {
 // ---------------------------------------
 
 // Serve Static Frontend Files (Production)
-// Note: 'path' is required at the top, but defining here for clarity in context if needed, though usually top-level is better.
-// We already added 'path' to top imports in previous step.
-const CLIENT_DIST_PATH = path.join(__dirname, "../frontend/dist");
+const CLIENT_DIST_PATH_PROD = path.join(__dirname, "client_dist");
+const CLIENT_DIST_PATH_LOCAL = path.join(__dirname, "../frontend/dist");
+
+let CLIENT_DIST_PATH = CLIENT_DIST_PATH_LOCAL; // Default fallback
+
+// Prioritize the production build folder (client_dist) if it exists
+if (fs.existsSync(CLIENT_DIST_PATH_PROD)) {
+  CLIENT_DIST_PATH = CLIENT_DIST_PATH_PROD;
+  console.log(`>>> [STATIC] Found production build at: ${CLIENT_DIST_PATH}`);
+} else {
+  console.log(`>>> [STATIC] fallback to local build at: ${CLIENT_DIST_PATH}`);
+}
 
 console.log(`>>> [STATIC] Checking for frontend build at: ${CLIENT_DIST_PATH}`);
 
@@ -458,3 +467,26 @@ process.on("uncaughtException", (error) => {
 
 // Force restart trigger
 console.log("🔄 Server updated");
+
+// --- GRACEFUL SHUTDOWN ---
+const gracefulShutdown = async (signal) => {
+  console.log(`>>> [SHUTDOWN] Received ${signal}. Closing server...`);
+
+  if (server) {
+    server.close(() => {
+      console.log(">>> [SHUTDOWN] HTTP server closed.");
+    });
+  }
+
+  try {
+    await prisma.$disconnect();
+    console.log(">>> [SHUTDOWN] Prisma client disconnected.");
+    process.exit(0);
+  } catch (err) {
+    console.error(">>> [SHUTDOWN] Error during disconnection:", err);
+    process.exit(1);
+  }
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));

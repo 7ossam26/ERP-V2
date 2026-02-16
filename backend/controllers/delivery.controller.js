@@ -1,5 +1,6 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../config/database");
+const bcrypt = require("bcryptjs");
+const { getUserBranchFilter } = require("../middleware/auth");
 
 // Create a new delivery man
 exports.createDeliveryMan = async (req, res) => {
@@ -36,8 +37,21 @@ exports.getAllDeliveryMen = async (req, res) => {
     const { branchId } = req.query;
     const where = { isActive: true };
 
+    // Apply branch access control
+    const branchFilter = await getUserBranchFilter(req.user.id);
+
     if (branchId) {
+      // If specific branch is requested, use it
       where.branchId = parseInt(branchId);
+    } else if (branchFilter) {
+      // Otherwise, apply user's branch filter
+      if (branchFilter.id.in) {
+        // Multi-branch user
+        where.branchId = { in: branchFilter.id.in };
+      } else {
+        // Single-branch user
+        where.branchId = branchFilter.id;
+      }
     }
 
     const deliveryMen = await prisma.deliveryMan.findMany({
@@ -191,6 +205,95 @@ exports.getDeliveryStats = async (req, res) => {
   }
 };
 
+// Verify manager credentials for settlement
+exports.verifyManagerCredentials = async (req, res) => {
+  try {
+    const { managerUsername, managerPassword } = req.body;
+
+    if (!managerUsername || !managerPassword) {
+      return res.status(400).json({
+        error: "Manager username and password are required",
+        message: "يرجى إدخال اسم المستخدم وكلمة المرور للمدير",
+      });
+    }
+
+    // Find manager
+    const manager = await prisma.user.findUnique({
+      where: { username: managerUsername },
+      include: {
+        role: {
+          include: {
+            permissions: true,
+          },
+        },
+        accessibleBranches: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!manager) {
+      return res.status(401).json({
+        error: "Invalid manager credentials",
+        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+      });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(
+      managerPassword,
+      manager.password,
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        error: "Invalid manager credentials",
+        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+      });
+    }
+
+    // Verify manager has appropriate role OR permissions
+    const hasRole =
+      manager.role.name === "Superadmin" ||
+      manager.role.name === "Manager" ||
+      manager.role.name === "Branch Manager" ||
+      manager.role.name === "Admin" ||
+      manager.role.name === "General Manager";
+
+    // Check permissions if role check fails
+    let hasPermission = false;
+    if (!hasRole && manager.role.permissions) {
+      hasPermission = manager.role.permissions.some(
+        (p) =>
+          (p.module === "DELIVERY_SETTLEMENT" || p.module === "POS") &&
+          p.canAccess === true,
+      );
+    }
+
+    if (!hasRole && !hasPermission) {
+      return res.status(403).json({
+        error: "Access denied. Only managers can approve settlements.",
+        message: "عذراً، هذه العملية متاحة للمديرين فقط",
+      });
+    }
+
+    // Return manager info (don't send password)
+    res.json({
+      valid: true,
+      manager: {
+        id: manager.id,
+        name: manager.name,
+        role: manager.role.name,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error verifying manager credentials:", error);
+    res.status(500).json({ error: "Failed to verify credentials" });
+  }
+};
+
+// Settle delivery man debt
+
 // Settle delivery man debt
 exports.settleDeliveryMan = async (req, res) => {
   try {
@@ -199,44 +302,118 @@ exports.settleDeliveryMan = async (req, res) => {
       deliveryMen,
       amount,
       notes,
-      treasuryId,
       userId,
       saleIds,
+      managerUsername,
+      managerPassword,
     } = req.body;
+
+    // Verify manager credentials (REQUIRED)
+    if (!managerUsername || !managerPassword) {
+      return res.status(400).json({
+        error: "Manager credentials are required for settlement",
+        message: "يجب تأكيد التسوية ببيانات المدير",
+      });
+    }
+
+    const manager = await prisma.user.findUnique({
+      where: { username: managerUsername },
+      include: {
+        role: {
+          include: {
+            permissions: true,
+          },
+        },
+        accessibleBranches: { select: { id: true } },
+      },
+    });
+
+    if (!manager) {
+      return res.status(401).json({
+        error: "Invalid manager credentials",
+        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      managerPassword,
+      manager.password,
+    );
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        error: "Invalid manager credentials",
+        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+      });
+    }
+
+    const hasRole =
+      manager.role.name === "Superadmin" ||
+      manager.role.name === "Manager" ||
+      manager.role.name === "Branch Manager" ||
+      manager.role.name === "Admin" ||
+      manager.role.name === "General Manager";
+
+    // Check permissions if role check fails
+    let hasPermission = false;
+    if (!hasRole && manager.role.permissions) {
+      hasPermission = manager.role.permissions.some(
+        (p) =>
+          (p.module === "DELIVERY_SETTLEMENT" || p.module === "POS") &&
+          p.canAccess === true,
+      );
+    }
+
+    if (!hasRole && !hasPermission) {
+      return res.status(403).json({
+        error: "Access denied. Only managers can approve settlements.",
+        message: "عذراً، هذه العملية متاحة للمديرين فقط",
+      });
+    }
 
     // Determine if this is a bulk settlement or single
     const isBulk = Array.isArray(deliveryMen) && deliveryMen.length > 0;
 
     if (isBulk) {
       // ===== BULK SETTLEMENT =====
-      if (!treasuryId) {
-        return res
-          .status(400)
-          .json({ error: "Treasury ID is required for bulk settlement" });
-      }
 
       const result = await prisma.$transaction(async (tx) => {
         const settlements = [];
-        let totalAmount = 0;
+        const treasuryUpdates = new Map(); // Track treasury updates per branch
         let totalOrdersUpdated = 0;
 
         for (const driver of deliveryMen) {
           if (!driver.id || !driver.amount) continue;
 
+          // Fetch driver with branch info to get treasury
+          const driverData = await tx.deliveryMan.findUnique({
+            where: { id: parseInt(driver.id) },
+            include: { branch: { select: { treasuryId: true } } },
+          });
+
+          if (!driverData || !driverData.branch?.treasuryId) {
+            console.warn(
+              `⚠️ Driver ${driver.id} has no branch treasury, skipping`,
+            );
+            continue;
+          }
+
+          const treasuryId = driverData.branch.treasuryId;
+          const driverAmount = parseFloat(driver.amount);
+
           // 1. Decrement Driver Wallet Balance
           const updatedDriver = await tx.deliveryMan.update({
             where: { id: parseInt(driver.id) },
-            data: { walletBalance: { decrement: parseFloat(driver.amount) } },
+            data: { walletBalance: { decrement: driverAmount } },
           });
 
           // 2. Log Delivery Transaction (Payment)
           const settlementTx = await tx.deliveryManTransaction.create({
             data: {
               deliveryManId: parseInt(driver.id),
-              amount: parseFloat(driver.amount),
+              amount: driverAmount,
               type: "PAYMENT",
               description: notes || "Bulk Settlement",
-              createdById: userId ? parseInt(userId) : null,
+              createdById: userId ? parseInt(userId) : manager.id,
             },
           });
 
@@ -259,25 +436,39 @@ exports.settleDeliveryMan = async (req, res) => {
             data: { deliveryStatus: "DELIVERED" },
           });
 
+          // Track treasury amounts
+          if (!treasuryUpdates.has(treasuryId)) {
+            treasuryUpdates.set(treasuryId, 0);
+          }
+          treasuryUpdates.set(
+            treasuryId,
+            treasuryUpdates.get(treasuryId) + driverAmount,
+          );
+
           settlements.push({
             deliveryMan: updatedDriver,
             transaction: settlementTx,
             updatedOrdersCount: updateResult.count,
+            treasuryId,
           });
 
-          totalAmount += parseFloat(driver.amount);
           totalOrdersUpdated += updateResult.count;
         }
 
-        // 4. Increment Treasury Balance (Once for all drivers)
-        await tx.treasury.update({
-          where: { id: parseInt(treasuryId) },
-          data: { balance: { increment: totalAmount } },
-        });
+        // 4. Increment Treasury Balances (per branch)
+        for (const [treasuryId, amount] of treasuryUpdates.entries()) {
+          await tx.treasury.update({
+            where: { id: treasuryId },
+            data: { balance: { increment: amount } },
+          });
+        }
 
         return {
           settlements,
-          totalAmount,
+          totalAmount: Array.from(treasuryUpdates.values()).reduce(
+            (a, b) => a + b,
+            0,
+          ),
           totalOrdersUpdated,
           driversSettled: settlements.length,
         };
@@ -286,23 +477,37 @@ exports.settleDeliveryMan = async (req, res) => {
       return res.json(result);
     }
 
-    // ===== SINGLE SETTLEMENT (existing logic) =====
-    if (!deliveryManId || !amount || !treasuryId) {
+    // ===== SINGLE SETTLEMENT =====
+    if (!deliveryManId || !amount) {
       return res.status(400).json({
-        error: "Delivery Man ID, Amount, and Treasury ID are required",
+        error: "Delivery Man ID and Amount are required",
       });
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      // Fetch driver with branch treasury
+      const driver = await tx.deliveryMan.findUnique({
+        where: { id: parseInt(deliveryManId) },
+        include: { branch: { select: { treasuryId: true } } },
+      });
+
+      if (!driver || !driver.branch?.treasuryId) {
+        throw new Error(
+          "Driver not found or branch has no associated treasury",
+        );
+      }
+
+      const treasuryId = driver.branch.treasuryId;
+
       // 1. Decrement Wallet Balance
       const updatedDeliveryMan = await tx.deliveryMan.update({
         where: { id: parseInt(deliveryManId) },
         data: { walletBalance: { decrement: parseFloat(amount) } },
       });
 
-      // 2. Increment Treasury Balance
+      // 2. Increment Treasury Balance (driver's branch treasury)
       await tx.treasury.update({
-        where: { id: parseInt(treasuryId) },
+        where: { id: treasuryId },
         data: { balance: { increment: parseFloat(amount) } },
       });
 
@@ -313,7 +518,7 @@ exports.settleDeliveryMan = async (req, res) => {
           amount: parseFloat(amount),
           type: "PAYMENT",
           description: notes || "Manual Settlement",
-          createdById: userId ? parseInt(userId) : null,
+          createdById: userId ? parseInt(userId) : manager.id,
         },
       });
 
@@ -339,6 +544,8 @@ exports.settleDeliveryMan = async (req, res) => {
         deliveryMan: updatedDeliveryMan,
         transaction: settlementTx,
         updatedOrdersCount: updateResult.count,
+        treasuryId,
+        settledSaleIds: saleIds || [],
       };
     });
 
@@ -411,7 +618,7 @@ exports.getDeliveryHistory = async (req, res) => {
       const total = Number(sale.total) || 0;
       const fee = Number(sale.deliveryFee) || 0;
       const share = Number(sale.deliveryDriverShare) || 0;
-      const netDebt = total + fee - share;
+      const netDebt = total - share;
 
       salesByDate[dateKey].orders.push({
         ...sale,
@@ -509,7 +716,7 @@ exports.getDailyReport = async (req, res) => {
       const total = Number(sale.total) || 0;
       const fee = Number(sale.deliveryFee) || 0;
       const share = Number(sale.deliveryDriverShare) || 0;
-      const netDebt = total + fee - share;
+      const netDebt = total - share;
 
       reportByDate[dateKey].drivers[driverId].orders.push({
         id: sale.id,

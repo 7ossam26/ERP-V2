@@ -44,8 +44,8 @@ const isSuperadmin = (req, res, next) => {
 const requirePermission = (module) => {
   return async (req, res, next) => {
     try {
-      // Superadmin has all permissions
-      if (req.user.role === "Superadmin") {
+      // Superadmin and Admin have all permissions
+      if (req.user.role === "Superadmin" || req.user.role === "Admin") {
         return next();
       }
 
@@ -126,8 +126,8 @@ const requireAnyPermission = (modules) => {
 const requireCreatePermission = (createModule) => {
   return async (req, res, next) => {
     try {
-      // Superadmin has all permissions
-      if (req.user.role === "Superadmin") {
+      // Superadmin and Admin have all permissions
+      if (req.user.role === "Superadmin" || req.user.role === "Admin") {
         return next();
       }
 
@@ -212,8 +212,8 @@ const getUserBranchFilter = async (userId) => {
       throw new Error("User not found");
     }
 
-    // Superadmin OR Admin sees ALL (return null)
-    if (user.role && (user.role.name === "Superadmin" || user.role.name === "Admin")) {
+    // Superadmin, Admin, OR General Manager sees ALL (return null)
+    if (user.role && (user.role.name === "Superadmin" || user.role.name === "Admin" || user.role.name === "General Manager")) {
       return null;
     }
 

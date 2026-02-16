@@ -40,7 +40,13 @@ router.get(
         // Enforce branch access if not filtering by specific branch
         const branchFilter = await getUserBranchFilter(req.user.id);
         if (branchFilter) {
-          whereClause.branchId = branchFilter.id;
+          if (branchFilter.id.in) {
+            // Multi-branch user (e.g., General Manager)
+            whereClause.branchId = { in: branchFilter.id.in };
+          } else {
+            // Single-branch user
+            whereClause.branchId = branchFilter.id;
+          }
         }
       }
 
@@ -372,6 +378,38 @@ router.post("/end", async (req, res, next) => {
       },
     });
 
+    // Check for pending delivery orders (WARNING, not blocking)
+    const pendingDeliveryOrders = await prisma.sale.findMany({
+      where: {
+        shiftId: parseInt(shiftId),
+        deliveryStatus: "OUT_FOR_DELIVERY",
+      },
+      include: {
+        deliveryMan: { select: { id: true, name: true } },
+      },
+    });
+
+    // Group by delivery man
+    const deliveryWarnings = [];
+    if (pendingDeliveryOrders.length > 0) {
+      const grouped = {};
+      pendingDeliveryOrders.forEach((order) => {
+        const driverId = order.deliveryMan?.id || "unknown";
+        const driverName = order.deliveryMan?.name || "Unknown";
+        if (!grouped[driverId]) {
+          grouped[driverId] = {
+            driverId,
+            driverName,
+            orderCount: 0,
+            totalAmount: 0,
+          };
+        }
+        grouped[driverId].orderCount++;
+        grouped[driverId].totalAmount += parseFloat(order.total || 0);
+      });
+      deliveryWarnings.push(...Object.values(grouped));
+    }
+
     // Return extended info for frontend
     res.json({
       ...updatedShift,
@@ -381,6 +419,8 @@ router.post("/end", async (req, res, next) => {
         cashExpenses,
         systemExpectedCash,
       },
+      deliveryWarnings: deliveryWarnings.length > 0 ? deliveryWarnings : null,
+      hasPendingDeliveries: deliveryWarnings.length > 0,
     });
   } catch (error) {
     next(error);
@@ -606,8 +646,26 @@ router.get(
       }
 
       // Validate Branch Access for Report
-      const branchFilter = await getUserBranchFilter(req.user.id);
-      if (branchFilter && branchFilter.id !== shift.branchId) {
+      // Fetch user with role and accessible branches to verify access
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: {
+          role: true,
+          accessibleBranches: {
+            select: { id: true },
+          },
+        },
+      });
+
+      // Check if user has access to this shift's branch
+      const canAccessBranch =
+        user.branchId === shift.branchId ||
+        (user.accessibleBranches &&
+          user.accessibleBranches.some((b) => b.id === shift.branchId)) ||
+        user.role.name === "Superadmin" ||
+        user.role.name === "General Manager"; // General Manager can access all branches
+
+      if (!canAccessBranch) {
         return res.status(403).json({
           error: "Access denied. You cannot view reports for this branch.",
         });

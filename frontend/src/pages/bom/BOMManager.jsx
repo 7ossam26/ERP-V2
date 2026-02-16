@@ -101,7 +101,11 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
+
+    // Trim input
+    const trimmedName = formData.name.trim();
+
+    if (!trimmedName) {
       return toast.error("اسم الوصفة مطلوب");
     }
     // Duplicate check removed
@@ -131,6 +135,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     try {
       const payload = {
         ...formData,
+        name: trimmedName,
         items: validItems,
         outputItemId: linkToItem ? formData.outputItemId : null,
         categoryIds: selectedCategoryIds,
@@ -220,8 +225,8 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
               <label
                 key={cat.id}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-all text-sm font-bold ${selectedCategoryIds.includes(cat.id)
-                    ? "bg-primary/10 border-primary text-primary dark:text-accent"
-                    : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary/40"
+                  ? "bg-primary/10 border-primary text-primary dark:text-accent"
+                  : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary/40"
                   }`}>
                 <input
                   type="checkbox"
@@ -639,8 +644,8 @@ const BOMManager = () => {
                 <div className="flex items-center gap-4">
                   <div
                     className={`p-2.5 rounded-xl ${bom.isActive
-                        ? "bg-green-100 dark:bg-green-900/30 text-green-600"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      ? "bg-green-100 dark:bg-green-900/30 text-green-600"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-400"
                       }`}>
                     <span className="material-icons-round text-xl">
                       receipt
@@ -671,8 +676,8 @@ const BOMManager = () => {
                       </span>
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${bom.isActive
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
                           }`}>
                         {bom.isActive ? "مفعّل" : "معطّل"}
                       </span>

@@ -40,7 +40,10 @@ const PendingDeliveriesModal = ({ isOpen, onClose, pendingOrders }) => {
           {pendingOrders && pendingOrders.length > 0 && (
             <div className="max-h-60 overflow-y-auto pr-1 custom-scrollbar">
               <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 sticky top-0 bg-white dark:bg-gray-800 py-2 border-b border-gray-100 dark:border-gray-700 z-10">
-                قائمة الطلبات المعلقة ({pendingOrders.length})
+                {pendingOrders[0].saleNumber
+                  ? `قائمة الطلبات المعلقة (${pendingOrders.length})`
+                  : `الطيارين الذين لديهم طلبات معلقة (${pendingOrders.length})`
+                }
               </h4>
               <ul className="space-y-3">
                 {pendingOrders.map((order, idx) => (
@@ -49,15 +52,24 @@ const PendingDeliveriesModal = ({ isOpen, onClose, pendingOrders }) => {
                     className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600 flex justify-between items-center group hover:border-red-200 dark:hover:border-red-800 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="bg-white dark:bg-gray-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm font-bold text-gray-700 dark:text-gray-200">
-                        📦
+                        {order.saleNumber ? "📦" : "🏍️"}
                       </div>
                       <div>
                         <div className="font-bold text-gray-800 dark:text-white text-sm">
-                          {order.saleNumber}
+                          {order.saleNumber || order.deliveryMan}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                          <span>👤</span>
-                          <span>{order.deliveryMan}</span>
+                          {order.saleNumber ? (
+                            <>
+                              <span>👤</span>
+                              <span>{order.deliveryMan}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>📦</span>
+                              <span>{order.orderCount} طلبات معلقة</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

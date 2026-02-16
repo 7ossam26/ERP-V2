@@ -45,7 +45,7 @@ const loginValidation = [
 ];
 
 // LOGIN
-router.post("/login", loginLimiter, loginValidation, async (req, res) => {
+router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
   try {
     // Check validation errors
     const errors = validationResult(req);
@@ -170,7 +170,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
 });
 
 // REFRESH TOKEN
-router.post("/refresh", async (req, res) => {
+router.post("/refresh", async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
 
@@ -253,7 +253,7 @@ router.post("/logout", async (req, res) => {
 
 // GET CURRENT USER (Protected)
 const { authenticateToken } = require("../middleware/auth");
-router.get("/me", authenticateToken, async (req, res) => {
+router.get("/me", authenticateToken, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },

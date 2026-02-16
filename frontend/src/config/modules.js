@@ -212,7 +212,7 @@ export const MODULES = [
   {
     id: "transfer_management",
     code: "TRANSFER_MANAGEMENT",
-    label: "إدارة التحويلات",
+    label: "إدارة تحويلات الخزائن",
     description: "قبول ورفض التحويلات",
     icon: "manage_accounts",
     path: "/transfer-management",

@@ -3,7 +3,7 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { warehouseService } from "../../services/warehouseService";
 import AuthService from "../../services/authService";
 
-const WarehouseForm = ({ initialData, onClose, onSave, data = [] }) => {
+const WarehouseForm = ({ initialData, onClose, onSave, data = [], showToast }) => {
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
   });
@@ -27,6 +27,15 @@ const WarehouseForm = ({ initialData, onClose, onSave, data = [] }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
     await onSave(formData, !keepOpen);
 
     if (keepOpen) {
@@ -38,7 +47,7 @@ const WarehouseForm = ({ initialData, onClose, onSave, data = [] }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-y-6">
+    <form onSubmit={handleSubmit} noValidate className="grid grid-cols-1 gap-y-6">
       <div className="col-span-1">
         <label
           className="block text-sm font-bold text-text-light dark:text-text-dark mb-2"

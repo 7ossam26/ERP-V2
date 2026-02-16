@@ -1,10 +1,12 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Modal from "../../../components/ui/Modal";
 import apiClient from "../../../services/apiClient";
 import { toast } from "react-hot-toast";
-import { FaLock, FaUser } from "react-icons/fa";
+import { FaLock, FaUser, FaTruck } from "react-icons/fa";
 
 const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -88,6 +90,18 @@ const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
             <div className="mt-3 text-xs text-red-600 text-center">
               يجب تسوية هذه الطلبات أولاً من شاشة "تسوية التوصيل"
             </div>
+
+            {/* Quick Access Button */}
+            <button
+              type="button"
+              onClick={() => {
+                handleClose();
+                navigate("/delivery-settlement");
+              }}
+              className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg font-medium text-sm">
+              <FaTruck className="text-base" />
+              <span>الانتقال إلى تسوية الطيارين</span>
+            </button>
           </div>
         )}
 

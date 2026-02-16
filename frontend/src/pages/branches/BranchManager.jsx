@@ -4,7 +4,7 @@ import { branchService, treasuryService } from "../../services/domainServices";
 import { warehouseService } from "../../services/warehouseService";
 import AuthService from "../../services/authService";
 
-const BranchForm = ({ initialData, onClose, onSave, data }) => {
+const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
   // Calculate next ID if creating new branch
   const nextId =
     data && data.length > 0
@@ -44,6 +44,15 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
     await onSave(formData, !keepOpen);
 
     if (keepOpen) {
@@ -60,6 +69,7 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">

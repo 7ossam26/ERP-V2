@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
  * @param {string|Error|object} error - The error to display
  * @param {string} defaultMessage - Default message if error parsing fails
  */
-export const showErrorToast = (error, defaultMessage = "An error occurred") => {
+export const showErrorToast = (error, defaultMessage = "حدث خطأ. يرجى المحاولة مرة أخرى.") => {
     let errorMessage = defaultMessage;
     let resolution = null;
 
@@ -14,18 +14,27 @@ export const showErrorToast = (error, defaultMessage = "An error occurred") => {
     if (typeof error === 'string') {
         errorMessage = error;
     } else if (error?.response?.data) {
-        // API error response
-        errorMessage = error.response.data.error || defaultMessage;
+        // API error response - Only use error field if it's user-friendly (Arabic)
+        const apiError = error.response.data.error;
+        // Check if the error message is in Arabic (user-friendly) or technical (English)
+        if (apiError && /[\u0600-\u06FF]/.test(apiError)) {
+            // Contains Arabic characters, likely user-friendly
+            errorMessage = apiError;
+        } else {
+            // Technical English error, use default message
+            errorMessage = defaultMessage;
+        }
         resolution = error.response.data.resolution;
-    } else if (error?.message) {
-        // Standard Error object or custom error with resolution
-        errorMessage = error.message;
-        resolution = error.resolution;
-    } else if (error?.error) {
-        // Custom error object format
-        errorMessage = error.error;
+    } else if (error?.error && typeof error.error === 'string') {
+        // Custom error object format - only use if user-friendly
+        if (/[\u0600-\u06FF]/.test(error.error)) {
+            errorMessage = error.error;
+        } else {
+            errorMessage = defaultMessage;
+        }
         resolution = error.resolution;
     }
+    // Don't use error.message as it contains technical details
 
     // Display enhanced toast
     if (resolution) {

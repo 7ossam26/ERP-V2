@@ -1,5 +1,5 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../config/database");
+const { getUserBranchFilter } = require("../middleware/auth");
 
 // Create a new delivery zone
 exports.createDeliveryZone = async (req, res) => {
@@ -54,9 +54,21 @@ exports.getAllDeliveryZones = async (req, res) => {
     const { isActive, branchId } = req.query;
     const where = {};
 
-    // Filter by branch if provided
+    // Apply branch access control
+    const branchFilter = await getUserBranchFilter(req.user.id);
+
     if (branchId) {
+      // If specific branch is requested, use it
       where.branchId = parseInt(branchId);
+    } else if (branchFilter) {
+      // Otherwise, apply user's branch filter
+      if (branchFilter.id.in) {
+        // Multi-branch user
+        where.branchId = { in: branchFilter.id.in };
+      } else {
+        // Single-branch user
+        where.branchId = branchFilter.id;
+      }
     }
 
     // Filter by active status if provided

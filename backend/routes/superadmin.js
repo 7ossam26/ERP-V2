@@ -82,7 +82,7 @@ router.post("/users", createUserValidation, async (req, res) => {
       return res.status(400).json({ error: "Invalid role selected" });
     }
 
-    const isGlobalRole = ["Superadmin", "Admin"].includes(role.name);
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role.name);
 
     if (!isGlobalRole && !branchId) {
       return res.status(400).json({ error: "Branch is required for this role" });
@@ -100,7 +100,7 @@ router.post("/users", createUserValidation, async (req, res) => {
     let hasSensitiveAccess =
       req.body.hasSensitiveAccess !== undefined
         ? req.body.hasSensitiveAccess
-        : ["Superadmin", "Admin", "Manager"].includes(role.name);
+        : ["Superadmin", "Admin", "Manager", "General Manager"].includes(role.name);
 
     // Prepare accessible branches connect
     const accessibleBranchesConnect =
@@ -154,7 +154,7 @@ router.put("/users/:id", async (req, res) => {
       where: { id: parseInt(roleToCheckId) }
     });
 
-    const isGlobalRole = ["Superadmin", "Admin"].includes(role?.name);
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role?.name);
 
     // Validate Branch requirement
     if (!branchId && !isGlobalRole && roleId) { // Only enforce if role is explicitly being set/checked
