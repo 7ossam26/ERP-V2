@@ -230,6 +230,7 @@ app.use("/api/stock-transfers", require("./routes/stockTransfer"));
 app.use("/api/shifts", require("./routes/shifts"));
 app.use("/api/supplier-accounts", require("./routes/supplierAccounts"));
 app.use("/api/deposits", require("./routes/deposits"));
+app.use("/api/withdrawals", require("./routes/withdrawals"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/delivery-men", require("./routes/delivery.routes"));
 app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));

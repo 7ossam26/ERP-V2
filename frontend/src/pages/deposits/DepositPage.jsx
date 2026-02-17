@@ -1,28 +1,38 @@
 import React, { useState, useEffect } from "react";
 import AddDepositModal from "./AddDepositModal";
+import AddWithdrawalModal from "./AddWithdrawalModal";
 import { depositService } from "../../services/depositService";
+import { withdrawalService } from "../../services/withdrawalService";
 import toast from "react-hot-toast";
 
 const DepositPage = () => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+    const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
     const [deposits, setDeposits] = useState([]);
+    const [withdrawals, setWithdrawals] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedDate, setSelectedDate] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
 
+    // Merge deposits and withdrawals into a single array
+    const transactions = [
+        ...deposits.map(d => ({ ...d, type: 'deposit' })),
+        ...withdrawals.map(w => ({ ...w, type: 'withdrawal' }))
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
     // Derived state for filtering and pagination
-    const filteredDeposits = deposits.filter(deposit => {
-        const matchesSearch = deposit.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            deposit.treasury?.name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesDate = selectedDate ? new Date(deposit.date).toISOString().split('T')[0] === selectedDate : true;
+    const filteredTransactions = transactions.filter(transaction => {
+        const matchesSearch = transaction.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            transaction.treasury?.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesDate = selectedDate ? new Date(transaction.date).toISOString().split('T')[0] === selectedDate : true;
         return matchesSearch && matchesDate;
     });
 
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredDeposits.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredDeposits.length / itemsPerPage);
+    const currentItems = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
     const fetchDeposits = async () => {
         try {
@@ -34,8 +44,19 @@ const DepositPage = () => {
         }
     };
 
+    const fetchWithdrawals = async () => {
+        try {
+            const data = await withdrawalService.getAll();
+            setWithdrawals(data);
+        } catch (error) {
+            console.error("Failed to fetch withdrawals", error);
+            toast.error("فشل تحميل المسحوبات");
+        }
+    };
+
     useEffect(() => {
         fetchDeposits();
+        fetchWithdrawals();
     }, []);
 
     const handleAddDeposit = async (newDeposit) => {
@@ -49,6 +70,17 @@ const DepositPage = () => {
         }
     };
 
+    const handleAddWithdrawal = async (newWithdrawal) => {
+        try {
+            await withdrawalService.create(newWithdrawal);
+            await fetchWithdrawals();
+            toast.success("تم إضافة المسحوب بنجاح");
+        } catch (error) {
+            console.error("Failed to add withdrawal", error);
+            toast.error(error.message || "فشل إضافة المسحوب");
+        }
+    };
+
     return (
         <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden">
             {/* Mobile Header */}
@@ -58,7 +90,7 @@ const DepositPage = () => {
                         <span className="material-symbols-outlined">menu</span>
                     </button>
                     <h1 className="font-bold text-lg text-text-light dark:text-text-dark">
-                        الإيداعات
+                        الإيداعات والمسحوبات
                     </h1>
                 </div>
             </header>
@@ -68,18 +100,24 @@ const DepositPage = () => {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="flex flex-col gap-1">
                         <h1 className="text-text-light dark:text-text-dark text-3xl font-bold tracking-tight">
-                            لوحة الإيداعات
+                            لوحة الإيداعات والمسحوبات
                         </h1>
                         <p className="text-text-light/70 dark:text-text-dark/70 text-sm">
-                            إدارة الإيداعات المالية المباشرة
+                            إدارة العمليات المالية المباشرة
                         </p>
                     </div>
                     <div className="flex gap-2">
                         <button
-                            onClick={() => setIsModalOpen(true)}
+                            onClick={() => setIsDepositModalOpen(true)}
                             className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-text-dark px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
                             <span className="material-symbols-outlined text-[20px]">add</span>
                             <span>إضافة إيداع</span>
+                        </button>
+                        <button
+                            onClick={() => setIsWithdrawalModalOpen(true)}
+                            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
+                            <span className="material-symbols-outlined text-[20px]">remove</span>
+                            <span>إضافة مسحوب</span>
                         </button>
                     </div>
                 </div>
@@ -138,7 +176,8 @@ const DepositPage = () => {
                         <table className="w-full text-sm text-right">
                             <thead className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-bold border-b border-border-light dark:border-border-dark">
                                 <tr>
-                                    <th className="px-6 py-4 rounded-tr-lg" scope="col">التاريخ</th>
+                                    <th className="px-6 py-4 rounded-tr-lg" scope="col">النوع</th>
+                                    <th className="px-6 py-4" scope="col">التاريخ</th>
                                     <th className="px-6 py-4 w-1/3" scope="col">الوصف</th>
                                     <th className="px-6 py-4" scope="col">الخزينة</th>
                                     <th className="px-6 py-4" scope="col">المبلغ</th>
@@ -147,32 +186,45 @@ const DepositPage = () => {
                             </thead>
                             <tbody className="divide-y divide-border-light dark:divide-border-dark">
                                 {currentItems.length > 0 ? (
-                                    currentItems.map((deposit) => (
-                                        <tr key={deposit.id} className="hover:bg-accent/20 dark:hover:bg-accent/5 transition-colors group">
+                                    currentItems.map((transaction) => (
+                                        <tr key={`${transaction.type}-${transaction.id}`} className="hover:bg-accent/20 dark:hover:bg-accent/5 transition-colors group">
+                                            <td className="px-6 py-3">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${transaction.type === 'deposit'
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    }`}>
+                                                    <span className="material-symbols-outlined text-[16px]">
+                                                        {transaction.type === 'deposit' ? 'add_circle' : 'remove_circle'}
+                                                    </span>
+                                                    {transaction.type === 'deposit' ? 'إيداع' : 'مسحوب'}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-3 font-medium text-text-light/70 dark:text-text-dark/70 font-numbers whitespace-nowrap">
-                                                {new Date(deposit.date).toLocaleDateString("en-CA")}
+                                                {new Date(transaction.date).toLocaleDateString("en-CA")}
                                             </td>
                                             <td className="px-6 py-3 font-bold text-text-light dark:text-text-dark">
-                                                {deposit.description || "-"}
+                                                {transaction.description || "-"}
                                             </td>
                                             <td className="px-6 py-3 text-text-light/70 dark:text-text-dark/70">
-                                                {deposit.treasury?.name || "-"}
+                                                {transaction.treasury?.name || "-"}
                                             </td>
-                                            <td className="px-6 py-3 font-bold text-success font-numbers">
-                                                {Number(deposit.amount).toLocaleString()}{" "}
+                                            <td className={`px-6 py-3 font-bold font-numbers ${transaction.type === 'deposit' ? 'text-success' : 'text-red-500'
+                                                }`}>
+                                                {transaction.type === 'withdrawal' ? '- ' : '+ '}
+                                                {Number(transaction.amount).toLocaleString()}{" "}
                                                 <span className="text-xs font-normal text-text-light/70 dark:text-text-dark/70">
                                                     ج.م
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3 text-center text-text-light/70 dark:text-text-dark/70">
-                                                {deposit.createdBy?.name || "-"}
+                                                {transaction.createdBy?.name || "-"}
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="text-center py-8 text-gray-500">
-                                            لا توجد إيداعات لعرضها
+                                        <td colSpan="6" className="text-center py-8 text-gray-500">
+                                            لا توجد عمليات لعرضها
                                         </td>
                                     </tr>
                                 )}
@@ -184,7 +236,7 @@ const DepositPage = () => {
                     {totalPages > 0 && (
                         <div className="p-4 bg-surface-light dark:bg-surface-dark border-t border-border-light dark:border-border-dark flex items-center justify-between">
                             <span className="text-sm text-text-light/70 dark:text-text-dark/70">
-                                عرض <span className="font-bold text-text-light dark:text-text-dark font-numbers">{indexOfFirstItem + 1}</span> إلى <span className="font-bold text-text-light dark:text-text-dark font-numbers">{Math.min(indexOfLastItem, filteredDeposits.length)}</span> من أصل <span className="font-bold text-text-light dark:text-text-dark font-numbers">{filteredDeposits.length}</span> سجل
+                                عرض <span className="font-bold text-text-light dark:text-text-dark font-numbers">{indexOfFirstItem + 1}</span> إلى <span className="font-bold text-text-light dark:text-text-dark font-numbers">{Math.min(indexOfLastItem, filteredTransactions.length)}</span> من أصل <span className="font-bold text-text-light dark:text-text-dark font-numbers">{filteredTransactions.length}</span> سجل
                             </span>
                             <div className="flex items-center gap-1">
                                 <button
@@ -226,10 +278,17 @@ const DepositPage = () => {
                 </div>
             </div>
 
-            {isModalOpen && (
+            {isDepositModalOpen && (
                 <AddDepositModal
-                    onClose={() => setIsModalOpen(false)}
+                    onClose={() => setIsDepositModalOpen(false)}
                     onAdd={handleAddDeposit}
+                />
+            )}
+
+            {isWithdrawalModalOpen && (
+                <AddWithdrawalModal
+                    onClose={() => setIsWithdrawalModalOpen(false)}
+                    onAdd={handleAddWithdrawal}
                 />
             )}
         </div>
