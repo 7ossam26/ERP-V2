@@ -130,6 +130,7 @@ const allowedOrigins = process.env.FRONTEND_URL?.split(",") || [
   "http://localhost:3000",
   `http://localhost:${PORT}`,
   `http://127.0.0.1:${PORT}`,
+  "http://elghonemydemo.kiko-tech.com",
 ];
 
 console.log(`>>> [CORS] Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
