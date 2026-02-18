@@ -4,10 +4,8 @@ import { deliveryService } from "../../services/deliveryService";
 import { branchService } from "../../services/branchService";
 import AuthService from "../../services/authService";
 import { validateEgyptianPhone } from "../../utils/validationUtils";
-import toast from "react-hot-toast";
-import DeliverySettlementModal from "./DeliverySettlementModal";
 
-const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data }) => {
+const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   // Calculate next ID if creating new delivery man
   const nextId =
     data && data.length > 0
@@ -48,10 +46,20 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
+    // Phone validation
     const phoneValidation = validateEgyptianPhone(formData.phone);
     if (!phoneValidation.isValid) {
-      toast.error(phoneValidation.message);
+      if (showToast) {
+        showToast(phoneValidation.message, "error");
+      }
       return;
     }
 
@@ -73,6 +81,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -248,22 +257,6 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data }) => {
 };
 
 const DeliveryMenPage = () => {
-  const [selectedDeliveryMan, setSelectedDeliveryMan] = useState(null);
-  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  const handleSettleClick = (deliveryMan) => {
-    setSelectedDeliveryMan(deliveryMan);
-    setIsSettlementModalOpen(true);
-  };
-
-  const handleSettleSubmit = async (data) => {
-    await deliveryService.settle(data);
-    toast.success("تمت التسوية بنجاح");
-    setRefreshTrigger((prev) => prev + 1); // Refresh the table
-    setIsSettlementModalOpen(false);
-  };
-
   const columns = [
     {
       header: "الرقم",
@@ -334,19 +327,6 @@ const DeliveryMenPage = () => {
       },
     },
     {
-      header: "إجراءات التسوية",
-      accessor: "actions",
-      render: (item) => (
-        <button
-          onClick={() => handleSettleClick(item)}
-          disabled={!item.isActive}
-          className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:text-green-400 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-          <span className="material-icons-round text-sm">payments</span>
-          تسوية
-        </button>
-      ),
-    },
-    {
       header: "رقم الهاتف",
       accessor: "phone",
       render: (item) => (
@@ -382,28 +362,16 @@ const DeliveryMenPage = () => {
   ];
 
   return (
-    <>
-      <GenericPageManager
-        key={refreshTrigger} // Force re-mount to refresh data
-        title="إدارة الطيارين"
-        subtitle="قائمة بجميع الطيارين المسجلين في النظام"
-        icon="delivery_dining"
-        service={deliveryService}
-        columns={columns}
-        FormComponent={DeliveryManForm}
-        emptyMessage="لا يوجد طيارين."
-        hideAddButton={!AuthService.hasPermission("CREATES_DELIVERY_MEN")}
-        className="pb-20" // Add padding for bottom
-      />
-
-      {isSettlementModalOpen && (
-        <DeliverySettlementModal
-          deliveryMan={selectedDeliveryMan}
-          onClose={() => setIsSettlementModalOpen(false)}
-          onSettle={handleSettleSubmit}
-        />
-      )}
-    </>
+    <GenericPageManager
+      title="إدارة الطيارين"
+      subtitle="قائمة بجميع الطيارين المسجلين في النظام"
+      icon="delivery_dining"
+      service={deliveryService}
+      columns={columns}
+      FormComponent={DeliveryManForm}
+      emptyMessage="لا يوجد طيارين."
+      hideAddButton={!AuthService.hasPermission("CREATES_DELIVERY_MEN")}
+    />
   );
 };
 

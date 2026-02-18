@@ -40,7 +40,13 @@ router.get(
         // Enforce branch access if not filtering by specific branch
         const branchFilter = await getUserBranchFilter(req.user.id);
         if (branchFilter) {
-          whereClause.branchId = branchFilter.id;
+          if (branchFilter.id.in) {
+            // Multi-branch user (e.g., General Manager)
+            whereClause.branchId = { in: branchFilter.id.in };
+          } else {
+            // Single-branch user
+            whereClause.branchId = branchFilter.id;
+          }
         }
       }
 
@@ -229,10 +235,14 @@ router.post("/start", async (req, res, next) => {
 
     // Validate Branch Access
     const branchFilter = await getUserBranchFilter(req.user.id);
-    if (branchFilter && branchFilter.id !== parseInt(branchId)) {
-      return res.status(403).json({
-        error: "Access denied. You cannot start a shift in this branch.",
-      });
+    if (branchFilter) {
+      // Handle both single ID and IN clause
+      const allowedIds = branchFilter.id.in || [branchFilter.id];
+      if (!allowedIds.includes(parseInt(branchId))) {
+        return res.status(403).json({
+          error: "Access denied. You cannot start a shift in this branch.",
+        });
+      }
     }
 
     // Determine shift type based on time
@@ -368,6 +378,38 @@ router.post("/end", async (req, res, next) => {
       },
     });
 
+    // Check for pending delivery orders (WARNING, not blocking)
+    const pendingDeliveryOrders = await prisma.sale.findMany({
+      where: {
+        shiftId: parseInt(shiftId),
+        deliveryStatus: "OUT_FOR_DELIVERY",
+      },
+      include: {
+        deliveryMan: { select: { id: true, name: true } },
+      },
+    });
+
+    // Group by delivery man
+    const deliveryWarnings = [];
+    if (pendingDeliveryOrders.length > 0) {
+      const grouped = {};
+      pendingDeliveryOrders.forEach((order) => {
+        const driverId = order.deliveryMan?.id || "unknown";
+        const driverName = order.deliveryMan?.name || "Unknown";
+        if (!grouped[driverId]) {
+          grouped[driverId] = {
+            driverId,
+            driverName,
+            orderCount: 0,
+            totalAmount: 0,
+          };
+        }
+        grouped[driverId].orderCount++;
+        grouped[driverId].totalAmount += parseFloat(order.total || 0);
+      });
+      deliveryWarnings.push(...Object.values(grouped));
+    }
+
     // Return extended info for frontend
     res.json({
       ...updatedShift,
@@ -377,6 +419,8 @@ router.post("/end", async (req, res, next) => {
         cashExpenses,
         systemExpectedCash,
       },
+      deliveryWarnings: deliveryWarnings.length > 0 ? deliveryWarnings : null,
+      hasPendingDeliveries: deliveryWarnings.length > 0,
     });
   } catch (error) {
     next(error);
@@ -416,29 +460,47 @@ router.post("/approve", async (req, res, next) => {
     }
 
     // CHECK FOR PENDING DELIVERY SETTLEMENTS
-    const pendingDeliveryOrders = await prisma.sale.count({
+    const pendingDeliveryOrders = await prisma.sale.findMany({
       where: {
         shiftId: parseInt(shiftId),
         deliveryStatus: "OUT_FOR_DELIVERY",
       },
+      include: {
+        deliveryMan: { select: { name: true } },
+      },
     });
 
-    if (pendingDeliveryOrders > 0) {
+    if (pendingDeliveryOrders.length > 0) {
+      const pendingDetails = pendingDeliveryOrders.map((order) => ({
+        saleNumber: order.saleNumber,
+        deliveryMan: order.deliveryMan?.name || "Unknown",
+        amount: order.total,
+      }));
+
       return res.status(400).json({
         error: "Cannot close shift. There are pending delivery orders.",
-        message: `لا يمكن إغلاق الوردية. يوجد ${pendingDeliveryOrders} طلبات توصيل معلقة (لم يتم تسويتها).`,
-        pendingCount: pendingDeliveryOrders,
+        message: `لا يمكن إغلاق الوردية. يوجد ${pendingDeliveryOrders.length} طلبات توصيل معلقة (خرجت ولم يتم تسويتها).`,
+        pendingCount: pendingDeliveryOrders.length,
+        pendingOrders: pendingDetails,
       });
     }
 
     // Authenticate the manager
     const manager = await prisma.user.findUnique({
       where: { username: managerUsername },
-      include: { role: true },
+      include: {
+        role: true,
+        accessibleBranches: {
+          select: { id: true },
+        },
+      },
     });
 
     if (!manager) {
-      return res.status(401).json({ error: "Invalid manager credentials" });
+      return res.status(401).json({
+        error: "Invalid manager credentials",
+        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+      });
     }
 
     // Verify password
@@ -447,13 +509,24 @@ router.post("/approve", async (req, res, next) => {
       manager.password,
     );
     if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid manager credentials" });
+      return res.status(401).json({
+        error: "Invalid manager credentials",
+        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+      });
     }
 
-    // Verify manager is from same branch
-    if (manager.branchId !== shift.branchId) {
+    // Verify manager has access to this branch
+    const canAccessBranch =
+      manager.branchId === shift.branchId ||
+      (manager.accessibleBranches &&
+        manager.accessibleBranches.some((b) => b.id === shift.branchId)) ||
+      manager.role.name === "Superadmin"; // Superadmin can access all
+
+    if (!canAccessBranch) {
       return res.status(403).json({
-        error: "Access denied. Manager must be from the same branch.",
+        error:
+          "Access denied. You do not have permission to manage this branch.",
+        message: "عذراً، ليس لديك صلاحية لإدارة هذا الفرع",
       });
     }
 
@@ -463,11 +536,13 @@ router.post("/approve", async (req, res, next) => {
       manager.role.name === "Superadmin" ||
       manager.role.name === "Manager" ||
       manager.role.name === "Branch Manager" ||
-      manager.role.name === "Admin";
+      manager.role.name === "Admin" ||
+      manager.role.name === "General Manager";
 
     if (!isAuthorized) {
       return res.status(403).json({
         error: "Access denied. Only managers can approve shifts.",
+        message: "عذراً، هذه العملية متاحة للمديرين فقط",
       });
     }
 
@@ -521,8 +596,11 @@ router.get("/pending/:branchId", async (req, res, next) => {
 
     // Validate branch access
     const branchFilter = await getUserBranchFilter(req.user.id);
-    if (branchFilter && branchFilter.id !== branchId) {
-      return res.status(403).json({ error: "Access denied" });
+    if (branchFilter) {
+      const allowedIds = branchFilter.id.in || [branchFilter.id];
+      if (!allowedIds.includes(branchId)) {
+        return res.status(403).json({ error: "Access denied" });
+      }
     }
 
     // Check for ANY blocking shift (OPEN or PENDING_REVIEW)
@@ -568,8 +646,26 @@ router.get(
       }
 
       // Validate Branch Access for Report
-      const branchFilter = await getUserBranchFilter(req.user.id);
-      if (branchFilter && branchFilter.id !== shift.branchId) {
+      // Fetch user with role and accessible branches to verify access
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: {
+          role: true,
+          accessibleBranches: {
+            select: { id: true },
+          },
+        },
+      });
+
+      // Check if user has access to this shift's branch
+      const canAccessBranch =
+        user.branchId === shift.branchId ||
+        (user.accessibleBranches &&
+          user.accessibleBranches.some((b) => b.id === shift.branchId)) ||
+        user.role.name === "Superadmin" ||
+        user.role.name === "General Manager"; // General Manager can access all branches
+
+      if (!canAccessBranch) {
         return res.status(403).json({
           error: "Access denied. You cannot view reports for this branch.",
         });
@@ -587,6 +683,15 @@ router.get(
           items: {
             include: {
               item: {
+                include: {
+                  categories: {
+                    include: {
+                      category: true,
+                    },
+                  },
+                },
+              },
+              bom: {
                 include: {
                   categories: {
                     include: {
@@ -629,16 +734,30 @@ router.get(
 
         // Aggregate Items
         sale.items.forEach((saleItem) => {
-          const itemKey = saleItem.item.name;
-          const categoryName =
-            saleItem.item.categories.length > 0
-              ? saleItem.item.categories[0].category.name
-              : "أخرى";
+          let itemKey = "Unknown";
+          let categoryName = "أخرى";
+          let itemName = "Unknown Item";
+
+          if (saleItem.item) {
+            itemKey = saleItem.item.name;
+            itemName = saleItem.item.name;
+            categoryName =
+              saleItem.item.categories.length > 0
+                ? saleItem.item.categories[0].category.name
+                : "أخرى";
+          } else if (saleItem.bom) {
+            itemKey = saleItem.bom.name;
+            itemName = saleItem.bom.name;
+            categoryName =
+              saleItem.bom.categories.length > 0
+                ? saleItem.bom.categories[0].category.name
+                : "أخرى";
+          }
 
           if (!itemsMap.has(itemKey)) {
             itemsMap.set(itemKey, {
               type: categoryName,
-              name: saleItem.item.name,
+              name: itemName,
               count: 0,
               total: 0,
             });

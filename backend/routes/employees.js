@@ -22,8 +22,8 @@ router.get("/", async (req, res) => {
 
     const { startDate, endDate } = getMonthDateRange(currentMonth, currentYear);
 
-    const branchId = await getUserBranchFilter(req.user.id);
-    const whereClause = branchId ? { branchId } : {};
+    const branchFilter = await getUserBranchFilter(req.user.id);
+    const whereClause = branchFilter ? { branch: branchFilter } : {};
 
     const employees = await prisma.employee.findMany({
       where: whereClause,

@@ -3,9 +3,8 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { supplierService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { validateEgyptianPhone } from "../../utils/validationUtils";
-import toast from "react-hot-toast";
 
-const SupplierForm = ({ initialData, onClose, onSave, data }) => {
+const SupplierForm = ({ initialData, onClose, onSave, data, showToast }) => {
   // Calculate next ID if creating new supplier
   const nextId =
     data && data.length > 0
@@ -26,10 +25,20 @@ const SupplierForm = ({ initialData, onClose, onSave, data }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
+    // Phone validation
     const phoneValidation = validateEgyptianPhone(formData.phone);
     if (!phoneValidation.isValid) {
-      toast.error(phoneValidation.message);
+      if (showToast) {
+        showToast(phoneValidation.message, "error");
+      }
       return;
     }
 
@@ -46,7 +55,7 @@ const SupplierForm = ({ initialData, onClose, onSave, data }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6">
+    <form onSubmit={handleSubmit} noValidate className="grid grid-cols-1 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
           الرقم التعريفي
@@ -98,6 +107,7 @@ const SupplierForm = ({ initialData, onClose, onSave, data }) => {
             dir="ltr"
             placeholder="01xxxxxxxxx"
             type="tel"
+            required
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             call

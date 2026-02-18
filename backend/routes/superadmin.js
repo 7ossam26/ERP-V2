@@ -36,6 +36,12 @@ router.get("/users", async (req, res) => {
             name: true,
           },
         },
+        accessibleBranches: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },
@@ -65,7 +71,7 @@ router.post("/users", createUserValidation, async (req, res) => {
     }
 
 
-    const { name, username, password, roleId, branchId } = req.body;
+    const { name, username, password, roleId, branchId, accessibleBranchIds } = req.body;
 
     // Get role to determine permissions and validation
     const role = await prisma.role.findUnique({
@@ -76,7 +82,7 @@ router.post("/users", createUserValidation, async (req, res) => {
       return res.status(400).json({ error: "Invalid role selected" });
     }
 
-    const isGlobalRole = ["Superadmin", "Admin"].includes(role.name);
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role.name);
 
     if (!isGlobalRole && !branchId) {
       return res.status(400).json({ error: "Branch is required for this role" });
@@ -94,7 +100,13 @@ router.post("/users", createUserValidation, async (req, res) => {
     let hasSensitiveAccess =
       req.body.hasSensitiveAccess !== undefined
         ? req.body.hasSensitiveAccess
-        : ["Superadmin", "Admin", "Manager"].includes(role.name);
+        : ["Superadmin", "Admin", "Manager", "General Manager"].includes(role.name);
+
+    // Prepare accessible branches connect
+    const accessibleBranchesConnect =
+      Array.isArray(accessibleBranchIds) && accessibleBranchIds.length > 0
+        ? accessibleBranchIds.map(id => ({ id: parseInt(id) }))
+        : [];
 
     const newUser = await prisma.user.create({
       data: {
@@ -105,9 +117,13 @@ router.post("/users", createUserValidation, async (req, res) => {
         branchId: branchId ? parseInt(branchId) : null,
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
         hasSensitiveAccess: hasSensitiveAccess,
+        accessibleBranches: {
+          connect: accessibleBranchesConnect
+        }
       },
       include: {
         role: true,
+        accessibleBranches: true
       },
     });
 
@@ -125,7 +141,7 @@ router.post("/users", createUserValidation, async (req, res) => {
 router.put("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, username, roleId, branchId, password } = req.body;
+    const { name, username, roleId, branchId, password, accessibleBranchIds } = req.body;
 
     // Get role information if it's being updated or checking current role
     let roleToCheckId = roleId;
@@ -138,7 +154,7 @@ router.put("/users/:id", async (req, res) => {
       where: { id: parseInt(roleToCheckId) }
     });
 
-    const isGlobalRole = ["Superadmin", "Admin"].includes(role?.name);
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role?.name);
 
     // Validate Branch requirement
     if (!branchId && !isGlobalRole && roleId) { // Only enforce if role is explicitly being set/checked
@@ -171,6 +187,17 @@ router.put("/users/:id", async (req, res) => {
       data.password = await bcrypt.hash(password, 10);
     }
 
+    // Handle accessible branches update if provided
+    if (accessibleBranchIds !== undefined) {
+      const branchesToConnect = Array.isArray(accessibleBranchIds)
+        ? accessibleBranchIds.map(bid => ({ id: parseInt(bid) }))
+        : [];
+
+      data.accessibleBranches = {
+        set: branchesToConnect // Replace existing with new list
+      };
+    }
+
     // Prevent deactivating self
     if (req.body.isActive === false && parseInt(id) === req.user.id) {
       return res
@@ -181,6 +208,7 @@ router.put("/users/:id", async (req, res) => {
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(id) },
       data,
+      include: { accessibleBranches: true } // Include in response
     });
 
     res.json(updatedUser);

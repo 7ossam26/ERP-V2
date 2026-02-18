@@ -8,7 +8,10 @@ const toFrontend = (backendData) => ({
   name: backendData.name,
   code: backendData.code || backendData.id,
   price: backendData.price,
+  costPrice: backendData.costPrice,
   unit: backendData.unit,
+  reorderPoint: backendData.reorderPoint,
+  showInPos: backendData.showInPos,
   suppliers: backendData.suppliers?.map((s) => s.supplier.id) || [],
   categories: backendData.categories?.map((c) => c.category.id) || [],
   createdAt: backendData.createdAt,
@@ -48,11 +51,15 @@ export const itemService = {
     const backendData = {
       name: itemData.name,
       price: Number(itemData.price) || 0,
+      costPrice: Number(itemData.costPrice) || 0,
       unit: itemData.unit || "piece",
-      reorderPoint: Number(itemData.reorderPoint) || 10,
+      reorderPoint: Number(itemData.reorderPoint ?? 10),
+      showInPos: itemData.showInPos !== false,
       // Deduplicate and ensure numbers for suppliers
       suppliers: itemData.suppliers
-        ? [...new Set(itemData.suppliers.map((id) => parseInt(id)))].filter((id) => !isNaN(id))
+        ? [...new Set(itemData.suppliers.map((id) => parseInt(id)))].filter(
+          (id) => !isNaN(id),
+        )
         : [],
       categories: itemData.categories,
     };
@@ -70,7 +77,10 @@ export const itemService = {
     const backendData = {
       name: updates.name,
       price: updates.price,
+      costPrice: updates.costPrice,
       unit: updates.unit,
+      reorderPoint: updates.reorderPoint,
+      showInPos: updates.showInPos,
       suppliers: updates.suppliers,
       categories: updates.categories,
     };

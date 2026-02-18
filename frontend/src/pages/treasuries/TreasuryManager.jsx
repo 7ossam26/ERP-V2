@@ -3,7 +3,7 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { treasuryService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 
-const TreasuryForm = ({ initialData, onClose, onSave, data = [] }) => {
+const TreasuryForm = ({ initialData, onClose, onSave, data = [], showToast }) => {
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
   });
@@ -27,6 +27,15 @@ const TreasuryForm = ({ initialData, onClose, onSave, data = [] }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
     await onSave(formData, !keepOpen);
 
     if (keepOpen) {
@@ -38,7 +47,7 @@ const TreasuryForm = ({ initialData, onClose, onSave, data = [] }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6">
+    <form onSubmit={handleSubmit} noValidate className="grid grid-cols-1 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
           الرقم التعريفي

@@ -7,7 +7,7 @@ import {
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 
-export const ItemForm = ({ initialData, onClose, onSave, data }) => {
+export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
   // Calculate next ID if creating new item
   const nextId =
     data && data.length > 0
@@ -19,10 +19,12 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
     name: initialData?.name || "",
     code: initialData?.code || "",
     price: initialData?.price || "",
+    costPrice: initialData?.costPrice || "",
     unit: initialData?.unit || "piece",
-    reorderPoint: initialData?.reorderPoint || 10,
+    reorderPoint: initialData?.reorderPoint ?? 10,
     suppliers: initialData?.suppliers || [],
     categories: initialData?.categories || [],
+    showInPos: initialData?.showInPos ?? true,
   });
   const [availableSuppliers, setAvailableSuppliers] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
@@ -41,7 +43,11 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleSupplierChange = (supplierId) => {
@@ -74,6 +80,15 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Manual Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
     await onSave(formData, !keepOpen);
     if (keepOpen) {
       setFormData((prev) => ({
@@ -89,6 +104,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -149,6 +165,26 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
       </div>
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          سعر التكلفة (الشراء)
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-right"
+            name="costPrice"
+            value={formData.costPrice}
+            onChange={handleChange}
+            dir="ltr"
+            placeholder="0.00"
+            type="number"
+            step="0.01"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            local_offer
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
           الوحدة
         </label>
         <div className="relative">
@@ -182,6 +218,27 @@ export const ItemForm = ({ initialData, onClose, onSave, data }) => {
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             notification_important
           </span>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          إظهار في نقطة البيع (POS)
+        </label>
+        <div className="relative flex items-center mt-3">
+          <label className="relative inline-flex items-center cursor-pointer group gap-3">
+            <input
+              type="checkbox"
+              name="showInPos"
+              checked={formData.showInPos}
+              onChange={handleChange}
+              className="sr-only peer"
+            />
+            <div className="relative w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/30 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+            <span className="text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:text-primary transition-colors">
+              {formData.showInPos ? "ظاهر في POS" : "مخفي من POS"}
+            </span>
+          </label>
         </div>
       </div>
 
@@ -334,6 +391,15 @@ const ItemManager = () => {
       ),
     },
     {
+      header: "التكلفة",
+      accessor: "costPrice",
+      render: (item) => (
+        <span className="font-bold text-gray-600 dark:text-gray-400">
+          {item.costPrice || 0} ج.م
+        </span>
+      ),
+    },
+    {
       header: "الوحدة",
       accessor: "unit",
       render: (item) => (
@@ -347,7 +413,20 @@ const ItemManager = () => {
       accessor: "reorderPoint",
       render: (item) => (
         <span className="text-gray-900 dark:text-white font-medium">
-          {item.reorderPoint || 10}
+          {item.reorderPoint ?? 10}
+        </span>
+      ),
+    },
+    {
+      header: "POS",
+      accessor: "showInPos",
+      render: (item) => (
+        <span
+          className={`px-2 py-1 rounded text-xs font-bold ${item.showInPos
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+            }`}>
+          {item.showInPos ? "ظاهر" : "مخفي"}
         </span>
       ),
     },

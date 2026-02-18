@@ -14,8 +14,19 @@ const MainLayout = ({ children }) => {
   const [user, setUser] = useState(AuthService.getCurrentUser());
 
   // Refresh user profile on navigation to ensure permissions are up to date
+  // We use a ref to track the last refresh time to avoid excessive API calls
+  const lastRefreshRef = React.useRef(0);
+
   useEffect(() => {
     const refreshUser = async () => {
+      const now = Date.now();
+      // Only refresh if more than 10 seconds have passed since last check
+      // This prevents excessive calls when navigating quickly
+      if (now - lastRefreshRef.current < 10000) {
+        return;
+      }
+
+      lastRefreshRef.current = now;
       const updatedUser = await AuthService.refreshProfile();
       if (updatedUser) {
         setUser(updatedUser);
@@ -51,15 +62,29 @@ const MainLayout = ({ children }) => {
       <nav className="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shadow-sm z-50 fixed top-0 w-full">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between h-16 sm:h-20 items-center relative">
-            {/* Home Page Button - Icon only on mobile */}
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
-              <span className="material-icons-round text-xl">home</span>
-              <span className="text-sm font-semibold hidden sm:inline">
-                الصفحة الرئيسية
-              </span>
-            </Link>
+            <div className="flex items-center gap-2">
+              {/* Back Button */}
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
+                <span className="material-icons-round text-xl">
+                  arrow_forward
+                </span>
+                <span className="text-sm font-semibold hidden sm:inline">
+                  رجوع
+                </span>
+              </button>
+
+              {/* Home Page Button - Icon only on mobile */}
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
+                <span className="material-icons-round text-xl">home</span>
+                <span className="text-sm font-semibold hidden sm:inline">
+                  الصفحة الرئيسية
+                </span>
+              </Link>
+            </div>
 
             <Link
               to="/dashboard"

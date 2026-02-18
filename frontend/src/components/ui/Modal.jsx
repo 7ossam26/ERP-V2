@@ -1,6 +1,6 @@
 import React, { Fragment, useEffect } from "react";
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, title, children, zIndex }) => {
   // Handle ESC key press to close modal
   useEffect(() => {
     const handleEscKey = (event) => {
@@ -19,7 +19,8 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 md:p-6"
+      className={`fixed inset-0 flex items-center justify-center p-0 sm:p-4 md:p-6 ${zIndex ? zIndex : "z-50"
+        }`}
       role="dialog"
       aria-modal="true">
       <div

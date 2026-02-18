@@ -115,21 +115,23 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-          maxAge: 31536000,
-          includeSubDomains: true,
-          preload: true,
-        }
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+          }
         : false, // Disable HSTS in development
   }),
 );
 
 // CORS configuration
-const allowedOrigins = process.env.FRONTEND_URL?.split(",") || [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:3000",
-  `http://localhost:${PORT}`,
-  `http://127.0.0.1:${PORT}`,
+const allowedOrigins = [
+  "https://elghonemydemo.kiko-tech.com",
+  "http://elghonemy.kiko-tech.com",
+  "https://elghonemy.kiko-tech.com",
+  "http://www.elghonemy.kiko-tech.com",
+  "https://www.elghonemy.kiko-tech.com",
+  "http://www.elghonemydemo.kiko-tech.com",
+  "https://www.elghonemydemo.kiko-tech.com",
 ];
 
 console.log(`>>> [CORS] Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
@@ -233,6 +235,7 @@ app.use("/api/deposits", require("./routes/deposits"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/delivery-men", require("./routes/delivery.routes"));
 app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
+app.use("/api/bom", require("./routes/bom"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
@@ -369,7 +372,10 @@ app.get("/api/setup-tables", async (req, res) => {
           migrationResult.push({ index: i, error: sqlErr.message });
         }
       }
-      res.json({ message: "Tables setup finished (via mysql2)", warnings: migrationResult });
+      res.json({
+        message: "Tables setup finished (via mysql2)",
+        warnings: migrationResult,
+      });
     } else {
       res.status(404).json({ error: "migration.sql not found" });
     }
@@ -405,9 +411,18 @@ app.get("/api/setup-seed", async (req, res) => {
 // ---------------------------------------
 
 // Serve Static Frontend Files (Production)
-// Note: 'path' is required at the top, but defining here for clarity in context if needed, though usually top-level is better.
-// We already added 'path' to top imports in previous step.
-const CLIENT_DIST_PATH = path.join(__dirname, "../frontend/dist");
+const CLIENT_DIST_PATH_PROD = path.join(__dirname, "client_dist");
+const CLIENT_DIST_PATH_LOCAL = path.join(__dirname, "../frontend/dist");
+
+let CLIENT_DIST_PATH = CLIENT_DIST_PATH_LOCAL; // Default fallback
+
+// Prioritize the production build folder (client_dist) if it exists
+if (fs.existsSync(CLIENT_DIST_PATH_PROD)) {
+  CLIENT_DIST_PATH = CLIENT_DIST_PATH_PROD;
+  console.log(`>>> [STATIC] Found production build at: ${CLIENT_DIST_PATH}`);
+} else {
+  console.log(`>>> [STATIC] fallback to local build at: ${CLIENT_DIST_PATH}`);
+}
 
 console.log(`>>> [STATIC] Checking for frontend build at: ${CLIENT_DIST_PATH}`);
 
@@ -435,7 +450,7 @@ console.log(">>> [BOOT] Calling app.listen...");
 const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
   console.log(
-    `📍 [SERVER] Health check available at: http://localhost:${PORT}/api/health`,
+    `📍 [SERVER] Health check available at: http://elghonemydemo.kiko-tech.com:${PORT}/api/health`,
   );
 });
 
@@ -453,3 +468,26 @@ process.on("uncaughtException", (error) => {
 
 // Force restart trigger
 console.log("🔄 Server updated");
+
+// --- GRACEFUL SHUTDOWN ---
+const gracefulShutdown = async (signal) => {
+  console.log(`>>> [SHUTDOWN] Received ${signal}. Closing server...`);
+
+  if (server) {
+    server.close(() => {
+      console.log(">>> [SHUTDOWN] HTTP server closed.");
+    });
+  }
+
+  try {
+    await prisma.$disconnect();
+    console.log(">>> [SHUTDOWN] Prisma client disconnected.");
+    process.exit(0);
+  } catch (err) {
+    console.error(">>> [SHUTDOWN] Error during disconnection:", err);
+    process.exit(1);
+  }
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));

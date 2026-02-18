@@ -13,9 +13,33 @@ if (!process.env.DATABASE_URL) {
   console.log(`🔌 [DB] Found DATABASE_URL: ${maskedUrl}`);
 }
 
+// Add connection pooling parameters for shared hosting optimization
+const baseUrl = process.env.DATABASE_URL;
+const urlWithPooling = baseUrl.includes('?')
+  ? `${baseUrl}&connection_limit=5&pool_timeout=20&connect_timeout=10`
+  : `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`;
+
+console.log("🔌 [DB] Connection pooling enabled: connection_limit=5, pool_timeout=20s, connect_timeout=10s");
+
 console.log("🔌 [DB] Creating PrismaClient instance...");
 const prisma = new PrismaClient({
   log: ['warn', 'error'], // Only log warnings and errors, not every query
+  datasources: {
+    db: {
+      url: urlWithPooling,
+    },
+  },
+  // Aggressive connection pooling for shared hosting
+  __internal: {
+    engine: {
+      cwd: process.cwd(),
+    },
+  },
+});
+
+// Add connection lifecycle logging
+prisma.$on('beforeExit', async () => {
+  console.log('🔌 [DB] Prisma is disconnecting...');
 });
 
 module.exports = prisma;

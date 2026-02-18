@@ -49,6 +49,8 @@ import ShiftManagementPage from "./pages/shifts/ShiftManagementPage";
 import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
 import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
 import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
+import DeliverySettlementPage from "./pages/delivery-settlement/DeliverySettlementPage";
+import BOMManager from "./pages/bom/BOMManager";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
@@ -56,6 +58,14 @@ import NotFoundPage from "./pages/NotFoundPage";
 
 import { seedData } from "./services/seedData";
 import SessionTimeoutWarning from "./components/SessionTimeoutWarning";
+import toast from "react-hot-toast";
+
+// Global override to suppress error toasts
+const originalError = toast.error;
+toast.error = (message, options) => {
+  console.log("Suppressed error toast:", message);
+  return "suppressed";
+};
 
 function App() {
   useEffect(() => {
@@ -383,6 +393,23 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="CREATES_DELIVERY_ZONES">
                 <DeliveryZonesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-settlement"
+            element={
+              <ProtectedRoute requiredPermission="DELIVERY_SETTLEMENT">
+                <DeliverySettlementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bom"
+            element={
+              <ProtectedRoute
+                requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
+                <BOMManager />
               </ProtectedRoute>
             }
           />

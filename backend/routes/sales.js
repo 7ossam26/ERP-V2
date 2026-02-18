@@ -60,7 +60,16 @@ router.get(
   async (req, res, next) => {
     try {
       const branchFilter = await getUserBranchFilter(req.user.id);
-      const whereClause = branchFilter ? { branchId: branchFilter.id } : {};
+      const whereClause = {};
+      if (branchFilter) {
+        if (branchFilter.id.in) {
+          // Multi-branch user (e.g., General Manager)
+          whereClause.branchId = { in: branchFilter.id.in };
+        } else {
+          // Single-branch user
+          whereClause.branchId = branchFilter.id;
+        }
+      }
 
       const sales = await prisma.sale.findMany({
         where: whereClause,
@@ -147,7 +156,13 @@ router.get(
 
       // Add branch filter if applicable
       if (branchFilter) {
-        whereClause.branchId = branchFilter.id;
+        if (branchFilter.id.in) {
+          // Multi-branch user (e.g., General Manager)
+          whereClause.branchId = { in: branchFilter.id.in };
+        } else {
+          // Single-branch user
+          whereClause.branchId = branchFilter.id;
+        }
       }
 
       const sales = await prisma.sale.findMany({
@@ -171,7 +186,7 @@ router.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 // GET sale by sale number - Requires SALES or POS permission
@@ -429,12 +444,22 @@ router.post(
             status: status || "COMPLETED",
             notes,
             items: {
-              create: items.map((item) => ({
-                itemId: parseInt(item.itemId),
-                quantity: parseFloat(item.quantity),
-                unitPrice: parseFloat(item.unitPrice),
-                total: parseFloat(item.total),
-              })),
+              create: items.map((item) => {
+                const isBomOnly = String(item.itemId).startsWith("bom_");
+                const bomId = item.bomId
+                  ? parseInt(item.bomId)
+                  : isBomOnly
+                    ? parseInt(String(item.itemId).replace("bom_", ""))
+                    : null;
+                const itemId = isBomOnly ? null : parseInt(item.itemId);
+                return {
+                  itemId,
+                  bomId,
+                  quantity: parseFloat(item.quantity),
+                  unitPrice: parseFloat(item.unitPrice),
+                  total: parseFloat(item.total),
+                };
+              }),
             },
           },
           include: {
@@ -462,20 +487,55 @@ router.post(
           sale.deliveryStatus === "OUT_FOR_DELIVERY" && sale.deliveryManId;
 
         if (isDeliveryOrder) {
-          const totalDebt = parseFloat(total) + (deliveryFee ? parseFloat(deliveryFee) : 0);
-          console.log(`🚚 Delivery order detected. Adding to Driver Wallet: ${totalDebt} (Total: ${total} + Fee: ${deliveryFee})`);
+          // ---------------------------------------------------------
+          // NEW: Driver Share Logic
+          // ---------------------------------------------------------
+          let driverShare = 0;
+          let netDebt = 0;
+
+          // 1. Fetch Delivery Zone to get the share config
+          if (sale.deliveryZoneId) {
+            const zone = await tx.deliveryZone.findUnique({
+              where: { id: sale.deliveryZoneId },
+            });
+            if (zone && zone.driverShare) {
+              driverShare = Number(zone.driverShare);
+            }
+          }
+
+          // 2. Update Sale with the calculated share
+          if (driverShare > 0) {
+            await tx.sale.update({
+              where: { id: sale.id },
+              data: { deliveryDriverShare: driverShare },
+            });
+          }
+
+          // 3. Calculate Net Debt for Driver's Wallet
+          // Total Cash Held by Driver = Order Total (which includes delivery fee)
+          // Driver Earns = driverShare
+          // Driver Owes = Total Cash Held - Driver Earns
+          const totalCashHeld = parseFloat(total);
+          netDebt = totalCashHeld - driverShare;
+
+          console.log(
+            `🚚 Delivery Order #${saleNumber} | Zone Share: ${driverShare}`,
+          );
+          console.log(
+            `💰 Driver Wallet Update: Held ${totalCashHeld} - Earned ${driverShare} = Net Debt ${netDebt}`,
+          );
 
           await tx.deliveryMan.update({
             where: { id: parseInt(sale.deliveryManId) },
-            data: { walletBalance: { increment: totalDebt } },
+            data: { walletBalance: { increment: netDebt } },
           });
 
           await tx.deliveryManTransaction.create({
             data: {
               deliveryManId: parseInt(sale.deliveryManId),
-              amount: parseFloat(total),
+              amount: netDebt, // Recording the DEBT amount (what he owes us)
               type: "DEBT_ACCRUED",
-              description: `Order #${saleNumber} Debt`,
+              description: `Order #${saleNumber} Debt (Share deducted: ${driverShare})`,
               createdById: finalUserId || null,
             },
           });
@@ -514,49 +574,138 @@ router.post(
           console.log(`ℹ️ Payment is ${paymentMethod}. Balances NOT updated.`);
         }
 
-        // 3. Update Inventory & Check Stock
+        // 3. Update Inventory & Check Stock (BOM-aware)
         for (const item of items) {
-          const inventory = await tx.inventory.findUnique({
-            where: {
-              itemId_warehouseId: {
-                itemId: parseInt(item.itemId),
-                warehouseId: warehouseId,
-              },
-            },
-            include: { item: true },
-          });
+          const isBomOnly = String(item.itemId).startsWith("bom_");
+          const saleItemId = isBomOnly ? null : parseInt(item.itemId);
+          const saleBomId = item.bomId
+            ? parseInt(item.bomId)
+            : isBomOnly
+              ? parseInt(String(item.itemId).replace("bom_", ""))
+              : null;
+          const saleQty = parseFloat(item.quantity);
 
-          if (!inventory || inventory.quantity < item.quantity) {
-            const itemName = inventory?.item?.name || `Item #${item.itemId}`;
-            const available = inventory ? inventory.quantity : 0;
-            const error = new Error(
-              `Insufficient stock for ${itemName}. Available: ${available}, Requested: ${item.quantity}`,
-            );
-            error.resolution = `Check the inventory for ${itemName} or reduce the quantity. You may also need to create a purchase order to restock.`;
-            throw error;
+          // Find BOM: first by explicit bomId, then by outputItemId
+          let bom = null;
+          if (saleBomId) {
+            bom = await tx.bOM.findUnique({
+              where: { id: saleBomId },
+              include: { items: { include: { item: true } } },
+            });
+          }
+          if (!bom && saleItemId) {
+            bom = await tx.bOM.findFirst({
+              where: {
+                outputItemId: saleItemId,
+                isActive: true,
+              },
+              include: { items: { include: { item: true } } },
+            });
           }
 
-          // Decrement stock
-          const updatedInventory = await tx.inventory.update({
-            where: {
-              itemId_warehouseId: {
-                itemId: parseInt(item.itemId),
-                warehouseId: warehouseId,
-              },
-            },
-            data: { quantity: { decrement: parseFloat(item.quantity) } },
-          });
-
-          // Check Low Stock Warning
-          if (updatedInventory.quantity <= (inventory.item.reorderPoint || 0)) {
-            // We can't easily return this from the transaction return value directly if we return 'sale'
-            // So we'll attach it to the sale object strictly for the response,
-            // or we handle warnings outside.
-            // Let's attach a temporary property to the result object.
-            if (!sale.warnings) sale.warnings = [];
-            sale.warnings.push(
-              `Low stock warning: ${inventory.item.name} is now at ${updatedInventory.quantity}`,
+          if (bom) {
+            // === BOM AUTO-CONSUMPTION ===
+            // Deduct raw materials instead of the finished product
+            const multiplier = saleQty / Number(bom.outputQuantity);
+            console.log(
+              `🏭 BOM Sale: ${bom.name} × ${saleQty} (multiplier: ${multiplier})`,
             );
+
+            for (const bomItem of bom.items) {
+              const materialQty = Number(bomItem.quantity) * multiplier;
+              const materialInventory = await tx.inventory.findUnique({
+                where: {
+                  itemId_warehouseId: {
+                    itemId: bomItem.itemId,
+                    warehouseId: warehouseId,
+                  },
+                },
+                include: { item: true },
+              });
+
+              if (
+                !materialInventory ||
+                Number(materialInventory.quantity) < materialQty
+              ) {
+                const matName = bomItem.item.name;
+                const available = materialInventory
+                  ? Number(materialInventory.quantity)
+                  : 0;
+                const error = new Error(
+                  `Insufficient raw material: ${matName}. Available: ${available}, Required: ${materialQty.toFixed(2)}`,
+                );
+                error.resolution = `Check the inventory for raw material "${matName}" or reduce the quantity. You may need to purchase more stock.`;
+                throw error;
+              }
+
+              // Decrement raw material stock
+              const updatedMaterialInv = await tx.inventory.update({
+                where: {
+                  itemId_warehouseId: {
+                    itemId: bomItem.itemId,
+                    warehouseId: warehouseId,
+                  },
+                },
+                data: { quantity: { decrement: materialQty } },
+              });
+
+              console.log(
+                `   📦 Deducted ${materialQty.toFixed(2)} of ${bomItem.item.name} (remaining: ${updatedMaterialInv.quantity})`,
+              );
+
+              // Low stock warning for raw materials
+              if (
+                Number(updatedMaterialInv.quantity) <=
+                (bomItem.item.reorderPoint || 0)
+              ) {
+                if (!sale.warnings) sale.warnings = [];
+                sale.warnings.push(
+                  `Low stock warning: ${bomItem.item.name} is now at ${updatedMaterialInv.quantity}`,
+                );
+              }
+            }
+          } else if (saleItemId) {
+            // === DIRECT ITEM DEDUCTION (no BOM, only if we have a real itemId) ===
+            const inventory = await tx.inventory.findUnique({
+              where: {
+                itemId_warehouseId: {
+                  itemId: saleItemId,
+                  warehouseId: warehouseId,
+                },
+              },
+              include: { item: true },
+            });
+
+            if (!inventory || inventory.quantity < item.quantity) {
+              const itemName = inventory?.item?.name || `Item #${item.itemId}`;
+              const available = inventory ? inventory.quantity : 0;
+              const error = new Error(
+                `Insufficient stock for ${itemName}. Available: ${available}, Requested: ${item.quantity}`,
+              );
+              error.resolution = `Check the inventory for ${itemName} or reduce the quantity. You may also need to create a purchase order to restock.`;
+              throw error;
+            }
+
+            // Decrement stock
+            const updatedInventory = await tx.inventory.update({
+              where: {
+                itemId_warehouseId: {
+                  itemId: saleItemId,
+                  warehouseId: warehouseId,
+                },
+              },
+              data: { quantity: { decrement: saleQty } },
+            });
+
+            // Check Low Stock Warning
+            if (
+              updatedInventory.quantity <= (inventory.item.reorderPoint || 0)
+            ) {
+              if (!sale.warnings) sale.warnings = [];
+              sale.warnings.push(
+                `Low stock warning: ${inventory.item.name} is now at ${updatedInventory.quantity}`,
+              );
+            }
           }
         }
 
@@ -678,13 +827,23 @@ router.put(
 
           if (items.length > 0) {
             await prisma.saleItem.createMany({
-              data: items.map((item) => ({
-                saleId,
-                itemId: parseInt(item.itemId),
-                quantity: parseFloat(item.quantity),
-                unitPrice: parseFloat(item.unitPrice),
-                total: parseFloat(item.total),
-              })),
+              data: items.map((item) => {
+                const isBomOnly = String(item.itemId).startsWith("bom_");
+                const bomId = item.bomId
+                  ? parseInt(item.bomId)
+                  : isBomOnly
+                    ? parseInt(String(item.itemId).replace("bom_", ""))
+                    : null;
+                const itemId = isBomOnly ? null : parseInt(item.itemId);
+                return {
+                  saleId,
+                  itemId,
+                  bomId,
+                  quantity: parseFloat(item.quantity),
+                  unitPrice: parseFloat(item.unitPrice),
+                  total: parseFloat(item.total),
+                };
+              }),
             });
           }
         }
@@ -772,7 +931,7 @@ router.post(
       }
 
       // Check if manager has appropriate role
-      const allowedRoles = ["Superadmin", "Manager", "Branch Manager"];
+      const allowedRoles = ["Superadmin", "Manager", "Branch Manager", "General Manager"];
       const isAuthorized = allowedRoles.includes(manager.role.name);
 
       if (!isAuthorized) {
@@ -833,23 +992,62 @@ router.post(
             parseFloat(originalItem.unitPrice) *
             parseFloat(refundItem.quantity);
 
-          // Restore inventory
-          await tx.inventory.upsert({
+          // Restore inventory (BOM-aware)
+          const refundItemId = parseInt(refundItem.itemId);
+          const refundQty = parseFloat(refundItem.quantity);
+
+          // Check if this item has an active BOM
+          const bom = await tx.bOM.findFirst({
             where: {
-              itemId_warehouseId: {
-                itemId: parseInt(refundItem.itemId),
-                warehouseId: originalSale.warehouseId,
-              },
+              outputItemId: refundItemId,
+              isActive: true,
             },
-            update: {
-              quantity: { increment: parseFloat(refundItem.quantity) },
-            },
-            create: {
-              itemId: parseInt(refundItem.itemId),
-              warehouseId: originalSale.warehouseId,
-              quantity: parseFloat(refundItem.quantity),
+            include: {
+              items: true,
             },
           });
+
+          if (bom) {
+            // === BOM REFUND: Restore raw materials ===
+            const multiplier = refundQty / Number(bom.outputQuantity);
+            for (const bomItem of bom.items) {
+              const materialQty = Number(bomItem.quantity) * multiplier;
+              await tx.inventory.upsert({
+                where: {
+                  itemId_warehouseId: {
+                    itemId: bomItem.itemId,
+                    warehouseId: originalSale.warehouseId,
+                  },
+                },
+                update: {
+                  quantity: { increment: materialQty },
+                },
+                create: {
+                  itemId: bomItem.itemId,
+                  warehouseId: originalSale.warehouseId,
+                  quantity: materialQty,
+                },
+              });
+            }
+          } else {
+            // === DIRECT REFUND (no BOM) ===
+            await tx.inventory.upsert({
+              where: {
+                itemId_warehouseId: {
+                  itemId: refundItemId,
+                  warehouseId: originalSale.warehouseId,
+                },
+              },
+              update: {
+                quantity: { increment: refundQty },
+              },
+              create: {
+                itemId: refundItemId,
+                warehouseId: originalSale.warehouseId,
+                quantity: refundQty,
+              },
+            });
+          }
         }
 
         // Calculate tax and total

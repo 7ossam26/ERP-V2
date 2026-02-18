@@ -3,9 +3,8 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { employeeService, branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { validateEgyptianPhone } from "../../utils/validationUtils";
-import toast from "react-hot-toast";
 
-const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
+const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   // Calculate next ID if creating new employee
   const nextId =
     data && data.length > 0
@@ -50,10 +49,20 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
+    // Phone validation
     const phoneValidation = validateEgyptianPhone(formData.phone);
     if (!phoneValidation.isValid) {
-      toast.error(phoneValidation.message);
+      if (showToast) {
+        showToast(phoneValidation.message, "error");
+      }
       return;
     }
 
@@ -75,6 +84,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">

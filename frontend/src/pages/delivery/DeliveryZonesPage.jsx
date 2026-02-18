@@ -3,8 +3,9 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { deliveryZoneService } from "../../services/deliveryZoneService";
 import { branchService } from "../../services/branchService";
 import AuthService from "../../services/authService";
+import toast from "react-hot-toast";
 
-const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
+const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   const [branches, setBranches] = useState([]);
 
   useEffect(() => {
@@ -22,6 +23,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     id: initialData?.id || nextId,
     name: initialData?.name || "",
     fee: initialData?.fee || "",
+    driverShare: initialData?.driverShare || 0,
     branchId: initialData?.branchId || "",
   });
   const [keepOpen, setKeepOpen] = useState(false);
@@ -36,6 +38,24 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
+    // Validate that driver share cannot exceed delivery fee
+    const parsedFee = parseFloat(formData.fee);
+    const parsedDriverShare = parseFloat(formData.driverShare || 0);
+
+    if (parsedDriverShare > parsedFee) {
+      toast.error("حصة الطيار لا يمكن أن تتجاوز رسوم التوصيل");
+      return;
+    }
+
     await onSave(formData, !keepOpen);
 
     if (keepOpen) {
@@ -44,6 +64,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
         id: parseInt(prev.id) + 1,
         name: "",
         fee: "",
+        driverShare: 0,
         // Keep branch sticky
       }));
     }
@@ -52,6 +73,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -137,6 +159,27 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             payments
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2 md:col-span-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          حصة الطيار (ج.م)
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+            name="driverShare"
+            value={formData.driverShare}
+            onChange={handleChange}
+            placeholder="أدخل حصة الطيار"
+            type="number"
+            step="0.01"
+            min="0"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            motorcycle
           </span>
         </div>
       </div>
@@ -234,13 +277,22 @@ const DeliveryZonesPage = () => {
       ),
     },
     {
+      header: "حصة الطيار",
+      accessor: "driverShare",
+      render: (item) => (
+        <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">
+          {parseFloat(item.driverShare || 0).toFixed(2)} ج.م
+        </span>
+      ),
+    },
+    {
       header: "الحالة",
       accessor: "isActive",
       render: (item) => (
         <span
           className={`px-3 py-1 rounded-full text-xs font-bold ${item.isActive
-              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
             }`}>
           {item.isActive ? "نشط" : "غير نشط"}
         </span>

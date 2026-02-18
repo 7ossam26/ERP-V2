@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaFilter,
   FaSearch,
@@ -6,6 +7,7 @@ import {
   FaCheck,
   FaEye,
   FaFileAlt,
+  FaTruck,
 } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import apiClient from "../../services/apiClient";
@@ -14,6 +16,7 @@ import ShiftApprovalModal from "./components/ShiftApprovalModal";
 import ShiftReportModal from "./components/ShiftReportModal";
 
 const ShiftManagementPage = () => {
+  const navigate = useNavigate();
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -121,6 +124,15 @@ const ShiftManagementPage = () => {
             متابعة ومراجعة ورديات الموظفين
           </p>
         </div>
+
+        {/* Quick Access Button */}
+        <button
+          onClick={() => navigate("/delivery-settlement")}
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg font-medium"
+          title="الانتقال إلى تسوية الطيارين">
+          <FaTruck className="text-lg" />
+          <span>تسوية الطيارين</span>
+        </button>
       </div>
 
       {/* Filters */}

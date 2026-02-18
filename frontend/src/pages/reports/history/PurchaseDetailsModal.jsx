@@ -1,7 +1,24 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import AuthService from "../../../services/authService";
+import { settingsService } from "../../../services/domainServices";
 
 const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
+  const [settings, setSettings] = useState(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await settingsService.get();
+        setSettings(data);
+      } catch (error) {
+        console.error("Failed to fetch settings for invoice print", error);
+      }
+    };
+    if (isOpen) {
+      fetchSettings();
+    }
+  }, [isOpen]);
+
   if (!purchase) return null;
 
   const getPaymentMethodLabel = (method) => {
@@ -21,13 +38,52 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
       {isOpen && (
         <>
           {/* Print Only Section */}
-          <div className="hidden print:block print:w-full p-8 bg-white text-black">
-            <div className="flex flex-col items-center mb-6 text-center">
-              <h1 className="text-3xl font-bold mb-2">فاتورة مشتريات</h1>
-              <h2 className="text-xl font-bold">#{purchase.id}</h2>
-              <p className="text-sm text-gray-600 mt-2">
-                التاريخ: {new Date(purchase.createdAt).toLocaleString("ar-EG")}
-              </p>
+          <div
+            className="hidden print:block print:w-full p-8 bg-white text-black"
+            dir="rtl">
+            {/* Header Section */}
+            <div className="flex justify-between items-start mb-8 border-b-2 border-gray-800 pb-6">
+              {/* Company Info (Right Side in RTL) */}
+              <div className="flex items-center gap-4">
+                <img
+                  src="/assets/logo.png"
+                  alt="Company Logo"
+                  className="h-24 w-auto object-contain"
+                  onError={(e) => (e.target.style.display = "none")}
+                />
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {settings?.companyName || "اسم الشركة"}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {/* Placeholder for Address if available in future */}
+                    تقرير تفصيلي
+                  </p>
+                </div>
+              </div>
+
+              {/* Invoice Info (Left Side in RTL) */}
+              <div className="text-left">
+                <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                  فاتورة مشتريات
+                </h1>
+                <div className="text-sm space-y-1 text-gray-600 font-medium">
+                  <p>
+                    <span className="font-bold text-gray-900">
+                      رقم الفاتورة:
+                    </span>{" "}
+                    #{purchase.id}
+                  </p>
+                  <p>
+                    <span className="font-bold text-gray-900">التاريخ:</span>{" "}
+                    {new Date(purchase.createdAt).toLocaleString("ar-EG")}
+                  </p>
+                  <p>
+                    <span className="font-bold text-gray-900">طبع بواسطة:</span>{" "}
+                    {AuthService.getCurrentUser()?.name || "مسؤول النظام"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-6 text-sm border-b-2 border-black pb-4">
@@ -129,11 +185,9 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
               </div>
             </div>
 
-            <div className="mt-8 flex justify-end text-sm text-gray-600 border-t pt-4">
-              <p>
-                طباعة بواسطة:{" "}
-                {AuthService.getCurrentUser()?.name || "مسؤول النظام"}
-              </p>
+            {/* Footer */}
+            <div className="mt-12 text-center text-sm text-gray-500 border-t border-gray-300 pt-4">
+              <p>تم استخراج هذه الفاتورة من النظام تلقائياً</p>
             </div>
           </div>
 

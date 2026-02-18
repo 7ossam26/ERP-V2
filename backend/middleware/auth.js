@@ -44,8 +44,8 @@ const isSuperadmin = (req, res, next) => {
 const requirePermission = (module) => {
   return async (req, res, next) => {
     try {
-      // Superadmin has all permissions
-      if (req.user.role === "Superadmin") {
+      // Superadmin and Admin have all permissions
+      if (req.user.role === "Superadmin" || req.user.role === "Admin") {
         return next();
       }
 
@@ -126,8 +126,8 @@ const requireAnyPermission = (modules) => {
 const requireCreatePermission = (createModule) => {
   return async (req, res, next) => {
     try {
-      // Superadmin has all permissions
-      if (req.user.role === "Superadmin") {
+      // Superadmin and Admin have all permissions
+      if (req.user.role === "Superadmin" || req.user.role === "Admin") {
         return next();
       }
 
@@ -202,6 +202,9 @@ const getUserBranchFilter = async (userId) => {
       where: { id: userId },
       include: {
         role: true, // Include role to check name
+        accessibleBranches: {
+          select: { id: true }
+        }
       },
     });
 
@@ -209,18 +212,33 @@ const getUserBranchFilter = async (userId) => {
       throw new Error("User not found");
     }
 
-    // Superadmin OR Admin sees ALL (return null)
-    if (user.role && (user.role.name === "Superadmin" || user.role.name === "Admin")) {
+    // Superadmin, Admin, OR General Manager sees ALL (return null)
+    if (user.role && (user.role.name === "Superadmin" || user.role.name === "Admin" || user.role.name === "General Manager")) {
       return null;
     }
 
-    // If user is not an admin and has no branch assigned, they see nothing
-    if (!user.branchId) {
+    // Collect all allowed branch IDs
+    const allowedBranchIds = [];
+    if (user.branchId) allowedBranchIds.push(user.branchId);
+    if (user.accessibleBranches && user.accessibleBranches.length > 0) {
+      user.accessibleBranches.forEach(b => allowedBranchIds.push(b.id));
+    }
+
+    // Remove duplicates
+    const uniqueIds = [...new Set(allowedBranchIds)];
+
+    // If user has no access to any branch
+    if (uniqueIds.length === 0) {
       return { id: 0 }; // Impossible ID, effectively returns empty list
     }
 
-    // Otherwise, return the branch ID to filter by
-    return { id: user.branchId };
+    // If only one branch, return simple filter
+    if (uniqueIds.length === 1) {
+      return { id: uniqueIds[0] };
+    }
+
+    // Return IN filter for multiple branches
+    return { id: { in: uniqueIds } };
   } catch (error) {
     console.error("Branch filter error:", error);
     throw error;

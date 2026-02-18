@@ -90,6 +90,15 @@ export const MODULES = [
     path: "/clients",
     category: "CREATION",
   },
+  {
+    id: "creates_production",
+    code: "CREATES_PRODUCTION",
+    label: "وصفات التصنيع",
+    description: "إدارة قوائم المواد (BOM)",
+    icon: "receipt",
+    path: "/bom",
+    category: "CREATION",
+  },
 
   // --- Management Modules (Main Dashboard) ---
   {
@@ -203,7 +212,7 @@ export const MODULES = [
   {
     id: "transfer_management",
     code: "TRANSFER_MANAGEMENT",
-    label: "إدارة التحويلات",
+    label: "إدارة تحويلات الخزائن",
     description: "قبول ورفض التحويلات",
     icon: "manage_accounts",
     path: "/transfer-management",
@@ -216,6 +225,15 @@ export const MODULES = [
     description: "متابعة الورديات والموافقة عليها",
     icon: "schedule",
     path: "/shifts",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "delivery_settlement",
+    code: "DELIVERY_SETTLEMENT",
+    label: "تسوية الطيارين",
+    description: "إدارة مديونيات الطيارين والتسويات",
+    icon: "motorcycle",
+    path: "/delivery-settlement",
     category: "MANAGEMENT",
   },
 ];

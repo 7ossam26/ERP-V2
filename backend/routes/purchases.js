@@ -21,15 +21,17 @@ router.get("/", async (req, res) => {
 
     let whereClause = {};
     if (branchId) {
-      // Find warehouse for this branch
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
+      // branchId is actually a filter object (e.g. { id: 1 } or { id: { in: [...] } })
+      const branches = await prisma.branch.findMany({
+        where: branchId,
         select: { warehouseId: true }
       });
-      if (branch && branch.warehouseId) {
-        whereClause = { warehouseId: branch.warehouseId };
+
+      const warehouseIds = branches.map((b) => b.warehouseId).filter((id) => id);
+
+      if (warehouseIds.length > 0) {
+        whereClause = { warehouseId: { in: warehouseIds } };
       } else {
-        // Should not happen for valid branch
         whereClause = { id: -1 }; // Force empty result
       }
     }
@@ -197,12 +199,20 @@ router.post("/", async (req, res) => {
         });
       }
 
-      // 2.5 Update Item Selling Price
+      // 2.5 Update Item Selling Price & Cost Price
       for (const item of items) {
+        const updateData = {};
         if (item.sellPrice && Number(item.sellPrice) > 0) {
+          updateData.price = Number(item.sellPrice);
+        }
+        if (item.purchasePrice && Number(item.purchasePrice) > 0) {
+          updateData.costPrice = Number(item.purchasePrice);
+        }
+
+        if (Object.keys(updateData).length > 0) {
           await prisma.item.update({
             where: { id: parseInt(item.itemId) },
-            data: { price: Number(item.sellPrice) },
+            data: updateData,
           });
         }
       }

@@ -9,21 +9,28 @@ router.use(authenticateToken, requirePermission("EXPENSES"));
 // GET all expenses
 router.get("/", async (req, res, next) => {
     try {
-        const branchId = await getUserBranchFilter(req.user.id);
+        const branchFilter = await getUserBranchFilter(req.user.id);
         const whereClause = {};
 
-        if (branchId) {
-            // Find the treasury associated with this branch
-            const branch = await prisma.branch.findUnique({
-                where: { id: branchId },
+        if (branchFilter) {
+            // Find the treasuries associated with these branches
+            const branches = await prisma.branch.findMany({
+                where: branchFilter,
                 select: { treasuryId: true }
             });
-            if (branch) {
-                whereClause.treasuryId = branch.treasuryId;
+
+            if (branches.length > 0) {
+                const treasuryIds = branches.map(b => b.treasuryId);
+                whereClause.treasuryId = { in: treasuryIds };
+            } else {
+                // User has branch access but no branches found (shouldn't happen technically due to auth middleware but good for safety)
+                // or branches have no treasuries
+                // Make sure we return nothing if we can't find relevant treasuries
+                whereClause.treasuryId = -1;
             }
         }
 
-        console.log(`🔍 Fetching expenses with whereClause: ${JSON.stringify(whereClause)} (User ID: ${req.user.id}, Branch ID: ${branchId})`);
+        console.log(`🔍 Fetching expenses with whereClause: ${JSON.stringify(whereClause)} (User ID: ${req.user.id}, Branch Filter: ${JSON.stringify(branchFilter)})`);
 
         const expenses = await prisma.expense.findMany({
             where: whereClause,

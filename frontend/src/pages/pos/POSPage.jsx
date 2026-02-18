@@ -7,6 +7,7 @@ import ShiftBlockedModal from "./ShiftBlockedModal";
 import EndShiftModal from "../../components/pos/EndShiftModal";
 import ShiftVerificationModal from "../../components/pos/ShiftVerificationModal";
 import DeliveryModal from "../../components/pos/DeliveryModal";
+import DeliveryDebtsModal from "../../components/pos/DeliveryDebtsModal";
 import Modal from "../../components/ui/Modal";
 import RefundModal from "./RefundModal";
 import OrdersHistoryModal from "./OrdersHistoryModal";
@@ -21,9 +22,10 @@ import {
   settingsService,
   shiftService,
   deliveryService,
+  bomService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
-import { confirmAction, showErrorToast } from "../../utils/toastUtils";
+import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -107,7 +109,12 @@ const POSPage = () => {
           `يوجد وردية مفتوحة بالفعل\n\n` +
           `👤 بدأها: ${user.name}\n` +
           `💰 رصيد البداية: ${activeShift.startCash || 0} ج.م`,
-          { duration: 5000, icon: "ℹ️", position: "top-center" },
+          {
+            duration: 5000,
+            icon: "ℹ️",
+            position: "top-center",
+            id: "active-shift-notification",
+          },
         );
       } else {
         // 2. User has no active shift. Check if the BRANCH is blocked by someone else.
@@ -190,6 +197,9 @@ const POSPage = () => {
     }
   };
 
+  const [isPendingDeliveriesModalOpen, setIsPendingDeliveriesModalOpen] =
+    useState(false);
+  const [pendingDeliveries, setPendingDeliveries] = useState(null);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -203,15 +213,21 @@ const POSPage = () => {
   // Delivery Modal State
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [deliveryData, setDeliveryData] = useState(null); // {riderId, riderName, zoneId, zoneName, zoneFee, address}
+  const [isDeliveryDebtsModalOpen, setIsDeliveryDebtsModalOpen] =
+    useState(false);
 
   useEffect(() => {
     const fetchDeliveryMen = async () => {
       try {
-        const data = await deliveryService.getAll();
-        setDeliveryMen(data || []); // Ensure it's always an array
+        const params = {};
+        if (currentUser?.branch?.id) {
+          params.branchId = currentUser.branch.id;
+        }
+        const data = await deliveryService.getAll(params);
+        setDeliveryMen(data || []);
       } catch (error) {
         console.error("Failed to fetch delivery men", error);
-        setDeliveryMen([]); // Set empty array on error
+        setDeliveryMen([]);
       }
     };
     fetchDeliveryMen();
@@ -252,6 +268,18 @@ const POSPage = () => {
       try {
         const fetchedClients = await clientService.getAll();
         setClients(fetchedClients);
+
+        // Auto-select "عميل عام" if no client is selected
+        if (!selectedClient) {
+          const defaultClient = fetchedClients.find(
+            (c) =>
+              c.name.includes("عميل عام"),
+          );
+          if (defaultClient) {
+            setSelectedClient(defaultClient);
+            // setClientSearchTerm(defaultClient.name); // Optional: if we want the input filled
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch clients", error);
       }
@@ -273,7 +301,8 @@ const POSPage = () => {
   const handleSelectClient = (client) => {
     setSelectedClient(client);
     setClientSearchTerm(client ? client.name : "");
-    setIsClientDropdownOpen(false);
+    setIsClientDropdownOpen(false)
+
     // On mobile, switch to cart to see client details if needed, or stay.
     // Usually selecting a client is part of cart operations.
   };
@@ -319,24 +348,90 @@ const POSPage = () => {
         }
       }
 
-      const [inventoryItems, dbCategories] = await Promise.all([
+      // FETCH DATA: Inventory (Stock Levels) + BOMs (Recipes)
+      // We need inventory to know stock of Raw Materials.
+      // We need BOMs to know what we can sell (Recipes).
+      const [inventoryItems, dbCategories, boms] = await Promise.all([
         inventoryService.getInventory({ warehouseId }),
         categoryService.getAll(),
+        bomService.getAll(),
       ]);
 
-      setProducts(inventoryItems);
+      // Map Inventory to a Helper Object for fast lookup
+      // inventoryItems contains items with their "current stock" in the selected warehouse (or total)
+      const inventoryMap = {}; // ItemID -> Quantity
+      inventoryItems.forEach((item) => {
+        inventoryMap[item.id] = item.quantity || 0;
+      });
+
+      // TRANSFORM BOMS TO PRODUCTS
+      // We treat each active BOM as a sellable product.
+      // The Quantity available is the "Max Possible Production" based on Raw Materials.
+      const bomProducts = boms
+        .filter((bom) => bom.isActive)
+        .map((bom) => {
+          // Calculate Max Production based on Raw Material Stock
+          const maxProduction = bom.items.reduce((min, bomItem) => {
+            const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
+            const requiredQty = bomItem.quantity;
+            if (requiredQty <= 0) return min;
+
+            const possible = rawMaterialQty / requiredQty;
+            return Math.min(min, possible);
+          }, Infinity);
+
+          const quantity =
+            maxProduction === Infinity
+              ? 0
+              : parseFloat(maxProduction.toFixed(2));
+
+          // Find linked Output Item for categories (if linked)
+          const outputItem = bom.outputItemId
+            ? inventoryItems.find((i) => i.id === bom.outputItemId)
+            : null;
+
+          // Map to Product Structure used by POS
+          return {
+            id: bom.outputItemId || `bom_${bom.id}`, // Use Item ID if linked, otherwise BOM ID
+            bomId: bom.id,
+            name: bom.name,
+            price: parseFloat(bom.price) || 0, // Use BOM's own price
+            purchasePrice: 0,
+            unit: bom.unit || "piece", // Use BOM's own unit
+            // Use BOM's own categories, fall back to output item categories
+            categories:
+              bom.categories?.map((bc) => bc.category || bc) ||
+              (outputItem ? outputItem.categories : []),
+            quantity: quantity,
+            hasBom: true,
+            showInPos: true,
+          };
+        });
+
+      // ALSO: Include Non-BOM items? (e.g. Water, Soda that are just bought/sold)
+      // The user wants to see "BOMs", but we shouldn't hide pure retail items unless requested.
+      // Strategy: Merge BOM Products + Inventory Items that DO NOT have a BOM.
+      // inventoryItems.hasBom is based on backend check (bomOutputs.length > 0)
+      const nonBomProducts = inventoryItems.filter((item) => !item.hasBom);
+
+      const distinctProducts = [...bomProducts, ...nonBomProducts];
+
+      setProducts(distinctProducts);
 
       // Build categories from database with "All" option
       const allCategories = [
         { id: "All", name: "كل المنتجات" },
-        ...dbCategories.map((cat) => ({
-          id: cat.id,
-          name: cat.name,
-        })),
+        ...dbCategories
+          .filter((cat) => cat.showInPos !== false)
+          .map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+          })),
       ];
       setCategories(allCategories);
     } catch (error) {
       console.error("Failed to fetch products and categories", error);
+      toast.error("فشل تحميل المنتجات: " + (error.message || "Unknown error"));
     }
   };
 
@@ -345,6 +440,9 @@ const POSPage = () => {
   }, []);
 
   const filteredProducts = products.filter((product) => {
+    // Check if product is allowed in POS
+    if (product.showInPos === false) return false;
+
     // Check if product belongs to selected category (many-to-many)
     const matchesCategory =
       activeCategory === "All" ||
@@ -411,7 +509,8 @@ const POSPage = () => {
     const existingQty = existingItem ? existingItem.quantity : 0;
     const totalRequested = existingQty + quantity;
 
-    if (totalRequested > currentStock) {
+    // Skip stock check for BOM items (auto-manufactured)
+    if (!product.hasBom && totalRequested > currentStock) {
       toast.error(`الكمية غير متوفرة! المتاح: ${currentStock}`);
       return false; // Return failure
     }
@@ -420,7 +519,7 @@ const POSPage = () => {
     const reorderPoint = product.reorderPoint || 0;
     const remainingAfterSale = currentStock - totalRequested;
 
-    if (remainingAfterSale <= reorderPoint) {
+    if (!product.hasBom && remainingAfterSale <= reorderPoint) {
       toast(`تحذير: المخزون سيصبح منخفض (${remainingAfterSale})`, {
         icon: "⚠️",
       });
@@ -532,6 +631,31 @@ const POSPage = () => {
 
       console.log("Shift ended:", updatedShift);
 
+      // CHECK FOR DELIVERY WARNINGS (SUCCESS RESPONSE)
+      if (updatedShift.deliveryWarnings && updatedShift.deliveryWarnings.length > 0) {
+        console.warn("⚠️ Delivery warnings detected:", updatedShift.deliveryWarnings);
+
+        // Format warnings into pendingOrders format for the modal
+        const formattedWarnings = updatedShift.deliveryWarnings.map((warning) => ({
+          deliveryMan: warning.driverName,
+          orderCount: warning.orderCount,
+          amount: warning.totalAmount,
+        }));
+
+        // Show warning modal
+        setIsEndShiftModalOpen(false); // Close the blind count modal
+        setPendingDeliveries(formattedWarnings);
+        setIsPendingDeliveriesModalOpen(true);
+
+        // Show a toast warning as well
+        toast.warning(
+          `تحذير: يوجد ${updatedShift.deliveryWarnings.length} طياريـن لديهم طلبات معلقة لم يتم تسويتها`,
+          { duration: 5000 }
+        );
+
+        return; // Don't redirect yet
+      }
+
       // Show detailed toast (Twist)
       const shortage = updatedShift.shortage;
       const amountColor =
@@ -622,6 +746,15 @@ const POSPage = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to end shift:", error);
+
+      // Check for pending deliveries error
+      if (error.response?.data?.pendingOrders) {
+        setIsEndShiftModalOpen(false); // Close the blind count modal
+        setPendingDeliveries(error.response.data.pendingOrders);
+        setIsPendingDeliveriesModalOpen(true); // Open the blocking modal
+        return;
+      }
+
       toast.error(error.response?.data?.error || "فشل إغلاق الوردية");
     }
   };
@@ -958,7 +1091,11 @@ const POSPage = () => {
     };
     setHeldCarts((prev) => [newHeldCart, ...prev]);
     setCartItems([]);
-    setSelectedClient(null);
+
+    // Reset to default client "عميل عام"
+    const defaultClient = clients.find((c) => c.name.includes("عميل عام"));
+    setSelectedClient(defaultClient || null);
+
     toast.success("تم تعليق الفاتورة بنجاح");
   };
 
@@ -1069,6 +1206,13 @@ const POSPage = () => {
         onClose={() => setIsEndShiftModalOpen(false)}
         onSubmit={handleBlindCashSubmit}
         systemExpectedCash={0} // Hidden in blind count
+      />
+
+      {/* Pending Deliveries Blocking Modal */}
+      <PendingDeliveriesModal
+        isOpen={isPendingDeliveriesModalOpen}
+        onClose={() => setIsPendingDeliveriesModalOpen(false)}
+        pendingOrders={pendingDeliveries}
       />
 
       {/* Manager Verification Modal (Step 2) */}
@@ -1226,6 +1370,13 @@ const POSPage = () => {
         branchId={currentUser?.branch?.id}
       />
 
+      <DeliveryDebtsModal
+        isOpen={isDeliveryDebtsModalOpen}
+        onClose={() => setIsDeliveryDebtsModalOpen(false)}
+        branchId={currentUser?.branch?.id}
+        currentShiftId={currentShiftId}
+      />
+
       {/* Header */}
       <div className="bg-primary dark:bg-primary text-white px-3 md:px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
         <div className="flex items-center gap-3 md:gap-6">
@@ -1269,6 +1420,15 @@ const POSPage = () => {
             className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
             <FaHistory />
             <span className="hidden md:inline">سجل الفواتير</span>
+          </button>
+
+          <button
+            onClick={() => setIsDeliveryDebtsModalOpen(true)}
+            className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-sm">
+              account_balance_wallet
+            </span>
+            <span className="hidden md:inline">ديون الطيارين</span>
           </button>
 
           <button
@@ -1429,7 +1589,8 @@ const POSPage = () => {
                       {product.name}
                     </h3>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">
-                      المتاح: {Number(product.quantity || 0)} {getArabicUnit(product.unit)}
+                      المتاح: {Number(product.quantity || 0)}{" "}
+                      {getArabicUnit(product.unit)}
                     </div>
                     <div className="mt-auto">
                       <span className="block text-primary dark:text-primary/90 font-bold text-base">
@@ -1491,6 +1652,36 @@ const POSPage = () => {
                   person
                 </span>
               </div>
+
+              {/* Display Address if selected */}
+              {selectedClient && (
+                <div className="mt-3 px-1">
+                  {selectedClient.address ? (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-3 flex items-start gap-3 transition-all animate-fade-in">
+                      <span className="material-symbols-outlined text-blue-500 text-lg mt-0.5">
+                        location_on
+                      </span>
+                      <div>
+                        <div className="text-xs text-blue-400 font-bold mb-0.5">
+                          العنوان
+                        </div>
+                        <div className="text-sm text-gray-700 dark:text-gray-200 leading-snug">
+                          {selectedClient.address}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 dark:bg-zinc-800 border-2 border-dashed border-gray-200 dark:border-zinc-700 rounded-lg p-3 flex items-center justify-center gap-2 text-gray-400 transition-all">
+                      <span className="material-symbols-outlined text-lg">
+                        location_off
+                      </span>
+                      <span className="text-xs font-medium">
+                        لا يوجد عنوان مسجل
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {isClientDropdownOpen && (
                 <>
@@ -1591,12 +1782,12 @@ const POSPage = () => {
                 {keypadMode === "default" && (
                   <div className="grid grid-cols-4 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
                     <button
-                      onClick={handlePrintClick}
+                      onClick={() => setIsClientModalOpen(true)}
                       className="flex flex-col items-center justify-center p-3 bg-[#6F4E37] hover:bg-[#5D4030] text-white transition-all duration-300 border-l border-white/10 group">
                       <span className="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">
-                        print
+                        person_add
                       </span>
-                      <span className="font-bold">طباعة</span>
+                      <span className="font-bold">تكويد عميل جديد</span>
                     </button>
                     <button
                       onClick={() => handleQuickPayment("cash")}
@@ -1616,8 +1807,13 @@ const POSPage = () => {
                     </button>
                     <button
                       onClick={() => {
-                        if (!selectedClient) {
-                          toast.error("يرجى اختيار العميل أولاً");
+                        // Check if no client selected OR if it's the default "General Customer"
+                        if (
+                          !selectedClient ||
+                          selectedClient.name.includes("عميل عام")
+                        ) {
+                          toast.error("يرجى اختيار عميل محدد للتوصيل");
+                          setIsClientDropdownOpen(true); // Open the dropdown
                           if (clientInputRef.current) {
                             clientInputRef.current.focus();
                           }
@@ -1659,12 +1855,12 @@ const POSPage = () => {
                 </div>
                 <div className="grid grid-cols-3 gap-0 border-b border-gray-200 dark:border-zinc-700 text-sm">
                   <button
-                    onClick={() => setIsClientModalOpen(true)}
+                    onClick={handlePrintClick}
                     className="flex flex-col items-center justify-center p-2 text-primary dark:text-primary-dark hover:bg-gray-100 dark:hover:bg-zinc-700 border-l border-gray-200 dark:border-zinc-700">
                     <span className="material-symbols-outlined mb-1">
-                      person_add
+                      print
                     </span>
-                    <span>تكويد عميل جديد</span>
+                    <span>طباعة</span>
                   </button>
                   <button
                     onClick={clearCart}
@@ -1686,7 +1882,9 @@ const POSPage = () => {
                     <span className="material-symbols-outlined mb-1">
                       {cartItems.length > 0 ? "pause_circle" : "history"}
                     </span>
-                    <span>{cartItems.length > 0 ? "تعليق" : "فواتير معلقة"}</span>
+                    <span>
+                      {cartItems.length > 0 ? "تعليق" : "فواتير معلقة"}
+                    </span>
                     {heldCarts.length > 0 && cartItems.length > 0 && (
                       <span className="absolute top-1 right-1 flex h-3 w-3">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -1898,7 +2096,11 @@ const POSPage = () => {
       <div id="thermal-receipt" className="hidden print:block">
         <div className="text-center mb-4">
           <div className="flex justify-center mb-2">
-            <img src="/assets/logo.png" alt="Logo" className="w-[50mm] h-auto object-contain" />
+            <img
+              src="/assets/logo.png"
+              alt="Logo"
+              className="w-[50mm] h-auto object-contain"
+            />
           </div>
           <h2 className="text-xl font-bold uppercase tracking-wider">
             {currentUser?.branch?.name || "Elghonemy ERP"}
@@ -1988,7 +2190,9 @@ const POSPage = () => {
             <span>الإجمالي</span>
             <span>
               {(
-                (cartItems.length > 0 ? total : parseFloat(lastSale?.total || 0)) +
+                (cartItems.length > 0
+                  ? total
+                  : parseFloat(lastSale?.total || 0)) +
                 parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0)
               ).toFixed(2)}{" "}
               ج.م
@@ -2027,7 +2231,7 @@ const POSPage = () => {
           <p className="text-[10px] mt-1">Elghonemy ERP System</p>
         </div>
       </div>
-    </div >
+    </div>
   );
 };
 
