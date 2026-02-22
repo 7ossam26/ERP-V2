@@ -7,7 +7,7 @@
     },
     "scripts": {
         "build": "cd frontend && npm install --include=dev && npm run build",
-        "start": "node backend/index.js",
+        "start": "npx prisma migrate deploy --schema=backend/prisma/schema.prisma && node backend/index.js",
         "dev": "concurrently \"npm run dev:backend\" \"npm run dev --prefix frontend\"",
         "dev:backend": "cd backend && cross-env NODE_ENV=development nodemon index.js",
         "postinstall": "cd  backend && npm install && npx prisma generate"
