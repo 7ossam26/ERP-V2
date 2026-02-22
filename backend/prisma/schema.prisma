@@ -39,6 +39,7 @@ model User {
   reviewedShifts      Shift[]               @relation("ShiftReviewer")
   refreshTokens       RefreshToken[]
   deposits            Deposit[]             @relation("DepositCreator")
+  withdrawals         Withdrawal[]          @relation("WithdrawalCreator")
   createdDeliveryTransactions DeliveryManTransaction[]
 
   @@map("users")
@@ -111,6 +112,8 @@ enum Module {
 
   DEPOSITS
   CREATES_DEPOSITS
+  WITHDRAWALS
+  CREATES_WITHDRAWALS
   DELIVERY_MEN
   CREATES_DELIVERY_MEN
   DELIVERY_ZONES
@@ -269,6 +272,7 @@ model Treasury {
   transfersIn      CashTransfer[]    @relation("TransfersTo")
   supplierPayments SupplierPayment[]
   deposits         Deposit[]
+  withdrawals      Withdrawal[]
 
   // Config Relations
   systemConfigAsMain SystemConfiguration[] @relation("ConfigMainTreasury")
@@ -817,6 +821,27 @@ model Deposit {
   createdBy User     @relation("DepositCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
   @@map("deposits")
+}
+
+// ============================================
+// Withdrawal Management
+// ============================================
+
+model Withdrawal {
+  id          Int      @id @default(autoincrement())
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?  @db.Text
+  date        DateTime @default(now()) @db.DateTime(0)
+  treasuryId  Int      @map("treasury_id")
+  createdById Int      @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  treasury  Treasury @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  createdBy User     @relation("WithdrawalCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("withdrawals")
 }
 
 // ============================================

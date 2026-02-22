@@ -69,6 +69,9 @@ async function main() {
       "SETTINGS",
       "EXPENSES",
       "DEPOSITS",
+      "CREATES_DEPOSITS",
+      "WITHDRAWALS",
+      "CREATES_WITHDRAWALS",
       "STOCK_TRANSFER",
       "CASH_TRANSFER",
       "TRANSFER_MANAGEMENT",
@@ -127,6 +130,30 @@ async function main() {
         );
       }
       console.log("✅ Employee Permissions synced");
+    }
+
+    // 2.6. PERMISSIONS (Admin)
+    // -------------------------------------------------------------
+    const [adminRows] = await connection.execute(
+      "SELECT id FROM roles WHERE name = 'Admin'",
+    );
+    if (adminRows.length > 0) {
+      const adminRoleId = adminRows[0].id;
+      const adminModules = [
+        "DEPOSITS",
+        "CREATES_DEPOSITS",
+        "WITHDRAWALS",
+        "CREATES_WITHDRAWALS",
+      ];
+
+      for (const module of adminModules) {
+        await query(
+          `INSERT INTO permissions (role_id, module, can_access) VALUES (?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE can_access = ?`,
+          [adminRoleId, module, true, true],
+        );
+      }
+      console.log("✅ Admin Permissions synced");
     }
 
     // 3. INFRASTRUCTURE: MAIN BRANCH
