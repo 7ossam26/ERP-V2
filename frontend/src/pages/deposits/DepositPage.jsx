@@ -63,6 +63,7 @@ const DepositPage = () => {
         try {
             await depositService.create(newDeposit);
             await fetchDeposits();
+            setIsDepositModalOpen(false);
             toast.success("تم إضافة الإيداع بنجاح");
         } catch (error) {
             console.error("Failed to add deposit", error);
@@ -74,6 +75,7 @@ const DepositPage = () => {
         try {
             await withdrawalService.create(newWithdrawal);
             await fetchWithdrawals();
+            setIsWithdrawalModalOpen(false);
             toast.success("تم إضافة المسحوب بنجاح");
         } catch (error) {
             console.error("Failed to add withdrawal", error);
@@ -190,8 +192,8 @@ const DepositPage = () => {
                                         <tr key={`${transaction.type}-${transaction.id}`} className="hover:bg-accent/20 dark:hover:bg-accent/5 transition-colors group">
                                             <td className="px-6 py-3">
                                                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${transaction.type === 'deposit'
-                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                                     }`}>
                                                     <span className="material-symbols-outlined text-[16px]">
                                                         {transaction.type === 'deposit' ? 'add_circle' : 'remove_circle'}

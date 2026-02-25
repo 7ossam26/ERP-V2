@@ -85,7 +85,6 @@ async function main() {
       "CREATES_ITEMS",
       "CREATES_TREASURIES",
       "CREATES_BRANCHES",
-      "CREATES_DEPOSITS",
       "DELIVERY_MEN",
       "CREATES_DELIVERY_MEN",
       "DELIVERY_ZONES",

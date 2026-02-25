@@ -185,8 +185,8 @@ export const MODULES = [
   {
     id: "deposits",
     code: "DEPOSITS",
-    label: "الإيداعات",
-    description: "إضافة رصيد للخزائن",
+    label: "الإيداعات والمسحوبات",
+    description: "إدارة الإيداعات والمسحوبات",
     icon: "account_balance",
     path: "/deposits",
     category: "MANAGEMENT",

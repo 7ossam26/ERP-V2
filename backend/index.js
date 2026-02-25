@@ -115,10 +115,10 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-            maxAge: 31536000,
-            includeSubDomains: true,
-            preload: true,
-          }
+          maxAge: 31536000,
+          includeSubDomains: true,
+          preload: true,
+        }
         : false, // Disable HSTS in development
   }),
 );
@@ -133,6 +133,26 @@ const allowedOrigins = [
   "http://www.elghonemydemo.kiko-tech.com",
   "https://www.elghonemydemo.kiko-tech.com",
 ];
+
+// Add frontend URL from env if available
+if (process.env.FRONTEND_URL) {
+  const envOrigins = process.env.FRONTEND_URL.split(",").map((o) => o.trim());
+  envOrigins.forEach((origin) => {
+    if (!allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin);
+    }
+  });
+}
+
+// Add common local origins in development
+if (process.env.NODE_ENV !== "production") {
+  const localOrigins = ["http://localhost:5173", "http://localhost:3001"];
+  localOrigins.forEach((origin) => {
+    if (!allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin);
+    }
+  });
+}
 
 console.log(`>>> [CORS] Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
 
@@ -450,8 +470,9 @@ if (fs.existsSync(CLIENT_DIST_PATH)) {
 console.log(">>> [BOOT] Calling app.listen...");
 const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
+  const healthHost = process.env.NODE_ENV === "production" ? "elghonemydemo.kiko-tech.com" : "localhost";
   console.log(
-    `📍 [SERVER] Health check available at: http://elghonemydemo.kiko-tech.com:${PORT}/api/health`,
+    `📍 [SERVER] Health check available at: http://${healthHost}:${PORT}/api/health`,
   );
 });
 
