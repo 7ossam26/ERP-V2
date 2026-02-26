@@ -1156,6 +1156,14 @@ const POSPage = () => {
           data={clients}
           onClose={() => setIsClientModalOpen(false)}
           onSave={handleSaveClient}
+          initialData={
+            clientSearchTerm
+              ? {
+                  name: isNaN(clientSearchTerm) ? clientSearchTerm : "",
+                  phone: !isNaN(clientSearchTerm) ? clientSearchTerm : "",
+                }
+              : null
+          }
         />
       </Modal>
 
@@ -1726,7 +1734,19 @@ const POSPage = () => {
                       ))
                     ) : (
                       <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-sm">
-                        لا توجد نتائج
+                        <div className="mb-2">لا توجد نتائج</div>
+                        <button
+                          className="text-primary hover:bg-primary/10 px-3 py-1.5 rounded-md flex items-center justify-center gap-2 w-full transition-colors border border-primary/30"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsClientDropdownOpen(false);
+                            setIsClientModalOpen(true);
+                          }}>
+                          <span className="material-symbols-outlined text-[18px]">
+                            person_add
+                          </span>
+                          تكويد عميل جديد
+                        </button>
                       </div>
                     )}
                   </div>
