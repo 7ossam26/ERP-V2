@@ -10,12 +10,12 @@ const { body, validationResult } = require("express-validator");
 // Ensure JWT_SECRET is set (security requirement)
 if (!process.env.JWT_SECRET) {
   throw new Error(
-    "FATAL: JWT_SECRET environment variable is required but not set!"
+    "FATAL: JWT_SECRET environment variable is required but not set!",
   );
 }
 const JWT_SECRET = process.env.JWT_SECRET;
-const ACCESS_TOKEN_EXPIRY = "30m";
-const REFRESH_TOKEN_EXPIRY = "7d";
+const ACCESS_TOKEN_EXPIRY = "7d"; // Extended to 7 days
+// Refresh tokens removed
 
 // Rate limiter for login endpoint (prevents brute force attacks)
 const loginLimiter = rateLimit({
@@ -96,7 +96,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
 
         failedLoginAttempts.delete(username); // Reset counter
         console.log(
-          `🔒 Account deactivated due to ${MAX_FAILED_ATTEMPTS} failed login attempts: ${username}`
+          `🔒 Account deactivated due to ${MAX_FAILED_ATTEMPTS} failed login attempts: ${username}`,
         );
 
         return res.status(403).json({
@@ -113,7 +113,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
       failedLoginAttempts.delete(username);
     }
 
-    // Generate access token (short-lived)
+    // Generate access token (long-lived now)
     const accessToken = jwt.sign(
       {
         id: user.id,
@@ -122,24 +122,8 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
         hasSensitiveAccess: user.hasSensitiveAccess,
       },
       JWT_SECRET,
-      { expiresIn: ACCESS_TOKEN_EXPIRY }
+      { expiresIn: ACCESS_TOKEN_EXPIRY },
     );
-
-    // Generate refresh token (long-lived)
-    const refreshToken = jwt.sign(
-      { id: user.id, type: "refresh" },
-      JWT_SECRET,
-      { expiresIn: REFRESH_TOKEN_EXPIRY }
-    );
-
-    // Store refresh token in database
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-    });
 
     // Transform permissions to simplified structure
     const permissions = {};
@@ -151,7 +135,6 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
 
     res.json({
       token: accessToken,
-      refreshToken: refreshToken,
       user: {
         id: user.id,
         name: user.name,
@@ -169,81 +152,13 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
   }
 });
 
-// REFRESH TOKEN
-router.post("/refresh", async (req, res, next) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return res.status(401).json({ error: "Refresh token required" });
-    }
-
-    // Verify refresh token
-    const decoded = jwt.verify(refreshToken, JWT_SECRET);
-
-    if (decoded.type !== "refresh") {
-      return res.status(401).json({ error: "Invalid token type" });
-    }
-
-    // Check if refresh token exists in database and is not expired
-    const storedToken = await prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
-      include: {
-        user: {
-          include: {
-            role: { include: { permissions: true } },
-            branch: true,
-          },
-        },
-      },
-    });
-
-    if (!storedToken || storedToken.expiresAt < new Date()) {
-      return res
-        .status(401)
-        .json({ error: "Invalid or expired refresh token" });
-    }
-
-    // Generate new access token
-    const newAccessToken = jwt.sign(
-      {
-        id: storedToken.user.id,
-        username: storedToken.user.username,
-        role: storedToken.user.role.name,
-        hasSensitiveAccess: storedToken.user.hasSensitiveAccess,
-      },
-      JWT_SECRET,
-      { expiresIn: ACCESS_TOKEN_EXPIRY }
-    );
-
-    res.json({ token: newAccessToken });
-  } catch (error) {
-    next(error);
-  }
-});
+// REFRESH TOKEN ROUTE REMOVED (permanently disabled session extensions via refresh token)
 
 // LOGOUT
 router.post("/logout", async (req, res) => {
   try {
     // If we have a user context (from auth middleware), use it
-    const token = req.headers.authorization?.split(" ")[1];
-    if (token) {
-      // Decode without verification if expired, just to get user ID
-      const decoded = jwt.decode(token);
-      if (decoded && decoded.id) {
-        // Delete all refresh tokens for this user
-        await prisma.refreshToken.deleteMany({
-          where: { userId: decoded.id },
-        });
-      }
-    }
-    // Also try to delete by refresh token if provided in body
-    if (req.body.refreshToken) {
-      await prisma.refreshToken.deleteMany({
-        where: { token: req.body.refreshToken },
-      });
-    }
-
+    // Clear out session details on logout, no refresh tokens to delete
     res.json({ message: "Logged out successfully" });
   } catch (error) {
     // Even if error, we consider logout successful from client perspective

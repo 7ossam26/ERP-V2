@@ -593,15 +593,8 @@ router.post(
               include: { items: { include: { item: true } } },
             });
           }
-          if (!bom && saleItemId) {
-            bom = await tx.bOM.findFirst({
-              where: {
-                outputItemId: saleItemId,
-                isActive: true,
-              },
-              include: { items: { include: { item: true } } },
-            });
-          }
+          // Intentionally do NOT find BOM by saleItemId.
+          // If the item has an outputItemId, it's a manufactured item and we should deduct its own inventory.
 
           if (bom) {
             // === BOM AUTO-CONSUMPTION ===
@@ -931,7 +924,12 @@ router.post(
       }
 
       // Check if manager has appropriate role
-      const allowedRoles = ["Superadmin", "Manager", "Branch Manager", "General Manager"];
+      const allowedRoles = [
+        "Superadmin",
+        "Manager",
+        "Branch Manager",
+        "General Manager",
+      ];
       const isAuthorized = allowedRoles.includes(manager.role.name);
 
       if (!isAuthorized) {
@@ -996,16 +994,24 @@ router.post(
           const refundItemId = parseInt(refundItem.itemId);
           const refundQty = parseFloat(refundItem.quantity);
 
-          // Check if this item has an active BOM
-          const bom = await tx.bOM.findFirst({
-            where: {
-              outputItemId: refundItemId,
-              isActive: true,
-            },
-            include: {
-              items: true,
-            },
-          });
+          // Check if this item is a raw BOM (MTO) vs a manufactured item
+          const isBomOnly = String(refundItem.itemId).startsWith("bom_");
+          const refundBomId = refundItem.bomId
+            ? parseInt(refundItem.bomId)
+            : isBomOnly
+              ? parseInt(String(refundItem.itemId).replace("bom_", ""))
+              : null;
+          const refundParsedItemId = isBomOnly
+            ? null
+            : parseInt(refundItem.itemId);
+
+          let bom = null;
+          if (refundBomId) {
+            bom = await tx.bOM.findUnique({
+              where: { id: refundBomId },
+              include: { items: true },
+            });
+          }
 
           if (bom) {
             // === BOM REFUND: Restore raw materials ===
@@ -1029,12 +1035,12 @@ router.post(
                 },
               });
             }
-          } else {
+          } else if (refundParsedItemId) {
             // === DIRECT REFUND (no BOM) ===
             await tx.inventory.upsert({
               where: {
                 itemId_warehouseId: {
-                  itemId: refundItemId,
+                  itemId: refundParsedItemId,
                   warehouseId: originalSale.warehouseId,
                 },
               },
@@ -1042,7 +1048,7 @@ router.post(
                 quantity: { increment: refundQty },
               },
               create: {
-                itemId: refundItemId,
+                itemId: refundParsedItemId,
                 warehouseId: originalSale.warehouseId,
                 quantity: refundQty,
               },

@@ -88,4 +88,16 @@ export const bomService = {
     await api.delete(`${BOM_URL}/${id}`);
     return true;
   },
+
+  async executeProduction(bomId, payload) {
+    return await api.post(`${BOM_URL}/${bomId}/execute`, payload);
+  },
+
+  async getProductionOrders() {
+    return await api.get(`${BOM_URL}/production-orders`);
+  },
+
+  async getProductionOrderById(id) {
+    return await api.get(`${BOM_URL}/production-orders/${id}`);
+  },
 };

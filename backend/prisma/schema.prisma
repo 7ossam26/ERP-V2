@@ -37,28 +37,15 @@ model User {
   createdPayrolls     Payroll[]             @relation("PayrollCreator")
   shifts              Shift[]
   reviewedShifts      Shift[]               @relation("ShiftReviewer")
-  refreshTokens       RefreshToken[]
   deposits            Deposit[]             @relation("DepositCreator")
   withdrawals         Withdrawal[]          @relation("WithdrawalCreator")
   createdDeliveryTransactions DeliveryManTransaction[]
+  createdProductionOrders     ProductionOrder[]          @relation("ProductionOrderCreator")
 
   @@map("users")
 }
 
-model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique @db.VarChar(512)
-  userId    Int      @map("user_id")
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([token])
-  @@map("refresh_tokens")
-}
 
 model Role {
   id          Int      @id @default(autoincrement())
@@ -242,8 +229,10 @@ model Warehouse {
   purchases              Purchase[]
   sales                  Sale[]
   inventory              Inventory[]
-  outgoingStockTransfers StockTransfer[] @relation("StockTransferFrom")
-  incomingStockTransfers StockTransfer[] @relation("StockTransferTo")
+  outgoingStockTransfers StockTransfer[]   @relation("StockTransferFrom")
+  incomingStockTransfers StockTransfer[]   @relation("StockTransferTo")
+  sourceProductionOrders ProductionOrder[] @relation("SourceWarehouse")
+  destProductionOrders   ProductionOrder[] @relation("DestWarehouse")
 
   // Config Relations
   systemConfigAsMain SystemConfiguration[]
@@ -372,6 +361,7 @@ model Item {
   unit         String
   reorderPoint Int      @default(10) @map("reorder_point")
   showInPos    Boolean  @default(true) @map("show_in_pos")
+  isBom        Boolean  @default(false) @map("is_bom")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -382,8 +372,9 @@ model Item {
   saleItems          SaleItem[]
   inventory          Inventory[]
   stockTransferItems StockTransferItem[]
-  bomOutputs         BOM[]                @relation("BOMOutput")
-  bomItems           BOMItem[]
+  bomOutputs           BOM[]                  @relation("BOMOutput")
+  bomItems             BOMItem[]
+  productionOrderItems ProductionOrderItem[]
 
   @@map("items")
 }
@@ -923,6 +914,7 @@ model BOM {
   items            BOMItem[]
   saleItems        SaleItem[]
   categories       BOMCategory[]
+  productionOrders ProductionOrder[]
 
   @@map("bom")
 }
@@ -942,3 +934,42 @@ model BOMItem {
   @@map("bom_items")
 }
 
+// ============================================
+// Production Orders
+// ============================================
+
+model ProductionOrder {
+  id                Int      @id @default(autoincrement())
+  bomId             Int      @map("bom_id")
+  sourceWarehouseId Int      @map("source_warehouse_id")
+  destWarehouseId   Int?     @map("dest_warehouse_id")
+  targetOutputQty   Decimal  @map("target_output_qty") @db.Decimal(10, 3)
+  actualOutputQty   Decimal  @map("actual_output_qty")  @db.Decimal(10, 3)
+  outputWasteQty    Decimal  @default(0) @map("output_waste_qty") @db.Decimal(10, 3)
+  totalCost         Decimal  @default(0) @map("total_cost") @db.Decimal(10, 2)
+  notes             String?  @db.Text
+  createdById       Int      @map("created_by_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bom             BOM       @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  sourceWarehouse Warehouse  @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
+  destWarehouse   Warehouse? @relation("DestWarehouse", fields: [destWarehouseId], references: [id], onDelete: Restrict)
+  createdBy       User       @relation("ProductionOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  items           ProductionOrderItem[]
+
+  @@map("production_orders")
+}
+
+model ProductionOrderItem {
+  id                Int     @id @default(autoincrement())
+  productionOrderId Int     @map("production_order_id")
+  itemId            Int     @map("item_id")
+  quantityUsed      Decimal @map("quantity_used") @db.Decimal(10, 6)
+
+  // Relations
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  item            Item            @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@map("production_order_items")
+}

@@ -51,13 +51,13 @@ import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
 import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
 import DeliverySettlementPage from "./pages/delivery-settlement/DeliverySettlementPage";
 import BOMManager from "./pages/bom/BOMManager";
+import ProductionHistory from "./pages/bom/ProductionHistory";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
 import { seedData } from "./services/seedData";
-import SessionTimeoutWarning from "./components/SessionTimeoutWarning";
 import toast from "react-hot-toast";
 
 // Global override to suppress error toasts
@@ -83,7 +83,6 @@ function App() {
       <div className="no-print">
         <Toaster position="top-center" reverseOrder={false} />
       </div>
-      <SessionTimeoutWarning />
       <Routes>
         {/* Public Route: Login */}
         <Route path="/" element={<LoginPage />} />
@@ -410,6 +409,15 @@ function App() {
               <ProtectedRoute
                 requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
                 <BOMManager />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bom/production-history"
+            element={
+              <ProtectedRoute
+                requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
+                <ProductionHistory />
               </ProtectedRoute>
             }
           />

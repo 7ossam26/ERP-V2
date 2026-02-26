@@ -3,10 +3,321 @@ import {
   bomService,
   itemService,
   categoryService,
+  warehouseService,
 } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+
+// ==========================================
+// Execute Production Modal
+// ==========================================
+const ExecuteProductionModal = ({
+  bom,
+  allItems,
+  warehouses,
+  onClose,
+  onSuccess,
+}) => {
+  const [targetQty, setTargetQty] = useState("");
+  const [actualQty, setActualQty] = useState("");
+  const [sourceWarehouseId, setSourceWarehouseId] = useState("");
+  const [destWarehouseId, setDestWarehouseId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const bomOutputQty = parseFloat(bom.outputQuantity) || 1;
+  const hasOutputItem = !!bom.outputItemId;
+
+  // Compute per-material quantities based on targetQty
+  const materialRows = bom.items.map((bi) => {
+    const multiplier = targetQty ? parseFloat(targetQty) / bomOutputQty : 0;
+    const required = parseFloat(bi.quantity) * multiplier;
+    // Find stock in selected source warehouse
+    const rawItem = allItems.find((i) => String(i.id) === String(bi.itemId));
+    let stock = 0;
+    if (rawItem?.inventory && sourceWarehouseId) {
+      const inv = rawItem.inventory.find(
+        (i) => i.warehouseId === parseInt(sourceWarehouseId),
+      );
+      stock = inv ? Number(inv.quantity) : 0;
+    } else if (rawItem?.inventory) {
+      stock = rawItem.inventory.reduce((s, i) => s + Number(i.quantity), 0);
+    }
+    return {
+      itemId: bi.itemId,
+      itemName: bi.itemName,
+      unit: rawItem?.unit || "",
+      required: parseFloat(required.toFixed(6)),
+      stock,
+      insufficient: required > stock && targetQty,
+    };
+  });
+
+  const wasteQty =
+    targetQty && actualQty
+      ? Math.max(0, parseFloat(targetQty) - parseFloat(actualQty))
+      : 0;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!sourceWarehouseId) return toast.error("اختر مستودع الخصم");
+    if (!targetQty || parseFloat(targetQty) <= 0)
+      return toast.error("أدخل الكمية المستهدفة");
+    if (actualQty === "" || parseFloat(actualQty) < 0)
+      return toast.error("أدخل الكمية الفعلية");
+    if (parseFloat(actualQty) > parseFloat(targetQty))
+      return toast.error("الكمية الفعلية لا تتجاوز المستهدفة");
+    if (hasOutputItem && !destWarehouseId)
+      return toast.error("اختر مستودع الإضافة");
+    if (materialRows.some((r) => r.insufficient))
+      return toast.error("رصيد غير كافٍ لبعض المواد الخام");
+    setLoading(true);
+    try {
+      await bomService.executeProduction(bom.id, {
+        sourceWarehouseId: parseInt(sourceWarehouseId),
+        destWarehouseId: destWarehouseId ? parseInt(destWarehouseId) : null,
+        targetOutputQty: parseFloat(targetQty),
+        actualOutputQty: parseFloat(actualQty),
+        notes,
+      });
+      toast.success("تم تنفيذ أمر الإنتاج بنجاح ✅");
+      onSuccess();
+      onClose();
+    } catch (err) {
+      const msg = err.response?.data?.error || "فشل تنفيذ الإنتاج";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="bg-green-100 dark:bg-green-900/30 p-2.5 rounded-xl">
+              <span className="material-icons-round text-2xl text-green-600">
+                precision_manufacturing
+              </span>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-text-light dark:text-text-dark">
+                تنفيذ إنتاج
+              </h3>
+              <p className="text-sm text-gray-500">{bom.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+            <span className="material-icons-round text-gray-500">close</span>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-5">
+          {/* Quantities */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                الكمية المستهدفة
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0.001"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-background-light dark:bg-background-dark py-2.5 px-4 text-center font-bold focus:ring-2 focus:ring-primary"
+                placeholder="0"
+                value={targetQty}
+                onChange={(e) => {
+                  setTargetQty(e.target.value);
+                  setActualQty(e.target.value);
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                الكمية الفعلية المنتجة
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-background-light dark:bg-background-dark py-2.5 px-4 text-center font-bold focus:ring-2 focus:ring-primary"
+                placeholder="0"
+                value={actualQty}
+                onChange={(e) => setActualQty(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                الهالك (تلقائي)
+              </label>
+              <div
+                className={`rounded-xl border py-2.5 px-4 text-center font-bold ${
+                  wasteQty > 0
+                    ? "border-red-300 bg-red-50 dark:bg-red-900/20 text-red-600"
+                    : "border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-400"
+                }`}>
+                {wasteQty > 0 ? wasteQty.toFixed(3) : "-"}
+              </div>
+            </div>
+          </div>
+
+          {/* Warehouses */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                <span className="material-icons-round text-sm align-middle text-red-500 ml-1">
+                  remove_circle
+                </span>
+                مستودع الخصم (المواد الخام)
+              </label>
+              <select
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-background-light dark:bg-background-dark py-2.5 px-4 focus:ring-2 focus:ring-primary"
+                value={sourceWarehouseId}
+                onChange={(e) => setSourceWarehouseId(e.target.value)}
+                required>
+                <option value="">اختر المستودع</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                <span className="material-icons-round text-sm align-middle text-green-500 ml-1">
+                  add_circle
+                </span>
+                مستودع الإضافة (المنتج النهائي)
+              </label>
+              <select
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-background-light dark:bg-background-dark py-2.5 px-4 focus:ring-2 focus:ring-primary"
+                value={destWarehouseId}
+                onChange={(e) => setDestWarehouseId(e.target.value)}>
+                <option value="">اختر المستودع (اختياري)</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+              {!hasOutputItem && (
+                <p className="text-xs text-gray-400">
+                  هذه الوصفة لا تملك منتجاً نهائياً مرتبطاً — الإضافة للمخزون
+                  اختيارية.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Materials Table */}
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+              المواد الخام المستهلكة
+            </label>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="text-right py-2 px-3 font-semibold text-gray-500">
+                      المادة
+                    </th>
+                    <th className="text-center py-2 px-3 font-semibold text-gray-500">
+                      الكمية المطلوبة
+                    </th>
+                    <th className="text-center py-2 px-3 font-semibold text-gray-500">
+                      الرصيد المتاح
+                    </th>
+                    <th className="text-center py-2 px-3 font-semibold text-gray-500">
+                      الحالة
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materialRows.map((row) => (
+                    <tr
+                      key={row.itemId}
+                      className="border-t border-gray-100 dark:border-gray-700">
+                      <td className="py-2.5 px-3 font-medium text-text-light dark:text-text-dark">
+                        {row.itemName}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-primary">
+                        {targetQty ? row.required.toFixed(4) : "-"}{" "}
+                        <span className="text-xs text-gray-400">
+                          {row.unit}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {row.stock.toFixed(4)}{" "}
+                        <span className="text-xs text-gray-400">
+                          {row.unit}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {targetQty ? (
+                          row.insufficient ? (
+                            <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">
+                              رصيد غير كافٍ ⚠️
+                            </span>
+                          ) : (
+                            <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">
+                              متاح ✓
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+              ملاحظات
+            </label>
+            <textarea
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-background-light dark:bg-background-dark py-2.5 px-4 resize-none focus:ring-2 focus:ring-primary"
+              rows={2}
+              placeholder="ملاحظات اختيارية..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={loading || materialRows.some((r) => r.insufficient)}
+              className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+              <span className="material-icons-round text-lg">
+                precision_manufacturing
+              </span>
+              {loading ? "جاري التنفيذ..." : "تنفيذ الإنتاج"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 // ==========================================
 // BOM Form Component
@@ -23,10 +334,10 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     items:
       initialData?.items?.length > 0
         ? initialData.items.map((i) => ({
-          itemId: String(i.itemId),
-          quantity: String(i.quantity),
-          notes: i.notes || "",
-        }))
+            itemId: String(i.itemId),
+            quantity: String(i.quantity),
+            notes: i.notes || "",
+          }))
         : [{ itemId: "", quantity: "", notes: "" }],
   });
   const [loading, setLoading] = useState(false);
@@ -224,10 +535,11 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
             {allCategories.map((cat) => (
               <label
                 key={cat.id}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-all text-sm font-bold ${selectedCategoryIds.includes(cat.id)
-                  ? "bg-primary/10 border-primary text-primary dark:text-accent"
-                  : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary/40"
-                  }`}>
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-all text-sm font-bold ${
+                  selectedCategoryIds.includes(cat.id)
+                    ? "bg-primary/10 border-primary text-primary dark:text-accent"
+                    : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary/40"
+                }`}>
                 <input
                   type="checkbox"
                   className="sr-only"
@@ -477,8 +789,11 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
 const BOMManager = () => {
   const [boms, setBoms] = useState([]);
   const [allItems, setAllItems] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(AuthService.getCurrentUser());
+  const [executingBom, setExecutingBom] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -492,12 +807,14 @@ const BOMManager = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [bomsData, itemsData] = await Promise.all([
+      const [bomsData, itemsData, warehousesData] = await Promise.all([
         bomService.getAll(),
         inventoryService.getInventory(),
+        warehouseService.getAll(),
       ]);
       setBoms(bomsData);
       setAllItems(itemsData);
+      setWarehouses(warehousesData);
     } catch (error) {
       toast.error("فشل في تحميل البيانات");
     } finally {
@@ -587,6 +904,17 @@ const BOMManager = () => {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
+      {/* Execute Production Modal */}
+      {executingBom && (
+        <ExecuteProductionModal
+          bom={executingBom}
+          allItems={allItems}
+          warehouses={warehouses}
+          onClose={() => setExecutingBom(null)}
+          onSuccess={fetchData}
+        />
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -604,17 +932,25 @@ const BOMManager = () => {
             </p>
           </div>
         </div>
-        {canCreate && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setEditingBom(null);
-              setShowForm(true);
-            }}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all min-h-touch">
-            <span className="material-icons-round">add</span>
-            إنشاء وصفة جديدة
+            onClick={() => navigate("/bom/production-history")}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 font-bold text-sm transition-all min-h-touch">
+            <span className="material-icons-round">history</span>
+            سجل الإنتاج
           </button>
-        )}
+          {canCreate && (
+            <button
+              onClick={() => {
+                setEditingBom(null);
+                setShowForm(true);
+              }}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all min-h-touch">
+              <span className="material-icons-round">add</span>
+              إنشاء وصفة جديدة
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -643,10 +979,11 @@ const BOMManager = () => {
                 onClick={() => toggleExpand(bom.id)}>
                 <div className="flex items-center gap-4">
                   <div
-                    className={`p-2.5 rounded-xl ${bom.isActive
-                      ? "bg-green-100 dark:bg-green-900/30 text-green-600"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-                      }`}>
+                    className={`p-2.5 rounded-xl ${
+                      bom.isActive
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-600"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                    }`}>
                     <span className="material-icons-round text-xl">
                       receipt
                     </span>
@@ -675,10 +1012,11 @@ const BOMManager = () => {
                         •
                       </span>
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${bom.isActive
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                          }`}>
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          bom.isActive
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+                        }`}>
                         {bom.isActive ? "مفعّل" : "معطّل"}
                       </span>
                     </div>
@@ -750,6 +1088,17 @@ const BOMManager = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          setExecutingBom(bom);
+                        }}
+                        title="تنفيذ إنتاج"
+                        className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors">
+                        <span className="material-icons-round text-lg">
+                          precision_manufacturing
+                        </span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           handleEdit(bom);
                         }}
                         className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
@@ -770,8 +1119,9 @@ const BOMManager = () => {
                     </>
                   )}
                   <span
-                    className={`material-icons-round text-gray-400 transform transition-transform ${expandedBom === bom.id ? "rotate-180" : ""
-                      }`}>
+                    className={`material-icons-round text-gray-400 transform transition-transform ${
+                      expandedBom === bom.id ? "rotate-180" : ""
+                    }`}>
                     expand_more
                   </span>
                 </div>
