@@ -365,29 +365,36 @@ const POSPage = () => {
 
       // TRANSFORM BOMS TO PRODUCTS
       // We treat each active BOM as a sellable product.
-      // The Quantity available is the "Max Possible Production" based on Raw Materials.
+      // If linked to an outputItem: show actual warehouse stock of that item.
+      // If not linked: show max possible production from raw materials.
       const bomProducts = boms
         .filter((bom) => bom.isActive)
         .map((bom) => {
-          // Calculate Max Production based on Raw Material Stock
-          const maxProduction = bom.items.reduce((min, bomItem) => {
-            const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
-            const requiredQty = bomItem.quantity;
-            if (requiredQty <= 0) return min;
-
-            const possible = rawMaterialQty / requiredQty;
-            return Math.min(min, possible);
-          }, Infinity);
-
-          const quantity =
-            maxProduction === Infinity
-              ? 0
-              : parseFloat(maxProduction.toFixed(2));
-
-          // Find linked Output Item for categories (if linked)
+          // Find linked Output Item for categories and stock (if linked)
           const outputItem = bom.outputItemId
             ? inventoryItems.find((i) => i.id === bom.outputItemId)
             : null;
+
+          let quantity;
+          if (bom.outputItemId) {
+            // Use ACTUAL warehouse stock of the manufactured output item
+            quantity = parseFloat(
+              (inventoryMap[bom.outputItemId] || 0).toFixed(2),
+            );
+          } else {
+            // No linked item → fall back to max possible production from raw materials
+            const maxProduction = bom.items.reduce((min, bomItem) => {
+              const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
+              const requiredQty = bomItem.quantity;
+              if (requiredQty <= 0) return min;
+              const possible = rawMaterialQty / requiredQty;
+              return Math.min(min, possible);
+            }, Infinity);
+            quantity =
+              maxProduction === Infinity
+                ? 0
+                : parseFloat(maxProduction.toFixed(2));
+          }
 
           // Map to Product Structure used by POS
           return {
@@ -403,6 +410,7 @@ const POSPage = () => {
               (outputItem ? outputItem.categories : []),
             quantity: quantity,
             hasBom: true,
+            hasLinkedOutput: !!bom.outputItemId, // true = real warehouse stock, false = theoretical max
             showInPos: true,
           };
         });
@@ -508,8 +516,10 @@ const POSPage = () => {
     const existingQty = existingItem ? existingItem.quantity : 0;
     const totalRequested = existingQty + quantity;
 
-    // Skip stock check for BOM items (auto-manufactured)
-    if (!product.hasBom && totalRequested > currentStock) {
+    // Skip stock check ONLY for unlinked BOM items (auto-manufactured on demand)
+    // Linked BOM items have real warehouse stock, so enforce the check
+    const skipStockCheck = product.hasBom && !product.hasLinkedOutput;
+    if (!skipStockCheck && totalRequested > currentStock) {
       toast.error(`الكمية غير متوفرة! المتاح: ${currentStock}`);
       return false; // Return failure
     }
@@ -518,7 +528,7 @@ const POSPage = () => {
     const reorderPoint = product.reorderPoint || 0;
     const remainingAfterSale = currentStock - totalRequested;
 
-    if (!product.hasBom && remainingAfterSale <= reorderPoint) {
+    if (!skipStockCheck && remainingAfterSale <= reorderPoint) {
       toast(`تحذير: المخزون سيصبح منخفض (${remainingAfterSale})`, {
         icon: "⚠️",
       });
@@ -861,7 +871,7 @@ const POSPage = () => {
 
   // Handle payment method selection
   const handlePaymentSelected = (method) => {
-    toast.success(`تم اختيار الدفع ${method === "cash" ? "نقدي" : "بالبطاقة"}`);
+    toast.success(`تم اختيار الدفع ${method === "cash" ? "نقدي" : "انستاباي"}`);
     setKeypadMode("default");
     // Optionally clear cart after payment
     clearCart();
@@ -950,7 +960,8 @@ const POSPage = () => {
       console.log("✅ Sale created successfully:", createdSale);
 
       // Determine method name for display
-      const methodName = normalizedPaymentMethod === "CASH" ? "نقدي" : "بطاقة";
+      const methodName =
+        normalizedPaymentMethod === "CASH" ? "نقدي" : "InstaPay";
 
       toast.success(
         `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`,
@@ -1002,7 +1013,7 @@ const POSPage = () => {
 
   // Wrapper for payment confirmation (original flow)
   const handleConfirmPayment = async () => {
-    const methodName = pendingPaymentMethod === "cash" ? "نقدي" : "بطاقة";
+    const methodName = pendingPaymentMethod === "cash" ? "نقدي" : "InstaPay";
 
     // For cash, validate paid amount
     if (pendingPaymentMethod === "cash") {
@@ -1156,14 +1167,6 @@ const POSPage = () => {
           data={clients}
           onClose={() => setIsClientModalOpen(false)}
           onSave={handleSaveClient}
-          initialData={
-            clientSearchTerm
-              ? {
-                  name: isNaN(clientSearchTerm) ? clientSearchTerm : "",
-                  phone: !isNaN(clientSearchTerm) ? clientSearchTerm : "",
-                }
-              : null
-          }
         />
       </Modal>
 
@@ -1275,12 +1278,14 @@ const POSPage = () => {
                   className={`material-symbols-outlined text-3xl ${
                     pendingPaymentMethod === "cash"
                       ? "text-green-500"
-                      : "text-blue-500"
+                      : "text-[#4c096e]"
                   }`}>
-                  {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
+                  {pendingPaymentMethod === "cash"
+                    ? "payments"
+                    : "account_balance_wallet"}
                 </span>
                 <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-                  {pendingPaymentMethod === "cash" ? "نقدي" : "بطاقة"}
+                  {pendingPaymentMethod === "cash" ? "نقدي" : "InstaPay"}
                 </span>
               </div>
             </div>
@@ -1353,7 +1358,7 @@ const POSPage = () => {
               className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
                 pendingPaymentMethod === "cash"
                   ? "bg-green-500 hover:bg-green-600"
-                  : "bg-blue-500 hover:bg-blue-600"
+                  : "bg-[#4c096e] hover:bg-[#3a0654]"
               }`}>
               <span className="material-symbols-outlined">check_circle</span>
               <span>تأكيد الدفع</span>
@@ -1734,19 +1739,7 @@ const POSPage = () => {
                       ))
                     ) : (
                       <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-sm">
-                        <div className="mb-2">لا توجد نتائج</div>
-                        <button
-                          className="text-primary hover:bg-primary/10 px-3 py-1.5 rounded-md flex items-center justify-center gap-2 w-full transition-colors border border-primary/30"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsClientDropdownOpen(false);
-                            setIsClientModalOpen(true);
-                          }}>
-                          <span className="material-symbols-outlined text-[18px]">
-                            person_add
-                          </span>
-                          تكويد عميل جديد
-                        </button>
+                        لا توجد نتائج
                       </div>
                     )}
                   </div>
@@ -1836,11 +1829,11 @@ const POSPage = () => {
                     </button>
                     <button
                       onClick={() => handleQuickPayment("visa")}
-                      className="flex flex-col items-center justify-center p-3 bg-blue-500 hover:bg-blue-600 text-white transition-colors border-l border-white/10">
+                      className="flex flex-col items-center justify-center p-3 bg-[#4c096e] hover:bg-[#3a0654] text-white transition-colors border-l border-white/10">
                       <span className="material-symbols-outlined mb-1">
-                        credit_card
+                        account_balance_wallet
                       </span>
-                      <span className="font-bold">بطاقة</span>
+                      <span className="font-bold">InstaPay</span>
                     </button>
                     <button
                       onClick={() => {
@@ -2117,11 +2110,11 @@ const POSPage = () => {
 
                     <button
                       onClick={() => handlePaymentSelected("visa")}
-                      className="col-span-5 row-span-2 bg-blue-500 hover:bg-blue-600 text-white font-bold text-xl transition-all flex flex-col items-center justify-center gap-2 border border-gray-200 dark:border-zinc-700">
+                      className="col-span-5 row-span-2 bg-[#4c096e] hover:bg-[#3a0654] text-white font-bold text-xl transition-all flex flex-col items-center justify-center gap-2 border border-gray-200 dark:border-zinc-700">
                       <span className="material-icons-round text-4xl">
-                        credit_card
+                        account_balance_wallet
                       </span>
-                      <span>بطاقة (Visa)</span>
+                      <span>InstaPay</span>
                     </button>
                   </>
                 )}
