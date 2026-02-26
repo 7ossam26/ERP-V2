@@ -66,6 +66,33 @@ const DetailedReportsPage = () => {
       bg: "bg-indigo-100",
       darkBg: "dark:bg-indigo-900/20",
     },
+    {
+      title: "سجل الإنتاج",
+      description: "عمليات التصنيع والإنتاج",
+      icon: "factory",
+      path: "/bom/production-history",
+      color: "text-pink-600",
+      bg: "bg-pink-100",
+      darkBg: "dark:bg-pink-900/20",
+    },
+    {
+      title: "سجل المصروفات",
+      description: "تاريخ المصروفات المنصرفة",
+      icon: "paid",
+      path: "/expenses",
+      color: "text-cyan-600",
+      bg: "bg-cyan-100",
+      darkBg: "dark:bg-cyan-900/20",
+    },
+    {
+      title: "سجل الإيداعات والسحوبات",
+      description: "عمليات الإيداع والسحب للخزائن",
+      icon: "currency_exchange",
+      path: "/deposits",
+      color: "text-lime-600",
+      bg: "bg-lime-100",
+      darkBg: "dark:bg-lime-900/20",
+    },
   ];
 
   return (

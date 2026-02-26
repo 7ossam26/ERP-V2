@@ -142,7 +142,7 @@ const BranchesSalesPage = () => {
 
           {/* Bank Treasury Card */}
           {bankTreasury && (
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] text-white p-6 md:p-8 shadow-lg">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#4c096e] text-white p-6 md:p-8 shadow-lg">
               <div
                 className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
                 style={{
@@ -154,7 +154,7 @@ const BranchesSalesPage = () => {
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-accent bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
                     <span className="material-symbols-outlined text-[18px]">
-                      account_balance
+                      account_balance_wallet
                     </span>
                     <span className="text-xs font-bold uppercase tracking-wider text-white/90">
                       {bankTreasury.name}

@@ -181,15 +181,15 @@ router.get("/", async (req, res, next) => {
         bom:
           item.bomOutputs && item.bomOutputs.length > 0
             ? {
-              id: item.bomOutputs[0].id,
-              name: item.bomOutputs[0].name,
-              outputQuantity: Number(item.bomOutputs[0].outputQuantity),
-              items: item.bomOutputs[0].items.map((bi) => ({
-                itemId: bi.itemId,
-                itemName: bi.item.name,
-                quantity: Number(bi.quantity),
-              })),
-            }
+                id: item.bomOutputs[0].id,
+                name: item.bomOutputs[0].name,
+                outputQuantity: Number(item.bomOutputs[0].outputQuantity),
+                items: item.bomOutputs[0].items.map((bi) => ({
+                  itemId: bi.itemId,
+                  itemName: bi.item.name,
+                  quantity: Number(bi.quantity),
+                })),
+              }
             : null,
       };
     });
@@ -248,6 +248,7 @@ router.get("/stats", async (req, res, next) => {
     const totalItems = items.length;
     let lowStockCount = 0;
     let totalValue = 0;
+    let totalSellingPrice = 0;
     let totalProfit = 0;
 
     items.forEach((item) => {
@@ -293,6 +294,7 @@ router.get("/stats", async (req, res, next) => {
       }
 
       totalValue += totalQuantity * avgPurchasePrice;
+      totalSellingPrice += totalQuantity * Number(item.price);
       totalProfit += totalQuantity * (Number(item.price) - avgPurchasePrice);
     });
 
@@ -300,6 +302,7 @@ router.get("/stats", async (req, res, next) => {
       totalItems,
       lowStockCount,
       totalValue,
+      totalSellingPrice,
       totalProfit,
     });
   } catch (error) {

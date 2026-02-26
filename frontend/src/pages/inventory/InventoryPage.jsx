@@ -64,7 +64,7 @@ const InventoryPage = () => {
   const displayedItems = inventoryItems.filter(
     (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.code && item.code.toString().includes(searchQuery))
+      (item.code && item.code.toString().includes(searchQuery)),
   );
 
   // Column Definitions for GenericDataTable
@@ -166,10 +166,11 @@ const InventoryPage = () => {
         return (
           <div className="text-center">
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${isLowStock
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+                isLowStock
                   ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200"
                   : "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200"
-                }`}>
+              }`}>
               {isLowStock ? "نقص بالمخزون" : "متوفر"}
             </span>
           </div>
@@ -198,7 +199,7 @@ const InventoryPage = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-2 h-full bg-primary group-hover:w-3 transition-all"></div>
           <div className="flex justify-between items-start mb-1">
@@ -255,7 +256,7 @@ const InventoryPage = () => {
           <div className="flex justify-between items-start mb-1">
             <div>
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                التكلفة الإجمالية
+                إجمالي سعر الشراء
               </p>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-2xl font-bold text-text-main dark:text-text-dark">
@@ -269,6 +270,32 @@ const InventoryPage = () => {
             <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
               <span className="material-icons-round text-green-600 dark:text-green-400 text-xl">
                 attach_money
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-2 h-full bg-blue-600 group-hover:w-3 transition-all"></div>
+          <div className="flex justify-between items-start mb-1">
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                إجمالي سعر البيع
+              </p>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-2xl font-bold text-text-main dark:text-text-dark">
+                  {stats.totalSellingPrice
+                    ? stats.totalSellingPrice.toLocaleString()
+                    : 0}{" "}
+                  <span className="text-sm font-normal text-text-muted dark:text-gray-400 mr-1">
+                    ج.م
+                  </span>
+                </h3>
+              </div>
+            </div>
+            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <span className="material-icons-round text-blue-600 dark:text-blue-400 text-xl">
+                point_of_sale
               </span>
             </div>
           </div>
@@ -354,7 +381,7 @@ const InventoryPage = () => {
             <button
               onClick={() => {
                 const container = document.getElementById(
-                  "category-scroll-container"
+                  "category-scroll-container",
                 );
                 if (container)
                   container.scrollBy({ left: 100, behavior: "smooth" });
@@ -371,10 +398,11 @@ const InventoryPage = () => {
                 <button
                   key={cat}
                   onClick={() => setFilter(cat)}
-                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold border transition-all duration-200 ${filter === cat
+                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold border transition-all duration-200 ${
+                    filter === cat
                       ? "bg-primary text-surface-light border-transparent shadow-sm"
                       : "bg-transparent text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-transparent"
-                    }`}>
+                  }`}>
                   {cat}
                 </button>
               ))}
@@ -382,7 +410,7 @@ const InventoryPage = () => {
             <button
               onClick={() => {
                 const container = document.getElementById(
-                  "category-scroll-container"
+                  "category-scroll-container",
                 );
                 if (container)
                   container.scrollBy({ left: -100, behavior: "smooth" });
