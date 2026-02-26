@@ -4,51 +4,46 @@ const fs = require("fs");
 const path = require("path"); // Ensure path is available early
 const cors = require("cors");
 
-// --- DEBUGGING: Check for .env files ---
-// Strategy: Load General/Prod first, then OVERRIDE with Local (only in development).
+// --- ENV LOADING STRATEGY ---
+// Priority (highest wins): .env.local > backend/.env > root/.env
+//
+// For local development: create backend/.env.local to override production settings.
+// For production deployment: backend/.env.local should NOT exist.
 const envRoot = path.resolve(__dirname, "../.env");
 const envBackend = path.resolve(__dirname, ".env");
 const envRootLocal = path.resolve(__dirname, "../.env.local");
 const envBackendLocal = path.resolve(__dirname, ".env.local");
 
-// Determine if we're in production early
-// This prevents .env.local from corrupting production settings
-const isProduction = process.env.NODE_ENV === "production";
-
-// 1. Root .env (Base)
+// Step 1: Load base configs (lower priority)
 if (fs.existsSync(envRoot)) {
-  console.log(`>>> [ENV] Found .env at ROOT (${envRoot}). Loading...`);
+  console.log(`>>> [ENV] Loading root .env (${envRoot})...`);
   require("dotenv").config({ path: envRoot });
 }
-
-// 2. Backend .env (Backend Specifics - Override Root)
 if (fs.existsSync(envBackend)) {
-  console.log(
-    `>>> [ENV] Found .env at BACKEND (${envBackend}). Loading/Overriding...`,
-  );
+  console.log(`>>> [ENV] Loading backend .env (${envBackend})...`);
   require("dotenv").config({ path: envBackend, override: true });
 }
 
-// 3 & 4. Local overrides (.env.local) - ONLY load in development!
-if (!isProduction) {
-  // 3. Root .env.local (Local Dev Overrides)
-  if (fs.existsSync(envRootLocal)) {
-    console.log(
-      `>>> [ENV] Found .env.local at ROOT (${envRootLocal}). Overriding for development...`,
-    );
-    require("dotenv").config({ path: envRootLocal, override: true });
-  }
-
-  // 4. Backend .env.local (Local Backend Overrides)
-  if (fs.existsSync(envBackendLocal)) {
-    console.log(
-      `>>> [ENV] Found .env.local at BACKEND (${envBackendLocal}). Overriding for development...`,
-    );
-    require("dotenv").config({ path: envBackendLocal, override: true });
-  }
-} else {
-  console.log(">>> [ENV] Production mode detected - skipping .env.local files");
+// Step 2: Always load .env.local files on top — these WIN over everything.
+// On production servers, these files won't exist, so nothing happens.
+// On local dev, create backend/.env.local to override NODE_ENV, DB, ports, etc.
+if (fs.existsSync(envRootLocal)) {
+  console.log(
+    `>>> [ENV] Loading root .env.local (${envRootLocal}) — local dev override...`,
+  );
+  require("dotenv").config({ path: envRootLocal, override: true });
 }
+if (fs.existsSync(envBackendLocal)) {
+  console.log(
+    `>>> [ENV] Loading backend .env.local (${envBackendLocal}) — local dev override...`,
+  );
+  require("dotenv").config({ path: envBackendLocal, override: true });
+}
+
+const isProduction = process.env.NODE_ENV === "production";
+console.log(
+  `>>> [ENV] Final NODE_ENV: ${process.env.NODE_ENV} (isProduction: ${isProduction})`,
+);
 // ---------------------------------------
 
 // --- DEBUGGING: Write logs to a file ---
@@ -115,45 +110,36 @@ app.use(
     hsts:
       process.env.NODE_ENV === "production"
         ? {
-          maxAge: 31536000,
-          includeSubDomains: true,
-          preload: true,
-        }
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+          }
         : false, // Disable HSTS in development
   }),
 );
 
-// CORS configuration
-const allowedOrigins = [
-  "https://elghonemydemo.kiko-tech.com",
-  "http://elghonemy.kiko-tech.com",
-  "https://elghonemy.kiko-tech.com",
-  "http://www.elghonemy.kiko-tech.com",
-  "https://www.elghonemy.kiko-tech.com",
-  "http://www.elghonemydemo.kiko-tech.com",
-  "https://www.elghonemydemo.kiko-tech.com",
-];
+// CORS configuration — origins come from FRONTEND_URL env var (comma-separated).
+// In production: set in backend/.env
+// In development: overridden by backend/.env.local
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+  : [];
 
-// Add frontend URL from env if available
-if (process.env.FRONTEND_URL) {
-  const envOrigins = process.env.FRONTEND_URL.split(",").map((o) => o.trim());
-  envOrigins.forEach((origin) => {
-    if (!allowedOrigins.includes(origin)) {
-      allowedOrigins.push(origin);
-    }
-  });
-}
-
-// Add common local origins in development
+// Always allow localhost in development mode
 if (process.env.NODE_ENV !== "production") {
-  const localOrigins = ["http://localhost:5173", "http://localhost:3001"];
+  const localOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:3001",
+  ];
   localOrigins.forEach((origin) => {
-    if (!allowedOrigins.includes(origin)) {
-      allowedOrigins.push(origin);
-    }
+    if (!allowedOrigins.includes(origin)) allowedOrigins.push(origin);
   });
 }
 
+console.log(`>>> [CORS] NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(`>>> [CORS] Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
 
 app.use(
@@ -470,7 +456,10 @@ if (fs.existsSync(CLIENT_DIST_PATH)) {
 console.log(">>> [BOOT] Calling app.listen...");
 const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
-  const healthHost = process.env.NODE_ENV === "production" ? "elghonemydemo.kiko-tech.com" : "localhost";
+  const healthHost =
+    process.env.NODE_ENV === "production"
+      ? "elghonemydemo.kiko-tech.com"
+      : "localhost";
   console.log(
     `📍 [SERVER] Health check available at: http://${healthHost}:${PORT}/api/health`,
   );

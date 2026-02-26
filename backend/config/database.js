@@ -1,10 +1,12 @@
-require("dotenv").config();
+// Note: dotenv is loaded by index.js before this module is required. Do not re-load here.
 const { PrismaClient } = require("@prisma/client");
 
 console.log("🔌 [DB] Initializing database configuration...");
 
 if (!process.env.DATABASE_URL) {
-  console.error("❌ [DB] Error: DATABASE_URL is not defined in environment variables!");
+  console.error(
+    "❌ [DB] Error: DATABASE_URL is not defined in environment variables!",
+  );
   // We throw here, which will likely crash the app, but now it will be logged clearly.
   throw new Error("DATABASE_URL is not defined");
 } else {
@@ -15,15 +17,17 @@ if (!process.env.DATABASE_URL) {
 
 // Add connection pooling parameters for shared hosting optimization
 const baseUrl = process.env.DATABASE_URL;
-const urlWithPooling = baseUrl.includes('?')
+const urlWithPooling = baseUrl.includes("?")
   ? `${baseUrl}&connection_limit=5&pool_timeout=20&connect_timeout=10`
   : `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`;
 
-console.log("🔌 [DB] Connection pooling enabled: connection_limit=5, pool_timeout=20s, connect_timeout=10s");
+console.log(
+  "🔌 [DB] Connection pooling enabled: connection_limit=5, pool_timeout=20s, connect_timeout=10s",
+);
 
 console.log("🔌 [DB] Creating PrismaClient instance...");
 const prisma = new PrismaClient({
-  log: ['warn', 'error'], // Only log warnings and errors, not every query
+  log: ["warn", "error"], // Only log warnings and errors, not every query
   datasources: {
     db: {
       url: urlWithPooling,
@@ -38,8 +42,8 @@ const prisma = new PrismaClient({
 });
 
 // Add connection lifecycle logging
-prisma.$on('beforeExit', async () => {
-  console.log('🔌 [DB] Prisma is disconnecting...');
+prisma.$on("beforeExit", async () => {
+  console.log("🔌 [DB] Prisma is disconnecting...");
 });
 
 module.exports = prisma;
