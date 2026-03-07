@@ -40,25 +40,21 @@ router.post("/", requireAnyPermission(["WITHDRAWALS", "CREATES_WITHDRAWALS"]), a
             return res.status(400).json({ error: "Treasury is required" });
         }
 
+        // 1. Verify treasury exists and has sufficient balance (before transaction)
+        const treasury = await prisma.treasury.findUnique({
+            where: { id: parseInt(treasuryId) },
+        });
+
+        if (!treasury) {
+            return res.status(404).json({ error: "Treasury not found" });
+        }
+
+        if (Number(treasury.balance) < withdrawalAmount) {
+            return res.status(400).json({ error: "رصيد الخزينة غير كافي (Insufficient treasury balance)" });
+        }
+
         // Use transaction to update balance and create withdrawal record
         const result = await prisma.$transaction(async (tx) => {
-            // 1. Verify treasury exists and has sufficient balance
-            const treasury = await tx.treasury.findUnique({
-                where: { id: parseInt(treasuryId) },
-            });
-
-            if (!treasury) {
-                const err = new Error("Treasury not found");
-                err.status = 404;
-                throw err;
-            }
-
-            if (Number(treasury.balance) < withdrawalAmount) {
-                const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
-                err.status = 400;
-                throw err;
-            }
-
             // 2. Decrease Treasury Balance
             await tx.treasury.update({
                 where: { id: parseInt(treasuryId) },

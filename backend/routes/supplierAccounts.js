@@ -212,41 +212,34 @@ router.post("/:supplierId/payments", async (req, res) => {
             return res.status(400).json({ error: "Treasury is required" });
         }
 
+        // 1. Verify supplier account exists (before transaction)
+        const account = await prisma.supplierAccount.findUnique({
+            where: { supplierId },
+        });
+
+        if (!account) {
+            return res.status(404).json({ error: "Supplier account not found or has no debt" });
+        }
+
+        if (Number(amount) > Number(account.balance)) {
+            return res.status(400).json({ error: "Payment amount exceeds outstanding balance" });
+        }
+
+        // 2. Check treasury balance (before transaction)
+        const treasury = await prisma.treasury.findUnique({
+            where: { id: parseInt(treasuryId) },
+        });
+
+        if (!treasury) {
+            return res.status(404).json({ error: "Treasury not found" });
+        }
+
+        if (Number(treasury.balance) < Number(amount)) {
+            return res.status(400).json({ error: "رصيد الخزينة غير كافي (Insufficient treasury balance)" });
+        }
+
         const result = await prisma.$transaction(async (prisma) => {
-            // 1. Verify supplier account exists
-            let account = await prisma.supplierAccount.findUnique({
-                where: { supplierId },
-            });
-
-            if (!account) {
-                const err = new Error("Supplier account not found or has no debt");
-                err.status = 404;
-                throw err;
-            }
-
-            // 2. Check if payment amount exceeds balance
-            if (Number(amount) > Number(account.balance)) {
-                const err = new Error("Payment amount exceeds outstanding balance");
-                err.status = 400;
-                throw err;
-            }
-
-            // 3. Check treasury balance
-            const treasury = await prisma.treasury.findUnique({
-                where: { id: parseInt(treasuryId) },
-            });
-
-            if (!treasury) {
-                throw new Error("Treasury not found");
-            }
-
-            // Note: For supplier payments, we DEDUCT from treasury (paying the supplier)
-            // This is opposite of purchase creation where we receive goods/services
-            if (Number(treasury.balance) < Number(amount)) {
-                throw new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
-            }
-
-            // 4. Deduct from treasury
+            // 3. Deduct from treasury
             await prisma.treasury.update({
                 where: { id: parseInt(treasuryId) },
                 data: {
