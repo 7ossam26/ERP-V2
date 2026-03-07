@@ -124,16 +124,23 @@ model Permission {
 model AuditLog {
   id           Int      @id @default(autoincrement())
   userId       Int?     @map("user_id")
-  action       String
-  targetEntity String   @map("target_entity")
-  targetId     String?  @map("target_id")
+  action       String   @db.VarChar(20)
+  targetEntity String   @map("target_entity") @db.VarChar(60)
+  targetId     String?  @map("target_id") @db.VarChar(40)
   details      Json?
-  ipAddress    String?  @map("ip_address")
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  branchId     Int?     @map("branch_id")
+  rowHash      String?  @map("row_hash") @db.Char(64)
   createdAt    DateTime @default(now()) @map("created_at")
 
   // Relations
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([targetEntity, targetId])
+  @@index([branchId, createdAt])
   @@map("audit_logs")
 }
 
@@ -294,6 +301,7 @@ model Branch {
   shifts        Shift[]
   DeliveryMan   DeliveryMan[]
   deliveryZones DeliveryZone[]
+  auditLogs     AuditLog[]
 
   @@map("branches")
 }

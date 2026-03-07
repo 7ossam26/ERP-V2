@@ -187,6 +187,10 @@ if (process.env.NODE_ENV === "production") {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Audit capture — wraps res.json on mutating requests after body is parsed
+const auditCapture = require("./middleware/auditCapture");
+app.use(auditCapture);
+
 // Health check route
 app.get("/api/health", (req, res) => {
   res.json({
@@ -242,7 +246,8 @@ app.use("/api/withdrawals", require("./routes/withdrawals"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/delivery-men", require("./routes/delivery.routes"));
 app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
-app.use("/api/bom", require("./routes/bom"));
+app.use("/api/bom",   require("./routes/bom"));
+app.use("/api/audit", require("./routes/audit"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
