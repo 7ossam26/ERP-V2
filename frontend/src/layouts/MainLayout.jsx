@@ -107,6 +107,14 @@ const MainLayout = ({ children }) => {
                 </span>
               </div>
 
+              {/* Help / User Manual Button */}
+              <Link
+                to="/manual"
+                title="دليل المستخدم"
+                className="flex items-center justify-center w-9 h-9 rounded-full text-text-light/60 hover:text-primary dark:text-text-dark/60 dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors">
+                <span className="material-icons-round text-xl">help_outline</span>
+              </Link>
+
               {/* User Profile Dropdown */}
               <div className="relative user-dropdown">
                 <button
