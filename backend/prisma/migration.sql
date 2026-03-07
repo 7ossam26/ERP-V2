@@ -1163,3 +1163,28 @@ ALTER TABLE `withdrawals` ADD CONSTRAINT `withdrawals_treasury_id_fkey` FOREIGN 
 ALTER TABLE `withdrawals` ADD CONSTRAINT `withdrawals_created_by_id_fkey` FOREIGN KEY (`created_by_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 
+-- Migration: 20260306052139_add_is_active_columns
+/*
+  Warnings:
+
+  - You are about to alter the column `date` on the `deposits` table. The data in that column could be lost. The data in that column will be cast from `DateTime(3)` to `DateTime(0)`.
+
+*/
+-- AlterTable
+ALTER TABLE `branches` ADD COLUMN `is_active` BOOLEAN NOT NULL DEFAULT true;
+
+-- AlterTable
+ALTER TABLE `deposits` MODIFY `date` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0);
+
+-- AlterTable
+ALTER TABLE `treasuries` ADD COLUMN `is_active` BOOLEAN NOT NULL DEFAULT true;
+
+-- AlterTable
+ALTER TABLE `warehouses` ADD COLUMN `is_active` BOOLEAN NOT NULL DEFAULT true;
+
+
+-- Migration: 20260307000001_add_is_bom_to_items
+-- AlterTable
+ALTER TABLE `items` ADD COLUMN `is_bom` BOOLEAN NOT NULL DEFAULT false;
+
+
