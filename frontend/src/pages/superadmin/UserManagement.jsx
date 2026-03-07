@@ -106,7 +106,9 @@ const UserManagement = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      toast.error("فشل في حفظ بيانات المستخدم. يرجى التحقق من البيانات والمحاولة مرة أخرى.");
+      toast.error(
+        "فشل في حفظ بيانات المستخدم. يرجى التحقق من البيانات والمحاولة مرة أخرى.",
+      );
     }
   };
 
@@ -239,10 +241,11 @@ const UserManagement = () => {
                 <td className="p-4">
                   <button
                     onClick={() => handleToggleStatus(user.id)}
-                    className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${user.isActive
+                    className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${
+                      user.isActive
                         ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200"
                         : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200"
-                      }`}>
+                    }`}>
                     {user.isActive ? "Active" : "Inactive"}
                   </button>
                 </td>
@@ -398,6 +401,7 @@ const UserManagement = () => {
                 const isMultiBranchRole = [
                   "General Manager",
                   "Area Manager",
+                  "Manager",
                 ].includes(selectedRoleName);
 
                 if (isGlobalRole) return null;
