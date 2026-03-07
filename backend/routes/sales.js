@@ -389,17 +389,11 @@ router.post(
         });
 
         if (!activeShift) {
-          console.log("⚠️ No active shift found. Auto-starting new shift...");
-          activeShift = await prisma.shift.create({
-            data: {
-              userId: finalUserId,
-              branchId: branchId, // Use resolved branchId
-              startTime: new Date(),
-              status: "OPEN",
-              startCash: 0, // Default 0 for auto-start
-            },
-          });
-          console.log(`✅ Auto-started Shift ID: ${activeShift.id}`);
+          const shiftErr = new Error(
+            "لا توجد وردية مفتوحة. يرجى فتح وردية أولاً قبل إتمام البيع."
+          );
+          shiftErr.status = 400;
+          throw shiftErr;
         } else {
           console.log(`✅ Found Active Shift ID: ${activeShift.id}`);
         }
@@ -566,9 +560,11 @@ router.post(
             console.log("✅ Bank Treasury balance updated.");
           } else {
             console.error("❌ Bank Treasury NOT configured!");
-            throw new Error(
+            const cardErr = new Error(
               "إعدادات النظام غير مكتملة: لا يوجد خزينة بنك مرتبطة لاستلام مدفوعات الفيزا. يرجى مراجعة المسؤول.",
             );
+            cardErr.status = 422;
+            throw cardErr;
           }
         } else {
           console.log(`ℹ️ Payment is ${paymentMethod}. Balances NOT updated.`);
@@ -772,7 +768,7 @@ router.put(
   "/:id",
   authenticateToken,
   requirePermission("SALES"),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const {
         clientId,
@@ -1163,7 +1159,7 @@ router.delete(
   "/:id",
   authenticateToken,
   requirePermission("SALES"),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       await prisma.$transaction(async (tx) => {
         // 1. Fetch Sale with Items

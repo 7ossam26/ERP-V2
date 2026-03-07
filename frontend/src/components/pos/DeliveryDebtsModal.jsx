@@ -18,8 +18,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
   const fetchRiderDebts = async () => {
     try {
       if (!branchId || branchId === "undefined") {
-        console.error("DeliveryDebtsModal: No branchId provided");
-        toast.error("لا يوجد فرع محدد");
+        setRiderDebts([]);
         return;
       }
 
@@ -179,7 +178,15 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
                       <td
                         colSpan="4"
                         className="px-4 py-12 text-center text-gray-500 bg-white dark:bg-gray-800">
-                        {!currentShiftId ? (
+                        {!branchId ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="material-icons-round text-gray-400 text-4xl">
+                              store_off
+                            </span>
+                            <p className="font-bold">الحساب غير مرتبط بفرع</p>
+                            <p className="text-sm">لا يمكن عرض ديون الطيارين بدون فرع محدد</p>
+                          </div>
+                        ) : !currentShiftId ? (
                           <div className="flex flex-col items-center gap-2">
                             <span className="material-icons-round text-yellow-500 text-4xl">
                               warning

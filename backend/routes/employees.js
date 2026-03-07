@@ -254,9 +254,8 @@ router.post("/:id/pay", authenticateToken, async (req, res) => {
   try {
     const employeeId = parseInt(req.params.id);
     const { month, year } = req.body;
-    const userId = req.user.id; // Capture user ID
+    const userId = req.user.id;
 
-    // Calculate current stats
     const { startDate, endDate } = getMonthDateRange(month, year);
 
     const transactions = await prisma.employeeTransaction.findMany({
@@ -276,29 +275,59 @@ router.post("/:id/pay", authenticateToken, async (req, res) => {
 
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
+      include: { branch: { include: { treasury: true } } },
     });
+
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
     const baseSalary = Number(employee.salary);
     const netSalary = baseSalary - advances - deductions;
 
-    // Create Payroll Record
-    const payroll = await prisma.payroll.create({
-      data: {
-        employeeId,
-        month,
-        year,
-        baseSalary,
-        advances,
-        deductions,
-        netSalary,
-        status: "PAID",
-        paymentDate: new Date(),
-        createdById: userId, // Save the creator
-      },
+    // Validate treasury before deduction
+    if (netSalary > 0) {
+      if (!employee.branch?.treasury) {
+        return res.status(400).json({
+          error: "لا توجد خزينة مرتبطة بفرع الموظف (Branch has no associated treasury)",
+        });
+      }
+      if (Number(employee.branch.treasury.balance) < netSalary) {
+        return res.status(400).json({
+          error: "رصيد الخزينة غير كافي لدفع الراتب (Insufficient treasury balance)",
+        });
+      }
+    }
+
+    // Execute payroll + treasury deduction in a single transaction
+    const payroll = await prisma.$transaction(async (tx) => {
+      // Deduct net salary from branch treasury
+      if (netSalary > 0 && employee.branch?.treasuryId) {
+        await tx.treasury.update({
+          where: { id: employee.branch.treasuryId },
+          data: { balance: { decrement: netSalary } },
+        });
+      }
+
+      // Create Payroll Record
+      return await tx.payroll.create({
+        data: {
+          employeeId,
+          month,
+          year,
+          baseSalary,
+          advances,
+          deductions,
+          netSalary,
+          status: "PAID",
+          paymentDate: new Date(),
+          createdById: userId,
+        },
+      });
     });
 
     res.json(payroll);
   } catch (error) {
-    // Handle unique constraint (already paid)
     if (error.code === "P2002") {
       return res
         .status(400)

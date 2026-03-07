@@ -48,11 +48,15 @@ router.post("/", requireAnyPermission(["WITHDRAWALS", "CREATES_WITHDRAWALS"]), a
             });
 
             if (!treasury) {
-                throw new Error("Treasury not found");
+                const err = new Error("Treasury not found");
+                err.status = 404;
+                throw err;
             }
 
             if (Number(treasury.balance) < withdrawalAmount) {
-                throw new Error("Insufficient treasury balance");
+                const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+                err.status = 400;
+                throw err;
             }
 
             // 2. Decrease Treasury Balance

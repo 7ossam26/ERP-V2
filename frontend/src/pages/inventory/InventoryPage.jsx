@@ -359,7 +359,7 @@ const InventoryPage = () => {
                   setSelectedWarehouse(e.target.value);
                   // Trigger fetch with new warehouse
                 }}
-                className="appearance-none bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-2.5 pr-10 text-sm font-bold text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-transparent outline-none cursor-pointer">
+                className="appearance-none bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl py-2.5 pl-10 pr-10 text-sm font-bold text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-transparent outline-none cursor-pointer">
                 <option value="all">كل الفروع</option>
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.warehouseId}>

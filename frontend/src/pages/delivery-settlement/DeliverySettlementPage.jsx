@@ -391,6 +391,7 @@ const DeliverySettlementPage = () => {
                             value={dateRange.start}
                             onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
                             className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                            max={new Date().toISOString().split("T")[0]}
                         />
                         <span className="self-center text-gray-500">إلى</span>
                         <input
@@ -398,6 +399,7 @@ const DeliverySettlementPage = () => {
                             value={dateRange.end}
                             onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
                             className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                            max={new Date().toISOString().split("T")[0]}
                         />
                     </div>
                 </div>

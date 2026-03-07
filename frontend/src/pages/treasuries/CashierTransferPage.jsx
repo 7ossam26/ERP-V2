@@ -216,7 +216,7 @@ const CashierTransferPage = () => {
                   </label>
                   <div className="relative">
                     <input
-                      className="w-full text-left ltr bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-4 text-3xl font-bold text-text-primary dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                      className="w-full text-left ltr bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl pl-4 pr-16 py-4 text-3xl font-bold text-text-primary dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-gray-300 dark:placeholder:text-gray-600"
                       placeholder="0.00"
                       type="number"
                       value={amount}
@@ -224,7 +224,7 @@ const CashierTransferPage = () => {
                       max={currentBalance}
                       disabled={loading}
                     />
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary dark:text-gray-400 font-medium text-lg pointer-events-none">
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary dark:text-gray-400 font-medium text-lg pointer-events-none">
                       ج.م
                     </span>
                   </div>

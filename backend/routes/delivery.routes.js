@@ -18,6 +18,7 @@ router.post(
 
 router.post(
   "/settle",
+  requireAnyPermission(["DELIVERY_SETTLEMENT", "POS"]),
   deliveryController.settleDeliveryMan,
 );
 

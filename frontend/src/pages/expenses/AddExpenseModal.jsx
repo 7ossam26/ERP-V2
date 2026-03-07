@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { treasuryService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import toast from "react-hot-toast";
 
 const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
     const [formData, setFormData] = useState({
@@ -86,6 +87,18 @@ const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
     };
 
     const handleSubmit = () => {
+        if (!formData.description.trim()) {
+            toast.error("يرجى إدخال وصف المصروف");
+            return;
+        }
+        if (!formData.amount || parseFloat(formData.amount) <= 0) {
+            toast.error("يرجى إدخال مبلغ صحيح أكبر من صفر");
+            return;
+        }
+        if (!formData.treasuryId) {
+            toast.error("يرجى اختيار الخزينة");
+            return;
+        }
         if (expenseToEdit) {
             onUpdate(expenseToEdit.id, formData);
         } else {

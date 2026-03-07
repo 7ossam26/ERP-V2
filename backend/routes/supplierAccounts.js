@@ -219,12 +219,16 @@ router.post("/:supplierId/payments", async (req, res) => {
             });
 
             if (!account) {
-                return res.status(404).json({ error: "Supplier account not found or has no debt" });
+                const err = new Error("Supplier account not found or has no debt");
+                err.status = 404;
+                throw err;
             }
 
             // 2. Check if payment amount exceeds balance
             if (Number(amount) > Number(account.balance)) {
-                throw new Error("Payment amount exceeds outstanding balance");
+                const err = new Error("Payment amount exceeds outstanding balance");
+                err.status = 400;
+                throw err;
             }
 
             // 3. Check treasury balance

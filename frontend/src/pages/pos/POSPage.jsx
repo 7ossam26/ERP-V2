@@ -120,6 +120,11 @@ const POSPage = () => {
         // 2. User has no active shift. Check if the BRANCH is blocked by someone else.
         console.log("ℹ️ No active shift for user. Checking branch status...");
 
+        if (!user.branch) {
+          toast.error("هذا الحساب غير مرتبط بفرع — لا يمكن فتح وردية");
+          return;
+        }
+
         // We use the pending endpoint which now returns ANY blocking shift (Open or Pending)
         const blockingShift = await shiftService.getPending(user.branch.id);
         console.log("🔍 Branch Blocking Shift Result:", blockingShift);

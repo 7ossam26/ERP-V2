@@ -61,11 +61,9 @@ const UserManagement = () => {
         const rawBranches = Array.isArray(branchesRes)
           ? branchesRes
           : branchesRes?.data || [];
-        const sortedBranches = [...rawBranches].sort((a, b) => {
-          if (a.isAllBranches) return -1;
-          if (b.isAllBranches) return 1;
-          return a.name.localeCompare(b.name);
-        });
+        const sortedBranches = [...rawBranches].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
         setBranches(sortedBranches);
       } else {
         console.error("Branches load failed:", branchesResult.reason);

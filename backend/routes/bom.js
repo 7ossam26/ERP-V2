@@ -584,7 +584,7 @@ router.post(
             create: {
               itemId: mat.itemId,
               warehouseId: parseInt(sourceWarehouseId),
-              quantity: -mat.quantityUsed,
+              quantity: 0, // Stock validated before transaction; create path shouldn't occur
             },
           });
         }

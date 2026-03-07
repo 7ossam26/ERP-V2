@@ -352,6 +352,32 @@ router.post("/end", async (req, res, next) => {
       return res.status(400).json({ error: "Actual cash amount is required" });
     }
 
+    // Verify the requesting user owns this shift (or has manager access)
+    const shiftToEnd = await prisma.shift.findUnique({
+      where: { id: parseInt(shiftId) },
+      include: { branch: true },
+    });
+    if (!shiftToEnd) {
+      return res.status(404).json({ error: "Shift not found" });
+    }
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { role: true, accessibleBranches: { select: { id: true } } },
+    });
+    const isManager =
+      requestingUser.role.name === "Superadmin" ||
+      requestingUser.role.name === "Admin" ||
+      requestingUser.role.name === "Manager" ||
+      requestingUser.role.name === "Branch Manager" ||
+      requestingUser.role.name === "General Manager";
+    const ownsShift = shiftToEnd.userId === req.user.id;
+    if (!ownsShift && !isManager) {
+      return res.status(403).json({
+        error: "Access denied. You can only end your own shift.",
+        message: "عذراً، لا يمكنك إنهاء وردية موظف آخر",
+      });
+    }
+
     // Calculate system expected cash and breakdown
     const {
       expected: systemExpectedCash,
@@ -520,7 +546,9 @@ router.post("/approve", async (req, res, next) => {
       manager.branchId === shift.branchId ||
       (manager.accessibleBranches &&
         manager.accessibleBranches.some((b) => b.id === shift.branchId)) ||
-      manager.role.name === "Superadmin"; // Superadmin can access all
+      manager.role.name === "Superadmin" ||
+      manager.role.name === "Admin" ||
+      manager.role.name === "General Manager"; // Global roles can access all branches
 
     if (!canAccessBranch) {
       return res.status(403).json({

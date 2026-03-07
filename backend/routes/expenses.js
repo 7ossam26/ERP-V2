@@ -63,11 +63,15 @@ router.post("/", async (req, res, next) => {
             });
 
             if (!treasury) {
-                throw new Error("Treasury not found");
+                const err = new Error("Treasury not found");
+                err.status = 404;
+                throw err;
             }
 
             if (Number(treasury.balance) < Number(amount)) {
-                throw new Error("Insufficient treasury balance");
+                const err = new Error("Insufficient treasury balance");
+                err.status = 400;
+                throw err;
             }
 
             // 2. Find the treasury's branch
@@ -152,11 +156,15 @@ router.put("/:id", async (req, res, next) => {
             });
 
             if (!currentTreasury) {
-                throw new Error("Target treasury not found");
+                const err = new Error("Target treasury not found");
+                err.status = 404;
+                throw err;
             }
 
             if (Number(currentTreasury.balance) < Number(amount)) {
-                throw new Error("Insufficient treasury balance for the new amount");
+                const err = new Error("Insufficient treasury balance for the new amount");
+                err.status = 400;
+                throw err;
             }
 
             // 3. Deduct new amount

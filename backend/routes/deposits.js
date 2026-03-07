@@ -49,7 +49,9 @@ router.post("/", requireAnyPermission(["DEPOSITS", "CREATES_DEPOSITS"]), async (
             });
 
             if (!treasury) {
-                throw new Error("Treasury not found");
+                const err = new Error("Treasury not found");
+                err.status = 404;
+                throw err;
             }
 
             // 2. Increase Treasury Balance

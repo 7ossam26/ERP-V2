@@ -7,7 +7,7 @@ const { authenticateToken, requirePermission, getUserBranchFilter } = require(".
 router.use(authenticateToken, requirePermission("PURCHASES"));
 
 // GET all purchases
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const branchId = await getUserBranchFilter(req.user.id);
     // Purchases are linked to a warehouse. Branches are linked to a warehouse.
@@ -52,14 +52,12 @@ router.get("/", async (req, res) => {
     });
     res.json(purchases);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch purchases", message: error.message });
+    next(error);
   }
 });
 
 // GET purchase by ID
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
   try {
     const purchase = await prisma.purchase.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -79,14 +77,12 @@ router.get("/:id", async (req, res) => {
     }
     res.json(purchase);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch purchase", message: error.message });
+    next(error);
   }
 });
 
 // POST create new purchase
-router.post("/", async (req, res) => {
+router.post("/", async (req, res, next) => {
   try {
     console.log("📦 Received purchase creation request");
     console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -231,11 +227,15 @@ router.post("/", async (req, res) => {
         });
 
         if (!treasury) {
-          throw new Error("Treasury not found");
+          const err = new Error("Treasury not found");
+          err.status = 404;
+          throw err;
         }
 
         if (Number(treasury.balance) < Number(netTotal)) {
-          throw new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+          const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+          err.status = 400;
+          throw err;
         }
 
         // Deduct from treasury
@@ -293,11 +293,15 @@ router.post("/", async (req, res) => {
           });
 
           if (!treasury) {
-            throw new Error("Treasury not found");
+            const err = new Error("Treasury not found");
+            err.status = 404;
+            throw err;
           }
 
           if (Number(treasury.balance) < Number(paidAmount)) {
-            throw new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+            const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+            err.status = 400;
+            throw err;
           }
 
           // Deduct paid amount from treasury
@@ -351,20 +355,12 @@ router.post("/", async (req, res) => {
     console.log("✅ Purchase created successfully:", purchase.id);
     res.status(201).json(purchase);
   } catch (error) {
-    console.error("❌ Error creating purchase:");
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    console.error("Error code:", error.code);
-    console.error("Full error:", error);
-
-    res
-      .status(500)
-      .json({ error: "Failed to create purchase", message: error.message });
+    next(error);
   }
 });
 
 // PUT update purchase
-router.put("/:id", async (req, res) => {
+router.put("/:id", async (req, res, next) => {
   try {
     const {
       supplierId,
@@ -391,7 +387,9 @@ router.put("/:id", async (req, res) => {
       });
 
       if (!oldPurchase) {
-        throw new Error("Purchase not found");
+        const err = new Error("Purchase not found");
+        err.status = 404;
+        throw err;
       }
 
       // 2. Refund Old Amount (User requested feature)
@@ -488,8 +486,21 @@ router.put("/:id", async (req, res) => {
         }
       }
 
-      // 5. Deduct New Amount (User requested feature)
+      // 5. Deduct New Amount — verify treasury has sufficient balance first (NEW-08 fix)
       if (Number(paidAmount) > 0) {
+        const newTreasury = await prisma.treasury.findUnique({
+          where: { id: parseInt(treasuryId) },
+        });
+        if (!newTreasury) {
+          const err = new Error("Treasury not found");
+          err.status = 404;
+          throw err;
+        }
+        if (Number(newTreasury.balance) < Number(paidAmount)) {
+          const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+          err.status = 400;
+          throw err;
+        }
         await prisma.treasury.update({
           where: { id: parseInt(treasuryId) },
           data: {
@@ -546,17 +557,12 @@ router.put("/:id", async (req, res) => {
 
     res.json(purchase);
   } catch (error) {
-    if (error.code === "P2025") {
-      return res.status(404).json({ error: "Purchase not found" });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to update purchase", message: error.message });
+    next(error);
   }
 });
 
 // DELETE purchase
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res, next) => {
   try {
     const purchaseId = parseInt(req.params.id);
 
@@ -606,12 +612,7 @@ router.delete("/:id", async (req, res) => {
 
     res.status(204).send();
   } catch (error) {
-    if (error.message === "Purchase not found" || error.code === "P2025") {
-      return res.status(404).json({ error: "Purchase not found" });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to delete purchase", message: error.message });
+    next(error);
   }
 });
 
