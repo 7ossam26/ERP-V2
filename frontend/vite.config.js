@@ -22,6 +22,11 @@ export default defineConfig(({ mode }) => {
     define: {
       __APP_ENV__: JSON.stringify(mode),
     },
+    build: {
+      // Output directly to backend/client_dist so the server serves fresh builds
+      outDir: "../backend/client_dist",
+      emptyOutDir: true,
+    },
     server: {
       proxy: {
         "/api": {

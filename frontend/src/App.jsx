@@ -13,6 +13,7 @@ import UserManagement from "./pages/superadmin/UserManagement";
 import RoleManagement from "./pages/superadmin/RoleManagement";
 import PermissionConfig from "./pages/superadmin/PermissionConfig";
 import AuditLogs from "./pages/superadmin/AuditLogs";
+import DatabaseReset from "./pages/superadmin/DatabaseReset";
 import LoginPage from "./pages/LoginPage";
 import MainDashboard from "./pages/MainDashboard";
 import CreatesDashboard from "./pages/CreatesDashboard";
@@ -110,6 +111,7 @@ function App() {
           <Route path="roles" element={<RoleManagement />} />
           <Route path="roles/:id/permissions" element={<PermissionConfig />} />
           <Route path="audit-logs" element={<AuditLogs />} />
+          <Route path="reset-database" element={<DatabaseReset />} />
         </Route>
 
         {/* Protected Routes: Wrapped in MainLayout */}

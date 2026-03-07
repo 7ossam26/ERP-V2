@@ -377,7 +377,7 @@ const POSPage = () => {
 
           let quantity;
           if (bom.outputItemId) {
-            // Use ACTUAL warehouse stock of the manufactured output item
+            // Use ACTUAL warehouse stock of the manufactured output
             quantity = parseFloat(
               (inventoryMap[bom.outputItemId] || 0).toFixed(2),
             );

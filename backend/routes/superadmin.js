@@ -4,6 +4,7 @@ const prisma = require("../config/database");
 const bcrypt = require("bcryptjs");
 const { authenticateToken, isSuperadmin } = require("../middleware/auth");
 const { body, validationResult } = require("express-validator");
+const ResetService = require("../services/resetService");
 
 // Middleware to ensure all routes here are protected and for superadmin only
 router.use(authenticateToken, isSuperadmin);
@@ -39,8 +40,8 @@ router.get("/users", async (req, res) => {
         accessibleBranches: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
         createdAt: true,
       },
@@ -70,8 +71,8 @@ router.post("/users", createUserValidation, async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-
-    const { name, username, password, roleId, branchId, accessibleBranchIds } = req.body;
+    const { name, username, password, roleId, branchId, accessibleBranchIds } =
+      req.body;
 
     // Get role to determine permissions and validation
     const role = await prisma.role.findUnique({
@@ -82,10 +83,14 @@ router.post("/users", createUserValidation, async (req, res) => {
       return res.status(400).json({ error: "Invalid role selected" });
     }
 
-    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role.name);
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(
+      role.name,
+    );
 
     if (!isGlobalRole && !branchId) {
-      return res.status(400).json({ error: "Branch is required for this role" });
+      return res
+        .status(400)
+        .json({ error: "Branch is required for this role" });
     }
 
     // Check if username exists
@@ -100,12 +105,14 @@ router.post("/users", createUserValidation, async (req, res) => {
     let hasSensitiveAccess =
       req.body.hasSensitiveAccess !== undefined
         ? req.body.hasSensitiveAccess
-        : ["Superadmin", "Admin", "Manager", "General Manager"].includes(role.name);
+        : ["Superadmin", "Admin", "Manager", "General Manager"].includes(
+            role.name,
+          );
 
     // Prepare accessible branches connect
     const accessibleBranchesConnect =
       Array.isArray(accessibleBranchIds) && accessibleBranchIds.length > 0
-        ? accessibleBranchIds.map(id => ({ id: parseInt(id) }))
+        ? accessibleBranchIds.map((id) => ({ id: parseInt(id) }))
         : [];
 
     const newUser = await prisma.user.create({
@@ -118,12 +125,12 @@ router.post("/users", createUserValidation, async (req, res) => {
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
         hasSensitiveAccess: hasSensitiveAccess,
         accessibleBranches: {
-          connect: accessibleBranchesConnect
-        }
+          connect: accessibleBranchesConnect,
+        },
       },
       include: {
         role: true,
-        accessibleBranches: true
+        accessibleBranches: true,
       },
     });
 
@@ -141,26 +148,35 @@ router.post("/users", createUserValidation, async (req, res) => {
 router.put("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, username, roleId, branchId, password, accessibleBranchIds } = req.body;
+    const { name, username, roleId, branchId, password, accessibleBranchIds } =
+      req.body;
 
     // Get role information if it's being updated or checking current role
     let roleToCheckId = roleId;
     if (!roleToCheckId) {
-      const user = await prisma.user.findUnique({ where: { id: parseInt(id) }, select: { roleId: true } });
+      const user = await prisma.user.findUnique({
+        where: { id: parseInt(id) },
+        select: { roleId: true },
+      });
       if (user) roleToCheckId = user.roleId;
     }
 
     const role = await prisma.role.findUnique({
-      where: { id: parseInt(roleToCheckId) }
+      where: { id: parseInt(roleToCheckId) },
     });
 
-    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role?.name);
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(
+      role?.name,
+    );
 
     // Validate Branch requirement
-    if (!branchId && !isGlobalRole && roleId) { // Only enforce if role is explicitly being set/checked
+    if (!branchId && !isGlobalRole && roleId) {
+      // Only enforce if role is explicitly being set/checked
       // If branchId is not provided, we need to check if it's an update where branch is optional or not.
       // But for simplicity, if role is changing to a non-global one, branch is required.
-      return res.status(400).json({ error: "Branch is required for this role" });
+      return res
+        .status(400)
+        .json({ error: "Branch is required for this role" });
     }
 
     const data = {
@@ -170,7 +186,11 @@ router.put("/users/:id", async (req, res) => {
       // If global role, allow branchId to be null. If not global, strict parse.
       // If branchId is explicitly passed as null/empty string and it's a global role, we should set it to null in DB.
       // If it's undefined (not passed), we leave it alone (handled by delete undefined keys).
-      branchId: branchId ? parseInt(branchId) : (isGlobalRole && branchId !== undefined ? null : undefined),
+      branchId: branchId
+        ? parseInt(branchId)
+        : isGlobalRole && branchId !== undefined
+          ? null
+          : undefined,
       isActive: req.body.isActive !== undefined ? req.body.isActive : undefined,
       hasSensitiveAccess:
         req.body.hasSensitiveAccess !== undefined
@@ -180,7 +200,7 @@ router.put("/users/:id", async (req, res) => {
 
     // Remove undefined keys
     Object.keys(data).forEach(
-      (key) => data[key] === undefined && delete data[key]
+      (key) => data[key] === undefined && delete data[key],
     );
 
     if (password) {
@@ -190,11 +210,11 @@ router.put("/users/:id", async (req, res) => {
     // Handle accessible branches update if provided
     if (accessibleBranchIds !== undefined) {
       const branchesToConnect = Array.isArray(accessibleBranchIds)
-        ? accessibleBranchIds.map(bid => ({ id: parseInt(bid) }))
+        ? accessibleBranchIds.map((bid) => ({ id: parseInt(bid) }))
         : [];
 
       data.accessibleBranches = {
-        set: branchesToConnect // Replace existing with new list
+        set: branchesToConnect, // Replace existing with new list
       };
     }
 
@@ -208,7 +228,7 @@ router.put("/users/:id", async (req, res) => {
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(id) },
       data,
-      include: { accessibleBranches: true } // Include in response
+      include: { accessibleBranches: true }, // Include in response
     });
 
     res.json(updatedUser);
@@ -440,6 +460,93 @@ router.put("/roles/:id/permissions", async (req, res) => {
     res
       .status(500)
       .json({ error: "Failed to update permissions", details: error.message });
+  }
+});
+
+// ============================================
+// Database Reset Management
+// ============================================
+
+// POST reset database
+router.post("/reset-database", async (req, res) => {
+  try {
+    const { resetType } = req.body;
+
+    if (!resetType) {
+      return res.status(400).json({ error: "resetType is required" });
+    }
+
+    switch (resetType) {
+      case "SALES_ONLY":
+        await ResetService.clearSales();
+        break;
+      case "PURCHASES_ONLY":
+        await ResetService.clearPurchases();
+        break;
+      case "TREASURY_TRANSACTIONS":
+        await ResetService.clearTreasury();
+        break;
+      case "INVENTORY_MOVEMENTS":
+        await ResetService.clearInventoryMovements();
+        break;
+      case "HR_DATA":
+        await ResetService.clearHR();
+        break;
+      case "ITEMS_CATEGORIES":
+        await ResetService.clearItemsAndCategories();
+        break;
+      case "CLIENTS_ONLY":
+        await ResetService.clearClients();
+        break;
+      case "SUPPLIERS_ONLY":
+        await ResetService.clearSuppliers();
+        break;
+      case "EMPLOYEES_ONLY":
+        await ResetService.clearEmployees();
+        break;
+      case "ALL_TRANSACTIONS":
+        await ResetService.clearAllTransactions();
+        break;
+      case "CASH_TRANSFERS":
+        await ResetService.clearCashTransfers();
+        break;
+      case "DEPOSITS":
+        await ResetService.clearDeposits();
+        break;
+      case "WITHDRAWALS":
+        await ResetService.clearWithdrawals();
+        break;
+      case "SUPPLIER_PAYMENTS":
+        await ResetService.clearSupplierPayments();
+        break;
+      case "PAYROLLS":
+        await ResetService.clearPayrolls();
+        break;
+      case "EMPLOYEE_TRANSACTIONS":
+        await ResetService.clearEmployeeTransactions();
+        break;
+      case "SHIFTS":
+        await ResetService.clearShifts();
+        break;
+      case "PRODUCTION_ORDERS":
+        await ResetService.clearProductionOrders();
+        break;
+      case "DELIVERY_RECORDS":
+        await ResetService.clearDeliveryRecords();
+        break;
+      case "AUDIT_LOGS":
+        await ResetService.clearAuditLogs();
+        break;
+      default:
+        return res.status(400).json({ error: "Invalid resetType" });
+    }
+
+    res.json({ message: "Database reset successfully", type: resetType });
+  } catch (error) {
+    console.error("Database reset error:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to reset database", details: error.message });
   }
 });
 
