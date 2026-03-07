@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>ERP-V2 — Backend API Test Plan</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1a1a1a; background: #fff; padding: 30px 40px; }
+
+  h1 { font-size: 22px; color: #1e3a5f; border-bottom: 3px solid #1e3a5f; padding-bottom: 10px; margin-bottom: 6px; }
+  .meta { font-size: 11px; color: #555; margin-bottom: 24px; }
+  .meta span { margin-right: 24px; }
+
+  h2 { font-size: 15px; color: #fff; background: #1e3a5f; padding: 7px 12px; margin: 28px 0 10px; border-radius: 4px; }
+  h3 { font-size: 12px; color: #1e3a5f; margin: 14px 0 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11px; }
+  th { background: #dce8f5; color: #1e3a5f; padding: 6px 8px; text-align: left; border: 1px solid #b5cfe8; font-weight: 700; }
+  td { padding: 6px 8px; border: 1px solid #ddd; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7f9fc; }
+
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+  .p1 { background: #fde8e8; color: #c0392b; }
+  .p2 { background: #fef3cd; color: #856404; }
+  .p3 { background: #d4edda; color: #155724; }
+  .pass  { background: #d4edda; color: #155724; }
+  .fail  { background: #fde8e8; color: #c0392b; }
+  .block { background: #e8eaf0; color: #333; }
+
+  .risk-box { border: 1px solid #f0ad4e; background: #fffbf0; border-radius: 4px; padding: 10px 14px; margin-bottom: 20px; }
+  .risk-box h3 { color: #856404; margin: 0 0 8px; }
+  .risk-item { margin-bottom: 4px; padding-left: 16px; position: relative; }
+  .risk-item::before { content: "⚠"; position: absolute; left: 0; color: #f0ad4e; }
+
+  .phase-intro { background: #f0f4fa; border-left: 4px solid #1e3a5f; padding: 8px 12px; margin-bottom: 12px; font-size: 11px; color: #444; border-radius: 0 4px 4px 0; }
+
+  .footer { margin-top: 36px; padding-top: 12px; border-top: 1px solid #ccc; font-size: 10px; color: #888; display: flex; justify-content: space-between; }
+
+  @media print {
+    body { padding: 15px 20px; font-size: 11px; }
+    h2 { page-break-before: auto; }
+    table { page-break-inside: avoid; }
+    tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>ERP-V2 — Backend API Test Plan</h1>
+<div class="meta">
+  <span><b>Project:</b> ERP-V2 (Node.js / Express / Prisma / MySQL)</span>
+  <span><b>Branch:</b> adam-testing</span>
+  <span><b>Date:</b> 2026-03-07</span>
+  <span><b>Phases:</b> A1 – A8 (Backend only)</span>
+</div>
+
+<!-- ─── KEY RISKS ──────────────────────────────────────────────────────────── -->
+<div class="risk-box">
+  <h3>Pre-Testing Known Risks</h3>
+  <div class="risk-item">JWT fallback secret — <code>auth.js</code> uses <code>"fallback_secret_key_change_me"</code> if <code>JWT_SECRET</code> is not set in <code>.env</code></div>
+  <div class="risk-item">Treasury balance drift — <code>Treasury.balance</code> is a stored field, not calculated; any failed transaction path could cause drift</div>
+  <div class="risk-item">SaleItem dual-nullable FK — both <code>itemId</code> and <code>bomId</code> are nullable; at least one must always be set</div>
+  <div class="risk-item">Schema gap — <code>production_orders</code> table and <code>items.is_bom</code> field exist in <code>schema.prisma</code> but have no migration yet</div>
+  <div class="risk-item">Branch filter edge case — user with <code>branchId=NULL</code> and no <code>accessibleBranches</code> receives <code>{ id: 0 }</code> filter → silent empty result</div>
+  <div class="risk-item">Concurrent open shifts — no unique constraint on shifts per user/branch/status observed in migrations</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE A1 — AUTH
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Phase A1 — Authentication &amp; Permission Middleware</h2>
+<div class="phase-intro">Verifies that all protected routes enforce JWT auth, that invalid/expired tokens are rejected, that role-based permission guards return 403 (not 200), and that the branch filter correctly scopes data per user.</div>
+
+<table>
+  <thead><tr><th width="7%">ID</th><th width="28%">Test Case</th><th width="28%">Steps</th><th width="20%">Expected Result</th><th width="8%">Priority</th><th width="9%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A1-01</td>
+      <td>Protected routes reject unauthenticated requests</td>
+      <td>Send GET to <code>/api/employees</code>, <code>/api/treasuries</code>, <code>/api/purchases</code>, <code>/api/shifts</code> with no <code>Authorization</code> header</td>
+      <td>All return <b>401 Unauthorized</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A1-02</td>
+      <td>Invalid / malformed token returns 401</td>
+      <td>Send GET <code>/api/auth/me</code> with token = <code>"not.a.jwt"</code>, then with a structurally valid but wrong-signature JWT</td>
+      <td><b>401</b> for both</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A1-03</td>
+      <td>Valid token returns current user</td>
+      <td>GET <code>/api/auth/me</code> with a valid token</td>
+      <td><b>200</b> with <code>{ id, name, role }</code></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A1-04</td>
+      <td>Login with wrong credentials</td>
+      <td>POST <code>/api/auth/login</code> with a non-existent username and wrong password</td>
+      <td><b>401</b> or <b>400</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A1-05</td>
+      <td>JWT fallback secret risk check</td>
+      <td>Verify <code>backend/.env</code> has <code>JWT_SECRET</code> set; confirm it is NOT the default <code>"fallback_secret_key_change_me"</code></td>
+      <td><code>JWT_SECRET</code> is a strong, non-default value</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A1-06</td>
+      <td>Limited role is blocked from restricted module</td>
+      <td>Log in as a role that does NOT have <code>REPORTS</code> permission; GET <code>/api/reports/summary</code></td>
+      <td><b>403 Forbidden</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A1-07</td>
+      <td>Admin bypasses all permission checks</td>
+      <td>Log in as Superadmin; GET <code>/api/employees</code>, <code>/api/reports/summary</code>, <code>/api/supplier-accounts</code></td>
+      <td>All return <b>200</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A1-08</td>
+      <td>Branch-scoped user only sees their branch data</td>
+      <td>Log in as a user with <code>branchId=X</code>; GET <code>/api/treasuries</code>; check all returned records belong to branch X</td>
+      <td>All records match user's branch</td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A1-09</td>
+      <td>User with <code>branchId=NULL</code> and no accessible branches</td>
+      <td>Log in as a user with <code>branchId=NULL</code> and empty <code>_AccessibleBranches</code>; GET any branch-scoped endpoint</td>
+      <td>Returns empty array (not all data, no 500)</td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE A2 — POS
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Phase A2 — Point of Sale (POS)</h2>
+<div class="phase-intro">Tests the full shift lifecycle and sale creation flow. Most tests require an open shift and at least one item with inventory. CASH/CARD payment routing to the correct treasury is critical.</div>
+
+<table>
+  <thead><tr><th width="7%">ID</th><th width="28%">Test Case</th><th width="28%">Steps</th><th width="20%">Expected Result</th><th width="8%">Priority</th><th width="9%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A2-01</td>
+      <td>Cannot create sale without an open shift</td>
+      <td>Ensure no open shift exists; POST <code>/api/sales</code> with a valid item and CASH payment</td>
+      <td><b>400</b> — "No active shift"</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-02</td>
+      <td>Start a new shift successfully</td>
+      <td>POST <code>/api/shifts/start</code> with valid <code>userId</code> and <code>branchId</code></td>
+      <td><b>201</b> — shift with status <code>OPEN</code></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-03</td>
+      <td>Cannot start shift when previous is PENDING_REVIEW</td>
+      <td>Have an existing <code>PENDING_REVIEW</code> shift for the same user; attempt POST <code>/api/shifts/start</code></td>
+      <td><b>400</b> with <code>previousShiftStatus</code> in response body</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-04</td>
+      <td>CASH sale deducts inventory</td>
+      <td>Record item qty before; POST <code>/api/sales</code> with quantity=1; fetch inventory after</td>
+      <td>Item qty decreases by 1</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-05</td>
+      <td>CASH sale increments main treasury</td>
+      <td>Record main treasury balance before; create CASH sale for amount X; fetch treasury after</td>
+      <td>Treasury balance increases by X</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-06</td>
+      <td>CARD sale increments bank treasury</td>
+      <td>Record bank treasury balance before; create CARD sale; fetch bank treasury after</td>
+      <td>Bank treasury increases by sale amount</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-07</td>
+      <td>CARD sale with no bank treasury configured → 422</td>
+      <td>Remove <code>bankTreasuryId</code> from system config; attempt a CARD sale</td>
+      <td><b>422</b> — "Bank treasury not configured"</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-08</td>
+      <td>Shift end moves to PENDING_REVIEW</td>
+      <td>POST <code>/api/shifts/end</code> with <code>shiftId</code> and <code>endCash</code></td>
+      <td>Shift status becomes <code>PENDING_REVIEW</code></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-09</td>
+      <td>Shift end blocked by pending deliveries</td>
+      <td>Have undelivered orders in shift; attempt POST <code>/api/shifts/end</code></td>
+      <td><b>400</b> with <code>pendingOrders</code> array in body</td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-10</td>
+      <td>Cannot end another user's shift without manager role</td>
+      <td>Find a shift owned by user B; log in as user A (non-manager); POST <code>/api/shifts/end</code> with B's shift ID</td>
+      <td><b>403 Forbidden</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A2-11</td>
+      <td>Refund reverses inventory and treasury</td>
+      <td>Complete a sale; then POST <code>/api/sales/:id/refund</code>; verify inventory and treasury are restored</td>
+      <td>Inventory +qty, treasury -amount</td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE A3 — INVENTORY
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Phase A3 — Inventory &amp; Stock Transfers</h2>
+<div class="phase-intro">Validates inventory tracking per warehouse and stock transfer integrity. The schema gap for <code>is_bom</code> and <code>production_orders</code> must be identified.</div>
+
+<table>
+  <thead><tr><th width="7%">ID</th><th width="28%">Test Case</th><th width="28%">Steps</th><th width="20%">Expected Result</th><th width="8%">Priority</th><th width="9%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A3-01</td>
+      <td>GET inventory returns records with required fields</td>
+      <td>GET <code>/api/inventory</code>; check response shape</td>
+      <td>Each record has <code>itemId</code>, <code>warehouseId</code>, <code>quantity</code></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A3-02</td>
+      <td>Inventory can be filtered by warehouseId</td>
+      <td>GET <code>/api/inventory?warehouseId=X</code>; verify all records belong to warehouse X</td>
+      <td>All records have <code>warehouseId === X</code></td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A3-03</td>
+      <td>Stock transfer over available quantity → 400</td>
+      <td>Find item with qty=5; POST <code>/api/stock-transfers</code> with qty=9999</td>
+      <td><b>400</b> — insufficient stock</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A3-04</td>
+      <td>Stock transfer moves inventory between warehouses</td>
+      <td>Record qty before in both warehouses; POST <code>/api/stock-transfers</code> for qty=1; fetch inventory after</td>
+      <td>Source −1, destination +1</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A3-05</td>
+      <td>Delete stock transfer reverses inventory</td>
+      <td>Find an existing transfer; record inventory; DELETE <code>/api/stock-transfers/:id</code>; fetch inventory after</td>
+      <td>Source +qty, destination −qty</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A3-06</td>
+      <td>No inventory records have negative quantity</td>
+      <td>GET <code>/api/inventory</code>; check all <code>quantity</code> values</td>
+      <td>All quantities ≥ 0</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A3-07</td>
+      <td><code>isBom</code> field present on items (schema gap check)</td>
+      <td>GET <code>/api/items</code>; check first record for <code>isBom</code> field</td>
+      <td><code>isBom</code> field exists (boolean). <b>FAIL = migration not run</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE A4 — FINANCIAL
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Phase A4 — Financial Module</h2>
+<div class="phase-intro">Treasury balance integrity is critical. All operations that touch the treasury must be atomic (transaction-wrapped). The key risk is balance drift from partial failures.</div>
+
+<table>
+  <thead><tr><th width="7%">ID</th><th width="28%">Test Case</th><th width="28%">Steps</th><th width="20%">Expected Result</th><th width="8%">Priority</th><th width="9%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A4-01</td>
+      <td>Treasury balance is a stored numeric field</td>
+      <td>GET <code>/api/treasuries/:id</code>; verify <code>balance</code> is a number</td>
+      <td><code>balance</code> is numeric, not null</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A4-02</td>
+      <td>Deposit increases treasury balance</td>
+      <td>Record balance; POST <code>/api/deposits</code> with amount=X; fetch treasury after</td>
+      <td>Balance increases by exactly X</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A4-03</td>
+      <td>Withdrawal decreases treasury balance</td>
+      <td>Record balance; POST <code>/api/withdrawals</code> with amount=X; fetch treasury after</td>
+      <td>Balance decreases by exactly X</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A4-04</td>
+      <td>Withdrawal exceeding balance → 400</td>
+      <td>POST <code>/api/withdrawals</code> with amount = balance + 99999</td>
+      <td><b>400</b> — "رصيد الخزينة غير كافي"</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A4-05</td>
+      <td>Cash transfer APPROVED moves money</td>
+      <td>POST <code>/api/cash-transfers</code>; approve it; verify source balance decreased and destination increased</td>
+      <td>Source −amount, destination +amount</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A4-06</td>
+      <td>Cash transfer REJECTED returns money to source</td>
+      <td>Create a transfer; reject it; verify source balance is restored</td>
+      <td>Source balance fully restored</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A4-07</td>
+      <td>Deferred purchase creates SupplierAccount record</td>
+      <td>POST <code>/api/purchases</code> with <code>paymentMethod=DEFERRED</code>; check GET <code>/api/supplier-accounts</code></td>
+      <td>SupplierAccount record created with correct balance</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A4-08</td>
+      <td>Supplier payment reduces account balance and treasury</td>
+      <td>Record supplier balance and treasury balance; POST payment; fetch both after</td>
+      <td>Both decrease by payment amount</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A4-09</td>
+      <td>Supplier overpayment → 400</td>
+      <td>POST payment with amount = supplier balance + 99999</td>
+      <td><b>400</b> — "Payment exceeds outstanding balance"</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE A5 — HR
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Phase A5 — HR &amp; Payroll</h2>
+<div class="phase-intro">Payroll is calculated as baseSalary − advances − deductions. The <code>@@unique([employeeId, month, year])</code> constraint prevents double payment.</div>
+
+<table>
+  <thead><tr><th width="7%">ID</th><th width="28%">Test Case</th><th width="28%">Steps</th><th width="20%">Expected Result</th><th width="8%">Priority</th><th width="9%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A5-01</td>
+      <td>GET employees returns salary fields</td>
+      <td>GET <code>/api/employees</code>; check response shape</td>
+      <td>Each record has <code>salary</code>, <code>remaining</code></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A5-02</td>
+      <td>Adding ADVANCE reduces remaining salary</td>
+      <td>Record <code>remaining</code> before; POST ADVANCE transaction of amount=1; fetch employee after</td>
+      <td><code>remaining</code> decreases by 1</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A5-03</td>
+      <td>Adding DEDUCTION reduces remaining salary</td>
+      <td>Same as A5-02 but with <code>type=DEDUCTION</code></td>
+      <td><code>remaining</code> decreases by deduction amount</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A5-04</td>
+      <td>Salary payment deducts from branch treasury</td>
+      <td>Record treasury balance; POST <code>/api/employees/:id/pay</code>; fetch treasury after</td>
+      <td>Treasury decreases by net salary</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A5-05</td>
+      <td>Cannot pay salary twice for same month → 400</td>
+      <td>Pay salary for month M; attempt a second payment for month M</td>
+      <td><b>400</b> — "Already paid"</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A5-06</td>
+      <td>Insufficient treasury blocks salary payment → 400</td>
+      <td>Drain branch treasury; attempt POST <code>/api/employees/:id/pay</code></td>
+      <td><b>400</b> — treasury insufficient error</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE A6 — DELIVERY
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Phase A6 — Delivery Module</h2>
+<div class="phase-intro"><code>DeliveryMan.walletBalance</code> represents the amount the driver owes the company. It increases when an order is assigned and decreases when settled.</div>
+
+<table>
+  <thead><tr><th width="7%">ID</th><th width="28%">Test Case</th><th width="28%">Steps</th><th width="20%">Expected Result</th><th width="8%">Priority</th><th width="9%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A6-01</td>
+      <td>GET delivery men returns walletBalance</td>
+      <td>GET <code>/api/delivery-men</code>; check response shape</td>
+      <td>Each record has numeric <code>walletBalance</code></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A6-02</td>
+      <td>Delivery zones require authentication</td>
+      <td>GET <code>/api/delivery-zones</code> with no token</td>
+      <td><b>401 Unauthorized</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A6-03</td>
+      <td>Delivery zone has deliveryDriverShare field</td>
+      <td>GET <code>/api/delivery-zones</code>; check response shape</td>
+      <td>Each zone has <code>deliveryDriverShare</code> (numeric)</td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A6-04</td>
+      <td>Settlement reduces delivery man wallet balance</td>
+      <td>Find driver with walletBalance > 0; POST settlement of amount=1; fetch driver after</td>
+      <td><code>walletBalance</code> decreases by 1</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A6-05</td>
+      <td>Settlement exceeding wallet balance → 400</td>
+      <td>POST settlement with amount = walletBalance + 99999</td>
+      <td><b>400</b> — "Exceeds wallet balance"</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE A7 — REPORTS
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Phase A7 — Reports &amp; Aggregations</h2>
+<div class="phase-intro">Reports must be accurate, properly filtered, and require authentication. Branch and date filters are critical for multi-branch operations.</div>
+
+<table>
+  <thead><tr><th width="7%">ID</th><th width="28%">Test Case</th><th width="28%">Steps</th><th width="20%">Expected Result</th><th width="8%">Priority</th><th width="9%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A7-01</td>
+      <td>Reports require authentication</td>
+      <td>GET <code>/api/reports/summary</code> with no token</td>
+      <td><b>401</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A7-02</td>
+      <td>Summary report returns expected fields</td>
+      <td>GET <code>/api/reports/summary</code> with admin token</td>
+      <td><b>200</b> with numeric totals (sales, expenses, etc.)</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A7-03</td>
+      <td>branchId filter returns subset of all-branch data</td>
+      <td>GET summary without filter; GET summary with <code>?branchId=X</code>; compare totals</td>
+      <td>Filtered total ≤ unfiltered total</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A7-04</td>
+      <td>Date range filter narrows results</td>
+      <td>GET summary for full year; GET for yesterday–today; compare</td>
+      <td>Yesterday–today total ≤ year total</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A7-05</td>
+      <td>Shift report totals are internally consistent</td>
+      <td>GET <code>/api/shifts/:id/report</code> for a closed shift; verify <code>totalSales = cashSales + cardSales</code></td>
+      <td>Math checks out (delta &lt; 0.01)</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A7-06</td>
+      <td>Daily transactions report returns data for today</td>
+      <td>GET <code>/api/reports/daily-transactions?date=TODAY</code></td>
+      <td><b>200</b> with transaction list</td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE A8 — SUPERADMIN
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Phase A8 — Superadmin, Settings &amp; Audit</h2>
+<div class="phase-intro">Superadmin routes require <code>hasSensitiveAccess=true</code> in addition to role checks. Duplicate username and self-deletion must be blocked server-side.</div>
+
+<table>
+  <thead><tr><th width="7%">ID</th><th width="28%">Test Case</th><th width="28%">Steps</th><th width="20%">Expected Result</th><th width="8%">Priority</th><th width="9%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A8-01</td>
+      <td>Superadmin routes reject unauthenticated requests</td>
+      <td>GET <code>/api/users</code>, <code>/api/roles</code> with no token</td>
+      <td><b>401</b> for both</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A8-02</td>
+      <td>Non-superadmin token blocked from user management</td>
+      <td>Log in as a regular employee; GET <code>/api/users</code></td>
+      <td><b>403 Forbidden</b></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A8-03</td>
+      <td>GET /api/users returns users with role info</td>
+      <td>GET <code>/api/users</code> as Superadmin; check response shape</td>
+      <td>Each user has <code>role</code> object or <code>roleId</code></td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A8-04</td>
+      <td>Duplicate username rejected on user creation</td>
+      <td>POST <code>/api/users</code> with a <code>username</code> that already exists</td>
+      <td><b>400/409</b> — unique constraint error</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A8-05</td>
+      <td>Cannot delete own user account</td>
+      <td>GET <code>/api/auth/me</code> to get own ID; DELETE <code>/api/users/:ownId</code></td>
+      <td><b>400/403</b> — "Cannot delete your own account"</td>
+      <td><span class="badge p1">P1</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A8-06</td>
+      <td>GET /api/settings returns system config</td>
+      <td>GET <code>/api/settings</code> as admin</td>
+      <td><b>200</b> with config fields (mainTreasuryId, shifts, etc.)</td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A8-07</td>
+      <td>Settings update persists changes</td>
+      <td>GET current settings; PATCH with a changed value; GET again to verify</td>
+      <td>Changed value is returned in subsequent GET</td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+    <tr>
+      <td>A8-08</td>
+      <td>Audit log route is auth-protected</td>
+      <td>GET <code>/api/audit-logs</code> with no token</td>
+      <td><b>401</b></td>
+      <td><span class="badge p2">P2</span></td>
+      <td><span class="badge block">Pending</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  <span>ERP-V2 Backend Test Plan &mdash; adam-testing branch</span>
+  <span>Priority: <b>P1</b> = Critical &nbsp;|&nbsp; <b>P2</b> = High &nbsp;|&nbsp; <b>P3</b> = Medium</span>
+  <span>Generated 2026-03-07</span>
+</div>
+
+</body>
+</html>
