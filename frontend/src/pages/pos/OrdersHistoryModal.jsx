@@ -42,7 +42,7 @@ const OrdersHistoryModal = ({ isOpen, onClose, shiftId, onRefundClick }) => {
       }
     } catch (error) {
       console.error("Fetch orders failed:", error);
-      toast.error("فشل تحميل سجل الطلبات");
+      toast.error(error.message || "فشل تحميل سجل الطلبات");
     } finally {
       setLoading(false);
     }

@@ -32,7 +32,7 @@ const ShiftVerificationModal = ({
             }
         } catch (error) {
             console.error("Failed to fetch managers:", error);
-            toast.error("فشل تحميل قائمة المديرين");
+            toast.error(error.message || "فشل تحميل قائمة المديرين");
         }
     };
 

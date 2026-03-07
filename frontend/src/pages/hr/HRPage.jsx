@@ -254,7 +254,7 @@ const HRPage = () => {
       setEmployees(employeesData);
     } catch (error) {
       console.error("Failed to fetch data", error);
-      toast.error("فشل في تحميل البيانات");
+      toast.error(error.message || "فشل في تحميل البيانات");
     }
   };
 
@@ -319,7 +319,7 @@ const HRPage = () => {
       toast.success("تم تسجيل المعاملة بنجاح");
     } catch (error) {
       console.error("Failed to save transaction", error);
-      toast.error("حدث خطأ أثناء حفظ المعاملة");
+      toast.error(error.message || "حدث خطأ أثناء حفظ المعاملة");
     }
   };
 

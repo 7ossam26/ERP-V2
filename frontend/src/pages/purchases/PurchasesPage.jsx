@@ -247,11 +247,7 @@ const PurchasesPage = () => {
       setAllItems(fetchedItems);
     } catch (error) {
       console.error("Failed to save item", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        "حدث خطأ أثناء حفظ الصنف";
+      const errorMessage = error.message || "حدث خطأ أثناء حفظ الصنف";
 
       if (errorMessage.includes("Item name already exists")) {
         toast.error("اسم الصنف موجود بالفعل، يرجى اختيار اسم آخر");
@@ -364,13 +360,7 @@ const PurchasesPage = () => {
       console.error("Failed to save purchase", error);
 
       // Extract error message from response if available
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        "حدث خطأ غير معروف";
-
-      toast.error(`حدث خطأ أثناء حفظ الفاتورة: ${errorMessage}`);
+      toast.error(error.message || "حدث خطأ أثناء حفظ الفاتورة");
     }
   };
 

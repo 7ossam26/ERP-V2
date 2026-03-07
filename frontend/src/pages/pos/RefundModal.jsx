@@ -68,7 +68,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
       }
     } catch (error) {
       console.error("Search failed:", error);
-      toast.error("حدث خطأ أثناء البحث");
+      toast.error(error.message || "حدث خطأ أثناء البحث");
     } finally {
       setLoading(false);
     }
@@ -142,8 +142,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
       // TODO: Refresh dashboard/sales list if needed?
     } catch (error) {
       console.error("Refund failed:", error);
-      const msg = error.response?.data?.error || "فشل عملية الاسترجاع";
-      toast.error(msg);
+      toast.error(error.message || "فشل عملية الاسترجاع");
     } finally {
       setLoading(false);
     }

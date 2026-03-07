@@ -33,7 +33,7 @@ const CashierTransferPage = () => {
           setSourceTreasuryId(data[0].id.toString());
         }
       } catch (error) {
-        toast.error("فشل في تحميل بيانات الخزائن");
+        toast.error(error.message || "فشل في تحميل بيانات الخزائن");
       }
     };
     fetchTreasuries();
@@ -79,7 +79,7 @@ const CashierTransferPage = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.error || "فشل في عملية التحويل");
+      toast.error(error.message || "فشل في عملية التحويل");
     } finally {
       setLoading(false);
     }

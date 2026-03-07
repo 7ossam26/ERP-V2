@@ -164,7 +164,7 @@ const POSPage = () => {
       }
     } catch (error) {
       console.error("❌ Error checking shift:", error);
-      toast.error("حدث خطأ في التحقق من الورديات");
+      toast.error(error.message || "حدث خطأ في التحقق من الورديات");
     }
   };
 
@@ -191,13 +191,13 @@ const POSPage = () => {
       console.error("Error starting shift:", error);
 
       // Handle specific blocking error
-      if (error.response?.data?.previousShiftStatus) {
+      if (error.data?.previousShiftStatus) {
         const message =
-          error.response.data.message || "الوردية السابقة تحتاج موافقة المدير";
+          error.data?.message || "الوردية السابقة تحتاج موافقة المدير";
         toast.error(message);
         setIsStartShiftModalOpen(false);
       } else {
-        toast.error(error.response?.data?.error || "فشل بدء الوردية");
+        toast.error(error.message || "فشل بدء الوردية");
       }
     }
   };
@@ -771,14 +771,14 @@ const POSPage = () => {
       console.error("Failed to end shift:", error);
 
       // Check for pending deliveries error
-      if (error.response?.data?.pendingOrders) {
+      if (error.data?.pendingOrders) {
         setIsEndShiftModalOpen(false); // Close the blind count modal
-        setPendingDeliveries(error.response.data.pendingOrders);
+        setPendingDeliveries(error.data?.pendingOrders);
         setIsPendingDeliveriesModalOpen(true); // Open the blocking modal
         return;
       }
 
-      toast.error(error.response?.data?.error || "فشل إغلاق الوردية");
+      toast.error(error.message || "فشل إغلاق الوردية");
     }
   };
 
@@ -808,7 +808,7 @@ const POSPage = () => {
     } catch (error) {
       console.error("Manager verification failed:", error);
       const errorMsg =
-        error.response?.data?.error || "فشلت المصادقة. تحقق من بيانات المدير";
+        error.message || "فشلت المصادقة. تحقق من بيانات المدير";
       toast.error(errorMsg);
       throw error; // Re-throw to keep modal open
     }
@@ -1064,7 +1064,7 @@ const POSPage = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to end shift", error);
-      toast.error("فشل إغلاق الوردية");
+      toast.error(error.message || "فشل إغلاق الوردية");
     }
   };
 
@@ -1096,7 +1096,7 @@ const POSPage = () => {
       }
     } catch (error) {
       console.error("Failed to save client", error);
-      toast.error("حدث خطأ أثناء حفظ العميل");
+      toast.error(error.message || "حدث خطأ أثناء حفظ العميل");
     }
   };
 
@@ -1389,7 +1389,7 @@ const POSPage = () => {
             );
           } catch (error) {
             console.error("Failed to save delivery order:", error);
-            toast.error("فشل حفظ طلب التوصيل");
+            toast.error(error.message || "فشل حفظ طلب التوصيل");
           }
         }}
         selectedClient={selectedClient}

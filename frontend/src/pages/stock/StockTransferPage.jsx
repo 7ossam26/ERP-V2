@@ -66,7 +66,7 @@ const StockTransferPage = () => {
         ]);
       } catch (error) {
         console.error("Failed to fetch data", error);
-        toast.error("فشل في تحميل البيانات");
+        toast.error(error.message || "فشل في تحميل البيانات");
       }
     };
     fetchData();
@@ -167,7 +167,7 @@ const StockTransferPage = () => {
         setProducts(inventoryItems);
       } catch (error) {
         console.error("Failed to update inventory", error);
-        toast.error("فشل تحديث المخزون");
+        toast.error(error.message || "فشل تحديث المخزون");
       }
     } else {
       try {
@@ -175,7 +175,7 @@ const StockTransferPage = () => {
         setProducts(inventoryItems);
       } catch (error) {
         console.error("Failed to fetch all inventory", error);
-        toast.error("فشل تحديث المخزون");
+        toast.error(error.message || "فشل تحديث المخزون");
       }
     }
   };

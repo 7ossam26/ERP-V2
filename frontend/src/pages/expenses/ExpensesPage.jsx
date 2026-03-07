@@ -62,7 +62,7 @@ const ExpensesPage = () => {
       toast.success("تم إضافة المصروف بنجاح");
     } catch (error) {
       console.error("Failed to add expense", error);
-      toast.error("فشل إضافة المصروف");
+      toast.error(error.message || "فشل إضافة المصروف");
     }
   };
 
@@ -74,7 +74,7 @@ const ExpensesPage = () => {
       setEditingExpense(null);
     } catch (error) {
       console.error("Failed to update expense", error);
-      toast.error("فشل تحديث المصروف");
+      toast.error(error.message || "فشل تحديث المصروف");
     }
   };
 
@@ -96,7 +96,7 @@ const ExpensesPage = () => {
         toast.success("تم حذف المصروف بنجاح");
       } catch (error) {
         console.error("Failed to delete expense", error);
-        toast.error("فشل حذف المصروف");
+        toast.error(error.message || "فشل حذف المصروف");
       }
     });
   };

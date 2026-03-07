@@ -73,7 +73,7 @@ const ShiftManagementPage = () => {
       setPagination(res.pagination || { total: 0, page: 1, pages: 1 });
     } catch (error) {
       console.error("Error fetching shifts:", error);
-      toast.error("فشل تحميل الورديات");
+      toast.error(error.message || "فشل تحميل الورديات");
     } finally {
       setLoading(false);
     }

@@ -29,7 +29,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
       setReport(res);
     } catch (error) {
       console.error(error);
-      toast.error("فشل تحميل تقرير الوردية");
+      toast.error(error.message || "فشل تحميل تقرير الوردية");
       onClose();
     } finally {
       setLoading(false);

@@ -60,7 +60,7 @@ const SupplierAccountsPage = () => {
             return data; // Return the fresh data
         } catch (error) {
             console.error("Failed to fetch supplier accounts:", error);
-            toast.error("فشل تحميل حسابات الموردين");
+            toast.error(error.message || "فشل تحميل حسابات الموردين");
             return []; // Return empty array on error
         } finally {
             setIsLoading(false);
@@ -90,7 +90,7 @@ const SupplierAccountsPage = () => {
             setPurchases(purchasesData);
         } catch (error) {
             console.error("Failed to fetch account details:", error);
-            toast.error("فشل تحميل تفاصيل الحساب");
+            toast.error(error.message || "فشل تحميل تفاصيل الحساب");
         }
     };
 
@@ -112,7 +112,7 @@ const SupplierAccountsPage = () => {
             setIsDetailsModalOpen(true);
         } catch (error) {
             console.error("Failed to fetch purchase details:", error);
-            toast.error("فشل تحميل تفاصيل الفاتورة");
+            toast.error(error.message || "فشل تحميل تفاصيل الفاتورة");
         }
     };
 
@@ -157,9 +157,7 @@ const SupplierAccountsPage = () => {
             }
         } catch (error) {
             console.error("Failed to process payment:", error);
-            const errorMessage =
-                error.response?.data?.message || "فشل تسجيل الدفعة";
-            toast.error(errorMessage);
+            toast.error(error.message || "فشل تسجيل الدفعة");
         }
     };
 

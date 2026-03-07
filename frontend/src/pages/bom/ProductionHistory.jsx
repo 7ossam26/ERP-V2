@@ -19,8 +19,8 @@ const ProductionHistory = () => {
     try {
       const data = await bomService.getProductionOrders();
       setOrders(data);
-    } catch {
-      toast.error("فشل في تحميل سجل الإنتاج");
+    } catch (error) {
+      toast.error(error.message || "فشل في تحميل سجل الإنتاج");
     } finally {
       setLoading(false);
     }

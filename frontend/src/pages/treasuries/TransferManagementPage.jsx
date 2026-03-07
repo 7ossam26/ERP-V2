@@ -24,7 +24,7 @@ const TransferManagementPage = () => {
       setTransfers(data);
     } catch (error) {
       console.error("Failed to load transfers:", error);
-      toast.error("فشل في تحميل التحويلات");
+      toast.error(error.message || "فشل في تحميل التحويلات");
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ const TransferManagementPage = () => {
       fetchTransfers();
     } catch (error) {
       console.error("Failed to approve transfer:", error);
-      toast.error("فشل في قبول التحويل");
+      toast.error(error.message || "فشل في قبول التحويل");
     } finally {
       setActionLoading(null);
     }
@@ -60,7 +60,7 @@ const TransferManagementPage = () => {
       fetchTransfers();
     } catch (error) {
       console.error("Failed to reject transfer:", error);
-      toast.error("فشل في رفض التحويل");
+      toast.error(error.message || "فشل في رفض التحويل");
     } finally {
       setActionLoading(null);
     }

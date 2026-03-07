@@ -55,7 +55,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
       setRiderDebts(ridersWithOrders);
     } catch (error) {
       console.error("Failed to fetch rider debts:", error);
-      toast.error("فشل تحميل ديون الطيارين");
+      toast.error(error.message || "فشل تحميل ديون الطيارين");
     }
   };
 

@@ -13,28 +13,15 @@ export const showErrorToast = (error, defaultMessage = "حدث خطأ. يرجى 
     // Handle different error formats
     if (typeof error === 'string') {
         errorMessage = error;
-    } else if (error?.response?.data) {
-        // API error response - Only use error field if it's user-friendly (Arabic)
-        const apiError = error.response.data.error;
-        // Check if the error message is in Arabic (user-friendly) or technical (English)
-        if (apiError && /[\u0600-\u06FF]/.test(apiError)) {
-            // Contains Arabic characters, likely user-friendly
-            errorMessage = apiError;
-        } else {
-            // Technical English error, use default message
-            errorMessage = defaultMessage;
-        }
-        resolution = error.response.data.resolution;
+    } else if (error?.message) {
+        // APIError from fetch-based client — message already contains backend error text
+        errorMessage = error.message;
+        resolution = error?.data?.resolution;
     } else if (error?.error && typeof error.error === 'string') {
-        // Custom error object format - only use if user-friendly
-        if (/[\u0600-\u06FF]/.test(error.error)) {
-            errorMessage = error.error;
-        } else {
-            errorMessage = defaultMessage;
-        }
+        // Custom error object format
+        errorMessage = error.error;
         resolution = error.resolution;
     }
-    // Don't use error.message as it contains technical details
 
     // Display enhanced toast
     if (resolution) {

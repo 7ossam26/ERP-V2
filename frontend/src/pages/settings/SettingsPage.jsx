@@ -66,7 +66,7 @@ const SettingsPage = () => {
       setTreasuries(treasuriesData);
     } catch (error) {
       console.error("Failed to load settings:", error);
-      toast.error("فشل في تحميل الإعدادات");
+      toast.error(error.message || "فشل في تحميل الإعدادات");
     } finally {
       setLoading(false);
     }
@@ -88,8 +88,7 @@ const SettingsPage = () => {
       toast.success("تم حفظ الإعدادات بنجاح");
     } catch (error) {
       console.error("Failed to save settings:", error);
-      const message = error.response?.data?.details || "فشل في حفظ الإعدادات";
-      toast.error(message);
+      toast.error(error.message || "فشل في حفظ الإعدادات");
     } finally {
       setSaving(false);
     }

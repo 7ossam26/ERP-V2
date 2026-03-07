@@ -71,7 +71,7 @@ const DeliveryModal = ({
 
     } catch (error) {
       console.error("Failed to create zone:", error);
-      toast.error("فشل إضافة المنطقة");
+      toast.error(error.message || "فشل إضافة المنطقة");
     } finally {
       setIsCreatingZone(false);
     }
@@ -94,7 +94,7 @@ const DeliveryModal = ({
       setDeliveryZones(data);
     } catch (error) {
       console.error("Failed to fetch delivery zones:", error);
-      toast.error("فشل تحميل مناطق التوصيل");
+      toast.error(error.message || "فشل تحميل مناطق التوصيل");
     }
   };
 
@@ -123,7 +123,7 @@ const DeliveryModal = ({
         });
       } catch (error) {
         console.error("Failed to save address:", error);
-        toast.error("فشل حفظ العنوان الجديد");
+        toast.error(error.message || "فشل حفظ العنوان الجديد");
         return;
       }
     }

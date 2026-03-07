@@ -816,7 +816,7 @@ const BOMManager = () => {
       setAllItems(itemsData);
       setWarehouses(warehousesData);
     } catch (error) {
-      toast.error("فشل في تحميل البيانات");
+      toast.error(error.message || "فشل في تحميل البيانات");
     } finally {
       setLoading(false);
     }
@@ -839,7 +839,7 @@ const BOMManager = () => {
       setEditingBom(null);
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.error || "فشل في حفظ الوصفة");
+      toast.error(error.message || "فشل في حفظ الوصفة");
       throw error;
     }
   };
@@ -856,7 +856,7 @@ const BOMManager = () => {
       toast.success("تم حذف الوصفة");
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.error || "فشل في حذف الوصفة");
+      toast.error(error.message || "فشل في حذف الوصفة");
     }
   };
 

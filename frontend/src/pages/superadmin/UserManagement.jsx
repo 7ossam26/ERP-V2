@@ -44,7 +44,7 @@ const UserManagement = () => {
         setUsers(usersResult.value);
       } else {
         console.error("Users load failed:", usersResult.reason);
-        toast.error("فشل في تحميل قائمة المستخدمين. يرجى المحاولة مرة أخرى.");
+        toast.error(usersResult.reason?.message || "فشل في تحميل قائمة المستخدمين. يرجى المحاولة مرة أخرى.");
       }
 
       // Handle Roles
@@ -52,7 +52,7 @@ const UserManagement = () => {
         setRoles(rolesResult.value);
       } else {
         console.error("Roles load failed:", rolesResult.reason);
-        toast.error("فشل في تحميل قائمة الأدوار. يرجى المحاولة مرة أخرى.");
+        toast.error(rolesResult.reason?.message || "فشل في تحميل قائمة الأدوار. يرجى المحاولة مرة أخرى.");
       }
 
       // Handle Branches
@@ -67,11 +67,11 @@ const UserManagement = () => {
         setBranches(sortedBranches);
       } else {
         console.error("Branches load failed:", branchesResult.reason);
-        toast.error("فشل في تحميل قائمة الفروع. يرجى المحاولة مرة أخرى.");
+        toast.error(branchesResult.reason?.message || "فشل في تحميل قائمة الفروع. يرجى المحاولة مرة أخرى.");
       }
     } catch (error) {
       console.error("Unexpected error:", error);
-      toast.error("حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.");
+      toast.error(error.message || "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.");
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +104,7 @@ const UserManagement = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      toast.error("فشل في حفظ بيانات المستخدم. يرجى التحقق من البيانات والمحاولة مرة أخرى.");
+      toast.error(error.message || "فشل في حفظ بيانات المستخدم. يرجى التحقق من البيانات والمحاولة مرة أخرى.");
     }
   };
 
@@ -130,7 +130,7 @@ const UserManagement = () => {
       fetchData();
     } catch (error) {
       console.error("Delete operation failed:", error);
-      toast.error("فشل في حذف المستخدم. يرجى المحاولة مرة أخرى.");
+      toast.error(error.message || "فشل في حذف المستخدم. يرجى المحاولة مرة أخرى.");
       setDeleteModalOpen(false);
     }
   };
@@ -147,7 +147,7 @@ const UserManagement = () => {
       toast.success("تم تحديث حالة المستخدم");
       fetchData();
     } catch (error) {
-      toast.error("فشل في تحديث الحالة. يرجى المحاولة مرة أخرى.");
+      toast.error(error.message || "فشل في تحديث الحالة. يرجى المحاولة مرة أخرى.");
     }
   };
 

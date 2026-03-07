@@ -40,7 +40,7 @@ const DepositPage = () => {
             setDeposits(data);
         } catch (error) {
             console.error("Failed to fetch deposits", error);
-            toast.error("فشل تحميل الإيداعات");
+            toast.error(error.message || "فشل تحميل الإيداعات");
         }
     };
 
@@ -50,7 +50,7 @@ const DepositPage = () => {
             setWithdrawals(data);
         } catch (error) {
             console.error("Failed to fetch withdrawals", error);
-            toast.error("فشل تحميل المسحوبات");
+            toast.error(error.message || "فشل تحميل المسحوبات");
         }
     };
 
@@ -67,7 +67,7 @@ const DepositPage = () => {
             toast.success("تم إضافة الإيداع بنجاح");
         } catch (error) {
             console.error("Failed to add deposit", error);
-            toast.error("فشل إضافة الإيداع");
+            toast.error(error.message || "فشل إضافة الإيداع");
         }
     };
 

@@ -65,7 +65,7 @@ const ManagerAuthModal = ({
     } catch (error) {
       console.error("Verification failed", error);
       // Error toast handled by parent usually, or we can do it here if parent throws
-      toast.error(error.response?.data?.error || "فشل التحقق من المدير");
+      toast.error(error.message || "فشل التحقق من المدير");
     } finally {
       setLoading(false);
     }

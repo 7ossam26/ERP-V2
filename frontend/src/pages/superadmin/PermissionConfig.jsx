@@ -54,7 +54,7 @@ const PermissionConfig = () => {
 
             } catch (error) {
                 console.error("Error fetching data:", error);
-                toast.error("Error loading role data.");
+                toast.error(error.message || "Error loading role data.");
             } finally {
                 setIsLoading(false);
             }
@@ -80,7 +80,7 @@ const PermissionConfig = () => {
             navigate("/superadmin/roles");
         } catch (error) {
             console.error("Save error:", error);
-            toast.error("Failed to save permissions");
+            toast.error(error.message || "Failed to save permissions");
         }
     };
 
