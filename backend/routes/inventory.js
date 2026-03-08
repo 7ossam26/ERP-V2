@@ -11,7 +11,7 @@ const {
 // Protect all routes with authentication, specific permissions checked per route or broadened here
 router.use(
   authenticateToken,
-  requireAnyPermission(["INVENTORY", "POS", "INVENTORY_COUNT"])
+  requireAnyPermission(["INVENTORY", "POS", "INVENTORY_COUNT"]),
 );
 
 // GET Inventory (All items with stock levels)
@@ -43,13 +43,16 @@ router.get("/", async (req, res, next) => {
     }
     */
 
+    // Only show items marked for POS
+    // whereClause.showInPos = true; // REMOVED: Inventory should show all items including raw materials
+
     // Determine warehouse limitation based on user branch
-    const branchId = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id);
     let inventoryWhere = {};
 
-    if (branchId) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
+    if (branchFilter) {
+      const branch = await prisma.branch.findFirst({
+        where: branchFilter,
         select: { warehouseId: true },
       });
       if (branch && branch.warehouseId) {
@@ -57,7 +60,7 @@ router.get("/", async (req, res, next) => {
       }
     }
 
-    // Fetch items with inventory data
+    // Fetch items with inventory data + BOM relations
     const items = await prisma.item.findMany({
       where: whereClause,
       include: {
@@ -78,6 +81,17 @@ router.get("/", async (req, res, next) => {
             purchasePrice: true,
           },
         },
+        bomOutputs: {
+          where: { isActive: true },
+          include: {
+            items: {
+              include: {
+                item: true,
+              },
+            },
+          },
+          take: 1,
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -88,19 +102,16 @@ router.get("/", async (req, res, next) => {
       let totalQuantity = 0;
       let availableWarehouses = [];
 
-      // Treat "All Branches Warehouse" (ID 1) as "all" for viewing purposes
-      const isAllWarehouses = !warehouseId || warehouseId === "all" || parseInt(warehouseId) === 1;
+      // Treat "All Branches Warehouse" as "all" (if we had a specific ID for it, currently relying on "all" string)
+      const isAllWarehouses = !warehouseId || warehouseId === "all";
 
       if (!isAllWarehouses) {
         const stock = item.inventory.find(
-          (inv) => inv.warehouseId === parseInt(warehouseId)
+          (inv) => inv.warehouseId === parseInt(warehouseId),
         );
         totalQuantity = stock ? Number(stock.quantity) : 0;
       } else {
         totalQuantity = item.inventory.reduce((sum, inv) => {
-          // EXCLUDE "All Branches Warehouse" (ID 1) from the sum to prevent double counting or ghost stock
-          if (inv.warehouseId === 1) return sum;
-
           const qty = Number(inv.quantity);
           if (qty > 0 && inv.warehouse) {
             availableWarehouses.push(inv.warehouse.name);
@@ -152,17 +163,34 @@ router.get("/", async (req, res, next) => {
         id: item.id,
         name: item.name,
         code: item.id, // Using ID as code for now
+        inventory: item.inventory, // Include raw inventory data for frontend calculations
         category: primaryCategory,
         categoryColor: getCategoryColor(primaryCategory),
         quantity: totalQuantity,
         warehouses: availableWarehouses, // List of warehouses with stock
         unit: item.unit,
         purchasePrice: Number(avgPurchasePrice.toFixed(2)), // Calculated Avg Price
+        costPrice: Number(item.costPrice), // Stored Cost Price
         sellPrice: Number(item.price), // Using item price as sell price
         price: Number(item.price),
         status: totalQuantity <= item.reorderPoint ? "Low Stock" : "In Stock",
         reorderPoint: item.reorderPoint,
+        showInPos: item.showInPos,
         categories: item.categories.map((c) => c.category.id), // Return array of category IDs for filtering
+        hasBom: item.bomOutputs && item.bomOutputs.length > 0,
+        bom:
+          item.bomOutputs && item.bomOutputs.length > 0
+            ? {
+                id: item.bomOutputs[0].id,
+                name: item.bomOutputs[0].name,
+                outputQuantity: Number(item.bomOutputs[0].outputQuantity),
+                items: item.bomOutputs[0].items.map((bi) => ({
+                  itemId: bi.itemId,
+                  itemName: bi.item.name,
+                  quantity: Number(bi.quantity),
+                })),
+              }
+            : null,
       };
     });
 
@@ -189,12 +217,12 @@ router.get("/stats", async (req, res, next) => {
     }
 
     // Determine warehouse limitation based on user branch
-    const branchId = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id);
     let inventoryWhere = {};
 
-    if (branchId) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
+    if (branchFilter) {
+      const branch = await prisma.branch.findFirst({
+        where: branchFilter,
         select: { warehouseId: true },
       });
       if (branch && branch.warehouseId) {
@@ -220,27 +248,24 @@ router.get("/stats", async (req, res, next) => {
     const totalItems = items.length;
     let lowStockCount = 0;
     let totalValue = 0;
+    let totalSellingPrice = 0;
     let totalProfit = 0;
 
     items.forEach((item) => {
       let totalQuantity = 0;
 
-      // Treat "All Branches Warehouse" (ID 1) as "all"
-      const isAllWarehouses = !warehouseId || warehouseId === "all" || parseInt(warehouseId) === 1;
+      // Treat "All Branches Warehouse" as "all"
+      const isAllWarehouses = !warehouseId || warehouseId === "all";
 
       if (!isAllWarehouses) {
         const stock = item.inventory.find(
-          (inv) => inv.warehouseId === parseInt(warehouseId)
+          (inv) => inv.warehouseId === parseInt(warehouseId),
         );
         totalQuantity = stock ? Number(stock.quantity) : 0;
       } else {
         totalQuantity = item.inventory.reduce(
-          (sum, inv) => {
-            // EXCLUDE "All Branches Warehouse" (ID 1) from the sum
-            if (inv.warehouseId === 1) return sum;
-            return sum + Number(inv.quantity);
-          },
-          0
+          (sum, inv) => sum + Number(inv.quantity),
+          0,
         );
       }
 
@@ -269,6 +294,7 @@ router.get("/stats", async (req, res, next) => {
       }
 
       totalValue += totalQuantity * avgPurchasePrice;
+      totalSellingPrice += totalQuantity * Number(item.price);
       totalProfit += totalQuantity * (Number(item.price) - avgPurchasePrice);
     });
 
@@ -276,6 +302,7 @@ router.get("/stats", async (req, res, next) => {
       totalItems,
       lowStockCount,
       totalValue,
+      totalSellingPrice,
       totalProfit,
     });
   } catch (error) {

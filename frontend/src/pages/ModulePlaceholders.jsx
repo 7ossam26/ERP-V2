@@ -24,7 +24,7 @@ export const CashierTransferPage = () => (
 );
 export const BranchesSalesPage = () => (
   <PlaceholderModule
-    title="مبيعات الفروع"
+    title="أرصدة الفروع"
     icon="storefront"
     subtitle="تقارير الفروع"
   />

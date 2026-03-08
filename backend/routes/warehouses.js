@@ -1,7 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission } = require("../middleware/auth");
+const {
+  authenticateToken,
+  requirePermission,
+  requireCreatePermission,
+  getUserBranchFilter,
+  requireAnyPermission,
+} = require("../middleware/auth");
 
 // Protect all routes with WAREHOUSES permission
 // Protect all routes with authentication
@@ -17,26 +23,13 @@ router.get("/", async (req, res) => {
       orderBy: { createdAt: "asc" },
     });
 
-    // --- VISIBILITY FILTER ---
-    // Hide "All Branches Warehouse" if user is not Superadmin AND not assigned to All Branches
-    if (req.user.role !== "Superadmin") {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        include: { branch: true },
-      });
+    // All authenticated users can see all warehouses for stock transfers
+    // Exclude "All Branches Warehouse" - it's a system warehouse, not for transfers
+    const filteredWarehouses = warehouses.filter(
+      (w) => w.name !== "All Branches Warehouse",
+    );
 
-      if (!user || !user.branch?.isAllBranches) {
-        // Filter out All Branches Warehouse (ID 4)
-        return res.json(
-          warehouses.filter(
-            (w) => w.id !== 1 && w.name !== "All Branches Warehouse"
-          )
-        );
-      }
-    }
-    // -------------------------
-
-    res.json(warehouses);
+    res.json(filteredWarehouses);
   } catch (error) {
     res
       .status(500)
@@ -62,47 +55,59 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create new warehouse
-router.post("/", requireCreatePermission("CREATES_WAREHOUSES"), async (req, res) => {
-  try {
-    const { name } = req.body;
-    const warehouse = await prisma.warehouse.create({
-      data: { name },
-    });
-    res.status(201).json(warehouse);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to create warehouse", message: error.message });
-  }
-});
+router.post(
+  "/",
+  requireCreatePermission("CREATES_WAREHOUSES"),
+  async (req, res) => {
+    try {
+      const { name } = req.body;
+      const warehouse = await prisma.warehouse.create({
+        data: { name },
+      });
+      res.status(201).json(warehouse);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Failed to create warehouse", message: error.message });
+    }
+  },
+);
 
 // PUT update warehouse - Requires WAREHOUSES management permission
-router.put("/:id", requireAnyPermission(["WAREHOUSES", "CREATES_WAREHOUSES"]), async (req, res) => {
-  try {
-    const { name } = req.body;
-    const warehouse = await prisma.warehouse.update({
-      where: { id: parseInt(req.params.id) },
-      data: { name },
-    });
-    res.json(warehouse);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to update warehouse", message: error.message });
-  }
-});
+router.put(
+  "/:id",
+  requireAnyPermission(["WAREHOUSES", "CREATES_WAREHOUSES"]),
+  async (req, res) => {
+    try {
+      const { name } = req.body;
+      const warehouse = await prisma.warehouse.update({
+        where: { id: parseInt(req.params.id) },
+        data: { name },
+      });
+      res.json(warehouse);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Failed to update warehouse", message: error.message });
+    }
+  },
+);
 
 // DELETE warehouse - Requires WAREHOUSES management permission
-router.delete("/:id", requirePermission("WAREHOUSES"), async (req, res, next) => {
-  try {
-    await prisma.warehouse.update({
-      where: { id: parseInt(req.params.id) },
-      data: { isActive: false },
-    });
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-});
+router.delete(
+  "/:id",
+  requirePermission("WAREHOUSES"),
+  async (req, res, next) => {
+    try {
+      await prisma.warehouse.update({
+        where: { id: parseInt(req.params.id) },
+        data: { isActive: false },
+      });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 module.exports = router;

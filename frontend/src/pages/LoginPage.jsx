@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import AuthService from "../services/authService";
 import { toast } from "react-hot-toast";
+import { showErrorToast } from "../utils/toastUtils";
 import Footer from "../components/shared/Footer";
 
 const LoginPage = () => {
@@ -49,10 +50,7 @@ const LoginPage = () => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      const message =
-        error.response?.data?.error ||
-        "Login failed. Please check your credentials.";
-      toast.error(message);
+      showErrorToast(error, "Login failed. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }

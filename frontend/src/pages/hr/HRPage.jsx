@@ -178,13 +178,13 @@ const TransactionForm = ({
             onChange={(e) =>
               setFormData({ ...formData, amount: e.target.value })
             }
-            className="w-full bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+            className="w-full bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-600 rounded-xl pl-4 pr-14 py-2.5 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             placeholder="0.00"
             required
             min="0"
             step="0.01"
           />
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">
             ج.م
           </span>
         </div>
@@ -254,7 +254,7 @@ const HRPage = () => {
       setEmployees(employeesData);
     } catch (error) {
       console.error("Failed to fetch data", error);
-      toast.error("فشل في تحميل البيانات");
+      toast.error(error.message || "فشل في تحميل البيانات");
     }
   };
 
@@ -307,6 +307,11 @@ const HRPage = () => {
         empId = selectedEmployee.id;
       }
 
+      if (!empId) {
+        toast.error("يرجى اختيار موظف أولاً");
+        return;
+      }
+
       await employeeService.addTransaction(empId, transactionData);
 
       await fetchData(); // Refresh data
@@ -314,7 +319,7 @@ const HRPage = () => {
       toast.success("تم تسجيل المعاملة بنجاح");
     } catch (error) {
       console.error("Failed to save transaction", error);
-      toast.error("حدث خطأ أثناء حفظ المعاملة");
+      toast.error(error.message || "حدث خطأ أثناء حفظ المعاملة");
     }
   };
 

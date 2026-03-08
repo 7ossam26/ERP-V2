@@ -27,7 +27,7 @@ ChartJS.register(
   Tooltip,
   Legend,
   ArcElement,
-  Filler
+  Filler,
 );
 
 const GeneralReportPage = () => {
@@ -51,9 +51,14 @@ const GeneralReportPage = () => {
         const data = await branchService.getAll();
         const available = BranchFilterHelper.getAvailableBranches(
           data,
-          currentUser
+          currentUser,
         );
-        setBranches(available || []);
+        // Filter out "Main Branch" and "All Branches"
+        const filteredBranches = available.filter(
+          (branch) =>
+            branch.name !== "Main Branch" && branch.name !== "All Branches",
+        );
+        setBranches(filteredBranches || []);
       } catch (err) {
         console.error("Failed to load branches", err);
       }
@@ -258,9 +263,6 @@ const GeneralReportPage = () => {
                   setFilters({ ...filters, branchId: e.target.value })
                 }
                 className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
-                {BranchFilterHelper.canSeeAllBranches(currentUser) && (
-                  <option value="all">الكل</option>
-                )}
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
@@ -277,8 +279,9 @@ const GeneralReportPage = () => {
               onClick={fetchReport}
               className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors font-medium shadow-md shadow-primary/20 flex items-center justify-center gap-2">
               <span
-                className={`material-icons-round text-lg ${loading ? "animate-spin" : ""
-                  }`}>
+                className={`material-icons-round text-lg ${
+                  loading ? "animate-spin" : ""
+                }`}>
                 refresh
               </span>
               تحديث التقرير
@@ -517,14 +520,14 @@ const GeneralReportPage = () => {
               ))}
               {(!reportData?.tables?.stockAlertsList ||
                 reportData.tables.stockAlertsList.length === 0) && (
-                  <tr>
-                    <td
-                      colSpan="4"
-                      className="px-6 py-8 text-center text-gray-500">
-                      لا توجد تنبيهات مخزون حالياً
-                    </td>
-                  </tr>
-                )}
+                <tr>
+                  <td
+                    colSpan="4"
+                    className="px-6 py-8 text-center text-gray-500">
+                    لا توجد تنبيهات مخزون حالياً
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

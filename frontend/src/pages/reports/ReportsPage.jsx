@@ -23,7 +23,7 @@ const ReportsPage = () => {
               </span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-text-light dark:text-text-dark mb-3">
-              التقارير
+              التقارير والسجلات
             </h2>
             <div className="h-1.5 w-32 bg-primary mx-auto rounded-full mb-4 shadow-sm"></div>
             <p className="text-text-light/70 dark:text-text-dark/70 max-w-lg mx-auto text-lg">
@@ -46,7 +46,7 @@ const ReportsPage = () => {
               </div>
               <div className="relative z-10">
                 <h3 className="text-2xl font-bold text-text-light dark:text-text-dark mb-2 group-hover:text-primary dark:group-hover:text-accent transition-colors">
-                  تقرير عام
+                  تقارير
                 </h3>
                 <p className="text-sm text-text-light/60 dark:text-text-dark/60 group-hover:text-text-light/80 dark:group-hover:text-text-dark/80 transition-colors">
                   ملخص شامل للمبيعات والأرباح والمخزون
@@ -73,7 +73,7 @@ const ReportsPage = () => {
               </div>
               <div className="relative z-10">
                 <h3 className="text-2xl font-bold text-text-light dark:text-text-dark mb-2 group-hover:text-primary dark:group-hover:text-accent transition-colors">
-                  تقرير مفصل
+                  السجلات
                 </h3>
                 <p className="text-sm text-text-light/60 dark:text-text-dark/60 group-hover:text-text-light/80 dark:group-hover:text-text-dark/80 transition-colors">
                   عرض التفاصيل الكاملة والفلترة حسب التاريخ والصنف

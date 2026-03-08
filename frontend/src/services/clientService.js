@@ -7,6 +7,7 @@ const toFrontend = (backendData) => ({
   id: backendData.id,
   name: backendData.name,
   phone: backendData.phoneNumber,
+  address: backendData.address,
   createdAt: backendData.createdAt,
   updatedAt: backendData.updatedAt,
 });
@@ -46,6 +47,7 @@ export const clientService = {
     const backendData = {
       name: clientData.name,
       phoneNumber: clientData.phone || clientData.phoneNumber,
+      address: clientData.address,
       checkIfExists: options.checkIfExists,
     };
 
@@ -64,6 +66,7 @@ export const clientService = {
     const backendData = {
       name: updates.name,
       phoneNumber: updates.phone || updates.phoneNumber,
+      address: updates.address,
     };
 
     const data = await api.put(`${CLIENTS_URL}/${id}`, backendData);

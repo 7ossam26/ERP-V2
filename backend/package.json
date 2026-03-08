@@ -5,10 +5,11 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js",
-    "start:prod": "node index.js",
+    "start": "npx prisma db push && node index.js",
+    "start:prod": "npx prisma db push && node index.js",
     "build:ui": "node scripts/prepare-production.js",
     "build": "npm run build:ui",
+    "refresh-migration": "node scripts/refresh-migration-sql.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -17,6 +18,7 @@
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^5.18.0",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

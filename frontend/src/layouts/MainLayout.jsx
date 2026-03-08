@@ -14,8 +14,19 @@ const MainLayout = ({ children }) => {
   const [user, setUser] = useState(AuthService.getCurrentUser());
 
   // Refresh user profile on navigation to ensure permissions are up to date
+  // We use a ref to track the last refresh time to avoid excessive API calls
+  const lastRefreshRef = React.useRef(0);
+
   useEffect(() => {
     const refreshUser = async () => {
+      const now = Date.now();
+      // Only refresh if more than 10 seconds have passed since last check
+      // This prevents excessive calls when navigating quickly
+      if (now - lastRefreshRef.current < 10000) {
+        return;
+      }
+
+      lastRefreshRef.current = now;
       const updatedUser = await AuthService.refreshProfile();
       if (updatedUser) {
         setUser(updatedUser);
@@ -49,15 +60,31 @@ const MainLayout = ({ children }) => {
     <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 min-h-screen flex flex-col relative overflow-hidden">
       {/* Navigation */}
       <nav className="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shadow-sm z-50 fixed top-0 w-full">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-20 items-center relative">
-            {/* Swapped: Home Page Button (was Logout) */}
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20">
-              <span className="material-icons-round text-xl">home</span>
-              <span className="text-sm font-semibold">الصفحة الرئيسية</span>
-            </Link>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between h-16 sm:h-20 items-center relative">
+            <div className="flex items-center gap-2">
+              {/* Back Button */}
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
+                <span className="material-icons-round text-xl">
+                  arrow_forward
+                </span>
+                <span className="text-sm font-semibold hidden sm:inline">
+                  رجوع
+                </span>
+              </button>
+
+              {/* Home Page Button - Icon only on mobile */}
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
+                <span className="material-icons-round text-xl">home</span>
+                <span className="text-sm font-semibold hidden sm:inline">
+                  الصفحة الرئيسية
+                </span>
+              </Link>
+            </div>
 
             <Link
               to="/dashboard"
@@ -65,52 +92,66 @@ const MainLayout = ({ children }) => {
               <img
                 src="/assets/logo.png"
                 alt="Elghonemy Logo"
-                className="h-16 w-auto object-contain"
+                className="h-12 sm:h-16 w-auto object-contain"
               />
             </Link>
 
-            {/* User Profile Dropdown */}
-            <div className="relative user-dropdown">
-              <button
-                onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent/10 dark:hover:bg-accent/5 transition-colors">
-                <div className="text-right">
-                  <p className="text-sm font-bold text-text-light dark:text-text-dark">
-                    {user?.name || "المستخدم"}
-                  </p>
-                  <p className="text-xs text-text-light/60 dark:text-text-dark/60">
-                    {user?.role || ""}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center">
-                  <span className="material-icons-round text-primary">
-                    person
-                  </span>
-                </div>
-              </button>
+            <div className="flex items-center gap-3">
+              {/* Branch Info */}
+              <div className="hidden md:flex items-center gap-2 bg-primary/5 dark:bg-primary/10 px-3 py-1.5 rounded-full border border-primary/10 dark:border-primary/20">
+                <span className="material-icons-round text-sm text-primary">
+                  store
+                </span>
+                <span className="text-sm font-medium text-primary">
+                  {user?.branch?.name || "الفرع الرئيسي"}
+                </span>
+              </div>
 
-              {/* Dropdown Menu */}
-              {isUserDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-48 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg py-2 z-50">
-                  {/* Swapped: Logout Button (was Home Page) */}
-                  <button
-                    onClick={() => {
-                      setIsUserDropdownOpen(false);
-                      handleLogoutClick();
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors">
-                    <span className="material-icons-round text-lg">logout</span>
-                    <span className="text-sm">تسجيل خروج</span>
-                  </button>
-                </div>
-              )}
+              {/* User Profile Dropdown */}
+              <div className="relative user-dropdown">
+                <button
+                  onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                  className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 rounded-lg hover:bg-accent/10 dark:hover:bg-accent/5 transition-colors min-w-touch min-h-touch">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-bold text-text-light dark:text-text-dark">
+                      {user?.name || "المستخدم"}
+                    </p>
+                    <p className="text-xs text-text-light/60 dark:text-text-dark/60">
+                      {user?.role || ""}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center">
+                    <span className="material-icons-round text-primary text-lg sm:text-xl">
+                      person
+                    </span>
+                  </div>
+                </button>
+
+                {/* Dropdown Menu */}
+                {isUserDropdownOpen && (
+                  <div className="absolute left-0 mt-2 w-44 sm:w-48 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg py-2 z-50">
+                    {/* Swapped: Logout Button (was Home Page) */}
+                    <button
+                      onClick={() => {
+                        setIsUserDropdownOpen(false);
+                        handleLogoutClick();
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors min-h-touch">
+                      <span className="material-icons-round text-lg">
+                        logout
+                      </span>
+                      <span className="text-sm">تسجيل خروج</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className="flex-grow flex flex-col p-6 transition-all duration-300 mt-20">
+      <main className="flex-grow flex flex-col p-3 sm:p-6 transition-all duration-300 mt-16 sm:mt-20">
         <div className="w-full max-w-7xl mx-auto">{children}</div>
       </main>
 

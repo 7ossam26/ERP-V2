@@ -42,6 +42,16 @@ export default {
       animation: {
         "slide-down": "slide-down 0.3s ease-out",
       },
+      // Mobile-friendly touch target utilities
+      spacing: {
+        touch: "44px", // Minimum touch target size (44x44px)
+      },
+      minHeight: {
+        touch: "44px", // Minimum touch target height
+      },
+      minWidth: {
+        touch: "44px", // Minimum touch target width
+      },
     },
   },
   plugins: [],

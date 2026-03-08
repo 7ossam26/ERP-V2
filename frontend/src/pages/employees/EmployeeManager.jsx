@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { employeeService, branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import { validateEgyptianPhone } from "../../utils/validationUtils";
 
-const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
+const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   // Calculate next ID if creating new employee
   const nextId =
     data && data.length > 0
@@ -23,6 +24,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     salary: initialData?.salary || "",
     title: initialData?.title || "",
   });
+  const [keepOpen, setKeepOpen] = useState(false);
 
   React.useEffect(() => {
     const fetchBranches = async () => {
@@ -44,14 +46,45 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
+    // Phone validation
+    const phoneValidation = validateEgyptianPhone(formData.phone);
+    if (!phoneValidation.isValid) {
+      if (showToast) {
+        showToast(phoneValidation.message, "error");
+      }
+      return;
+    }
+
+    await onSave(formData, !keepOpen);
+
+    if (keepOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        id: parseInt(prev.id) + 1,
+        name: "",
+        phone: "",
+        nationalId: "",
+        salary: "",
+        // Keep branch, title, workDays, workHours, weekend as sticky
+      }));
+    }
   };
 
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -256,7 +289,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
         </div>
       </div>
 
-      <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <button
           type="button"
           onClick={onClose}
@@ -264,8 +297,21 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed">
           إلغاء
         </button>
+
+        {!initialData && (
+          <button
+            type="submit"
+            onClick={() => setKeepOpen(true)}
+            disabled={isSaving}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span className="material-icons-round text-lg">playlist_add</span>
+            <span>حفظ وإضافة آخر</span>
+          </button>
+        )}
+
         <button
           type="submit"
+          onClick={() => setKeepOpen(false)}
           disabled={isSaving}
           className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSaving ? (
@@ -278,7 +324,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           ) : (
             <>
               <span className="material-icons-round text-lg">save</span>
-              <span>حفظ التغييرات</span>
+              <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
             </>
           )}
         </button>

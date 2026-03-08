@@ -37,7 +37,7 @@ const GenericPageManager = ({
       setData(result);
     } catch (error) {
       console.error("Failed to load data", error);
-      showToast(`فشل تحميل البيانات: ${error.message || "حدث خطأ"}`, "error");
+      showToast("فشل في تحميل البيانات. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.", "error");
     }
     setLoading(false);
   };
@@ -46,7 +46,21 @@ const GenericPageManager = ({
     loadData();
   }, []);
 
-  const handleSave = async (formData) => {
+  // Handle ESC key to navigate back when no modal is open
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape" && !isModalOpen) {
+        navigate(backPath);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscKey);
+    return () => {
+      document.removeEventListener("keydown", handleEscKey);
+    };
+  }, [isModalOpen, navigate, backPath]);
+
+  const handleSave = async (formData, shouldClose = true) => {
     setIsSaving(true);
     try {
       if (editingItem) {
@@ -56,12 +70,16 @@ const GenericPageManager = ({
         await service.create(formData);
         showToast("تمت الإضافة بنجاح", "success");
       }
-      setIsModalOpen(false);
-      setEditingItem(null);
+
+      if (shouldClose) {
+        setIsModalOpen(false);
+        setEditingItem(null);
+      }
+
       await loadData();
     } catch (error) {
       console.error("Failed to save data", error);
-      showToast(`فشل الحفظ: ${error.message || "حدث خطأ"}`, "error");
+      showToast("فشل في حفظ البيانات. يرجى التحقق من البيانات المدخلة والمحاولة مرة أخرى.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -81,7 +99,7 @@ const GenericPageManager = ({
         await loadData();
       } catch (error) {
         console.error("Failed to delete", error);
-        showToast(`فشل الحذف: ${error.message || "حدث خطأ"}`, "error");
+        showToast("فشل في حذف العنصر. يرجى المحاولة مرة أخرى.", "error");
       } finally {
         setDeletingId(null);
       }
@@ -162,13 +180,16 @@ const GenericPageManager = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingItem ? `تعديل ${title}` : `إضافة ${title}`}>
-        <FormComponent
-          initialData={editingItem}
-          onClose={() => setIsModalOpen(false)}
-          onSave={handleSave}
-          isSaving={isSaving}
-          data={data}
-        />
+        {FormComponent && (
+          <FormComponent
+            initialData={editingItem}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleSave}
+            isSaving={isSaving}
+            data={data}
+            showToast={showToast}
+          />
+        )}
       </Modal>
 
       {/* Toast Notifications */}

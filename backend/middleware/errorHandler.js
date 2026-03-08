@@ -63,7 +63,9 @@ const errorHandler = (err, req, res, next) => {
         error,
         message,
         // Only include code in development for easier debugging if needed
-        ...(process.env.NODE_ENV === "development" && { code: err.code }),
+        code: err.code,
+        meta: err.meta,
+        stack: err.stack, // Optional: might be too noisy, but useful
     });
 };
 

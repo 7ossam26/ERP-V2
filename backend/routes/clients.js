@@ -43,7 +43,7 @@ router.get("/:id", requirePermission("CLIENTS"), async (req, res) => {
 // POST create new client
 router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) => {
   try {
-    const { name, phoneNumber, checkIfExists } = req.body;
+    const { name, phoneNumber, address, checkIfExists } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
@@ -67,6 +67,7 @@ router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) =>
       data: {
         name,
         phoneNumber: phoneNumber || "",
+        address: address || null,
       },
     });
     res.status(201).json(client);
@@ -80,15 +81,16 @@ router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) =>
 // PUT update client
 // PUT update client
 // PUT update client - Requires SENSITIVE ACCESS
-router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS"]), requireSensitiveAccess, async (req, res) => {
+router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS", "POS", "SALES"]), async (req, res) => {
   try {
-    const { name, phoneNumber } = req.body;
+    const { name, phoneNumber, address } = req.body;
 
     const client = await prisma.client.update({
       where: { id: parseInt(req.params.id) },
       data: {
         name,
         phoneNumber,
+        address: address !== undefined ? address : undefined,
       },
     });
     res.json(client);

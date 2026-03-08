@@ -17,7 +17,7 @@ const RoleManagement = () => {
             const data = await SuperadminService.getRoles();
             setRoles(data);
         } catch (error) {
-            toast.error("Failed to fetch roles");
+            toast.error(error.message || "Failed to fetch roles");
         } finally {
             setIsLoading(false);
         }
@@ -36,7 +36,7 @@ const RoleManagement = () => {
             setFormData({ name: "", description: "" });
             fetchRoles();
         } catch (error) {
-            toast.error("Failed to create role");
+            toast.error(error.message || "Failed to create role");
         }
     };
 
@@ -48,8 +48,7 @@ const RoleManagement = () => {
                 fetchRoles();
             } catch (error) {
                 console.error("Failed to delete role:", error);
-                const errorMessage = error.response?.data?.error || "Failed to delete role";
-                toast.error(errorMessage);
+                toast.error(error.message || "Failed to delete role");
             }
         });
     };

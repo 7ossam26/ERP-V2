@@ -31,7 +31,7 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    const isAllBranches = !branchId || branchId === "all" || parseInt(branchId) === 4;
+    const isAllBranches = !branchId || branchId === "all";
     const branchFilter = isAllBranches ? {} : { branchId: parseInt(branchId) };
 
     // --- 2. Fetch Data ---
@@ -99,34 +99,29 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
       },
     });
 
-    // 1-A. Fetch ALL Items to handle missing records as 0 stock
+    // --- 3. Inventory Alerts Calculation (Aggregated) ---
+    // Fetch all items to ensure we check items with 0 stock
     const allItems = await prisma.item.findMany();
-    const inventoryMap = {};
-    inventoryRecords.forEach(
-      (rec) => (inventoryMap[rec.itemId] = parseFloat(rec.quantity))
-    );
 
-    let stockAlertsList = [];
+    // Group inventory quantities by item
+    const itemQuantities = {};
+    allItems.forEach((item) => {
+      itemQuantities[item.id] = 0;
+    });
 
-    if (!isAllBranches) {
-      // Specific Scope: Check every item against this warehouse
-      stockAlertsList = allItems
-        .map((item) => ({
-          itemName: item.name,
-          quantity: inventoryMap[item.id] || 0,
-          reorderPoint: item.reorderPoint || 0,
-        }))
-        .filter((s) => s.quantity <= s.reorderPoint);
-    } else {
-      // Global Scope: Fallback to existing records
-      stockAlertsList = inventoryRecords
-        .map((rec) => ({
-          itemName: rec.item.name,
-          quantity: parseFloat(rec.quantity),
-          reorderPoint: rec.item.reorderPoint || 0,
-        }))
-        .filter((s) => s.quantity <= s.reorderPoint);
-    }
+    inventoryRecords.forEach((rec) => {
+      if (itemQuantities[rec.itemId] !== undefined) {
+        itemQuantities[rec.itemId] += parseFloat(rec.quantity);
+      }
+    });
+
+    const stockAlertsList = allItems
+      .map((item) => ({
+        itemName: item.name,
+        quantity: itemQuantities[item.id],
+        reorderPoint: item.reorderPoint,
+      }))
+      .filter((s) => s.reorderPoint > 0 && s.quantity <= s.reorderPoint);
 
     // --- 3. Calculations ---
 
@@ -137,11 +132,11 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     // > Summary Cards
     const totalSales = sales.reduce(
       (sum, sale) => sum + parseFloat(sale.total),
-      0
+      0,
     );
     const totalExpenses = expenses.reduce(
       (sum, exp) => sum + parseFloat(exp.amount),
-      0
+      0,
     );
     // Rough Net Profit = Sales - Expenses (ignores COGS for now as it's complex)
     const netProfit = totalSales - totalExpenses;

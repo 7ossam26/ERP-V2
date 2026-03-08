@@ -18,30 +18,29 @@ const CashierTransferPage = () => {
     const fetchTreasuries = async () => {
       try {
         let data = await treasuryService.getAll();
+        // Set treasuries
         setTreasuries(data);
 
-        // Filter Source Candidates
-        const validSources = data.filter((t) => {
-          // For Managers: Filter by their branch
-          if (currentUser?.role === "Manager" && currentUser?.branch) {
-            return t.branch?.id === currentUser.branch.id;
-          }
-          return true;
-        });
-
-        // Auto-select the first valid source option if available
-        if (validSources.length > 0) {
-          setSourceTreasuryId(validSources[0].id);
+        // Auto-select preference:
+        // 1. User's branch treasury
+        // 2. First available treasury
+        const userBranchTreasury = data.find(
+          (t) => t.branchId === currentUser?.branchId,
+        );
+        if (userBranchTreasury) {
+          setSourceTreasuryId(userBranchTreasury.id.toString());
+        } else if (data.length > 0) {
+          setSourceTreasuryId(data[0].id.toString());
         }
       } catch (error) {
-        toast.error("فشل في تحميل بيانات الخزائن");
+        toast.error(error.message || "فشل في تحميل بيانات الخزائن");
       }
     };
     fetchTreasuries();
   }, [currentUser?.id, currentUser?.branch?.id]);
 
   const selectedSource = treasuries.find(
-    (t) => t.id === parseInt(sourceTreasuryId)
+    (t) => t.id === parseInt(sourceTreasuryId),
   );
   const currentBalance = selectedSource ? Number(selectedSource.balance) : 0;
 
@@ -80,7 +79,7 @@ const CashierTransferPage = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.error || "فشل في عملية التحويل");
+      toast.error(error.message || "فشل في عملية التحويل");
     } finally {
       setLoading(false);
     }
@@ -147,13 +146,16 @@ const CashierTransferPage = () => {
                     </option>
                     {treasuries
                       .filter((t) => {
-                        // For Managers: Filter by their branch
-                        if (
-                          currentUser?.role === "Manager" &&
-                          currentUser?.branch
-                        ) {
-                          return t.branch?.id === currentUser.branch.id;
+                        const userBranchId =
+                          currentUser?.branchId || currentUser?.branch?.id;
+
+                        // Strict filter: If user has a branch, ONLY show treasuries linked to that branch
+                        if (userBranchId) {
+                          // Treasury has a nested branch object, not a direct ID
+                          return Number(t.branch?.id) === Number(userBranchId);
                         }
+
+                        // If no user branch (Superadmin?), show all
                         return true;
                       })
                       .map((t) => (
@@ -194,13 +196,11 @@ const CashierTransferPage = () => {
                     <option value="" disabled>
                       اختر الوجهة
                     </option>
-                    {treasuries
-                      .filter(t => t.id !== parseInt(sourceTreasuryId)) // Prevent selecting same treasury
-                      .map((t) => (
-                        <option key={t.id} value={t.id} className="text-black">
-                          {t.name}
-                        </option>
-                      ))}
+                    {treasuries.map((t) => (
+                      <option key={t.id} value={t.id} className="text-black">
+                        {t.name}
+                      </option>
+                    ))}
                   </select>
                   <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
                     يتم التحويل كطلب معلق
@@ -216,7 +216,7 @@ const CashierTransferPage = () => {
                   </label>
                   <div className="relative">
                     <input
-                      className="w-full text-left ltr bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-4 text-3xl font-bold text-text-primary dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                      className="w-full text-left ltr bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl pl-4 pr-16 py-4 text-3xl font-bold text-text-primary dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-gray-300 dark:placeholder:text-gray-600"
                       placeholder="0.00"
                       type="number"
                       value={amount}
@@ -224,7 +224,7 @@ const CashierTransferPage = () => {
                       max={currentBalance}
                       disabled={loading}
                     />
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary dark:text-gray-400 font-medium text-lg pointer-events-none">
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary dark:text-gray-400 font-medium text-lg pointer-events-none">
                       ج.م
                     </span>
                   </div>

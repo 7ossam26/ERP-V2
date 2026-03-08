@@ -21,14 +21,14 @@ const SuperadminLayout = () => {
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex font-sans text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col fixed inset-y-0 left-0 z-50 shadow-xl">
-        <div className="h-20 flex items-center px-6 border-b border-slate-800">
+      {/* Sidebar - Hidden on mobile, visible on larger screens */}
+      <aside className="w-64 bg-slate-900 text-white flex-col fixed inset-y-0 left-0 z-50 shadow-xl hidden lg:flex">
+        <div className="h-16 sm:h-20 flex items-center px-4 sm:px-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <img
               src="/assets/logo.png"
               alt="Elghonemy Logo"
-              className="h-12 w-auto object-contain"
+              className="h-10 sm:h-12 w-auto object-contain"
             />
           </div>
         </div>
@@ -40,7 +40,7 @@ const SuperadminLayout = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group ${
+                className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group min-h-touch ${
                   isActive
                     ? "bg-red-600 text-white shadow-lg shadow-red-900/20"
                     : "text-slate-400 hover:bg-slate-800 hover:text-white"
@@ -77,16 +77,25 @@ const SuperadminLayout = () => {
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors text-sm font-medium">
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors text-sm font-medium min-h-touch">
             <span className="material-icons-round text-lg">logout</span>
             Sign Out
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 ml-64 flex flex-col">
-        <div className="flex-grow p-8">
+      {/* Main Content - Full width on mobile, margin for sidebar on desktop */}
+      <main className="flex-1 lg:ml-64 flex flex-col">
+        {/* Top Header with Back Button */}
+        <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 h-16 flex items-center px-4 sm:px-8 sticky top-0 z-40">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+            <span className="material-icons-round text-xl">arrow_forward</span>
+            <span className="font-medium">رجوع</span>
+          </button>
+        </header>
+        <div className="flex-grow p-4 sm:p-8">
           <div className="max-w-6xl mx-auto">
             <Outlet />
           </div>

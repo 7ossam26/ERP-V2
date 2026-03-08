@@ -6,6 +6,7 @@ const {
   requirePermission,
   requireCreatePermission,
   requireAnyPermission,
+  getUserBranchFilter,
 } = require("../middleware/auth");
 
 // Protect all routes with authentication
@@ -14,51 +15,27 @@ router.use(authenticateToken);
 // GET all treasuries
 router.get("/", async (req, res) => {
   try {
+    const branchFilter = await getUserBranchFilter(req.user.id);
+
+    // Build query: Active treasuries
+    const where = { isActive: true };
+
+    // If scoped to a branch, only show that branch's treasury
+    if (branchFilter) {
+      if (branchFilter.id.in) {
+        // Multi-branch user (e.g., General Manager)
+        where.branch = { id: { in: branchFilter.id.in } };
+      } else {
+        // Single-branch user
+        where.branch = { id: branchFilter.id };
+      }
+    }
+
     const treasuries = await prisma.treasury.findMany({
-      where: { isActive: true },
+      where,
       include: { branch: true },
       orderBy: { createdAt: "asc" },
     });
-
-    // --- ALL BRANCHES AGGREGATION LOGIC ---
-    // 1. Calculate total balance of all "real" treasuries
-    const allBranchesTreasury = treasuries.find(
-      (t) => t.name === "All Branches Treasury" || t.id === 4 // Fallback to ID 4 if name matches
-    );
-
-    if (allBranchesTreasury) {
-      const realTreasuries = treasuries.filter(
-        (t) => t.id !== allBranchesTreasury.id
-      );
-      const totalBalance = realTreasuries.reduce(
-        (sum, t) => sum + Number(t.balance),
-        0
-      );
-
-      // 2. Overwrite the balance in the response (Virtual View)
-      allBranchesTreasury.balance = totalBalance;
-      allBranchesTreasury.isVirtual = true; // Flag for frontend if needed
-    }
-    // --------------------------------------
-
-    // --- VISIBILITY FILTER ---
-    // Hide "All Branches Treasury" if user is not Superadmin AND not assigned to All Branches
-    if (req.user.role !== "Superadmin") {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        include: { branch: true },
-      });
-
-      if (!user || !user.branch?.isAllBranches) {
-        // Filter out All Branches Treasury (ID 4)
-        return res.json(
-          treasuries.filter(
-            (t) => t.id !== 4 && t.name !== "All Branches Treasury"
-          )
-        );
-      }
-    }
-    // -------------------------
 
     res.json(treasuries);
   } catch (error) {
@@ -143,7 +120,7 @@ router.post("/transfer", async (req, res) => {
 
         if (!mainTreasury) {
           throw new Error(
-            "Main Treasury not found. Please configure it in System Settings."
+            "Main Treasury not found. Please configure it in System Settings.",
           );
         }
         destinationTreasuryId = mainTreasury.id;
@@ -164,7 +141,7 @@ router.post("/transfer", async (req, res) => {
     }
 
     // Block transfers from "All Branches Treasury" (ID 4 or Name check)
-    // We fetch source details in transaction anyway, but let's check basic ID first if known, 
+    // We fetch source details in transaction anyway, but let's check basic ID first if known,
     // or better, check after fetching source.
 
     // Use transaction to ensure data integrity
@@ -172,14 +149,11 @@ router.post("/transfer", async (req, res) => {
       // 1. Check source balance
       const source = await tx.treasury.findUnique({
         where: { id: parseInt(fromTreasuryId) },
+        include: { branch: true },
       });
 
       if (!source) throw new Error("Source treasury not found");
 
-      // --- ENFORCE READ-ONLY FOR ALL BRANCHES ---
-      if (source.name === "All Branches Treasury" || source.id === 4) {
-        throw new Error("Cannot transfer funds FROM 'All Branches Treasury'. It is a read-only view.");
-      }
       // ----------------------------------------
 
       if (Number(source.balance) < transferAmount) {
@@ -302,7 +276,7 @@ router.post(
         .status(500)
         .json({ error: "Failed to create treasury", message: error.message });
     }
-  }
+  },
 );
 
 // PUT update treasury
@@ -322,21 +296,25 @@ router.put(
         .status(500)
         .json({ error: "Failed to update treasury", message: error.message });
     }
-  }
+  },
 );
 
 // DELETE treasury
 // DELETE treasury
-router.delete("/:id", requirePermission("TREASURIES"), async (req, res, next) => {
-  try {
-    await prisma.treasury.update({
-      where: { id: parseInt(req.params.id) },
-      data: { isActive: false },
-    });
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-});
+router.delete(
+  "/:id",
+  requirePermission("TREASURIES"),
+  async (req, res, next) => {
+    try {
+      await prisma.treasury.update({
+        where: { id: parseInt(req.params.id) },
+        data: { isActive: false },
+      });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 module.exports = router;

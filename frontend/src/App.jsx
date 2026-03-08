@@ -45,14 +45,21 @@ import PurchaseHistory from "./pages/reports/history/PurchaseHistory";
 import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 import SettingsPage from "./pages/settings/SettingsPage";
 import TransferManagementPage from "./pages/treasuries/TransferManagementPage";
+import ShiftManagementPage from "./pages/shifts/ShiftManagementPage";
 import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
+import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
+import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
+import DeliverySettlementPage from "./pages/delivery-settlement/DeliverySettlementPage";
+import BOMManager from "./pages/bom/BOMManager";
+import ProductionHistory from "./pages/bom/ProductionHistory";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
 import { seedData } from "./services/seedData";
-import SessionTimeoutWarning from "./components/SessionTimeoutWarning";
+import toast from "react-hot-toast";
+
 
 function App() {
   useEffect(() => {
@@ -67,8 +74,9 @@ function App() {
 
   return (
     <Router>
-      <Toaster position="top-center" reverseOrder={false} />
-      <SessionTimeoutWarning />
+      <div className="no-print">
+        <Toaster position="top-center" reverseOrder={false} />
+      </div>
       <Routes>
         {/* Public Route: Login */}
         <Route path="/" element={<LoginPage />} />
@@ -354,6 +362,56 @@ function App() {
               <ProtectedRoute
                 requiredPermission={["TREASURIES", "CASH_TRANSFER"]}>
                 <TransferManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/shifts"
+            element={
+              <ProtectedRoute requiredPermission="SHIFTS">
+                <ShiftManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-men"
+            element={
+              <ProtectedRoute requiredPermission="CREATES_DELIVERY_MEN">
+                <DeliveryMenPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-zones"
+            element={
+              <ProtectedRoute requiredPermission="CREATES_DELIVERY_ZONES">
+                <DeliveryZonesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-settlement"
+            element={
+              <ProtectedRoute requiredPermission="DELIVERY_SETTLEMENT">
+                <DeliverySettlementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bom"
+            element={
+              <ProtectedRoute
+                requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
+                <BOMManager />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bom/production-history"
+            element={
+              <ProtectedRoute
+                requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
+                <ProductionHistory />
               </ProtectedRoute>
             }
           />

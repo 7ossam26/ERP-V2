@@ -16,16 +16,20 @@
 }
 
 @layer utilities {
+
   /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar,
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
   /* Hide scrollbar for IE, Edge and Firefox */
   .no-scrollbar,
   .scrollbar-hide {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 
   /* Keep custom scrollbar for instances where it might be explicitly wanted, but default user request "delete scroll bar" implies removing it globally or making it invisible */
@@ -53,7 +57,7 @@
 /* Print Styles */
 @media print {
   @page {
-    size: auto; /* Allow printer settings to control paper size */
+    size: auto;
     margin: 0mm;
   }
 
@@ -62,10 +66,23 @@
     padding: 0;
   }
 
+  nav,
+  aside,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   /* POS Thermal Receipt Styling */
   #thermal-receipt {
     width: 100%;
-    max-width: 80mm; /* Optimized for standard 80mm thermal paper */
+    max-width: 80mm;
+    /* Optimized for standard 80mm thermal paper */
     margin: 0 auto;
     padding: 2mm;
     background: white !important;
@@ -78,6 +95,13 @@
   #thermal-receipt h2 {
     font-size: 16px;
     margin-bottom: 5px;
+  }
+
+  #thermal-receipt img {
+    max-width: 40%;
+    margin: 0 auto 5px auto;
+    display: block;
+    filter: grayscale(100%) contrast(150%);
   }
 
   #thermal-receipt p {

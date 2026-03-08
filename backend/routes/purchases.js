@@ -7,7 +7,7 @@ const { authenticateToken, requirePermission, getUserBranchFilter } = require(".
 router.use(authenticateToken, requirePermission("PURCHASES"));
 
 // GET all purchases
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const branchId = await getUserBranchFilter(req.user.id);
     // Purchases are linked to a warehouse. Branches are linked to a warehouse.
@@ -21,15 +21,17 @@ router.get("/", async (req, res) => {
 
     let whereClause = {};
     if (branchId) {
-      // Find warehouse for this branch
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
+      // branchId is actually a filter object (e.g. { id: 1 } or { id: { in: [...] } })
+      const branches = await prisma.branch.findMany({
+        where: branchId,
         select: { warehouseId: true }
       });
-      if (branch && branch.warehouseId) {
-        whereClause = { warehouseId: branch.warehouseId };
+
+      const warehouseIds = branches.map((b) => b.warehouseId).filter((id) => id);
+
+      if (warehouseIds.length > 0) {
+        whereClause = { warehouseId: { in: warehouseIds } };
       } else {
-        // Should not happen for valid branch
         whereClause = { id: -1 }; // Force empty result
       }
     }
@@ -50,14 +52,12 @@ router.get("/", async (req, res) => {
     });
     res.json(purchases);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch purchases", message: error.message });
+    next(error);
   }
 });
 
 // GET purchase by ID
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
   try {
     const purchase = await prisma.purchase.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -77,14 +77,12 @@ router.get("/:id", async (req, res) => {
     }
     res.json(purchase);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch purchase", message: error.message });
+    next(error);
   }
 });
 
 // POST create new purchase
-router.post("/", async (req, res) => {
+router.post("/", async (req, res, next) => {
   try {
     console.log("📦 Received purchase creation request");
     console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -117,18 +115,19 @@ router.post("/", async (req, res) => {
     let effectiveWarehouseId = warehouseId;
 
     if (!effectiveWarehouseId) {
-      // Fallback to Main Warehouse from System Config if not provided
-      const systemConfig = await prisma.systemConfiguration.findUnique({
-        where: { id: 1 },
-        select: { mainWarehouseId: true },
+      // Fallback to user's branch warehouse if not provided
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: { branch: true },
       });
 
-      if (!systemConfig || !systemConfig.mainWarehouseId) {
+      if (!user || !user.branch || !user.branch.warehouseId) {
         return res.status(400).json({
-          error: "Warehouse is required and no Main Warehouse is configured.",
+          error: "Warehouse is required and user's branch warehouse is not configured.",
         });
       }
-      effectiveWarehouseId = systemConfig.mainWarehouseId;
+      effectiveWarehouseId = user.branch.warehouseId;
+      console.log(`📍 Using branch warehouse ID: ${effectiveWarehouseId} for user's branch: ${user.branch.name}`);
     }
 
     if (!items || items.length === 0) {
@@ -182,7 +181,7 @@ router.post("/", async (req, res) => {
           where: {
             itemId_warehouseId: {
               itemId: parseInt(item.itemId),
-              warehouseId: effectiveWarehouseId,
+              warehouseId: parseInt(effectiveWarehouseId),
             },
           },
           update: {
@@ -190,10 +189,28 @@ router.post("/", async (req, res) => {
           },
           create: {
             itemId: parseInt(item.itemId),
-            warehouseId: effectiveWarehouseId,
+            warehouseId: parseInt(effectiveWarehouseId),
             quantity: Number(item.quantity),
           },
         });
+      }
+
+      // 2.5 Update Item Selling Price & Cost Price
+      for (const item of items) {
+        const updateData = {};
+        if (item.sellPrice && Number(item.sellPrice) > 0) {
+          updateData.price = Number(item.sellPrice);
+        }
+        if (item.purchasePrice && Number(item.purchasePrice) > 0) {
+          updateData.costPrice = Number(item.purchasePrice);
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await prisma.item.update({
+            where: { id: parseInt(item.itemId) },
+            data: updateData,
+          });
+        }
       }
 
       // 3. Handle Payment Methods and Treasury/Expense Logic
@@ -210,11 +227,15 @@ router.post("/", async (req, res) => {
         });
 
         if (!treasury) {
-          throw new Error("Treasury not found");
+          const err = new Error("Treasury not found");
+          err.status = 404;
+          throw err;
         }
 
         if (Number(treasury.balance) < Number(netTotal)) {
-          throw new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+          const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+          err.status = 400;
+          throw err;
         }
 
         // Deduct from treasury
@@ -272,11 +293,15 @@ router.post("/", async (req, res) => {
           });
 
           if (!treasury) {
-            throw new Error("Treasury not found");
+            const err = new Error("Treasury not found");
+            err.status = 404;
+            throw err;
           }
 
           if (Number(treasury.balance) < Number(paidAmount)) {
-            throw new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+            const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+            err.status = 400;
+            throw err;
           }
 
           // Deduct paid amount from treasury
@@ -330,20 +355,12 @@ router.post("/", async (req, res) => {
     console.log("✅ Purchase created successfully:", purchase.id);
     res.status(201).json(purchase);
   } catch (error) {
-    console.error("❌ Error creating purchase:");
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    console.error("Error code:", error.code);
-    console.error("Full error:", error);
-
-    res
-      .status(500)
-      .json({ error: "Failed to create purchase", message: error.message });
+    next(error);
   }
 });
 
 // PUT update purchase
-router.put("/:id", async (req, res) => {
+router.put("/:id", async (req, res, next) => {
   try {
     const {
       supplierId,
@@ -370,7 +387,9 @@ router.put("/:id", async (req, res) => {
       });
 
       if (!oldPurchase) {
-        throw new Error("Purchase not found");
+        const err = new Error("Purchase not found");
+        err.status = 404;
+        throw err;
       }
 
       // 2. Refund Old Amount (User requested feature)
@@ -467,8 +486,21 @@ router.put("/:id", async (req, res) => {
         }
       }
 
-      // 5. Deduct New Amount (User requested feature)
+      // 5. Deduct New Amount — verify treasury has sufficient balance first (NEW-08 fix)
       if (Number(paidAmount) > 0) {
+        const newTreasury = await prisma.treasury.findUnique({
+          where: { id: parseInt(treasuryId) },
+        });
+        if (!newTreasury) {
+          const err = new Error("Treasury not found");
+          err.status = 404;
+          throw err;
+        }
+        if (Number(newTreasury.balance) < Number(paidAmount)) {
+          const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+          err.status = 400;
+          throw err;
+        }
         await prisma.treasury.update({
           where: { id: parseInt(treasuryId) },
           data: {
@@ -525,17 +557,12 @@ router.put("/:id", async (req, res) => {
 
     res.json(purchase);
   } catch (error) {
-    if (error.code === "P2025") {
-      return res.status(404).json({ error: "Purchase not found" });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to update purchase", message: error.message });
+    next(error);
   }
 });
 
 // DELETE purchase
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res, next) => {
   try {
     const purchaseId = parseInt(req.params.id);
 
@@ -585,12 +612,7 @@ router.delete("/:id", async (req, res) => {
 
     res.status(204).send();
   } catch (error) {
-    if (error.message === "Purchase not found" || error.code === "P2025") {
-      return res.status(404).json({ error: "Purchase not found" });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to delete purchase", message: error.message });
+    next(error);
   }
 });
 

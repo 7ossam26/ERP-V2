@@ -36,6 +36,12 @@ router.get("/users", async (req, res) => {
             name: true,
           },
         },
+        accessibleBranches: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },
@@ -64,10 +70,22 @@ router.post("/users", createUserValidation, async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, username, password, roleId, branchId } = req.body;
 
-    if (!branchId) {
-      return res.status(400).json({ error: "Branch is required" });
+    const { name, username, password, roleId, branchId, accessibleBranchIds } = req.body;
+
+    // Get role to determine permissions and validation
+    const role = await prisma.role.findUnique({
+      where: { id: parseInt(roleId) },
+    });
+
+    if (!role) {
+      return res.status(400).json({ error: "Invalid role selected" });
+    }
+
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role.name);
+
+    if (!isGlobalRole && !branchId) {
+      return res.status(400).json({ error: "Branch is required for this role" });
     }
 
     // Check if username exists
@@ -78,16 +96,17 @@ router.post("/users", createUserValidation, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Get role to determine default hasSensitiveAccess
-    const role = await prisma.role.findUnique({
-      where: { id: parseInt(roleId) },
-    });
-
     // Determine hasSensitiveAccess value
     let hasSensitiveAccess =
       req.body.hasSensitiveAccess !== undefined
         ? req.body.hasSensitiveAccess
-        : ["Superadmin", "Admin", "Manager"].includes(role?.name);
+        : ["Superadmin", "Admin", "Manager", "General Manager"].includes(role.name);
+
+    // Prepare accessible branches connect
+    const accessibleBranchesConnect =
+      Array.isArray(accessibleBranchIds) && accessibleBranchIds.length > 0
+        ? accessibleBranchIds.map(id => ({ id: parseInt(id) }))
+        : [];
 
     const newUser = await prisma.user.create({
       data: {
@@ -95,12 +114,16 @@ router.post("/users", createUserValidation, async (req, res) => {
         username,
         password: hashedPassword,
         roleId: parseInt(roleId),
-        branchId: parseInt(branchId),
+        branchId: branchId ? parseInt(branchId) : null,
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
         hasSensitiveAccess: hasSensitiveAccess,
+        accessibleBranches: {
+          connect: accessibleBranchesConnect
+        }
       },
       include: {
         role: true,
+        accessibleBranches: true
       },
     });
 
@@ -118,13 +141,36 @@ router.post("/users", createUserValidation, async (req, res) => {
 router.put("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, username, roleId, branchId, password } = req.body;
+    const { name, username, roleId, branchId, password, accessibleBranchIds } = req.body;
+
+    // Get role information if it's being updated or checking current role
+    let roleToCheckId = roleId;
+    if (!roleToCheckId) {
+      const user = await prisma.user.findUnique({ where: { id: parseInt(id) }, select: { roleId: true } });
+      if (user) roleToCheckId = user.roleId;
+    }
+
+    const role = await prisma.role.findUnique({
+      where: { id: parseInt(roleToCheckId) }
+    });
+
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role?.name);
+
+    // Validate Branch requirement
+    if (!branchId && !isGlobalRole && roleId) { // Only enforce if role is explicitly being set/checked
+      // If branchId is not provided, we need to check if it's an update where branch is optional or not.
+      // But for simplicity, if role is changing to a non-global one, branch is required.
+      return res.status(400).json({ error: "Branch is required for this role" });
+    }
 
     const data = {
       name,
       username,
-      roleId: parseInt(roleId),
-      branchId: branchId ? parseInt(branchId) : undefined,
+      roleId: roleId ? parseInt(roleId) : undefined,
+      // If global role, allow branchId to be null. If not global, strict parse.
+      // If branchId is explicitly passed as null/empty string and it's a global role, we should set it to null in DB.
+      // If it's undefined (not passed), we leave it alone (handled by delete undefined keys).
+      branchId: branchId ? parseInt(branchId) : (isGlobalRole && branchId !== undefined ? null : undefined),
       isActive: req.body.isActive !== undefined ? req.body.isActive : undefined,
       hasSensitiveAccess:
         req.body.hasSensitiveAccess !== undefined
@@ -141,6 +187,17 @@ router.put("/users/:id", async (req, res) => {
       data.password = await bcrypt.hash(password, 10);
     }
 
+    // Handle accessible branches update if provided
+    if (accessibleBranchIds !== undefined) {
+      const branchesToConnect = Array.isArray(accessibleBranchIds)
+        ? accessibleBranchIds.map(bid => ({ id: parseInt(bid) }))
+        : [];
+
+      data.accessibleBranches = {
+        set: branchesToConnect // Replace existing with new list
+      };
+    }
+
     // Prevent deactivating self
     if (req.body.isActive === false && parseInt(id) === req.user.id) {
       return res
@@ -151,6 +208,7 @@ router.put("/users/:id", async (req, res) => {
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(id) },
       data,
+      include: { accessibleBranches: true } // Include in response
     });
 
     res.json(updatedUser);

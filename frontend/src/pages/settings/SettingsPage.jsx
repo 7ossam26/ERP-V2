@@ -19,6 +19,11 @@ const SettingsPage = () => {
     salaryEndDay: 30,
     shiftStartTime: "09:00",
     shiftEndTime: "17:00",
+    // New POS shift times
+    morningShiftStart: "09:00",
+    morningShiftEnd: "17:00",
+    eveningShiftStart: "17:00",
+    eveningShiftEnd: "01:00",
   });
 
   const [warehouses, setWarehouses] = useState([]);
@@ -50,13 +55,18 @@ const SettingsPage = () => {
         salaryEndDay: settings.salaryEndDay || 30,
         shiftStartTime: settings.shiftStartTime || "09:00",
         shiftEndTime: settings.shiftEndTime || "17:00",
+        // POS shift times
+        morningShiftStart: settings.morningShiftStart || "09:00",
+        morningShiftEnd: settings.morningShiftEnd || "17:00",
+        eveningShiftStart: settings.eveningShiftStart || "17:00",
+        eveningShiftEnd: settings.eveningShiftEnd || "01:00",
       });
 
       setWarehouses(warehousesData);
       setTreasuries(treasuriesData);
     } catch (error) {
       console.error("Failed to load settings:", error);
-      toast.error("فشل في تحميل الإعدادات");
+      toast.error(error.message || "فشل في تحميل الإعدادات");
     } finally {
       setLoading(false);
     }
@@ -78,8 +88,7 @@ const SettingsPage = () => {
       toast.success("تم حفظ الإعدادات بنجاح");
     } catch (error) {
       console.error("Failed to save settings:", error);
-      const message = error.response?.data?.details || "فشل في حفظ الإعدادات";
-      toast.error(message);
+      toast.error(error.message || "فشل في حفظ الإعدادات");
     } finally {
       setSaving(false);
     }
@@ -254,6 +263,94 @@ const SettingsPage = () => {
                 className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
+          </div>
+        </div>
+
+        {/* POS Shift Settings */}
+        <div className="bg-surface-light dark:bg-surface-dark rounded-2xl p-6 shadow-sm border border-border-light dark:border-border-dark">
+          <h2 className="text-xl font-bold text-primary dark:text-accent mb-4 flex items-center gap-2">
+            <span className="material-icons-round">store</span>
+            إعدادات ورديات نقاط البيع (POS)
+          </h2>
+          <p className="text-sm text-text-secondary dark:text-gray-400 mb-6">
+            حدد أوقات بداية ونهاية الورديات الصباحية والمسائية
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Morning Shift */}
+            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border-2 border-blue-200 dark:border-blue-800">
+              <h3 className="font-bold text-blue-700 dark:text-blue-300 mb-3 flex items-center gap-2">
+                <span className="material-icons-round text-xl">wb_sunny</span>
+                الوردية الصباحية
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
+                    وقت البداية
+                  </label>
+                  <input
+                    type="time"
+                    name="morningShiftStart"
+                    value={formData.morningShiftStart}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
+                    وقت النهاية
+                  </label>
+                  <input
+                    type="time"
+                    name="morningShiftEnd"
+                    value={formData.morningShiftEnd}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Evening Shift */}
+            <div className="bg-orange-50 dark:bg-orange-900/10 p-4 rounded-xl border-2 border-orange-200 dark:border-orange-800">
+              <h3 className="font-bold text-orange-700 dark:text-orange-300 mb-3 flex items-center gap-2">
+                <span className="material-icons-round text-xl">nights_stay</span>
+                الوردية المسائية
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
+                    وقت البداية
+                  </label>
+                  <input
+                    type="time"
+                    name="eveningShiftStart"
+                    value={formData.eveningShiftStart}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
+                    وقت النهاية
+                  </label>
+                  <input
+                    type="time"
+                    name="eveningShiftEnd"
+                    value={formData.eveningShiftEnd}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>ملاحظة:</strong> يتم تحديد نوع الوردية (صباحية/مسائية) تلقائياً بناءً على الوقت الحالي عند بدء الوردية.
+              الوردية المسائية يمكن أن تمتد بعد منتصف الليل (مثلاً من 17:00 إلى 01:00).
+            </p>
           </div>
         </div>
 

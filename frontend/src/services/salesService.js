@@ -32,6 +32,14 @@ export const salesService = {
     return await api.get(`${SALES_URL}/${id}`);
   },
 
+  async getBySaleNumber(saleNumber) {
+    return await api.get(`${SALES_URL}/number/${saleNumber}`);
+  },
+
+  async search(query) {
+    return await api.get(`${SALES_URL}/search`, { params: { query } });
+  },
+
   async create(saleData) {
     return await api.post(SALES_URL, saleData);
   },
@@ -43,5 +51,13 @@ export const salesService = {
   async delete(id) {
     await api.delete(`${SALES_URL}/${id}`);
     return true;
+  },
+
+  async refund(refundData) {
+    return await api.post(`${SALES_URL}/refund`, refundData);
+  },
+
+  async markDelivered(saleId) {
+    return await api.patch(`${SALES_URL}/${saleId}/mark-delivered`);
   },
 };

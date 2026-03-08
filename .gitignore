@@ -1,6 +1,8 @@
 # Ignore environment variable files
-# .env -> Temporarily commented out for debugging
-.env.*
+.env
+.env.local
+.env.*.local
+# .env.development and .env.production are intentionally committed (no secrets, URL-only)
 # IDE/editor settings
 .vscode/
 # Dependency directories

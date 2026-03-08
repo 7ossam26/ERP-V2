@@ -59,14 +59,11 @@ export const apiClient = async (endpoint, options = {}) => {
       }
 
       // Use the structured error message from backend if available
-      const errorMessage = data.message || data.error || "An unexpected error occurred";
+      const errorMessage =
+        data.message || data.error || "An unexpected error occurred";
       const errorDetails = data;
 
-      throw new APIError(
-        errorMessage,
-        response.status,
-        errorDetails
-      );
+      throw new APIError(errorMessage, response.status, errorDetails);
     }
 
     return data;
@@ -80,15 +77,21 @@ export const apiClient = async (endpoint, options = {}) => {
     throw new APIError(
       "Unable to connect to the server. Please check your internet connection.",
       0,
-      null
+      null,
     );
   }
 };
 
 // HTTP method helpers
 export const api = {
-  get: (endpoint, options = {}) =>
-    apiClient(endpoint, { ...options, method: "GET" }),
+  get: (endpoint, options = {}) => {
+    let url = endpoint;
+    if (options.params) {
+      const queryString = new URLSearchParams(options.params).toString();
+      url += `?${queryString}`;
+    }
+    return apiClient(url, { ...options, method: "GET" });
+  },
 
   post: (endpoint, data, options = {}) =>
     apiClient(endpoint, {

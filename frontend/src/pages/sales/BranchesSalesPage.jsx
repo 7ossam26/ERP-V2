@@ -10,6 +10,7 @@ const BranchesSalesPage = () => {
   const [mainTreasury, setMainTreasury] = useState(null);
   const [bankTreasury, setBankTreasury] = useState(null);
   const [percentageChange, setPercentageChange] = useState(0);
+  const [branchesTotalBalance, setBranchesTotalBalance] = useState(0);
   const [isPositive, setIsPositive] = useState(true);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ const BranchesSalesPage = () => {
         // Fetch Main Treasury if configured
         if (settings.mainTreasuryId) {
           const mainTreasuryData = await treasuryService.getById(
-            settings.mainTreasuryId
+            settings.mainTreasuryId,
           );
           setMainTreasury(mainTreasuryData);
         }
@@ -29,7 +30,7 @@ const BranchesSalesPage = () => {
         // Fetch Bank Treasury if configured
         if (settings.bankTreasuryId) {
           const bankTreasuryData = await treasuryService.getById(
-            settings.bankTreasuryId
+            settings.bankTreasuryId,
           );
           setBankTreasury(bankTreasuryData);
         }
@@ -42,11 +43,12 @@ const BranchesSalesPage = () => {
         }));
         setBranches(branchesWithBalance);
 
-        // Fetch Financial Summary for percentage change
+        // Fetch Financial Summary for percentage change and total balance
         const summaryData = await branchService.getSummary();
         const pct = parseFloat(summaryData.percentageChange);
         setPercentageChange(Math.abs(pct));
         setIsPositive(pct >= 0);
+        setBranchesTotalBalance(Number(summaryData.totalBalance || 0));
       } catch (error) {
         console.error("Failed to fetch branch data", error);
       }
@@ -63,7 +65,7 @@ const BranchesSalesPage = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <h1 className="text-text-light dark:text-text-dark text-3xl font-black leading-tight tracking-tight">
-                مبيعات الفروع
+                أرصدة الفروع
               </h1>
               <p className="text-primary/80 dark:text-accent/80 text-sm md:text-base font-normal">
                 نظرة عامة على السيولة النقدية في جميع الفروع والخزينة الرئيسية
@@ -97,7 +99,7 @@ const BranchesSalesPage = () => {
                     lock
                   </span>
                   <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-                    {mainTreasury?.name || "الخزينة الرئيسية"}
+                    {mainTreasury?.name || "الخزينة الرئيسية"} + الفروع
                   </span>
                 </div>
                 <div>
@@ -105,9 +107,10 @@ const BranchesSalesPage = () => {
                     الرصيد الإجمالي الحالي
                   </p>
                   <h2 className="text-5xl md:text-6xl font-black tracking-tight text-white">
-                    {mainTreasury
-                      ? Number(mainTreasury.balance).toLocaleString()
-                      : "0"}{" "}
+                    {(
+                      (mainTreasury ? Number(mainTreasury.balance) : 0) +
+                      branchesTotalBalance
+                    ).toLocaleString()}{" "}
                     جنيه مصري
                   </h2>
                 </div>
@@ -139,7 +142,7 @@ const BranchesSalesPage = () => {
 
           {/* Bank Treasury Card */}
           {bankTreasury && (
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a5f] to-[#2563eb] text-white p-6 md:p-8 shadow-lg">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#4c096e] text-white p-6 md:p-8 shadow-lg">
               <div
                 className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
                 style={{
@@ -151,7 +154,7 @@ const BranchesSalesPage = () => {
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-accent bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
                     <span className="material-symbols-outlined text-[18px]">
-                      account_balance
+                      account_balance_wallet
                     </span>
                     <span className="text-xs font-bold uppercase tracking-wider text-white/90">
                       {bankTreasury.name}

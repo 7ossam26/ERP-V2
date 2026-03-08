@@ -4,23 +4,46 @@ const fs = require("fs");
 const path = require("path"); // Ensure path is available early
 const cors = require("cors");
 
-// --- DEBUGGING: Check for .env files ---
+// --- ENV LOADING STRATEGY ---
+// Priority (highest wins): .env.local > backend/.env > root/.env
+//
+// For local development: create backend/.env.local to override production settings.
+// For production deployment: backend/.env.local should NOT exist.
 const envRoot = path.resolve(__dirname, "../.env");
 const envBackend = path.resolve(__dirname, ".env");
+const envRootLocal = path.resolve(__dirname, "../.env.local");
+const envBackendLocal = path.resolve(__dirname, ".env.local");
 
+// Step 1: Load base configs (lower priority)
 if (fs.existsSync(envRoot)) {
-  console.log(`>>> [ENV] Found .env at ROOT (${envRoot}). Loading...`);
+  console.log(`>>> [ENV] Loading root .env (${envRoot})...`);
   require("dotenv").config({ path: envRoot });
-} else {
-  console.log(`>>> [ENV] NOT FOUND at ROOT (${envRoot})`);
+}
+if (fs.existsSync(envBackend)) {
+  console.log(`>>> [ENV] Loading backend .env (${envBackend})...`);
+  require("dotenv").config({ path: envBackend, override: true });
 }
 
-if (fs.existsSync(envBackend)) {
-  console.log(`>>> [ENV] Found .env at BACKEND (${envBackend}). Loading...`);
-  require("dotenv").config({ path: envBackend });
-} else {
-  console.log(`>>> [ENV] NOT FOUND at BACKEND (${envBackend})`);
+// Step 2: Always load .env.local files on top — these WIN over everything.
+// On production servers, these files won't exist, so nothing happens.
+// On local dev, create backend/.env.local to override NODE_ENV, DB, ports, etc.
+if (fs.existsSync(envRootLocal)) {
+  console.log(
+    `>>> [ENV] Loading root .env.local (${envRootLocal}) — local dev override...`,
+  );
+  require("dotenv").config({ path: envRootLocal, override: true });
 }
+if (fs.existsSync(envBackendLocal)) {
+  console.log(
+    `>>> [ENV] Loading backend .env.local (${envBackendLocal}) — local dev override...`,
+  );
+  require("dotenv").config({ path: envBackendLocal, override: true });
+}
+
+const isProduction = process.env.NODE_ENV === "production";
+console.log(
+  `>>> [ENV] Final NODE_ENV: ${process.env.NODE_ENV} (isProduction: ${isProduction})`,
+);
 // ---------------------------------------
 
 // --- DEBUGGING: Write logs to a file ---
@@ -40,13 +63,17 @@ const originalLog = console.log;
 const originalError = console.error;
 
 console.log = function (...args) {
-  const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  const msg = args
+    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
+    .join(" ");
   logToFile(`INFO: ${msg}`);
   originalLog.apply(console, args);
 };
 
 console.error = function (...args) {
-  const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  const msg = args
+    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
+    .join(" ");
   logToFile(`ERROR: ${msg}`);
   originalError.apply(console, args);
 };
@@ -56,11 +83,13 @@ console.log(`>>> [BOOT] Logging to file: ${LOG_FILE}`);
 
 const app = express();
 // Enable proxy trust for Hostinger Load Balancer (fixes rate limit error)
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 const PORT = process.env.PORT || 3001;
 
-console.log(`>>> [BOOT] Environment detected. PORT: ${PORT}, PID: ${process.pid}`);
+console.log(
+  `>>> [BOOT] Environment detected. PORT: ${PORT}, PID: ${process.pid}`,
+);
 console.log(`>>> [BOOT] NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(">>> [BOOT] Attempting to set up server...");
 
@@ -78,23 +107,39 @@ app.use(
         imgSrc: ["'self'", "data:", "https:"],
       },
     },
-    hsts: {
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true,
-    },
-  })
+    hsts:
+      process.env.NODE_ENV === "production"
+        ? {
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+          }
+        : false, // Disable HSTS in development
+  }),
 );
 
-// CORS configuration
-const allowedOrigins = process.env.FRONTEND_URL?.split(",") || [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:3000",
-  `http://localhost:${PORT}`,
-  `http://127.0.0.1:${PORT}`,
-];
+// CORS configuration — origins come from FRONTEND_URL env var (comma-separated).
+// In production: set in backend/.env
+// In development: overridden by backend/.env.local
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+  : [];
 
+// Always allow localhost in development mode
+if (process.env.NODE_ENV !== "production") {
+  const localOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:3001",
+  ];
+  localOrigins.forEach((origin) => {
+    if (!allowedOrigins.includes(origin)) allowedOrigins.push(origin);
+  });
+}
+
+console.log(`>>> [CORS] NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(`>>> [CORS] Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
 
 app.use(
@@ -105,14 +150,16 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        console.error(`>>> [CORS] BLOCKED: Origin '${origin}' not in allowed list.`);
+        console.error(
+          `>>> [CORS] BLOCKED: Origin '${origin}' not in allowed list.`,
+        );
         callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 const rateLimit = require("express-rate-limit");
@@ -128,8 +175,11 @@ app.use(limiter);
 // HTTPS enforcement (production only)
 if (process.env.NODE_ENV === "production") {
   app.use((req, res, next) => {
-    if (req.headers["x-forwarded-proto"] !== "https") {
-      return res.redirect("https://" + req.headers.host + req.url);
+    const proto = req.headers["x-forwarded-proto"];
+    // Only redirect if explicitly http, not if missing or already https
+    if (proto && proto === "http") {
+      console.log(`>>> [HTTPS] Redirecting ${req.url} from HTTP to HTTPS`);
+      return res.redirect(301, "https://" + req.headers.host + req.url);
     }
     next();
   });
@@ -188,6 +238,11 @@ app.use("/api/stock-transfers", require("./routes/stockTransfer"));
 app.use("/api/shifts", require("./routes/shifts"));
 app.use("/api/supplier-accounts", require("./routes/supplierAccounts"));
 app.use("/api/deposits", require("./routes/deposits"));
+app.use("/api/withdrawals", require("./routes/withdrawals"));
+app.use("/api/users", require("./routes/users"));
+app.use("/api/delivery-men", require("./routes/delivery.routes"));
+app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
+app.use("/api/bom", require("./routes/bom"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
@@ -199,75 +254,182 @@ console.log("🔄 Server updated");
 const { spawn } = require("child_process");
 const seedMain = require("./scripts/seed-production.js");
 
-app.get("/api/setup-production-db-securely", async (req, res) => {
-  console.log(">>> [SETUP] Starting Database Setup (SQL Execution Mode)...");
+// --- DANGEROUS: Complete Database Reset & Re-seed ---
+app.get("/api/dangerous-reset-db", async (req, res) => {
+  console.log(">>> [RESET] Request received to WIPE database...");
+
+  // 1. Security Check
+  if (req.query.secret !== "RESET_MY_DB_NOW") {
+    console.warn(">>> [RESET] Access denied. Invalid secret.");
+    return res
+      .status(403)
+      .json({ error: "Access denied. Invalid secret key." });
+  }
+
+  const log = [];
+  const logMsg = (msg) => {
+    console.log(`>>> [RESET] ${msg}`);
+    log.push(msg);
+  };
 
   try {
-    // 1. Execute SQL Migration (No spawning, executing directly via connection)
+    // 2. Drop All Tables
+    logMsg("Starting table wipe...");
+
+    // Disable foreign key checks to allow arbitrary drop order
+    await prisma.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 0;");
+
+    // Get all tables
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = DATABASE();
+    `;
+
+    logMsg(`Found ${tables.length} tables to drop.`);
+
+    for (const table of tables) {
+      const tableName = table.table_name || table.TABLE_NAME;
+      // Skip internal tables if any, or dropped implicitly
+      logMsg(`Dropping table: ${tableName}`);
+      await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS \`${tableName}\`;`);
+    }
+
+    await prisma.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 1;");
+    logMsg("All tables dropped successfully.");
+
+    // 3. Re-run Migration logic (reusing logic from setup endpoint would be ideal, but for safety/isolation we copy-paste standard run)
+    const migrationPath = path.join(__dirname, "prisma/migration.sql");
+    if (fs.existsSync(migrationPath)) {
+      logMsg("Applying migration.sql...");
+      const sqlContent = fs.readFileSync(migrationPath, "utf8");
+      const statements = sqlContent
+        .split(";")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      for (let i = 0; i < statements.length; i++) {
+        try {
+          await prisma.$executeRawUnsafe(statements[i]);
+        } catch (err) {
+          // Ignore "already exists" if we just dropped them (shouldn't happen) or other non-criticals
+          logMsg(`Warning on stmt ${i}: ${err.message}`);
+        }
+      }
+    } else {
+      throw new Error("migration.sql not found!");
+    }
+
+    // 4. Run Seeder
+    logMsg("Running seeder...");
+    seedMain()
+      .then(() => {
+        logMsg("Seeding Execution Function returned.");
+        res.json({
+          message: "Database reset and re-seeded successfully!",
+          log: log,
+        });
+      })
+      .catch((seedErr) => {
+        logMsg(`Seeding failed: ${seedErr.message}`);
+        res
+          .status(500)
+          .json({ error: "Seeding failed", details: seedErr.message, log });
+      });
+  } catch (error) {
+    console.error(">>> [RESET] Critical Error:", error);
+    res
+      .status(500)
+      .json({ error: "Reset failed", details: error.message, log });
+  }
+});
+
+// --- 1. TABLES SETUP ENDPOINT ---
+app.get("/api/setup-tables", async (req, res) => {
+  console.log(">>> [SETUP] Starting Table Creation (Direct MySQL Mode)...");
+
+  // Use mysql2 directly to bypass Prisma engine panics on large schema execution
+  const mysql = require("mysql2/promise");
+  let connection;
+
+  try {
     const migrationPath = path.join(__dirname, "prisma/migration.sql");
     const migrationResult = [];
 
     if (fs.existsSync(migrationPath)) {
       console.log(`>>> [SETUP] Found migration SQL at: ${migrationPath}`);
-      const sqlContent = fs.readFileSync(migrationPath, 'utf8');
 
-      // Split by semi-colon to get individual statements logic
-      // Note: extensive SQL might need smarter splitting, but for Prisma DDL dumps, simple split usually suffices.
-      // We filter out empty lines/whitespace.
+      console.log(">>> [SETUP] Connecting to database via mysql2...");
+      connection = await mysql.createConnection(process.env.DATABASE_URL);
+
+      const sqlContent = fs.readFileSync(migrationPath, "utf8");
+
       const statements = sqlContent
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+        .split(";")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
 
-      console.log(`>>> [SETUP] Found ${statements.length} SQL statements to execute.`);
+      console.log(`>>> [SETUP] Found ${statements.length} SQL statements...`);
 
       for (let i = 0; i < statements.length; i++) {
-        const statement = statements[i];
         try {
-          await prisma.$executeRawUnsafe(statement);
+          await connection.query(statements[i]);
         } catch (sqlErr) {
-          // Log but continue (tables might exist)
-          // We save the error to report it if needed
-          console.error(`>>> [SETUP] SQL Statement ${i} Warning: ${sqlErr.message}`);
+          console.error(`>>> [SETUP] Warning at stmt ${i}: ${sqlErr.message}`);
           migrationResult.push({ index: i, error: sqlErr.message });
         }
       }
-      console.log(">>> [SETUP] SQL Migration loop finished.");
-
+      res.json({
+        message: "Tables setup finished (via mysql2)",
+        warnings: migrationResult,
+      });
     } else {
-      console.log(">>> [SETUP] No migration.sql found. Skipping DDL step.");
-      migrationResult.push("No migration.sql found");
+      res.status(404).json({ error: "migration.sql not found" });
     }
-
-    // 2. Run Seed Script (In-Process)
-    console.log(">>> [SETUP] Starting In-Process Seeding...");
-
-    // Safety check: Ensure at least one critical table exists before seeding
-    try {
-      await prisma.role.count();
-    } catch (checkErr) {
-      throw new Error("Tables do not appear to exist after migration. SQL Execution might have failed completely. Details: " + checkErr.message);
+  } catch (error) {
+    console.error(`>>> [SETUP] Critical Error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  } finally {
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (e) {
+        console.error(">>> [SETUP] Error closing connection:", e.message);
+      }
     }
+  }
+});
+
+// --- 2. SEED ENDPOINT ---
+// --- 2. SEED ENDPOINT ---
+app.get("/api/setup-seed", async (req, res) => {
+  console.log(">>> [SETUP] Starting Seeding (via mysql2)...");
+  try {
+    // We skip the prisma.role.count() check because we are intentionally creating tables via mysql2
+    // and bypassing the flaky Prisma engine on this specific production environment.
 
     await seedMain();
-
-    res.json({
-      message: "Database setup completed successfully! (SQL Mode)",
-      sqlMigrationWarnings: migrationResult,
-      seedOutput: "Seeding executed in-process successfully."
-    });
-
+    res.json({ message: "Seeding completed successfully" });
   } catch (error) {
-    console.error(`>>> [SETUP] CRITICAL ERROR: ${error.message}`);
-    return res.status(500).json({ step: "setup", error: error.message, stack: error.stack });
+    console.error(`>>> [SETUP] Seed Error: ${error.message}`);
+    res.status(500).json({ error: error.message });
   }
 });
 // ---------------------------------------
 
 // Serve Static Frontend Files (Production)
-// Note: 'path' is required at the top, but defining here for clarity in context if needed, though usually top-level is better. 
-// We already added 'path' to top imports in previous step.
-const CLIENT_DIST_PATH = path.join(__dirname, "../frontend/dist");
+const CLIENT_DIST_PATH_PROD = path.join(__dirname, "client_dist");
+const CLIENT_DIST_PATH_LOCAL = path.join(__dirname, "../frontend/dist");
+
+let CLIENT_DIST_PATH = CLIENT_DIST_PATH_LOCAL; // Default fallback
+
+// Prioritize the production build folder (client_dist) if it exists
+if (fs.existsSync(CLIENT_DIST_PATH_PROD)) {
+  CLIENT_DIST_PATH = CLIENT_DIST_PATH_PROD;
+  console.log(`>>> [STATIC] Found production build at: ${CLIENT_DIST_PATH}`);
+} else {
+  console.log(`>>> [STATIC] fallback to local build at: ${CLIENT_DIST_PATH}`);
+}
 
 console.log(`>>> [STATIC] Checking for frontend build at: ${CLIENT_DIST_PATH}`);
 
@@ -285,14 +447,22 @@ if (fs.existsSync(CLIENT_DIST_PATH)) {
 } else {
   console.log("⚠️ [STATIC] Frontend build NOT found at:", CLIENT_DIST_PATH);
   console.log("    This is expected if you are only running the backend API.");
-  console.log("    If this is a production deployment including frontend, run 'npm run build:ui' first.");
+  console.log(
+    "    If this is a production deployment including frontend, run 'npm run build:ui' first.",
+  );
 }
 
 // Start server
 console.log(">>> [BOOT] Calling app.listen...");
 const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
-  console.log(`📍 [SERVER] Health check available at: http://localhost:${PORT}/api/health`);
+  const healthHost =
+    process.env.NODE_ENV === "production"
+      ? "elghonemydemo.kiko-tech.com"
+      : "localhost";
+  console.log(
+    `📍 [SERVER] Health check available at: http://${healthHost}:${PORT}/api/health`,
+  );
 });
 
 server.on("error", (error) => {
@@ -306,3 +476,29 @@ process.on("unhandledRejection", (reason, promise) => {
 process.on("uncaughtException", (error) => {
   console.error("❌ Uncaught Exception:", error);
 });
+
+// Force restart trigger
+console.log("🔄 Server updated");
+
+// --- GRACEFUL SHUTDOWN ---
+const gracefulShutdown = async (signal) => {
+  console.log(`>>> [SHUTDOWN] Received ${signal}. Closing server...`);
+
+  if (server) {
+    server.close(() => {
+      console.log(">>> [SHUTDOWN] HTTP server closed.");
+    });
+  }
+
+  try {
+    await prisma.$disconnect();
+    console.log(">>> [SHUTDOWN] Prisma client disconnected.");
+    process.exit(0);
+  } catch (err) {
+    console.error(">>> [SHUTDOWN] Error during disconnection:", err);
+    process.exit(1);
+  }
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));

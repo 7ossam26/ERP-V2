@@ -212,37 +212,34 @@ router.post("/:supplierId/payments", async (req, res) => {
             return res.status(400).json({ error: "Treasury is required" });
         }
 
+        // 1. Verify supplier account exists (before transaction)
+        const account = await prisma.supplierAccount.findUnique({
+            where: { supplierId },
+        });
+
+        if (!account) {
+            return res.status(404).json({ error: "Supplier account not found or has no debt" });
+        }
+
+        if (Number(amount) > Number(account.balance)) {
+            return res.status(400).json({ error: "Payment amount exceeds outstanding balance" });
+        }
+
+        // 2. Check treasury balance (before transaction)
+        const treasury = await prisma.treasury.findUnique({
+            where: { id: parseInt(treasuryId) },
+        });
+
+        if (!treasury) {
+            return res.status(404).json({ error: "Treasury not found" });
+        }
+
+        if (Number(treasury.balance) < Number(amount)) {
+            return res.status(400).json({ error: "رصيد الخزينة غير كافي (Insufficient treasury balance)" });
+        }
+
         const result = await prisma.$transaction(async (prisma) => {
-            // 1. Verify supplier account exists
-            let account = await prisma.supplierAccount.findUnique({
-                where: { supplierId },
-            });
-
-            if (!account) {
-                return res.status(404).json({ error: "Supplier account not found or has no debt" });
-            }
-
-            // 2. Check if payment amount exceeds balance
-            if (Number(amount) > Number(account.balance)) {
-                throw new Error("Payment amount exceeds outstanding balance");
-            }
-
-            // 3. Check treasury balance
-            const treasury = await prisma.treasury.findUnique({
-                where: { id: parseInt(treasuryId) },
-            });
-
-            if (!treasury) {
-                throw new Error("Treasury not found");
-            }
-
-            // Note: For supplier payments, we DEDUCT from treasury (paying the supplier)
-            // This is opposite of purchase creation where we receive goods/services
-            if (Number(treasury.balance) < Number(amount)) {
-                throw new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
-            }
-
-            // 4. Deduct from treasury
+            // 3. Deduct from treasury
             await prisma.treasury.update({
                 where: { id: parseInt(treasuryId) },
                 data: {
@@ -289,8 +286,9 @@ router.post("/:supplierId/payments", async (req, res) => {
                 },
             });
 
-            // 8. Update purchase payment status if linked to a purchase
+            // 8. Update purchase payment status
             if (purchaseId) {
+                // Specific purchase linked
                 const purchase = await prisma.purchase.findUnique({
                     where: { id: parseInt(purchaseId) },
                 });
@@ -316,6 +314,49 @@ router.post("/:supplierId/payments", async (req, res) => {
                             paymentStatus: newStatus,
                         },
                     });
+                }
+            } else {
+                // General payment - distribute to oldest unpaid purchases first
+                let remainingPayment = Number(amount);
+
+                // Find all unpaid or partially paid purchases for this supplier
+                const unpaidPurchases = await prisma.purchase.findMany({
+                    where: {
+                        supplierId: supplierId,
+                        paymentStatus: { in: ["UNPAID", "PARTIALLY_PAID"] }
+                    },
+                    orderBy: { createdAt: "asc" } // Oldest first
+                });
+
+                for (const purchase of unpaidPurchases) {
+                    if (remainingPayment <= 0) break;
+
+                    const purchaseRemaining = Number(purchase.remaining);
+                    const paymentForThisPurchase = Math.min(remainingPayment, purchaseRemaining);
+
+                    if (paymentForThisPurchase > 0) {
+                        const newPaidAmount = Number(purchase.paidAmount) + paymentForThisPurchase;
+                        const newRemaining = Number(purchase.netTotal) - newPaidAmount;
+
+                        let newStatus;
+                        // Use small epsilon for float comparison safety or just check if very close to 0
+                        if (newRemaining <= 0.01) {
+                            newStatus = "PAID";
+                        } else {
+                            newStatus = "PARTIALLY_PAID";
+                        }
+
+                        await prisma.purchase.update({
+                            where: { id: purchase.id },
+                            data: {
+                                paidAmount: newPaidAmount,
+                                remaining: Math.max(0, newRemaining),
+                                paymentStatus: newStatus
+                            }
+                        });
+
+                        remainingPayment -= paymentForThisPurchase;
+                    }
                 }
             }
 

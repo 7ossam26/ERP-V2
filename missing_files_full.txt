@@ -1,0 +1,5 @@
+backend/.env
+backend/prisma/migrations/20260215103756_add_withdrawals/migration.sql
+backend/routes/withdrawals.js
+frontend/src/pages/deposits/AddWithdrawalModal.jsx
+frontend/src/services/withdrawalService.js

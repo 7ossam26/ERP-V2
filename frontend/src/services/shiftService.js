@@ -8,14 +8,25 @@ const shiftService = {
     },
 
     end: async (data) => {
-        // data: { shiftId, endCash }
+        // data: { shiftId, actualCash } - actualCash is blind count
         const response = await api.post("/shifts/end", data);
+        return response;
+    },
+
+    approve: async (data) => {
+        // data: { shiftId, managerUsername, managerPassword }
+        const response = await api.post("/shifts/approve", data);
         return response;
     },
 
     checkActive: async (userId) => {
         const response = await api.get(`/shifts/active/${userId}`);
         // Backend now returns null (200 OK) if no shift, or the shift object
+        return response;
+    },
+
+    getPending: async (branchId) => {
+        const response = await api.get(`/shifts/pending/${branchId}`);
         return response;
     },
 
