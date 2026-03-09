@@ -54,6 +54,7 @@ import BOMManager from "./pages/bom/BOMManager";
 import ProductionHistory from "./pages/bom/ProductionHistory";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import UserManualPage from "./pages/manual/UserManualPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
@@ -81,6 +82,7 @@ function App() {
         {/* Public Route: Login */}
         <Route path="/" element={<LoginPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
+        <Route path="/manual" element={<UserManualPage />} />
 
         {/* Standalone Route: POS (No MainLayout) */}
         <Route
