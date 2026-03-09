@@ -41,9 +41,6 @@ const prisma = new PrismaClient({
   },
 });
 
-// Add connection lifecycle logging
-prisma.$on("beforeExit", async () => {
-  console.log("🔌 [DB] Prisma is disconnecting...");
-});
+// beforeExit hook removed — not supported in Prisma 5+ library engine
 
 module.exports = prisma;

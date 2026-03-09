@@ -1,6 +1,0 @@
-backend/.gitignore
-backend/index.js
-backend/prisma/migration.sql
-backend/prisma/schema.prisma
-backend/scripts/seed-production.js
-frontend/src/pages/deposits/DepositPage.jsx
