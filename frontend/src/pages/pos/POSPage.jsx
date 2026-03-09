@@ -208,6 +208,7 @@ const POSPage = () => {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [isWalkIn, setIsWalkIn] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
 
@@ -304,6 +305,7 @@ const POSPage = () => {
 
   const handleSelectClient = (client) => {
     setSelectedClient(client);
+    setIsWalkIn(client === null);
     setClientSearchTerm(client ? client.name : "");
     setIsClientDropdownOpen(false);
 
@@ -576,6 +578,9 @@ const POSPage = () => {
   const clearCart = () => {
     setCartItems([]);
     setSelectedItemId(null);
+    setSelectedClient(null);
+    setIsWalkIn(false);
+    setClientSearchTerm("");
   };
 
   const handleItemClick = (id) => {
@@ -884,7 +889,7 @@ const POSPage = () => {
 
   // Handle quick payment with confirmation
   const handleQuickPayment = (method) => {
-    if (!selectedClient) {
+    if (!selectedClient && !isWalkIn) {
       toast.error("يرجى اختيار العميل أولاً");
       if (clientInputRef.current) {
         clientInputRef.current.focus();
