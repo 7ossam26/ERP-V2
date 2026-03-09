@@ -120,7 +120,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showTo
         </label>
         <div className="relative">
           <select
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-10 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
             name="branchId"
             value={formData.branchId}
             onChange={handleChange}

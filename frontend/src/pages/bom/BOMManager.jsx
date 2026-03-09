@@ -4,8 +4,8 @@ import {
   itemService,
   categoryService,
   warehouseService,
+  inventoryService,
 } from "../../services/domainServices";
-import { inventoryService } from "../../services/inventoryService";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -807,14 +807,21 @@ const BOMManager = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [bomsData, itemsData, warehousesData] = await Promise.all([
+      const [bomsData, warehousesData] = await Promise.all([
         bomService.getAll(),
-        inventoryService.getInventory(),
         warehouseService.getAll(),
       ]);
       setBoms(bomsData);
-      setAllItems(itemsData);
       setWarehouses(warehousesData);
+
+      // Load items with inventory data; fall back to basic item list if inventory endpoint fails
+      try {
+        const invData = await inventoryService.getInventory();
+        setAllItems(invData);
+      } catch {
+        const basicItems = await itemService.getAll();
+        setAllItems(basicItems);
+      }
     } catch (error) {
       toast.error(error.message || "فشل في تحميل البيانات");
     } finally {

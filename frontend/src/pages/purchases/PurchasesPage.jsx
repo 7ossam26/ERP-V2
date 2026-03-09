@@ -151,14 +151,8 @@ const PurchasesPage = () => {
     });
   };
 
-  // Filter items by selected supplier
-  const availableItems = selectedSupplierId
-    ? allItems.filter(
-        (item) =>
-          item.suppliers &&
-          item.suppliers.includes(parseInt(selectedSupplierId)),
-      )
-    : allItems;
+  // Show all items when supplier is selected (supplier filter removed — items may not have supplier pre-linked)
+  const availableItems = allItems;
 
   const addItem = () => {
     const newItem = {
@@ -569,13 +563,8 @@ const PurchasesPage = () => {
                           onChange={(e) =>
                             handleItemSelect(item.id, e.target.value)
                           }
-                          className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pl-8 text-text-light dark:text-text-dark font-bold appearance-none"
-                          disabled={!selectedSupplierId}>
-                          <option value="">
-                            {selectedSupplierId
-                              ? "اختر صنف..."
-                              : "اختر مورد أولاً"}
-                          </option>
+                          className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pl-8 text-text-light dark:text-text-dark font-bold appearance-none">
+                          <option value="">اختر صنف...</option>
                           {availableItems.map((availItem) => (
                             <option key={availItem.id} value={availItem.id}>
                               {availItem.name}

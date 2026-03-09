@@ -107,7 +107,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
         </label>
         <div className="relative">
           <select
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-10 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
             name="branchId"
             value={formData.branchId}
             onChange={handleChange}
@@ -122,7 +122,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             store
           </span>
-          <span className="material-icons-round absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
             expand_more
           </span>
         </div>
@@ -154,7 +154,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
         </label>
         <div className="relative">
           <select
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-10 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
             name="vehicleType"
             value={formData.vehicleType}
             onChange={handleChange}>
@@ -167,7 +167,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             two_wheeler
           </span>
-          <span className="material-icons-round absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
             expand_more
           </span>
         </div>
