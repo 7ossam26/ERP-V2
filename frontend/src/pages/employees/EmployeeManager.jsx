@@ -446,7 +446,7 @@ const EmployeeManager = () => {
         const m = Math.round((total % 1) * 60);
         return (
           <span className="text-gray-700 dark:text-gray-300">
-            {h} ساعة{m > 0 ? ` ${m} دقيقة` : ""}
+            {h} ساعات{m > 0 ? ` ${m} دقيقة` : ""}
           </span>
         );
       },
