@@ -55,6 +55,7 @@ import ProductionHistory from "./pages/bom/ProductionHistory";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import UserManualPage from "./pages/manual/UserManualPage";
+import DataImportPage from "./pages/import/DataImportPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
@@ -119,6 +120,7 @@ function App() {
           }>
           <Route path="/dashboard" element={<MainDashboard />} />
           <Route path="/creates" element={<CreatesDashboard />} />
+          <Route path="/data-import" element={<DataImportPage />} />
 
           {/* Modules under Creates */}
           <Route
