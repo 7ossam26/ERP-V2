@@ -3,33 +3,42 @@ import { useNavigate } from "react-router-dom";
 
 // ─── Table of Contents Definition ────────────────────────────────────────────
 const SECTIONS = [
-  { id: "login",       icon: "login",          title: "تسجيل الدخول" },
-  { id: "dashboard",   icon: "dashboard",      title: "الصفحة الرئيسية" },
-  { id: "pos",         icon: "point_of_sale",  title: "نقطة البيع (POS)" },
-  { id: "shifts",      icon: "schedule",       title: "الورديات" },
-  { id: "inventory",   icon: "inventory_2",    title: "المخزون" },
-  { id: "transfers",   icon: "swap_horiz",     title: "تحويل المخزون" },
-  { id: "purchases",   icon: "shopping_cart",  title: "المشتريات" },
-  { id: "suppliers",   icon: "handshake",      title: "حسابات الموردين" },
-  { id: "treasury",    icon: "account_balance", title: "الخزائن" },
-  { id: "expenses",    icon: "receipt_long",   title: "المصروفات" },
-  { id: "hr",          icon: "groups",         title: "الموارد البشرية" },
-  { id: "delivery",    icon: "local_shipping", title: "التوصيل" },
-  { id: "bom",         icon: "precision_manufacturing", title: "قائمة المواد (BOM)" },
-  { id: "reports",     icon: "bar_chart",      title: "التقارير" },
-  { id: "settings",    icon: "settings",       title: "الإعدادات" },
-  { id: "superadmin",  icon: "admin_panel_settings", title: "لوحة الإدارة العليا" },
+  { id: "login",       icon: "login",                   title: "تسجيل الدخول",        route: null },
+  { id: "dashboard",   icon: "dashboard",               title: "الصفحة الرئيسية",     route: "/dashboard" },
+  { id: "pos",         icon: "point_of_sale",           title: "نقطة البيع (POS)",    route: "/pos" },
+  { id: "shifts",      icon: "schedule",                title: "الورديات",             route: "/shifts" },
+  { id: "inventory",   icon: "inventory_2",             title: "المخزون",              route: "/inventory" },
+  { id: "transfers",   icon: "swap_horiz",              title: "تحويل المخزون",        route: "/transfer-management" },
+  { id: "purchases",   icon: "shopping_cart",           title: "المشتريات",            route: "/purchases" },
+  { id: "suppliers",   icon: "handshake",               title: "حسابات الموردين",      route: "/supplier-accounts" },
+  { id: "treasury",    icon: "account_balance",         title: "الخزائن",              route: "/treasury" },
+  { id: "expenses",    icon: "receipt_long",            title: "المصروفات",            route: "/expenses" },
+  { id: "hr",          icon: "groups",                  title: "الموارد البشرية",      route: "/hr" },
+  { id: "delivery",    icon: "local_shipping",          title: "التوصيل",              route: "/delivery-men" },
+  { id: "bom",         icon: "precision_manufacturing", title: "قائمة المواد (BOM)",   route: "/bom" },
+  { id: "reports",     icon: "bar_chart",               title: "التقارير",             route: "/reports" },
+  { id: "settings",    icon: "settings",                title: "الإعدادات",            route: "/settings" },
+  { id: "superadmin",  icon: "admin_panel_settings",    title: "لوحة الإدارة العليا", route: "/superadmin" },
 ];
 
 // ─── Reusable Section Wrapper ─────────────────────────────────────────────────
-function Section({ id, icon, title, children }) {
+function Section({ id, icon, title, route, onNavigate, children }) {
   return (
     <section id={id} className="scroll-mt-24 mb-12">
       <div className="flex items-center gap-3 mb-5 pb-3 border-b-2 border-primary/20">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
           <span className="material-icons-round text-primary text-xl">{icon}</span>
         </div>
-        <h2 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h2>
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white flex-1">{title}</h2>
+        {route && (
+          <button
+            onClick={() => onNavigate(route)}
+            title={`افتح صفحة ${title}`}
+            className="flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 rounded-lg px-2.5 py-1.5 hover:bg-primary hover:text-white transition-all flex-shrink-0">
+            <span className="material-icons-round text-sm">open_in_new</span>
+            <span>فتح الصفحة</span>
+          </button>
+        )}
       </div>
       <div className="text-slate-700 dark:text-slate-300 leading-relaxed space-y-3">
         {children}
@@ -97,6 +106,12 @@ const UserManualPage = () => {
     setSidebarOpen(false);
   };
 
+  // Returns props for a Section from the SECTIONS definition
+  const sec = (id) => {
+    const s = SECTIONS.find((x) => x.id === id);
+    return { id, icon: s.icon, title: s.title, route: s.route, onNavigate: navigate };
+  };
+
   return (
     <div dir="rtl" className="min-h-screen bg-background-light dark:bg-background-dark">
       {/* ── Sticky Top Bar ─────────────────────────────────────────────── */}
@@ -137,15 +152,16 @@ const UserManualPage = () => {
 
         <aside className={`
           fixed top-0 right-0 h-full w-64 z-40 bg-white dark:bg-slate-900 shadow-2xl overflow-y-auto transition-transform duration-300
-          lg:static lg:w-56 lg:h-auto lg:shadow-none lg:bg-transparent lg:z-auto lg:translate-x-0 lg:flex-shrink-0
+          lg:static lg:w-56 lg:shadow-none lg:bg-transparent lg:z-auto lg:translate-x-0 lg:flex-shrink-0
+          lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto
           ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
         `}>
-          <div className="p-4 lg:p-0 lg:sticky lg:top-20">
+          <div className="p-4 lg:p-0">
             <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 px-1">
               محتويات الدليل
             </p>
             <nav className="space-y-0.5">
-              {SECTIONS.map(({ id, icon, title }) => (
+              {SECTIONS.map(({ id, icon, title, route }) => (
                 <button
                   key={id}
                   onClick={() => scrollTo(id)}
@@ -155,7 +171,15 @@ const UserManualPage = () => {
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary"
                   }`}>
                   <span className="material-icons-round text-base flex-shrink-0">{icon}</span>
-                  {title}
+                  <span className="flex-1">{title}</span>
+                  {route && (
+                    <span
+                      onClick={(e) => { e.stopPropagation(); navigate(route); }}
+                      title="فتح الصفحة"
+                      className={`material-icons-round text-sm flex-shrink-0 opacity-60 hover:opacity-100 ${activeSection === id ? "text-white" : "text-primary"}`}>
+                      open_in_new
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
@@ -180,7 +204,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 1. تسجيل الدخول */}
-          <Section id="login" icon="login" title="تسجيل الدخول">
+          <Section {...sec("login")}>
             <p>عند فتح النظام تظهر لك صفحة تسجيل الدخول. أدخل بياناتك للوصول إلى حسابك.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="أدخل اسم المستخدم الخاص بك في خانة «اسم المستخدم»." />
@@ -193,7 +217,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 2. الصفحة الرئيسية */}
-          <Section id="dashboard" icon="dashboard" title="الصفحة الرئيسية">
+          <Section {...sec("dashboard")}>
             <p>بعد تسجيل الدخول ستنتقل تلقائياً إلى الصفحة الرئيسية التي تعرض ملخصاً لنشاط الفرع ومختصر الوصول السريع لجميع الوحدات.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="تجد في الأعلى شريط التنقل الذي يحتوي على زر الرجوع وزر الصفحة الرئيسية." />
@@ -205,7 +229,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 3. نقطة البيع */}
-          <Section id="pos" icon="point_of_sale" title="نقطة البيع (POS)">
+          <Section {...sec("pos")}>
             <p>وحدة نقطة البيع هي قلب النظام؛ من خلالها تُسجَّل جميع المبيعات اليومية.</p>
 
             <h3 className="font-bold text-slate-800 dark:text-white mt-4 mb-2">فتح الوردية</h3>
@@ -237,7 +261,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 4. الورديات */}
-          <Section id="shifts" icon="schedule" title="الورديات">
+          <Section {...sec("shifts")}>
             <p>تُستخدم وحدة الورديات لإدارة ومراجعة واعتماد ورديات الكاشيرين.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="انتقل إلى «الورديات» من القائمة الرئيسية." />
@@ -250,7 +274,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 5. المخزون */}
-          <Section id="inventory" icon="inventory_2" title="المخزون">
+          <Section {...sec("inventory")}>
             <p>تعرض وحدة المخزون الكميات الحالية لجميع الأصناف في المستودعات.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="افتح وحدة «المخزون» من القائمة." />
@@ -262,7 +286,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 6. تحويل المخزون */}
-          <Section id="transfers" icon="swap_horiz" title="تحويل المخزون">
+          <Section {...sec("transfers")}>
             <p>تُستخدم هذه الوحدة لنقل كميات من مستودع إلى آخر.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="افتح «تحويل المخزون» من القائمة." />
@@ -275,7 +299,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 7. المشتريات */}
-          <Section id="purchases" icon="shopping_cart" title="المشتريات">
+          <Section {...sec("purchases")}>
             <p>سجّل فواتير الشراء من الموردين وتابع حالة الدفع لكل فاتورة.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="افتح «المشتريات» واضغط «فاتورة شراء جديدة»." />
@@ -289,7 +313,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 8. حسابات الموردين */}
-          <Section id="suppliers" icon="handshake" title="حسابات الموردين">
+          <Section {...sec("suppliers")}>
             <p>تتبّع مديونيات الموردين وسجّل المدفوعات لهم.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="افتح «حسابات الموردين» لرؤية قائمة الموردين مع الرصيد المستحق لكل منهم." />
@@ -302,7 +326,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 9. الخزائن */}
-          <Section id="treasury" icon="account_balance" title="الخزائن">
+          <Section {...sec("treasury")}>
             <p>تُدار من هذه الوحدة جميع العمليات المالية: إيداع، سحب، تحويل بين الخزائن.</p>
 
             <h3 className="font-bold text-slate-800 dark:text-white mt-4 mb-2">إيداع في الخزنة</h3>
@@ -326,7 +350,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 10. المصروفات */}
-          <Section id="expenses" icon="receipt_long" title="المصروفات">
+          <Section {...sec("expenses")}>
             <p>سجّل مصروفات الفرع اليومية مثل الإيجار، الكهرباء، المواصلات وغيرها.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="افتح «المصروفات» واضغط «إضافة مصروف»." />
@@ -337,7 +361,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 11. الموارد البشرية */}
-          <Section id="hr" icon="groups" title="الموارد البشرية">
+          <Section {...sec("hr")}>
             <p>إدارة رواتب الموظفين والسلف والخصومات من خلال هذه الوحدة.</p>
 
             <h3 className="font-bold text-slate-800 dark:text-white mt-4 mb-2">صرف الراتب</h3>
@@ -358,7 +382,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 12. التوصيل */}
-          <Section id="delivery" icon="local_shipping" title="التوصيل">
+          <Section {...sec("delivery")}>
             <p>إدارة مناطق التوصيل، عمال التوصيل، والتسوية المالية معهم.</p>
 
             <h3 className="font-bold text-slate-800 dark:text-white mt-4 mb-2">إضافة عامل توصيل</h3>
@@ -379,7 +403,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 13. BOM */}
-          <Section id="bom" icon="precision_manufacturing" title="قائمة المواد (BOM)">
+          <Section {...sec("bom")}>
             <p>وحدة BOM (Bill of Materials) تُستخدم لتعريف وصفات الإنتاج وتنفيذ أوامر التصنيع.</p>
 
             <h3 className="font-bold text-slate-800 dark:text-white mt-4 mb-2">إنشاء وصفة إنتاج</h3>
@@ -399,7 +423,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 14. التقارير */}
-          <Section id="reports" icon="bar_chart" title="التقارير">
+          <Section {...sec("reports")}>
             <p>توفر وحدة التقارير رؤية شاملة لأداء الفرع والمبيعات والمالية.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="انتقل إلى «التقارير» من القائمة." />
@@ -412,7 +436,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 15. الإعدادات */}
-          <Section id="settings" icon="settings" title="الإعدادات">
+          <Section {...sec("settings")}>
             <p>من هذه الوحدة يُعدَّل اسم المنشأة وبيانات الفواتير وإعدادات الطباعة.</p>
             <div className="space-y-2 mt-3">
               <Step num="1" text="افتح «الإعدادات» من القائمة." />
@@ -424,7 +448,7 @@ const UserManualPage = () => {
 
           {/* ════════════════════════════════════════════════════════════ */}
           {/* 16. لوحة الإدارة العليا */}
-          <Section id="superadmin" icon="admin_panel_settings" title="لوحة الإدارة العليا">
+          <Section {...sec("superadmin")}>
             <p>هذه اللوحة متاحة فقط للمدير الأعلى (Superadmin) وتشمل إدارة المستخدمين والصلاحيات وسجل التدقيق.</p>
 
             <h3 className="font-bold text-slate-800 dark:text-white mt-4 mb-2">إدارة المستخدمين</h3>
