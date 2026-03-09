@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
+import KgQuantityInput from "../../components/ui/KgQuantityInput";
 import {
   supplierService,
   itemService,
@@ -23,6 +24,7 @@ const PurchasesPage = () => {
       quantity: 1,
       purchasePrice: 0,
       sellPrice: 0,
+      unit: "piece",
     },
   ]);
   const [discountType, setDiscountType] = useState("percent"); // percent, value
@@ -162,6 +164,7 @@ const PurchasesPage = () => {
       quantity: 1,
       purchasePrice: 0,
       sellPrice: 0,
+      unit: "piece",
     };
     setItems([...items, newItem]);
   };
@@ -192,6 +195,8 @@ const PurchasesPage = () => {
                 itemId: selectedItem.id,
                 name: selectedItem.name,
                 sellPrice: selectedItem.price || 0,
+                unit: selectedItem.unit || "piece",
+                quantity: 1,
               }
             : item,
         ),
@@ -538,7 +543,7 @@ const PurchasesPage = () => {
                     اسم الصنف
                   </th>
                   <th className="px-6 py-3 w-32" scope="col">
-                    قطعه / كيلو
+                    الكمية
                   </th>
                   <th className="px-6 py-3 w-40" scope="col">
                     سعر الشراء
@@ -577,14 +582,11 @@ const PurchasesPage = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-center text-text-light dark:text-text-dark"
-                        type="number"
+                      <KgQuantityInput
                         value={item.quantity}
-                        onChange={(e) =>
-                          updateItem(item.id, "quantity", e.target.value)
-                        }
-                        min="1"
+                        onChange={(v) => updateItem(item.id, "quantity", v)}
+                        unit={item.unit || "piece"}
+                        min={0.001}
                       />
                     </td>
                     <td className="px-4 py-3">

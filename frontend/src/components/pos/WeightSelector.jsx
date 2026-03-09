@@ -2,7 +2,8 @@ import React, { useState } from "react";
 
 const WeightSelector = ({ isOpen, onClose, onSelect, itemName }) => {
   const [selectedWeight, setSelectedWeight] = useState(null);
-  const [customWeight, setCustomWeight] = useState("");
+  const [customKg, setCustomKg] = useState("");
+  const [customGm, setCustomGm] = useState("");
 
   if (!isOpen) return null;
 
@@ -17,23 +18,46 @@ const WeightSelector = ({ isOpen, onClose, onSelect, itemName }) => {
 
   const handleWeightClick = (weight) => {
     setSelectedWeight(weight);
-    setCustomWeight("");
+    setCustomKg("");
+    setCustomGm("");
   };
 
-  const handleCustomWeightChange = (e) => {
-    setCustomWeight(e.target.value);
+  const handleCustomChange = () => {
     setSelectedWeight(null);
   };
 
   const handleConfirm = () => {
-    const weight = customWeight ? parseFloat(customWeight) : selectedWeight;
-    if (weight && weight > 0) {
+    let weight;
+    if (selectedWeight !== null) {
+      weight = selectedWeight;
+    } else {
+      const kg = parseFloat(customKg) || 0;
+      const gm = Math.min(999, parseInt(customGm) || 0);
+      weight = parseFloat((kg + gm / 1000).toFixed(3));
+    }
+    if (weight > 0) {
       onSelect(weight);
       setSelectedWeight(null);
-      setCustomWeight("");
+      setCustomKg("");
+      setCustomGm("");
       onClose();
     }
   };
+
+  // Computed preview value for display
+  const previewWeight =
+    selectedWeight !== null
+      ? selectedWeight
+      : customKg || customGm
+      ? parseFloat(
+          ((parseFloat(customKg) || 0) +
+            (Math.min(999, parseInt(customGm) || 0)) / 1000
+          ).toFixed(3)
+        )
+      : null;
+
+  const inputCls =
+    "px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-center text-xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent w-full";
 
   return (
     <div
@@ -48,10 +72,10 @@ const WeightSelector = ({ isOpen, onClose, onSelect, itemName }) => {
           {itemName}
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-4">
-          اختر الوزن (كجم)
+          اختر الوزن
         </p>
 
-        {/* Weight Dial */}
+        {/* Preset Weights */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           {weights.map((weight) => (
             <button
@@ -68,35 +92,81 @@ const WeightSelector = ({ isOpen, onClose, onSelect, itemName }) => {
           ))}
         </div>
 
-        {/* Custom Weight Input */}
+        {/* Custom kg + grams input */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             أو أدخل وزن مخصص:
           </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={customWeight}
-            onChange={handleCustomWeightChange}
-            placeholder="0.00"
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-center text-xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
+          <div className="flex gap-2 items-end">
+            <div className="flex-1 space-y-1">
+              <span className="text-xs font-bold text-primary block text-center">
+                كيلوجرام
+              </span>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={customKg}
+                  onChange={(e) => {
+                    setCustomKg(e.target.value);
+                    handleCustomChange();
+                  }}
+                  placeholder="0"
+                  className={inputCls}
+                />
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-primary pointer-events-none">
+                  ك
+                </span>
+              </div>
+            </div>
+            <span className="text-2xl font-bold text-gray-400 pb-3">+</span>
+            <div className="flex-1 space-y-1">
+              <span className="text-xs font-bold text-green-600 block text-center">
+                جرام (0–999)
+              </span>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="999"
+                  step="1"
+                  value={customGm}
+                  onChange={(e) => {
+                    setCustomGm(
+                      String(Math.min(999, parseInt(e.target.value) || 0))
+                    );
+                    handleCustomChange();
+                  }}
+                  placeholder="0"
+                  className={inputCls}
+                />
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-green-600 pointer-events-none">
+                  جم
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Selected Weight Display */}
-        {(selectedWeight || customWeight) && (
+        {/* Preview */}
+        {previewWeight !== null && previewWeight > 0 && (
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4 text-center">
             <div className="text-sm text-green-700 dark:text-green-400">
               الوزن المحدد:
             </div>
             <div className="text-2xl font-bold text-green-800 dark:text-green-300">
-              {customWeight || selectedWeight} كجم
+              {previewWeight >= 1
+                ? `${Math.floor(previewWeight)} ك ${Math.round((previewWeight % 1) * 1000)} جم`
+                : `${Math.round(previewWeight * 1000)} جم`}
+            </div>
+            <div className="text-xs text-green-600 dark:text-green-500 mt-0.5">
+              ({previewWeight} كجم)
             </div>
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* Actions */}
         <div className="flex gap-2">
           <button
             onClick={onClose}
@@ -105,7 +175,7 @@ const WeightSelector = ({ isOpen, onClose, onSelect, itemName }) => {
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!selectedWeight && !customWeight}
+            disabled={!previewWeight || previewWeight <= 0}
             className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2">
             <span className="material-icons-round">check</span>
             <span>تأكيد</span>

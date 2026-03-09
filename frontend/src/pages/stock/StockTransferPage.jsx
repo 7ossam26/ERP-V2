@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../components/ui/Modal";
+import KgQuantityInput from "../../components/ui/KgQuantityInput";
 import {
   inventoryService,
   warehouseService,
@@ -553,25 +554,44 @@ const StockTransferPage = () => {
                     </span>
                   </div>
                   <div className="col-span-3 flex items-center justify-center gap-1">
-                    <button
-                      onClick={() => handleQtyChange(item.id, -1)}
-                      className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 rounded text-gray-600 dark:text-gray-200 font-bold">
-                      -
-                    </button>
-                    <input
-                      className="w-14 text-center border border-gray-300 dark:border-zinc-600 rounded py-1 px-1 text-sm font-bold bg-white dark:bg-zinc-800 focus:border-primary focus:ring-0"
-                      type="number"
-                      step={isDecimalUnit(item.unit) ? "0.01" : "1"}
-                      value={item.transferQty}
-                      onChange={(e) =>
-                        handleManualQtyChange(item.id, e.target.value)
-                      }
-                    />
-                    <button
-                      onClick={() => handleQtyChange(item.id, 1)}
-                      className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 rounded text-gray-600 dark:text-gray-200 font-bold">
-                      +
-                    </button>
+                    {isDecimalUnit(item.unit) ? (
+                      <KgQuantityInput
+                        value={item.transferQty || 0}
+                        onChange={(v) =>
+                          setSelectedItems((prev) =>
+                            prev.map((si) =>
+                              si.id === item.id
+                                ? { ...si, transferQty: Math.min(v, si.quantity) }
+                                : si,
+                            ),
+                          )
+                        }
+                        unit="kg"
+                        min={0}
+                      />
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleQtyChange(item.id, -1)}
+                          className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 rounded text-gray-600 dark:text-gray-200 font-bold">
+                          -
+                        </button>
+                        <input
+                          className="w-14 text-center border border-gray-300 dark:border-zinc-600 rounded py-1 px-1 text-sm font-bold bg-white dark:bg-zinc-800 focus:border-primary focus:ring-0"
+                          type="number"
+                          step="1"
+                          value={item.transferQty}
+                          onChange={(e) =>
+                            handleManualQtyChange(item.id, e.target.value)
+                          }
+                        />
+                        <button
+                          onClick={() => handleQtyChange(item.id, 1)}
+                          className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 rounded text-gray-600 dark:text-gray-200 font-bold">
+                          +
+                        </button>
+                      </>
+                    )}
                   </div>
                   <div className="col-span-2 flex items-center justify-between pl-2">
                     <span className="text-xs font-medium text-gray-500">

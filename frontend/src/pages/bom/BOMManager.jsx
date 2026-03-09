@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import KgQuantityInput from "../../components/ui/KgQuantityInput";
 import {
   bomService,
   itemService,
@@ -735,18 +736,12 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
                   return null;
                 })()}
               </div>
-              <div className="w-28">
-                <input
-                  className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-lg py-2 px-3 text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent text-center"
-                  value={item.quantity}
-                  onChange={(e) =>
-                    handleItemChange(index, "quantity", e.target.value)
-                  }
-                  placeholder="الكمية"
-                  type="number"
-                  step="0.0001"
-                  min="0.0001"
-                  required
+              <div className="w-44">
+                <KgQuantityInput
+                  value={parseFloat(item.quantity) || 0}
+                  onChange={(v) => handleItemChange(index, "quantity", String(v))}
+                  unit={allItems.find((i) => String(i.id) === String(item.itemId))?.unit || "piece"}
+                  min={0.001}
                 />
               </div>
               <button
