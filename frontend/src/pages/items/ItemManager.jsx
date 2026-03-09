@@ -137,6 +137,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             placeholder="أدخل اسم الصنف"
             type="text"
             required
+            maxLength={150}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             category
@@ -157,6 +158,8 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             placeholder="0.00"
             type="number"
             step="0.01"
+            min={0}
+            max={999999.99}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             attach_money
@@ -177,6 +180,8 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             placeholder="0.00"
             type="number"
             step="0.01"
+            min={0}
+            max={999999.99}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             local_offer
@@ -214,6 +219,9 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             onChange={handleChange}
             placeholder="10"
             type="number"
+            min={0}
+            max={99999}
+            step={1}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             notification_important

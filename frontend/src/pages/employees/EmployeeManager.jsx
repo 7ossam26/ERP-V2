@@ -12,6 +12,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
       : 1;
 
   const [branches, setBranches] = useState([]);
+  const _rawHours = parseFloat(initialData?.workHours || "8");
   const [formData, setFormData] = useState({
     id: initialData?.id || nextId,
     name: initialData?.name || "",
@@ -19,7 +20,8 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
     phone: initialData?.phone || "",
     nationalId: initialData?.nationalId || "",
     workDays: initialData?.workDays || "26",
-    workHours: initialData?.workHours || "8",
+    workHours: Math.floor(_rawHours).toString(),
+    workMinutes: Math.round((_rawHours % 1) * 60).toString(),
     weekend: initialData?.weekend || "الجمعة",
     salary: initialData?.salary || "",
     title: initialData?.title || "",
@@ -66,7 +68,12 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
       return;
     }
 
-    await onSave(formData, !keepOpen);
+    // Combine hours + minutes into decimal before saving
+    const combinedHours = (
+      parseInt(formData.workHours || "0") +
+      parseInt(formData.workMinutes || "0") / 60
+    ).toFixed(4);
+    await onSave({ ...formData, workHours: combinedHours }, !keepOpen);
 
     if (keepOpen) {
       setFormData((prev) => ({
@@ -76,7 +83,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
         phone: "",
         nationalId: "",
         salary: "",
-        // Keep branch, title, workDays, workHours, weekend as sticky
+        // Keep branch, title, workDays, workHours, workMinutes, weekend as sticky
       }));
     }
   };
@@ -144,6 +151,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             placeholder="أدخل اسم الموظف"
             type="text"
             required
+            maxLength={100}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             badge
@@ -164,6 +172,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             placeholder="مثال: محاسب، باريستا"
             type="text"
             required
+            maxLength={100}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             work
@@ -181,8 +190,11 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             name="nationalId"
             value={formData.nationalId}
             onChange={handleChange}
-            placeholder="رقم البطاقة"
+            placeholder="14 رقم"
             type="text"
+            maxLength={14}
+            inputMode="numeric"
+            pattern="[0-9]*"
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             fingerprint
@@ -202,6 +214,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             dir="ltr"
             placeholder="01xxxxxxxxx"
             type="tel"
+            maxLength={14}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             call
@@ -221,6 +234,9 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             onChange={handleChange}
             placeholder="26"
             type="number"
+            min={1}
+            max={31}
+            step={1}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             calendar_today
@@ -231,18 +247,41 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
           عدد ساعات العمل
         </label>
-        <div className="relative">
-          <input
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
-            name="workHours"
-            value={formData.workHours}
-            onChange={handleChange}
-            placeholder="8"
-            type="number"
-          />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            schedule
-          </span>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-3 pl-10 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
+              name="workHours"
+              value={formData.workHours}
+              onChange={handleChange}
+              placeholder="8"
+              type="number"
+              min={0}
+              max={23}
+              step={1}
+            />
+            <span className="material-icons-round absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-base">
+              schedule
+            </span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">ساعة</span>
+          </div>
+          <div className="relative flex-1">
+            <input
+              className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-3 pl-10 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
+              name="workMinutes"
+              value={formData.workMinutes}
+              onChange={handleChange}
+              placeholder="0"
+              type="number"
+              min={0}
+              max={59}
+              step={1}
+            />
+            <span className="material-icons-round absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-base">
+              timer
+            </span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">دقيقة</span>
+          </div>
         </div>
       </div>
 
@@ -282,6 +321,8 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             placeholder="0.00"
             type="number"
             step="0.01"
+            min={0}
+            max={9999999}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             attach_money
@@ -399,11 +440,16 @@ const EmployeeManager = () => {
     {
       header: "ساعات العمل",
       accessor: "workHours",
-      render: (item) => (
-        <span className="text-gray-700 dark:text-gray-300">
-          {item.workHours} ساعة
-        </span>
-      ),
+      render: (item) => {
+        const total = parseFloat(item.workHours || 0);
+        const h = Math.floor(total);
+        const m = Math.round((total % 1) * 60);
+        return (
+          <span className="text-gray-700 dark:text-gray-300">
+            {h} ساعة{m > 0 ? ` ${m} دقيقة` : ""}
+          </span>
+        );
+      },
     },
     {
       header: "الاجازة",

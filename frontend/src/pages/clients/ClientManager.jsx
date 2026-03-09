@@ -90,6 +90,7 @@ export const ClientForm = ({ initialData, onClose, onSave, data, showToast }) =>
             placeholder="أدخل اسم العميل"
             type="text"
             required
+            maxLength={100}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             person
@@ -109,6 +110,7 @@ export const ClientForm = ({ initialData, onClose, onSave, data, showToast }) =>
             dir="ltr"
             placeholder="01xxxxxxxxx"
             type="tel"
+            maxLength={14}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             call
@@ -127,6 +129,7 @@ export const ClientForm = ({ initialData, onClose, onSave, data, showToast }) =>
             onChange={handleChange}
             placeholder="أدخل عنوان العميل (اختياري)"
             rows={3}
+            maxLength={200}
           />
           <span className="material-icons-round absolute left-4 top-3 text-gray-400">
             location_on

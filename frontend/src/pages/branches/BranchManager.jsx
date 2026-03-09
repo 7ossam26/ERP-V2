@@ -102,6 +102,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             placeholder="أدخل اسم الفرع"
             type="text"
             required
+            maxLength={100}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             storefront
@@ -121,6 +122,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             onChange={handleChange}
             placeholder="عنوان الفرع"
             type="text"
+            maxLength={200}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             location_on

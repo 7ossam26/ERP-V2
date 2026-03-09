@@ -88,6 +88,7 @@ const SupplierForm = ({ initialData, onClose, onSave, data, showToast }) => {
             placeholder="اسم المورد أو الشركة"
             type="text"
             required
+            maxLength={100}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             local_shipping
@@ -108,6 +109,7 @@ const SupplierForm = ({ initialData, onClose, onSave, data, showToast }) => {
             placeholder="01xxxxxxxxx"
             type="tel"
             required
+            maxLength={14}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             call
