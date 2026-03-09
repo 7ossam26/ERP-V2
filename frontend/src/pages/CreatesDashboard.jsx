@@ -52,6 +52,12 @@ const CreatesDashboard = () => {
           .map((card, index) => (
             <DashboardCard key={index} {...card} />
           ))}
+        <DashboardCard
+          icon="upload"
+          title="استيراد البيانات"
+          description="رفع بيانات جماعية من Excel أو CSV"
+          onClick={() => navigate("/data-import")}
+        />
       </div>
     </div>
   );
