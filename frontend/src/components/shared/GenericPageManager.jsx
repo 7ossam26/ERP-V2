@@ -37,7 +37,7 @@ const GenericPageManager = ({
       setData(result);
     } catch (error) {
       console.error("Failed to load data", error);
-      showToast("فشل في تحميل البيانات. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.", "error");
+      showToast(error.message || "فشل في تحميل البيانات. يرجى المحاولة مرة أخرى.", "error");
     }
     setLoading(false);
   };
@@ -79,7 +79,7 @@ const GenericPageManager = ({
       await loadData();
     } catch (error) {
       console.error("Failed to save data", error);
-      showToast("فشل في حفظ البيانات. يرجى التحقق من البيانات المدخلة والمحاولة مرة أخرى.", "error");
+      showToast(error.message || "فشل في حفظ البيانات. يرجى المحاولة مرة أخرى.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -99,7 +99,7 @@ const GenericPageManager = ({
         await loadData();
       } catch (error) {
         console.error("Failed to delete", error);
-        showToast("فشل في حذف العنصر. يرجى المحاولة مرة أخرى.", "error");
+        showToast(error.message || "فشل في حذف العنصر. يرجى المحاولة مرة أخرى.", "error");
       } finally {
         setDeletingId(null);
       }
