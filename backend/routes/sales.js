@@ -312,18 +312,38 @@ router.post(
         }
 
         if (!user.branch) {
-          return res.status(400).json({
-            error: `User "${user.name}" is not assigned to any branch.`,
-            resolution:
-              "Contact your superadmin to assign you to a branch before making sales.",
+          // Fall back to system-wide defaults from SystemConfiguration
+          const sysConfig = await prisma.systemConfiguration.findFirst({
+            where: { id: 1 },
+            include: { mainWarehouse: true, mainTreasury: true },
           });
+
+          // Try to find a branch linked to the main warehouse
+          const defaultBranch = sysConfig?.mainWarehouseId
+            ? await prisma.branch.findFirst({
+                where: { warehouseId: sysConfig.mainWarehouseId, isActive: true },
+                include: { treasury: true, warehouse: true },
+              })
+            : null;
+
+          if (!defaultBranch) {
+            return res.status(400).json({
+              error: `User "${user.name}" is not assigned to any branch.`,
+              resolution:
+                "Contact your superadmin to assign you to a branch before making sales.",
+            });
+          }
+
+          branchId = defaultBranch.id;
+          treasuryId = defaultBranch.treasuryId || sysConfig.mainTreasuryId;
+          warehouseId = defaultBranch.warehouseId || sysConfig.mainWarehouseId;
+          console.log(`⚠️ User has no branch — falling back to default branch: ${defaultBranch.name}`);
+        } else {
+          branchId = user.branchId;
+          treasuryId = user.branch.treasuryId;
+          warehouseId = user.branch.warehouseId;
+          console.log(`✅ User context resolved: Branch ${user.branch.name}`);
         }
-
-        branchId = user.branchId;
-        treasuryId = user.branch.treasuryId; // Default to branch treasury
-        warehouseId = user.branch.warehouseId; // Default to branch warehouse
-
-        console.log(`✅ User context resolved: Branch ${user.branch.name}`);
       } else if (finalEmployeeId) {
         // --- EMPLOYEE BASED SALE (Legacy) ---
         console.log(

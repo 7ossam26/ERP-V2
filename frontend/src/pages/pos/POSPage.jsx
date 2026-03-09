@@ -1021,7 +1021,7 @@ const POSPage = () => {
       }, 500);
     } catch (error) {
       console.error("❌ Error creating sale:", error);
-      showErrorToast(error, "حدث خطأ أثناء حفظ الفاتورة");
+      toast.error(error.message || "حدث خطأ أثناء حفظ الفاتورة");
     }
   };
 
