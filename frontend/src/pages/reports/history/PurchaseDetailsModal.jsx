@@ -55,10 +55,12 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                   <h2 className="text-2xl font-bold text-gray-900">
                     {settings?.companyName || "اسم الشركة"}
                   </h2>
-                  <p className="text-sm text-gray-600">
-                    {/* Placeholder for Address if available in future */}
-                    تقرير تفصيلي
-                  </p>
+                  {settings?.taxNumber && (
+                    <p className="text-sm text-gray-700 font-medium">
+                      الرقم الضريبي: {settings.taxNumber}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-600">تقرير تفصيلي</p>
                 </div>
               </div>
 

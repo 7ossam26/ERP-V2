@@ -56,6 +56,7 @@ const POSPage = () => {
 
   // System Settings State
   const [taxRate, setTaxRate] = useState(0.14);
+  const [companyTaxNumber, setCompanyTaxNumber] = useState("");
 
   useEffect(() => {
     if (currentUser) {
@@ -326,6 +327,9 @@ const POSPage = () => {
           if (settings.taxRate !== undefined) {
             setTaxRate(Number(settings.taxRate) / 100);
             console.log("💰 Applied Tax Rate:", settings.taxRate + "%");
+          }
+          if (settings.taxNumber) {
+            setCompanyTaxNumber(settings.taxNumber);
           }
         }
       } catch (e) {
@@ -2149,6 +2153,11 @@ const POSPage = () => {
           <p className="text-xs opacity-80">
             {lastSale?.date || new Date().toLocaleString("ar-EG")}
           </p>
+          {companyTaxNumber && (
+            <p className="text-xs opacity-80 mt-0.5">
+              الرقم الضريبي: {companyTaxNumber}
+            </p>
+          )}
           <div className="border-b border-dashed border-black my-2"></div>
         </div>
 

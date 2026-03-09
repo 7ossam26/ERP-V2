@@ -51,6 +51,7 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
   try {
     const {
       companyName,
+      taxNumber,
       mainWarehouseId,
       mainTreasuryId,
       bankTreasuryId,
@@ -67,6 +68,7 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
 
     const updateData = {
       companyName,
+      taxNumber: taxNumber !== undefined ? String(taxNumber) : undefined,
       mainWarehouseId: safeInt(mainWarehouseId),
       mainTreasuryId: safeInt(mainTreasuryId),
       bankTreasuryId: safeInt(bankTreasuryId),
@@ -88,6 +90,7 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       create: {
         id: 1,
         companyName: companyName || "ERP System",
+        taxNumber: taxNumber ? String(taxNumber) : "",
         mainWarehouseId: safeInt(mainWarehouseId),
         mainTreasuryId: safeInt(mainTreasuryId),
         bankTreasuryId: safeInt(bankTreasuryId),

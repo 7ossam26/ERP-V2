@@ -656,6 +656,7 @@ enum TransferStatus {
 model SystemConfiguration {
   id          Int    @id @default(1)
   companyName String @default("ERP System") @map("company_name")
+  taxNumber   String @default("") @map("tax_number")
 
   // Operational Defaults
   mainWarehouseId Int? @map("main_warehouse_id")

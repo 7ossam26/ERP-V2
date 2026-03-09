@@ -11,6 +11,7 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     companyName: "",
+    taxNumber: "",
     mainWarehouseId: "",
     mainTreasuryId: "",
     bankTreasuryId: "",
@@ -47,6 +48,7 @@ const SettingsPage = () => {
 
       setFormData({
         companyName: settings.companyName || "",
+        taxNumber: settings.taxNumber || "",
         mainWarehouseId: settings.mainWarehouseId || "",
         mainTreasuryId: settings.mainTreasuryId || "",
         bankTreasuryId: settings.bankTreasuryId || "",
@@ -133,6 +135,22 @@ const SettingsPage = () => {
                 onChange={handleChange}
                 className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
+                الرقم الضريبي
+              </label>
+              <input
+                type="text"
+                name="taxNumber"
+                value={formData.taxNumber}
+                onChange={handleChange}
+                placeholder="مثال: 123-456-789"
+                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <p className="text-xs text-text-secondary dark:text-gray-500 mt-1">
+                سيظهر في جميع الفواتير المطبوعة
+              </p>
             </div>
             <div>
               <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
