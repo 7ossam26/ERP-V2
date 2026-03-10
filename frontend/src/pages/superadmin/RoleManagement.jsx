@@ -55,16 +55,16 @@ const RoleManagement = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Role Management</h1>
-                    <p className="text-slate-500">Define user roles and associated permissions</p>
+            <div className="flex justify-between items-center gap-4">
+                <div className="min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">Role Management</h1>
+                    <p className="text-slate-500 text-sm hidden sm:block">Define user roles and associated permissions</p>
                 </div>
                 <button
                     onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-900/20">
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-900/20 shrink-0">
                     <span className="material-icons-round">add</span>
-                    Create Role
+                    <span className="hidden sm:inline">Create Role</span>
                 </button>
             </div>
 
