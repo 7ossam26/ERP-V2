@@ -5,7 +5,7 @@ import { salesService } from "../../services/domainServices";
 import toast from "react-hot-toast";
 import ManagerAuthModal from "../../components/common/ManagerAuthModal";
 
-const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
+const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId = null }) => {
   const [searchSaleId, setSearchSaleId] = useState("");
   const [saleData, setSaleData] = useState(null);
   const [refundItems, setRefundItems] = useState([]); // { itemId, quantity, maxQty, name, price }
@@ -13,22 +13,28 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [refundNote, setRefundNote] = useState("");
   const [searchResults, setSearchResults] = useState([]); // List of found sales for selection
+  const [shiftRefunds, setShiftRefunds] = useState([]); // Returns made in this shift
 
-  // Effect to auto-load if saleId provided
+  // Effect to auto-load if saleId provided, and load shift refunds
   useEffect(() => {
     if (isOpen && initialSaleId) {
       setSearchSaleId(initialSaleId);
-      // If ID is provided directly, fetch just that one
       fetchSpecificSale(initialSaleId);
     } else if (isOpen) {
-      // Reset state
       setSearchSaleId("");
       setSaleData(null);
       setRefundItems([]);
       setRefundNote("");
       setSearchResults([]);
     }
-  }, [isOpen, initialSaleId]);
+    if (isOpen && shiftId) {
+      salesService.getShiftRefunds(shiftId)
+        .then(setShiftRefunds)
+        .catch(() => setShiftRefunds([]));
+    } else {
+      setShiftRefunds([]);
+    }
+  }, [isOpen, initialSaleId, shiftId]);
 
   const fetchSpecificSale = async (idOrNumber) => {
     setLoading(true);
@@ -138,6 +144,9 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
     try {
       await salesService.refund(refundPayload);
       toast.success("تم استرجاع الأصناف بنجاح");
+      if (shiftId) {
+        salesService.getShiftRefunds(shiftId).then(setShiftRefunds).catch(() => {});
+      }
       onClose();
       // TODO: Refresh dashboard/sales list if needed?
     } catch (error) {
@@ -184,6 +193,41 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null }) => {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Shift Refunds History */}
+          {shiftRefunds.length > 0 && (
+            <div>
+              <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-2">
+                مرتجعات الوردية الحالية ({shiftRefunds.length})
+              </h3>
+              <div className="bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-800 overflow-hidden">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-red-100 dark:bg-red-900/30">
+                    <tr>
+                      <th className="p-2">رقم المرتجع</th>
+                      <th className="p-2">العميل</th>
+                      <th className="p-2">الوقت</th>
+                      <th className="p-2 text-left">المبلغ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-red-100 dark:divide-red-900/20">
+                    {shiftRefunds.map((r) => (
+                      <tr key={r.id} className="hover:bg-red-100/50 dark:hover:bg-red-900/20">
+                        <td className="p-2 font-mono text-xs">{r.saleNumber}</td>
+                        <td className="p-2">{r.client?.name || "عميل نقدي"}</td>
+                        <td className="p-2 text-xs text-gray-500">
+                          {new Date(r.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className="p-2 text-left font-bold text-red-600">
+                          {Math.abs(parseFloat(r.total)).toFixed(2)} ج.م
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Search Section */}
           <form onSubmit={(e) => handleSearch(e)} className="flex gap-2">
             <input

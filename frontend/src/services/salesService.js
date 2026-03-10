@@ -57,6 +57,10 @@ export const salesService = {
     return await api.post(`${SALES_URL}/refund`, refundData);
   },
 
+  async getShiftRefunds(shiftId) {
+    return await api.get(`${SALES_URL}/refunds`, { params: { shiftId } });
+  },
+
   async markDelivered(saleId) {
     return await api.patch(`${SALES_URL}/${saleId}/mark-delivered`);
   },

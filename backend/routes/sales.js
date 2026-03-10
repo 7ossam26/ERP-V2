@@ -130,6 +130,34 @@ router.get(
   },
 );
 
+// GET refunds for a shift - Requires SALES or POS permission
+router.get(
+  "/refunds",
+  authenticateToken,
+  requireAnyPermission(["SALES", "POS"]),
+  async (req, res, next) => {
+    try {
+      const { shiftId } = req.query;
+      if (!shiftId) return res.json([]);
+
+      const refunds = await prisma.sale.findMany({
+        where: {
+          shiftId: parseInt(shiftId),
+          saleNumber: { startsWith: "REFUND-" },
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          client: true,
+          items: { include: { item: true } },
+        },
+      });
+      res.json(refunds);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // GET search sales - Requires SALES or POS permission
 router.get(
   "/search",

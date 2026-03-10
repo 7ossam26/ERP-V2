@@ -57,6 +57,7 @@ const POSPage = () => {
   // System Settings State
   const [taxRate, setTaxRate] = useState(0.14);
   const [companyTaxNumber, setCompanyTaxNumber] = useState("");
+  const [companyName, setCompanyName] = useState("");
 
   useEffect(() => {
     if (currentUser) {
@@ -330,6 +331,9 @@ const POSPage = () => {
           }
           if (settings.taxNumber) {
             setCompanyTaxNumber(settings.taxNumber);
+          }
+          if (settings.companyName) {
+            setCompanyName(settings.companyName);
           }
         }
       } catch (e) {
@@ -1270,6 +1274,7 @@ const POSPage = () => {
         }}
         branchId={currentUser?.branch?.id}
         initialSaleId={refundSaleId}
+        shiftId={currentShiftId}
       />
 
       {/* Orders History Modal */}
@@ -2141,151 +2146,140 @@ const POSPage = () => {
           )}
         </div>
       </div>
-      {/* Thermal Receipt Template - Invisible on screen, visible on print */}
+      {/* Thermal Receipt — Xprinter XP-Q80I (80mm). Hidden on screen, printed only. */}
       <div id="thermal-receipt" className="hidden print:block">
-        <div className="text-center mb-4">
-          <div className="flex justify-center mb-2">
-            <img
-              src="/assets/logo.png"
-              alt="Logo"
-              className="w-[50mm] h-auto object-contain"
-            />
-          </div>
-          <h2 className="text-xl font-bold uppercase tracking-wider">
-            {currentUser?.branch?.name || "Elghonemy ERP"}
+
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: "4px" }}>
+          <img
+            src="/assets/logo.png"
+            alt="Logo"
+            style={{ maxWidth: "44mm", margin: "0 auto 3px auto", display: "block" }}
+          />
+          <h2 style={{ fontSize: "14px", fontWeight: "bold", margin: "2px 0" }}>
+            {companyName || currentUser?.branch?.name || "Elghonemy ERP"}
           </h2>
-          <p className="text-xs opacity-80">
+          <p style={{ fontSize: "10px", margin: "1px 0" }}>
             {lastSale?.date || new Date().toLocaleString("ar-EG")}
           </p>
           {companyTaxNumber && (
-            <p className="text-xs opacity-80 mt-0.5">
+            <p style={{ fontSize: "10px", margin: "1px 0" }}>
               الرقم الضريبي: {companyTaxNumber}
             </p>
           )}
-          <div className="border-b border-dashed border-black my-2"></div>
         </div>
 
-        <div className="text-xs mb-3 space-y-1">
-          <div className="flex justify-between">
+        <div className="divider-dashed"></div>
+
+        {/* Invoice meta */}
+        <div style={{ fontSize: "10px", marginBottom: "3px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>رقم الفاتورة:</span>
-            <span className="font-mono">{lastSale?.saleNumber || "Draft"}</span>
+            <span style={{ fontWeight: "bold" }}>{lastSale?.saleNumber || "Draft"}</span>
           </div>
-          <div className="flex justify-between">
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>العميل:</span>
-            <span>
-              {selectedClient?.name || lastSale?.clientName || "عميل نقدي"}
-            </span>
+            <span>{selectedClient?.name || lastSale?.clientName || "عميل نقدي"}</span>
           </div>
-          <div className="flex justify-between">
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>البائع:</span>
-            <span>
-              {currentUser?.name || lastSale?.employeeName || "System"}
-            </span>
+            <span>{currentUser?.name || lastSale?.employeeName || "System"}</span>
           </div>
         </div>
 
-        {/* Delivery Information - Only show if delivery data exists */}
+        {/* Delivery section */}
         {(deliveryData || lastSale?.deliveryAddress) && (
           <>
-            <div className="border-b border-gray-300 my-2"></div>
-            <div className="text-xs mb-3 space-y-1 bg-gray-50 p-2 rounded">
-              <div className="font-bold mb-1">🚚 معلومات التوصيل</div>
+            <div className="divider-dashed"></div>
+            <div className="delivery-section">
+              <div style={{ fontWeight: "bold", marginBottom: "2px" }}>معلومات التوصيل</div>
               {(deliveryData?.riderName || lastSale?.riderName) && (
-                <div className="flex justify-between">
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>الطيار:</span>
-                  <span className="font-bold">
+                  <span style={{ fontWeight: "bold" }}>
                     {deliveryData?.riderName || lastSale?.riderName}
                   </span>
                 </div>
               )}
               {(deliveryData?.zoneName || lastSale?.zoneName) && (
-                <div className="flex justify-between">
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>المنطقة:</span>
                   <span>{deliveryData?.zoneName || lastSale?.zoneName}</span>
                 </div>
               )}
               {(deliveryData?.address || lastSale?.deliveryAddress) && (
-                <div className="mt-1">
-                  <span className="font-semibold">العنوان:</span>
-                  <p className="text-[10px] mt-0.5 pr-2">
-                    {deliveryData?.address || lastSale?.deliveryAddress}
-                  </p>
+                <div style={{ marginTop: "2px" }}>
+                  <span style={{ fontWeight: "bold" }}>العنوان: </span>
+                  <span>{deliveryData?.address || lastSale?.deliveryAddress}</span>
                 </div>
               )}
             </div>
           </>
         )}
 
-        <div className="border-b border-gray-300 my-2"></div>
+        <div className="divider-solid"></div>
 
-        <table className="w-full text-xs text-right">
+        {/* Items table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="py-1">الصنف</th>
-              <th className="py-1 text-center">كمية</th>
-              <th className="py-1 text-left">سعر</th>
+            <tr>
+              <th style={{ textAlign: "right", padding: "2px 1px", borderBottom: "1px solid #000" }}>الصنف</th>
+              <th style={{ textAlign: "center", padding: "2px 1px", borderBottom: "1px solid #000", whiteSpace: "nowrap" }}>كمية</th>
+              <th style={{ textAlign: "left", padding: "2px 1px", borderBottom: "1px solid #000", whiteSpace: "nowrap" }}>سعر</th>
             </tr>
           </thead>
           <tbody>
             {(cartItems.length > 0 ? cartItems : lastSale?.items || []).map(
               (item, idx) => (
-                <tr key={idx} className="border-b border-gray-50">
-                  <td className="py-2">{item.name}</td>
-                  <td className="py-2 text-center">{item.quantity}</td>
-                  <td className="py-2 text-left">{item.total.toFixed(2)}</td>
+                <tr key={idx}>
+                  <td style={{ textAlign: "right", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{item.name}</td>
+                  <td style={{ textAlign: "center", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{item.quantity}</td>
+                  <td style={{ textAlign: "left", padding: "2px 1px", borderBottom: "1px dashed #999", whiteSpace: "nowrap" }}>{item.total.toFixed(2)}</td>
                 </tr>
               ),
             )}
           </tbody>
         </table>
 
-        <div className="mt-4 space-y-1 text-xs">
-          <div className="flex justify-between font-bold text-sm">
-            <span>الإجمالي</span>
-            <span>
-              {(
-                (cartItems.length > 0
-                  ? total
-                  : parseFloat(lastSale?.total || 0)) +
-                parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0)
-              ).toFixed(2)}{" "}
-              ج.م
-            </span>
+        {/* Sub-totals */}
+        <div style={{ marginTop: "4px", fontSize: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>ضريبة</span>
+            <span>{(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(2)} ج.م</span>
           </div>
-          <div className="flex justify-between opacity-80">
-            <span>قيمة الضريبة</span>
-            <span>
-              {(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(
-                2,
-              )}{" "}
-              ج.م
-            </span>
-          </div>
-          {/* Delivery Fee - Only show if delivery exists */}
           {(deliveryData?.zoneFee || lastSale?.deliveryFee) && (
-            <div className="flex justify-between opacity-80">
-              <span>رسوم التوصيل</span>
-              <span>
-                {parseFloat(
-                  deliveryData?.zoneFee || lastSale?.deliveryFee || 0,
-                ).toFixed(2)}{" "}
-                ج.م
-              </span>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>توصيل</span>
+              <span>{parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0).toFixed(2)} ج.م</span>
             </div>
           )}
-          <div className="flex justify-between opacity-80">
-            <span>طريقة الدفع</span>
-            <span>
-              {lastSale?.paymentMethod === "CASH" ? "نقدي" : "انستاباي"}
-            </span>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>الدفع</span>
+            <span>{lastSale?.paymentMethod === "CASH" ? "نقدي" : "انستاباي"}</span>
           </div>
         </div>
 
-        <div className="border-t border-dashed border-black mt-6 mb-2"></div>
-        <div className="text-center">
-          <p className="text-xs font-bold italic">نأمل رؤيتكم مرة أخرى</p>
-          <p className="text-[10px] mt-1">Elghonemy ERP System</p>
+        <div className="divider-solid"></div>
+
+        {/* Grand total */}
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "bold", margin: "3px 0" }}>
+          <span>الإجمالي</span>
+          <span>
+            {(
+              (cartItems.length > 0 ? total : parseFloat(lastSale?.total || 0)) +
+              parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0)
+            ).toFixed(2)} ج.م
+          </span>
         </div>
+
+        <div className="divider-dashed"></div>
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", fontSize: "10px", marginTop: "4px" }}>
+          <p style={{ fontWeight: "bold", margin: "1px 0" }}>نأمل رؤيتكم مرة أخرى</p>
+          <p style={{ margin: "1px 0" }}>{companyName || "Elghonemy ERP"}</p>
+        </div>
+
       </div>
     </div>
   );
