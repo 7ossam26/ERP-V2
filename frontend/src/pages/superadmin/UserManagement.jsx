@@ -545,9 +545,9 @@ const UserManagement = () => {
                   role="switch"
                   aria-checked={formData.isActive}
                   onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${formData.isActive ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-600"}`}
+                  className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${formData.isActive ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-600"}`}
                 >
-                  <span className={`pointer-events-none h-5 w-5 rounded-full bg-white shadow ${formData.isActive ? "translate-x-5" : "translate-x-0"}`} />
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow ${formData.isActive ? "left-[22px]" : "left-0.5"}`} />
                 </button>
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Is Active</span>
               </div>
@@ -558,9 +558,9 @@ const UserManagement = () => {
                   role="switch"
                   aria-checked={formData.hasSensitiveAccess}
                   onClick={() => setFormData({ ...formData, hasSensitiveAccess: !formData.hasSensitiveAccess })}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 mt-0.5 ${formData.hasSensitiveAccess ? "bg-purple-600" : "bg-slate-200 dark:bg-slate-600"}`}
+                  className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full mt-0.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${formData.hasSensitiveAccess ? "bg-purple-600" : "bg-slate-200 dark:bg-slate-600"}`}
                 >
-                  <span className={`pointer-events-none h-5 w-5 rounded-full bg-white shadow ${formData.hasSensitiveAccess ? "translate-x-5" : "translate-x-0"}`} />
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow ${formData.hasSensitiveAccess ? "left-[22px]" : "left-0.5"}`} />
                 </button>
                 <div>
                   <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Sensitive Access</p>
