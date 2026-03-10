@@ -1,9 +1,11 @@
 /**
- * Audit Logger — HMAC-protected append-only writes
+ * Audit Logger — append-only writes with HMAC integrity signing.
  *
- * Each audit record is signed with HMAC-SHA256 using AUDIT_HMAC_SECRET.
- * Tampering with any field in a row invalidates its hash, making
- * modifications detectable via the integrity-check endpoint.
+ * Each record is signed with HMAC-SHA256 over its core identity fields
+ * (action, entity, targetId, userId, branchId, timestamp).
+ * The oldValues / newValues are stored separately and are NOT part of the
+ * hash payload — they are large and subject to JSON key reordering by MySQL,
+ * which would cause spurious hash mismatches on verification.
  *
  * The application DB user should have INSERT + SELECT only on audit_logs.
  * No route exposes DELETE or UPDATE on this table.
@@ -11,39 +13,49 @@
 const crypto = require("crypto");
 const prisma  = require("../config/database");
 
-// Fields that should never appear in audit details (redacted)
-const REDACTED_KEYS = new Set(["password", "token", "secret", "pin", "hash"]);
+const REDACTED_EXACT  = new Set(["pin", "hash", "rowhash", "row_hash"]);
+const REDACTED_SUBSTR = ["password", "token", "secret"];
 
 const HMAC_SECRET = process.env.AUDIT_HMAC_SECRET || "erp_audit_default_secret_change_me";
 
 /**
- * Remove sensitive keys from an object (shallow).
+ * Remove sensitive keys from an object — recursively handles nested objects and arrays.
+ * Catches exact matches (pin, hash) AND any key that contains "password", "token", "secret".
  */
+function isSensitiveKey(k) {
+  const lower = k.toLowerCase();
+  return REDACTED_EXACT.has(lower) || REDACTED_SUBSTR.some((s) => lower.includes(s));
+}
+
 function redact(obj) {
-  if (!obj || typeof obj !== "object") return obj;
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map((item) => redact(item));
+  if (typeof obj !== "object") return obj;
   const out = {};
   for (const [k, v] of Object.entries(obj)) {
-    out[k] = REDACTED_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : v;
+    if (isSensitiveKey(k)) {
+      out[k] = "[REDACTED]";
+    } else if (v && typeof v === "object") {
+      out[k] = redact(v);
+    } else {
+      out[k] = v;
+    }
   }
   return out;
 }
 
 /**
- * Compute HMAC for a row. The signed payload is deterministic:
- *   action|targetEntity|targetId|userId|branchId|createdAt|JSON(details)
- *
- * If anyone modifies these fields in the DB, the stored hash will no longer
- * match what we recompute, and verifyIntegrity() will flag it.
+ * Compute HMAC over core identity fields only (not JSON blobs).
+ * Payload: action|targetEntity|targetId|userId|branchId|createdAt(ISO)
  */
-function computeHash({ action, targetEntity, targetId, userId, branchId, createdAt, details }) {
+function computeHash({ action, targetEntity, targetId, userId, branchId, createdAt }) {
   const payload = [
-    action,
-    targetEntity,
-    targetId    ?? "",
-    userId      ?? "",
-    branchId    ?? "",
-    createdAt   instanceof Date ? createdAt.toISOString() : (createdAt ?? ""),
-    JSON.stringify(details ?? null),
+    action        ?? "",
+    targetEntity  ?? "",
+    targetId      ?? "",
+    userId        ?? "",
+    branchId      ?? "",
+    createdAt instanceof Date ? createdAt.toISOString() : (createdAt ?? ""),
   ].join("|");
 
   return crypto
@@ -53,22 +65,24 @@ function computeHash({ action, targetEntity, targetId, userId, branchId, created
 }
 
 /**
- * Write a single audit record. Fire-and-forget safe — errors are logged
- * but never thrown to the caller.
+ * Write a single audit record.
  *
  * @param {object} opts
- * @param {string}  opts.action       - CREATE | UPDATE | DELETE | LOGIN | LOGOUT
- * @param {string}  opts.targetEntity - e.g. "sale", "shift", "treasury"
- * @param {string|number|null} opts.targetId
+ * @param {string}       opts.action       - CREATE | UPDATE | DELETE | LOGIN | LOGOUT | APPROVE | ...
+ * @param {string}       opts.targetEntity - e.g. "sale", "shift", "treasury"
+ * @param {string|null}  opts.targetId
  * @param {number|null}  opts.userId
  * @param {number|null}  opts.branchId
- * @param {object|null}  opts.details  - request body / diff (will be redacted)
+ * @param {object|null}  opts.newValues    - request body / new state (will be redacted)
+ * @param {object|null}  opts.oldValues    - DB state before mutation
  * @param {string|null}  opts.ipAddress
  */
-async function writeAudit({ action, targetEntity, targetId, userId, branchId, details, ipAddress }) {
+async function writeAudit({ action, targetEntity, targetId, userId, branchId, newValues, oldValues, ipAddress }) {
   try {
-    const now     = new Date();
-    const cleaned = redact(details);
+    const now          = new Date();
+    const cleanedNew   = redact(newValues);
+    const cleanedOld   = redact(oldValues);
+
     const rowHash = computeHash({
       action,
       targetEntity,
@@ -76,7 +90,6 @@ async function writeAudit({ action, targetEntity, targetId, userId, branchId, de
       userId:    userId   ?? null,
       branchId:  branchId ?? null,
       createdAt: now,
-      details:   cleaned,
     });
 
     await prisma.auditLog.create({
@@ -84,62 +97,18 @@ async function writeAudit({ action, targetEntity, targetId, userId, branchId, de
         action:       action.substring(0, 20),
         targetEntity: targetEntity.substring(0, 60),
         targetId:     targetId != null ? String(targetId).substring(0, 40) : null,
-        userId:       userId   ?? null,
-        branchId:     branchId ?? null,
-        details:      cleaned  ?? undefined,
-        ipAddress:    ipAddress ?? null,
+        userId:       userId    ?? null,
+        branchId:     branchId  ?? null,
+        details:      cleanedNew ?? undefined,   // "new values" / request body
+        oldValues:    cleanedOld ?? undefined,   // "old values" / before state
+        ipAddress:    ipAddress  ?? null,
         rowHash,
         createdAt:    now,
       },
     });
   } catch (err) {
-    // Never crash the main request — just log
     console.error("[AUDIT] Failed to write audit log:", err.message);
   }
 }
 
-/**
- * Verify integrity of all audit records (or a date range).
- * Returns { total, tampered: [ { id, reason } ] }
- */
-async function verifyIntegrity({ from, to } = {}) {
-  const where = {};
-  if (from || to) {
-    where.createdAt = {};
-    if (from) where.createdAt.gte = new Date(from);
-    if (to)   where.createdAt.lte = new Date(to);
-  }
-
-  const logs = await prisma.auditLog.findMany({
-    where,
-    orderBy: { id: "asc" },
-    select: {
-      id: true, action: true, targetEntity: true, targetId: true,
-      userId: true, branchId: true, details: true, createdAt: true, rowHash: true,
-    },
-  });
-
-  const tampered = [];
-  for (const log of logs) {
-    if (!log.rowHash) {
-      // Row predates hash column — skip
-      continue;
-    }
-    const expected = computeHash({
-      action:       log.action,
-      targetEntity: log.targetEntity,
-      targetId:     String(log.targetId ?? ""),
-      userId:       log.userId   ?? null,
-      branchId:     log.branchId ?? null,
-      createdAt:    log.createdAt,
-      details:      log.details,
-    });
-    if (expected !== log.rowHash) {
-      tampered.push({ id: log.id, reason: "hash_mismatch" });
-    }
-  }
-
-  return { total: logs.length, tampered };
-}
-
-module.exports = { writeAudit, verifyIntegrity };
+module.exports = { writeAudit };

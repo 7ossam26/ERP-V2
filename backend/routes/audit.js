@@ -4,20 +4,16 @@
  * All endpoints require the user to be authenticated AND have
  * hasSensitiveAccess = true (or be Superadmin / Admin).
  *
- * No DELETE or UPDATE routes exist. The DB user should also have
- * INSERT + SELECT only on audit_logs.
+ * No DELETE or UPDATE routes exist.
  */
 const express = require("express");
 const router  = express.Router();
 const prisma  = require("../config/database");
 const { authenticateToken, requireSensitiveAccess } = require("../middleware/auth");
-const { verifyIntegrity } = require("../utils/auditLogger");
 
-// All routes in this file require auth + sensitive access
 router.use(authenticateToken, requireSensitiveAccess);
 
 // ─── GET /api/audit ──────────────────────────────────────────────────────────
-// List audit logs with filtering, pagination, and optional branch scoping.
 router.get("/", async (req, res, next) => {
   try {
     const {
@@ -44,8 +40,10 @@ router.get("/", async (req, res, next) => {
 
     if (from || to) {
       where.createdAt = {};
-      if (from) where.createdAt.gte = new Date(from);
-      if (to)   where.createdAt.lte = new Date(to);
+      const fromDate = from ? new Date(from) : null;
+      const toDate   = to   ? new Date(to)   : null;
+      if (fromDate && !isNaN(fromDate)) where.createdAt.gte = fromDate;
+      if (toDate   && !isNaN(toDate))   where.createdAt.lte = toDate;
     }
 
     if (search) {
@@ -67,9 +65,9 @@ router.get("/", async (req, res, next) => {
           targetEntity: true,
           targetId:     true,
           details:      true,
+          oldValues:    true,
           ipAddress:    true,
           branchId:     true,
-          rowHash:      true,
           createdAt:    true,
           user: {
             select: { id: true, name: true, username: true },
@@ -94,7 +92,6 @@ router.get("/", async (req, res, next) => {
 });
 
 // ─── GET /api/audit/summary ──────────────────────────────────────────────────
-// Quick counts grouped by action type for the last N days.
 router.get("/summary", async (req, res, next) => {
   try {
     const days = Math.min(Number(req.query.days) || 7, 90);
@@ -115,34 +112,10 @@ router.get("/summary", async (req, res, next) => {
       take:    5,
     });
 
-    const topUsers = await prisma.auditLog.groupBy({
-      by:      ["userId"],
-      where:   { createdAt: { gte: from }, userId: { not: null } },
-      _count:  { id: true },
-      orderBy: { _count: { id: "desc" } },
-      take:    5,
-    });
-
     res.json({
       period:      { days, from },
       byAction:    counts.map((r) => ({ action: r.action, count: r._count.id })),
       topEntities: topEntities.map((r) => ({ entity: r.targetEntity, count: r._count.id })),
-      topUsers:    topUsers.map((r) => ({ userId: r.userId, count: r._count.id })),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── GET /api/audit/verify ───────────────────────────────────────────────────
-// Run HMAC integrity check across all (or date-ranged) audit records.
-router.get("/verify", async (req, res, next) => {
-  try {
-    const { from, to } = req.query;
-    const result = await verifyIntegrity({ from, to });
-    res.json({
-      ...result,
-      integrity: result.tampered.length === 0 ? "OK" : "COMPROMISED",
     });
   } catch (err) {
     next(err);

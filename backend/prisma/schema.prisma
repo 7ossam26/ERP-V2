@@ -129,6 +129,7 @@ model AuditLog {
   targetEntity String   @map("target_entity") @db.VarChar(60)
   targetId     String?  @map("target_id") @db.VarChar(40)
   details      Json?
+  oldValues    Json?    @map("old_values")
   ipAddress    String?  @map("ip_address") @db.VarChar(45)
   branchId     Int?     @map("branch_id")
   rowHash      String?  @map("row_hash") @db.Char(64)

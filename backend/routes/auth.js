@@ -3,6 +3,7 @@ const router = express.Router();
 const prisma = require("../config/database");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { writeAudit } = require("../utils/auditLogger");
 const rateLimit = require("express-rate-limit");
 
 const { body, validationResult } = require("express-validator");
@@ -69,6 +70,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
     });
 
     if (!user) {
+      writeAudit({ action: "LOGIN_FAILED", targetEntity: "auth", targetId: null, userId: null, branchId: null, newValues: { username }, oldValues: null, ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null }).catch(() => {});
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
@@ -99,12 +101,14 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
           `🔒 Account deactivated due to ${MAX_FAILED_ATTEMPTS} failed login attempts: ${username}`,
         );
 
+        writeAudit({ action: "ACCOUNT_LOCKED", targetEntity: "auth", targetId: String(user.id), userId: user.id, branchId: user.branchId ?? null, newValues: { reason: "max_failed_attempts", username }, oldValues: null, ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null }).catch(() => {});
         return res.status(403).json({
           error:
             "Account has been locked due to multiple failed login attempts. Please contact administrator.",
         });
       }
 
+      writeAudit({ action: "LOGIN_FAILED", targetEntity: "auth", targetId: String(user.id), userId: user.id, branchId: user.branchId ?? null, newValues: { username, attemptCount: attempts }, oldValues: null, ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null }).catch(() => {});
       return res.status(401).json({ error: "Invalid credentials" });
     }
 

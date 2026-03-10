@@ -115,8 +115,12 @@ const PermissionConfig = () => {
                                     {module.label}
                                 </td>
                                 <td className="p-4 text-center">
-                                    <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 mx-auto ${isGranted ? 'bg-green-500' : 'bg-slate-200 dark:bg-slate-600'}`}>
-                                        <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-300 ${isGranted ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                    <div
+                                        role="switch"
+                                        aria-checked={!!isGranted}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mx-auto ${isGranted ? "bg-green-500" : "bg-slate-200 dark:bg-slate-600"}`}
+                                    >
+                                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${isGranted ? "translate-x-5" : "translate-x-0"}`} />
                                     </div>
                                 </td>
                             </tr>
@@ -130,18 +134,29 @@ const PermissionConfig = () => {
     if (isLoading) return <div className="p-8 text-center">Loading...</div>;
 
     return (
-        <div className="space-y-6 pb-20 max-w-4xl mx-auto">
-            <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm sticky top-24 z-10">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                        Permissions: <span className="text-primary">{role?.name}</span>
-                    </h1>
-                    <p className="text-slate-500 text-sm">Configure granular access control</p>
-                </div>
+        <div className="space-y-6 pb-24 max-w-4xl mx-auto">
+            {/* Page header — static, does not overlay content */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                    Permissions: <span className="text-primary">{role?.name}</span>
+                </h1>
+                <p className="text-slate-500 text-sm">Configure granular access control</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+                {renderPermissionTable(managementModules, "Management Modules", "apps")}
+                {renderPermissionTable(creationModules, "Creation Permissions", "add_circle")}
+            </div>
+
+            {/* Sticky bottom action bar — sticks within the scrollable content area */}
+            <div className="sticky bottom-0 z-20 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 rounded-xl shadow-lg px-6 py-4 flex items-center justify-between">
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                    Role: <span className="font-semibold text-slate-700 dark:text-slate-200">{role?.name}</span>
+                </span>
                 <div className="flex gap-3">
                     <button
                         onClick={() => navigate("/superadmin/roles")}
-                        className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                        className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition"
                     >
                         Cancel
                     </button>
@@ -153,11 +168,6 @@ const PermissionConfig = () => {
                         Save Changes
                     </button>
                 </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-                {renderPermissionTable(managementModules, "Management Modules", "apps")}
-                {renderPermissionTable(creationModules, "Creation Permissions", "add_circle")}
             </div>
         </div>
     );

@@ -540,46 +540,36 @@ const UserManagement = () => {
                 );
               })()}
 
-              <div className="flex items-center gap-2 pt-2">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={formData.isActive}
-                    onChange={(e) =>
-                      setFormData({ ...formData, isActive: e.target.checked })
-                    }
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  <span className="ml-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Is Active
-                  </span>
-                </label>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={formData.isActive}
+                  onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${formData.isActive ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-600"}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${formData.isActive ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Is Active</span>
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={formData.hasSensitiveAccess}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        hasSensitiveAccess: e.target.checked,
-                      })
-                    }
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
-                  <span className="ml-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Sensitive Access
-                    <span className="block text-xs text-slate-400">
-                      Can edit/delete sensitive data
-                    </span>
-                  </span>
-                </label>
+              <div className="flex items-start gap-3 pt-2">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={formData.hasSensitiveAccess}
+                  onClick={() => setFormData({ ...formData, hasSensitiveAccess: !formData.hasSensitiveAccess })}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 mt-0.5 ${formData.hasSensitiveAccess ? "bg-purple-600" : "bg-slate-200 dark:bg-slate-600"}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${formData.hasSensitiveAccess ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Sensitive Access</p>
+                  <p className="text-xs text-slate-400">Can edit/delete sensitive data</p>
+                </div>
               </div>
-              <div className="pt-4 flex justify-end gap-3">
+
+              <div className="pt-4 flex flex-row items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
