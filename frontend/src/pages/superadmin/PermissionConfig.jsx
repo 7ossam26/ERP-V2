@@ -118,9 +118,9 @@ const PermissionConfig = () => {
                                     <div
                                         role="switch"
                                         aria-checked={!!isGranted}
-                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mx-auto ${isGranted ? "bg-green-500" : "bg-slate-200 dark:bg-slate-600"}`}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 mx-auto ${isGranted ? "bg-green-500" : "bg-slate-200 dark:bg-slate-600"}`}
                                     >
-                                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${isGranted ? "translate-x-5" : "translate-x-0"}`} />
+                                        <span className={`pointer-events-none h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${isGranted ? "translate-x-5" : "translate-x-0"}`} />
                                     </div>
                                 </td>
                             </tr>

@@ -361,16 +361,14 @@ const UserManagement = () => {
                       "Admin",
                       "Manager",
                     ].includes(selectedRole?.name);
-                    // Check if role is global (Superadmin/Admin)
-                    const isGlobal = ["Superadmin", "Admin"].includes(
-                      selectedRole?.name,
-                    );
+                    // Only Superadmin has no branch
+                    const isSuperadmin = selectedRole?.name === "Superadmin";
 
                     setFormData({
                       ...formData,
                       roleId: selectedRoleId,
                       hasSensitiveAccess: shouldHaveSensitive,
-                      branchId: isGlobal ? "" : formData.branchId,
+                      branchId: isSuperadmin ? "" : formData.branchId,
                     });
                   }}>
                   <option value="" disabled>
@@ -388,9 +386,9 @@ const UserManagement = () => {
                 const selectedRoleName = roles.find(
                   (r) => r.id == formData.roleId,
                 )?.name;
-                const isGlobalRole = ["Superadmin", "Admin"].includes(
-                  selectedRoleName,
-                );
+
+                // Superadmin has no branch (truly global)
+                const isSuperadmin = selectedRoleName === "Superadmin";
 
                 // Roles that use the multi-branch checkbox UI
                 const isMultiBranchRole = [
@@ -398,7 +396,7 @@ const UserManagement = () => {
                   "Area Manager",
                 ].includes(selectedRoleName);
 
-                if (isGlobalRole) return null;
+                if (isSuperadmin) return null;
 
                 // --- Multi-Branch Input (Checkboxes) ---
                 if (isMultiBranchRole) {
@@ -500,6 +498,7 @@ const UserManagement = () => {
                 }
 
                 // --- Single Branch Input (Dropdown) - Default ---
+                const isAdminRole = selectedRoleName === "Admin";
                 return (
                   <div className="space-y-4">
                     {/* Primary Branch (Home Branch) */}
@@ -507,18 +506,18 @@ const UserManagement = () => {
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         Home Branch{" "}
                         <span className="text-xs text-slate-400 font-normal">
-                          (Primary Assignment)
+                          {isAdminRole ? "(Optional)" : "(Primary Assignment)"}
                         </span>
                       </label>
                       <select
-                        required
+                        required={!isAdminRole}
                         className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-transparent dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                         value={formData.branchId}
                         onChange={(e) =>
                           setFormData({ ...formData, branchId: e.target.value })
                         }>
-                        <option value="" disabled>
-                          Select a branch
+                        <option value="">
+                          {isAdminRole ? "No specific branch (global)" : "Select a branch"}
                         </option>
                         {branches.map((branch) => (
                           <option
@@ -546,9 +545,9 @@ const UserManagement = () => {
                   role="switch"
                   aria-checked={formData.isActive}
                   onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${formData.isActive ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-600"}`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${formData.isActive ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-600"}`}
                 >
-                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${formData.isActive ? "translate-x-5" : "translate-x-0"}`} />
+                  <span className={`pointer-events-none h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${formData.isActive ? "translate-x-5" : "translate-x-0"}`} />
                 </button>
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Is Active</span>
               </div>
@@ -559,9 +558,9 @@ const UserManagement = () => {
                   role="switch"
                   aria-checked={formData.hasSensitiveAccess}
                   onClick={() => setFormData({ ...formData, hasSensitiveAccess: !formData.hasSensitiveAccess })}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 mt-0.5 ${formData.hasSensitiveAccess ? "bg-purple-600" : "bg-slate-200 dark:bg-slate-600"}`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 mt-0.5 ${formData.hasSensitiveAccess ? "bg-purple-600" : "bg-slate-200 dark:bg-slate-600"}`}
                 >
-                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${formData.hasSensitiveAccess ? "translate-x-5" : "translate-x-0"}`} />
+                  <span className={`pointer-events-none h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${formData.hasSensitiveAccess ? "translate-x-5" : "translate-x-0"}`} />
                 </button>
                 <div>
                   <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Sensitive Access</p>
