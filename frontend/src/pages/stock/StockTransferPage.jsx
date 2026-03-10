@@ -249,10 +249,11 @@ const StockTransferPage = () => {
 
   // Calculations
   const totalItems = selectedItems.length;
-  const totalQuantity = selectedItems.reduce(
-    (sum, item) => sum + (item.transferQty || 0),
-    0,
-  );
+  const quantityByUnit = selectedItems.reduce((acc, item) => {
+    const u = item.unit || "—";
+    acc[u] = (acc[u] || 0) + (item.transferQty || 0);
+    return acc;
+  }, {});
 
   return (
     <div
@@ -295,14 +296,12 @@ const StockTransferPage = () => {
                   {totalItems}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">
-                  إجمالي الكميات:
-                </span>
-                <span className="font-bold text-gray-800 dark:text-gray-100">
-                  {totalQuantity}
-                </span>
-              </div>
+              {Object.entries(quantityByUnit).map(([unit, qty]) => (
+                <div key={unit} className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">إجمالي ({unit}):</span>
+                  <span className="font-bold text-gray-800 dark:text-gray-100">{qty % 1 === 0 ? qty : qty.toFixed(2)}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -619,12 +618,12 @@ const StockTransferPage = () => {
                   {totalItems}
                 </span>
               </span>
-              <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
-                إجمالي الكميات:
-                <span className="text-gray-900 dark:text-white text-lg mr-1">
-                  {totalQuantity}
+              {Object.entries(quantityByUnit).map(([unit, qty]) => (
+                <span key={unit} className="text-sm font-bold text-gray-600 dark:text-gray-400">
+                  إجمالي ({unit}):
+                  <span className="text-gray-900 dark:text-white text-lg mr-1">{qty % 1 === 0 ? qty : qty.toFixed(2)}</span>
                 </span>
-              </span>
+              ))}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
