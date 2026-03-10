@@ -13,6 +13,7 @@ import {
 import Modal from "../../components/ui/Modal";
 import { ItemForm } from "../items/ItemManager";
 import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
+import PurchaseReturnModal from "./PurchaseReturnModal";
 
 const PurchasesPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH, CREDIT, DEFERRED, MIXED
@@ -46,6 +47,7 @@ const PurchasesPage = () => {
   // Receipt Modal State
   const [createdPurchase, setCreatedPurchase] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -370,6 +372,10 @@ const PurchasesPage = () => {
         onClose={() => setIsReceiptModalOpen(false)}
         purchase={createdPurchase}
       />
+      <PurchaseReturnModal
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+      />
 
       <Modal
         isOpen={isItemModalOpen}
@@ -396,14 +402,22 @@ const PurchasesPage = () => {
           {/* Note: The back button in MainLayout already exists, but this specific back button was requested in the HTML. 
             We can keep it or rely on MainLayout. Since MainLayout has a back button to Dashboard, this might be redundant, 
             but for fidelity to the HTML, I'll keep it as a link to Dashboard. */}
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
-            <span className="material-symbols-outlined text-sm">
-              arrow_forward
-            </span>
-            <span>رجوع</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsReturnModalOpen(true)}
+              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
+              <span className="material-symbols-outlined text-sm">assignment_return</span>
+              <span>مرتجع</span>
+            </button>
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
+              <span className="material-symbols-outlined text-sm">
+                arrow_forward
+              </span>
+              <span>رجوع</span>
+            </Link>
+          </div>
         </div>
 
         {/* Main Form Section */}

@@ -56,6 +56,53 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// GET search purchases (must be before /:id)
+router.get("/search", async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json([]);
+
+    const branchId = await getUserBranchFilter(req.user.id);
+    let whereClause = {};
+    if (branchId) {
+      const branches = await prisma.branch.findMany({
+        where: branchId,
+        select: { warehouseId: true },
+      });
+      const warehouseIds = branches.map((b) => b.warehouseId).filter(Boolean);
+      if (warehouseIds.length > 0) {
+        whereClause = { warehouseId: { in: warehouseIds } };
+      } else {
+        return res.json([]);
+      }
+    }
+
+    const numericId = parseInt(q);
+    const purchases = await prisma.purchase.findMany({
+      where: {
+        ...whereClause,
+        OR: [
+          ...(isNaN(numericId) ? [] : [{ id: numericId }]),
+          { supplierInvoiceNo: { contains: q } },
+          { supplier: { name: { contains: q } } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      include: {
+        supplier: true,
+        treasury: true,
+        warehouse: true,
+        items: { include: { item: true } },
+        returns: true,
+      },
+    });
+    res.json(purchases);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET purchase by ID
 router.get("/:id", async (req, res, next) => {
   try {
@@ -611,6 +658,167 @@ router.delete("/:id", async (req, res, next) => {
     });
 
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST create a purchase return (مرتجع)
+router.post("/:id/return", async (req, res, next) => {
+  try {
+    const purchaseId = parseInt(req.params.id);
+    const { items, managerUsername, managerPassword, notes } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: "يرجى اختيار صنف واحد على الأقل للإرجاع" });
+    }
+    if (!managerUsername || !managerPassword) {
+      return res.status(400).json({ error: "بيانات المدير مطلوبة" });
+    }
+
+    // Verify manager credentials
+    const bcrypt = require("bcryptjs");
+    const manager = await prisma.user.findUnique({
+      where: { username: managerUsername },
+      include: { role: true },
+    });
+    if (!manager) {
+      return res.status(401).json({ error: "اسم المستخدم غير موجود" });
+    }
+    const isValidPassword = await bcrypt.compare(managerPassword, manager.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: "كلمة مرور المدير غير صحيحة" });
+    }
+    const allowedRoles = ["Superadmin", "Manager", "Branch Manager", "General Manager"];
+    if (!allowedRoles.includes(manager.role?.name)) {
+      return res.status(403).json({ error: "ليس لديك صلاحية اعتماد الإرجاع" });
+    }
+
+    // Get original purchase
+    const purchase = await prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: { items: { include: { item: true } } },
+    });
+    if (!purchase) {
+      return res.status(404).json({ error: "الفاتورة غير موجودة" });
+    }
+
+    // Validate items & quantities
+    for (const ri of items) {
+      const orig = purchase.items.find((pi) => pi.itemId === parseInt(ri.itemId));
+      if (!orig) {
+        return res.status(400).json({ error: `الصنف رقم ${ri.itemId} غير موجود في الفاتورة` });
+      }
+      // Check against already-returned quantities
+      const alreadyReturned = await prisma.purchaseReturnItem.aggregate({
+        where: {
+          itemId: parseInt(ri.itemId),
+          purchaseReturn: { purchaseId },
+        },
+        _sum: { quantity: true },
+      });
+      const returnedSoFar = Number(alreadyReturned._sum.quantity || 0);
+      if (Number(ri.quantity) > Number(orig.quantity) - returnedSoFar) {
+        return res.status(400).json({
+          error: `كمية الإرجاع للصنف "${orig.item.name}" تتجاوز الكمية المتاحة للإرجاع`,
+        });
+      }
+    }
+
+    // Calculate return amount (proportional discount applied)
+    const discountRatio =
+      Number(purchase.subtotal) > 0
+        ? Number(purchase.discountAmount) / Number(purchase.subtotal)
+        : 0;
+    let returnSubtotal = 0;
+    for (const ri of items) {
+      const orig = purchase.items.find((pi) => pi.itemId === parseInt(ri.itemId));
+      returnSubtotal += Number(ri.quantity) * Number(orig.purchasePrice);
+    }
+    const returnAmount = returnSubtotal * (1 - discountRatio);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate unique return number
+      const count = await tx.purchaseReturn.count();
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const returnNumber = `RET-${yearMonth}-${String(count + 1).padStart(5, "0")}`;
+
+      // Create PurchaseReturn record
+      const purchaseReturn = await tx.purchaseReturn.create({
+        data: {
+          purchaseId,
+          returnNumber,
+          notes: notes || null,
+          totalAmount: returnAmount,
+          items: {
+            create: items.map((ri) => {
+              const orig = purchase.items.find((pi) => pi.itemId === parseInt(ri.itemId));
+              return {
+                itemId: parseInt(ri.itemId),
+                quantity: Number(ri.quantity),
+                purchasePrice: Number(orig.purchasePrice),
+                total: Number(ri.quantity) * Number(orig.purchasePrice),
+              };
+            }),
+          },
+        },
+        include: { items: { include: { item: true } } },
+      });
+
+      // Reverse inventory (decrease warehouse stock)
+      for (const ri of items) {
+        await tx.inventory.update({
+          where: {
+            itemId_warehouseId: {
+              itemId: parseInt(ri.itemId),
+              warehouseId: purchase.warehouseId,
+            },
+          },
+          data: { quantity: { decrement: Number(ri.quantity) } },
+        });
+      }
+
+      // Reverse financial effects based on original payment method
+      const paidRatio =
+        Number(purchase.netTotal) > 0
+          ? Number(purchase.paidAmount) / Number(purchase.netTotal)
+          : 0;
+
+      if (purchase.paymentMethod === "CASH" || purchase.paymentMethod === "CREDIT") {
+        // Full payment was made — refund money back to treasury
+        await tx.treasury.update({
+          where: { id: purchase.treasuryId },
+          data: { balance: { increment: returnAmount } },
+        });
+      } else if (purchase.paymentMethod === "DEFERRED") {
+        // Nothing was paid — reduce the debt owed to supplier
+        await tx.supplierAccount.updateMany({
+          where: { supplierId: purchase.supplierId },
+          data: { balance: { decrement: returnAmount } },
+        });
+      } else if (purchase.paymentMethod === "MIXED") {
+        // Proportional: partial treasury refund + partial supplier account reduction
+        const treasuryRefund = returnAmount * paidRatio;
+        const supplierReduction = returnAmount * (1 - paidRatio);
+        if (treasuryRefund > 0) {
+          await tx.treasury.update({
+            where: { id: purchase.treasuryId },
+            data: { balance: { increment: treasuryRefund } },
+          });
+        }
+        if (supplierReduction > 0) {
+          await tx.supplierAccount.updateMany({
+            where: { supplierId: purchase.supplierId },
+            data: { balance: { decrement: supplierReduction } },
+          });
+        }
+      }
+
+      return purchaseReturn;
+    });
+
+    res.status(201).json(result);
   } catch (error) {
     next(error);
   }

@@ -375,12 +375,13 @@ model Item {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  suppliers          ItemSupplier[]
-  categories         ItemCategory[]
-  purchaseItems      PurchaseItem[]
-  saleItems          SaleItem[]
-  inventory          Inventory[]
-  stockTransferItems StockTransferItem[]
+  suppliers            ItemSupplier[]
+  categories           ItemCategory[]
+  purchaseItems        PurchaseItem[]
+  purchaseReturnItems  PurchaseReturnItem[]
+  saleItems            SaleItem[]
+  inventory            Inventory[]
+  stockTransferItems   StockTransferItem[]
   bomOutputs           BOM[]                  @relation("BOMOutput")
   bomItems             BOMItem[]
   productionOrderItems ProductionOrderItem[]
@@ -477,6 +478,7 @@ model Purchase {
   treasury         Treasury          @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   warehouse        Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   items            PurchaseItem[]
+  returns          PurchaseReturn[]
   expense          Expense?
   supplierPayments SupplierPayment[]
 
@@ -497,6 +499,34 @@ model PurchaseItem {
 
   @@id([purchaseId, itemId])
   @@map("purchase_items")
+}
+
+model PurchaseReturn {
+  id           Int                  @id @default(autoincrement())
+  purchaseId   Int                  @map("purchase_id")
+  returnNumber String               @unique @map("return_number")
+  notes        String?              @db.VarChar(500)
+  totalAmount  Decimal              @map("total_amount") @db.Decimal(10, 2)
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  purchase Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  items    PurchaseReturnItem[]
+
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id               Int            @id @default(autoincrement())
+  purchaseReturnId Int            @map("purchase_return_id")
+  itemId           Int            @map("item_id")
+  quantity         Decimal        @db.Decimal(10, 2)
+  purchasePrice    Decimal        @map("purchase_price") @db.Decimal(10, 2)
+  total            Decimal        @db.Decimal(10, 2)
+
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  item           Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@map("purchase_return_items")
 }
 
 // ============================================
