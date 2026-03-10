@@ -5,8 +5,8 @@ import { purchaseService } from "../../services/domainServices";
 import ManagerAuthModal from "../../components/common/ManagerAuthModal";
 
 const PurchaseReturnModal = ({ isOpen, onClose }) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [allPurchases, setAllPurchases] = useState([]);
+  const [filterQuery, setFilterQuery] = useState("");
   const [purchase, setPurchase] = useState(null);
   const [returnItems, setReturnItems] = useState([]);
   const [returnNote, setReturnNote] = useState("");
@@ -14,32 +14,27 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery("");
-      setSearchResults([]);
+    if (isOpen) {
+      loadAllPurchases();
+    } else {
+      setAllPurchases([]);
+      setFilterQuery("");
       setPurchase(null);
       setReturnItems([]);
       setReturnNote("");
     }
   }, [isOpen]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  const loadAllPurchases = async () => {
     setLoading(true);
-    setSearchResults([]);
-    setPurchase(null);
     try {
-      const results = await purchaseService.search(searchQuery.trim());
-      if (!results || results.length === 0) {
-        toast.error("لم يتم العثور على فواتير مطابقة");
-      } else if (results.length === 1) {
-        selectPurchase(results[0]);
-      } else {
-        setSearchResults(results);
-      }
+      const data = await purchaseService.getAll();
+      // Sort newest first
+      setAllPurchases(
+        [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      );
     } catch (err) {
-      toast.error(err.message || "حدث خطأ أثناء البحث");
+      toast.error("فشل تحميل الفواتير");
     } finally {
       setLoading(false);
     }
@@ -47,15 +42,6 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
 
   const selectPurchase = (p) => {
     setPurchase(p);
-    setSearchResults([]);
-    // Calculate already-returned quantities per item
-    const alreadyReturned = {};
-    if (p.returns) {
-      for (const ret of p.returns) {
-        // returns won't include items here (toFrontend strips them)
-        // so we just initialise to 0; backend enforces the limit anyway
-      }
-    }
     setReturnItems(
       p.items.map((i) => ({
         itemId: i.itemId,
@@ -114,6 +100,16 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
     return map[method] || method;
   };
 
+  const filteredPurchases = allPurchases.filter((p) => {
+    if (!filterQuery.trim()) return true;
+    const q = filterQuery.toLowerCase();
+    return (
+      String(p.id).includes(q) ||
+      (p.supplier?.name || "").toLowerCase().includes(q) ||
+      (p.supplierInvoiceNo || "").toLowerCase().includes(q)
+    );
+  });
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -138,87 +134,120 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
-          {/* Search */}
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="بحث برقم الفاتورة، رقم فاتورة المورد، أو اسم المورد..."
-              className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:border-orange-500 text-right"
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-orange-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-orange-700 flex items-center gap-2 flex-shrink-0">
-              <span className="material-icons-round text-sm">search</span>
-              بحث
-            </button>
-          </form>
-
-          {/* Search results list */}
-          {searchResults.length > 0 && !purchase && (
-            <div className="space-y-2">
-              <p className="font-bold text-gray-600 dark:text-gray-300 text-sm">نتائج البحث:</p>
-              <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <table className="w-full text-sm text-right">
-                  <thead className="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
-                    <tr>
-                      <th className="p-3">ID</th>
-                      <th className="p-3">المورد</th>
-                      <th className="p-3">فاتورة المورد</th>
-                      <th className="p-3">التاريخ</th>
-                      <th className="p-3">الإجمالي</th>
-                      <th className="p-3">طريقة الدفع</th>
-                      <th className="p-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {searchResults.map((p) => (
-                      <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                        <td className="p-3 font-mono">{p.id}</td>
-                        <td className="p-3 font-medium">{p.supplier?.name || "—"}</td>
-                        <td className="p-3 text-gray-500">{p.supplierInvoiceNo || "—"}</td>
-                        <td className="p-3">{new Date(p.createdAt).toLocaleDateString("ar-EG")}</td>
-                        <td className="p-3 font-bold">{parseFloat(p.netTotal).toFixed(2)}</td>
-                        <td className="p-3">{paymentMethodLabel(p.paymentMethod)}</td>
-                        <td className="p-3">
-                          <button
-                            onClick={() => selectPurchase(p)}
-                            className="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1 rounded-lg text-xs font-bold">
-                            اختيار
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Bill selector */}
+          {!purchase && (
+            <div className="space-y-3">
+              {/* Filter input */}
+              <div className="relative">
+                <span className="material-icons-round absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                <input
+                  type="text"
+                  value={filterQuery}
+                  onChange={(e) => setFilterQuery(e.target.value)}
+                  placeholder="فلترة برقم الفاتورة، اسم المورد، أو رقم فاتورة المورد..."
+                  className="w-full pr-10 pl-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:border-orange-500 text-right"
+                  autoFocus
+                />
               </div>
+
+              {/* Bills table */}
+              {loading ? (
+                <div className="text-center py-10 text-gray-400">
+                  <span className="material-icons-round animate-spin text-3xl">refresh</span>
+                  <p className="mt-2 text-sm">جاري تحميل الفواتير...</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="overflow-y-auto max-h-[50vh]">
+                    <table className="w-full text-sm text-right">
+                      <thead className="bg-orange-50 dark:bg-orange-900/20 text-gray-600 dark:text-gray-300 sticky top-0">
+                        <tr>
+                          <th className="p-3">رقم الفاتورة</th>
+                          <th className="p-3">المورد</th>
+                          <th className="p-3">فاتورة المورد</th>
+                          <th className="p-3">التاريخ</th>
+                          <th className="p-3">الإجمالي</th>
+                          <th className="p-3">طريقة الدفع</th>
+                          <th className="p-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {filteredPurchases.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-6 text-center text-gray-400 text-sm">
+                              لا توجد فواتير مطابقة
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredPurchases.map((p) => (
+                            <tr
+                              key={p.id}
+                              onClick={() => selectPurchase(p)}
+                              className="hover:bg-orange-50 dark:hover:bg-orange-900/10 cursor-pointer transition-colors">
+                              <td className="p-3 font-mono font-bold text-orange-600">#{p.id}</td>
+                              <td className="p-3 font-medium">{p.supplier?.name || "—"}</td>
+                              <td className="p-3 text-gray-500">{p.supplierInvoiceNo || "—"}</td>
+                              <td className="p-3 text-gray-600 dark:text-gray-400">
+                                {new Date(p.createdAt).toLocaleDateString("ar-EG")}
+                              </td>
+                              <td className="p-3 font-bold">{parseFloat(p.netTotal).toFixed(2)} ج.م</td>
+                              <td className="p-3">
+                                <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded text-xs font-medium">
+                                  {paymentMethodLabel(p.paymentMethod)}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); selectPurchase(p); }}
+                                  className="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1 rounded-lg text-xs font-bold">
+                                  اختيار
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {filteredPurchases.length > 0 && (
+                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-left">
+                      {filteredPurchases.length} فاتورة
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           {/* Purchase details + return items */}
           {purchase && (
             <div className="space-y-4">
-              {/* Summary row */}
-              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500 block text-xs mb-0.5">المورد</span>
-                  <strong>{purchase.supplier?.name || "—"}</strong>
+              {/* Selected bill banner */}
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4 flex items-center justify-between">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm flex-1">
+                  <div>
+                    <span className="text-gray-500 block text-xs mb-0.5">المورد</span>
+                    <strong>{purchase.supplier?.name || "—"}</strong>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-xs mb-0.5">رقم فاتورة المورد</span>
+                    <strong>{purchase.supplierInvoiceNo || "—"}</strong>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-xs mb-0.5">طريقة الدفع</span>
+                    <strong>{paymentMethodLabel(purchase.paymentMethod)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-xs mb-0.5">إجمالي الفاتورة</span>
+                    <strong>{parseFloat(purchase.netTotal).toFixed(2)} ج.م</strong>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-500 block text-xs mb-0.5">رقم فاتورة المورد</span>
-                  <strong>{purchase.supplierInvoiceNo || "—"}</strong>
-                </div>
-                <div>
-                  <span className="text-gray-500 block text-xs mb-0.5">طريقة الدفع</span>
-                  <strong>{paymentMethodLabel(purchase.paymentMethod)}</strong>
-                </div>
-                <div>
-                  <span className="text-gray-500 block text-xs mb-0.5">إجمالي الفاتورة</span>
-                  <strong>{parseFloat(purchase.netTotal).toFixed(2)} ج.م</strong>
-                </div>
+                <button
+                  onClick={() => { setPurchase(null); setReturnItems([]); }}
+                  className="mr-4 text-orange-600 hover:text-orange-800 text-xs font-bold flex items-center gap-1 flex-shrink-0">
+                  <span className="material-icons-round text-sm">swap_horiz</span>
+                  تغيير الفاتورة
+                </button>
               </div>
 
               {/* Items table */}

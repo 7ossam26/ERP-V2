@@ -723,6 +723,21 @@ router.post("/:id/return", async (req, res, next) => {
           error: `كمية الإرجاع للصنف "${orig.item.name}" تتجاوز الكمية المتاحة للإرجاع`,
         });
       }
+      // Check current warehouse stock — cannot return more than what's physically in stock
+      const currentStock = await prisma.inventory.findUnique({
+        where: {
+          itemId_warehouseId: {
+            itemId: parseInt(ri.itemId),
+            warehouseId: purchase.warehouseId,
+          },
+        },
+      });
+      const availableQty = currentStock ? Number(currentStock.quantity) : 0;
+      if (Number(ri.quantity) > availableQty) {
+        return res.status(400).json({
+          error: `لا يوجد مخزون كافٍ للصنف "${orig.item.name}" — المتاح: ${availableQty}، المطلوب إرجاعه: ${ri.quantity}`,
+        });
+      }
     }
 
     // Calculate return amount (proportional discount applied)
@@ -778,6 +793,16 @@ router.post("/:id/return", async (req, res, next) => {
           data: { quantity: { decrement: Number(ri.quantity) } },
         });
       }
+
+      // Update purchase remaining & mark as RETURNED if fully returned
+      const newRemaining = Math.max(0, Number(purchase.remaining) - returnAmount);
+      await tx.purchase.update({
+        where: { id: purchaseId },
+        data: {
+          remaining: newRemaining,
+          paymentStatus: newRemaining === 0 ? "RETURNED" : purchase.paymentStatus,
+        },
+      });
 
       // Reverse financial effects based on original payment method
       const paidRatio =

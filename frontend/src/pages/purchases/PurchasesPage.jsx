@@ -48,6 +48,9 @@ const PurchasesPage = () => {
   const [createdPurchase, setCreatedPurchase] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState("");
+  const [selectedHistoryPurchase, setSelectedHistoryPurchase] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -365,6 +368,15 @@ const PurchasesPage = () => {
     }
   };
 
+  const pmLabel = (m) => ({ CASH:"نقدي", CREDIT:"كريدت", DEFERRED:"آجل", MIXED:"متنوع", cash:"نقدي", credit:"كريدت", deferred:"آجل", mixed:"متنوع" })[m] || m;
+  const psLabel = (s) => ({ PAID:"مدفوع", PARTIALLY_PAID:"جزئي", UNPAID:"غير مدفوع", RETURNED:"مرتجع" })[s] || s;
+  const psClass = (s) => s==="PAID" ? "bg-green-100 text-green-800" : s==="PARTIALLY_PAID" ? "bg-yellow-100 text-yellow-800" : s==="RETURNED" ? "bg-orange-100 text-orange-800" : "bg-red-100 text-red-800";
+  const filteredHistory = [...purchases].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).filter(p=>{
+    if (!historyFilter.trim()) return true;
+    const q = historyFilter.toLowerCase();
+    return String(p.id).includes(q) || (p.supplier?.name||"").toLowerCase().includes(q) || (p.supplierInvoiceNo||"").toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-6" dir="rtl">
       <PurchaseDetailsModal
@@ -372,10 +384,82 @@ const PurchasesPage = () => {
         onClose={() => setIsReceiptModalOpen(false)}
         purchase={createdPurchase}
       />
+      <PurchaseDetailsModal
+        isOpen={!!selectedHistoryPurchase}
+        onClose={() => setSelectedHistoryPurchase(null)}
+        purchase={selectedHistoryPurchase}
+      />
       <PurchaseReturnModal
         isOpen={isReturnModalOpen}
         onClose={() => setIsReturnModalOpen(false)}
       />
+      {isHistoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" style={{direction:"rtl"}}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border border-gray-100 dark:border-gray-700">
+            <div className="bg-blue-600 p-4 rounded-t-2xl text-white flex justify-between items-center flex-shrink-0">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined">receipt_long</span>
+                سجل المشتريات ({filteredHistory.length})
+              </h2>
+              <button onClick={()=>setIsHistoryOpen(false)} className="hover:bg-blue-700 p-2 rounded-full transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <div className="relative">
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                <input type="text" value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)}
+                  placeholder="فلترة برقم الفاتورة، اسم المورد، أو رقم فاتورة المورد..."
+                  className="w-full pr-10 pl-4 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:border-blue-500 text-right text-sm" autoFocus />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full text-sm text-right">
+                <thead className="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 sticky top-0">
+                  <tr>
+                    <th className="p-3">رقم الفاتورة</th>
+                    <th className="p-3">التاريخ</th>
+                    <th className="p-3">المورد</th>
+                    <th className="p-3">فاتورة المورد</th>
+                    <th className="p-3">الإجمالي</th>
+                    <th className="p-3">المدفوع</th>
+                    <th className="p-3">المتبقي</th>
+                    <th className="p-3">الدفع</th>
+                    <th className="p-3">الحالة</th>
+                    <th className="p-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredHistory.length === 0
+                    ? <tr><td colSpan={10} className="p-8 text-center text-gray-400">لا توجد فواتير</td></tr>
+                    : filteredHistory.map(p=>(
+                      <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                        <td className="p-3 font-mono font-bold text-blue-600">#{p.id}</td>
+                        <td className="p-3 text-gray-500">{new Date(p.createdAt).toLocaleDateString("ar-EG")}</td>
+                        <td className="p-3 font-medium">{p.supplier?.name||"—"}</td>
+                        <td className="p-3 text-gray-500">{p.supplierInvoiceNo||"—"}</td>
+                        <td className="p-3 font-bold">{parseFloat(p.netTotal).toFixed(2)}</td>
+                        <td className="p-3 text-green-600">{parseFloat(p.paidAmount).toFixed(2)}</td>
+                        <td className="p-3 text-red-600 font-bold">{parseFloat(p.remaining).toFixed(2)}</td>
+                        <td className="p-3">{pmLabel(p.paymentMethod)}</td>
+                        <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${psClass(p.paymentStatus)}`}>{psLabel(p.paymentStatus)}</span></td>
+                        <td className="p-3">
+                          <button onClick={()=>setSelectedHistoryPurchase(p)} className="text-blue-600 hover:text-blue-800 transition-colors" title="عرض التفاصيل">
+                            <span className="material-symbols-outlined text-xl">visibility</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl text-left">
+              <button onClick={()=>setIsHistoryOpen(false)} className="px-5 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 font-bold text-sm">إغلاق</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Modal
         isOpen={isItemModalOpen}
@@ -403,6 +487,12 @@ const PurchasesPage = () => {
             We can keep it or rely on MainLayout. Since MainLayout has a back button to Dashboard, this might be redundant, 
             but for fidelity to the HTML, I'll keep it as a link to Dashboard. */}
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsHistoryOpen(true)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
+              <span className="material-symbols-outlined text-sm">receipt_long</span>
+              <span>سجل المشتريات</span>
+            </button>
             <button
               onClick={() => setIsReturnModalOpen(true)}
               className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">

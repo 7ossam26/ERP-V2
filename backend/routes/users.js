@@ -69,4 +69,35 @@ router.get("/branch-managers/:branchId", async (req, res, next) => {
     }
 });
 
+/**
+ * Get all managers/admins across all branches
+ * Used by non-branch contexts (e.g. purchase returns)
+ */
+router.get("/all-managers", async (req, res, next) => {
+    try {
+        const managers = await prisma.user.findMany({
+            where: {
+                isActive: true,
+                role: {
+                    name: {
+                        in: ["Superadmin", "General Manager", "Manager", "Branch Manager"]
+                    }
+                }
+            },
+            select: {
+                id: true,
+                name: true,
+                username: true,
+                role: {
+                    select: { name: true }
+                }
+            },
+            orderBy: { name: "asc" }
+        });
+        res.json(managers);
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;

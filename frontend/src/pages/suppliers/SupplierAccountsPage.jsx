@@ -348,13 +348,17 @@ const SupplierAccountsPage = () => {
                                                                         ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
                                                                         : purchase.paymentStatus === "PARTIALLY_PAID"
                                                                             ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-                                                                            : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                                                            : purchase.paymentStatus === "RETURNED"
+                                                                                ? "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
+                                                                                : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
                                                                         }`}>
                                                                     {purchase.paymentStatus === "PAID"
                                                                         ? "مدفوع"
                                                                         : purchase.paymentStatus === "PARTIALLY_PAID"
                                                                             ? "غير مدفوع بالكامل"
-                                                                            : "غير مدفوع"}
+                                                                            : purchase.paymentStatus === "RETURNED"
+                                                                                ? "مرتجع"
+                                                                                : "غير مدفوع"}
                                                                 </span>
                                                             </td>
                                                             <td className="px-4 py-3">
@@ -453,7 +457,7 @@ const SupplierAccountsPage = () => {
                             className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5">
                             <option value="">الكل</option>
                             {purchases.filter(
-                                (p) => p.paymentStatus !== "PAID"
+                                (p) => p.paymentStatus !== "PAID" && p.paymentStatus !== "RETURNED"
                             ).map((purchase) => (
                                 <option key={purchase.id} value={purchase.id}>
                                     #{purchase.id} - {Number(purchase.remaining).toFixed(2)} EGP

@@ -27,25 +27,15 @@ const ManagerAuthModal = ({
 
   const fetchManagers = async () => {
     try {
-      // Should add a generic getManagers endpoint or use existing branch one?
-      // If branchId provided use it, else get all admins/managers (TODO: Implement generic call if needed)
-      // For now, if branchId is missing, assume current user's branch or global fetch?
-      // Reusing getBranchManagers for now as our primary usecase is POS in a branch.
-      // If branchId is null, we might need to handle it.
-
-      // Fallback: If no branchId, maybe fetch all managers?
-      // Let's rely on the passed branchId for now, typical in POS.
-      const targetBranchId = branchId || 1; // Default to main branch if missing (risky?)
-      const data = await userService.getBranchManagers(targetBranchId);
+      const data = branchId
+        ? await userService.getBranchManagers(branchId)
+        : await userService.getAllManagers();
       setManagers(data || []);
       if (data && data.length > 0) {
-        // Try to find a manager different from current user if possible?
-        // No, just select first one.
         setSelectedManager(data[0].username);
       }
     } catch (error) {
       console.error("Failed to fetch managers:", error);
-      // Don't show error toast on mount repeatedly
     }
   };
 

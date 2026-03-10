@@ -1213,3 +1213,9 @@ CREATE TABLE `purchase_return_items` (
 ALTER TABLE `purchase_returns` ADD CONSTRAINT `purchase_returns_purchase_id_fkey` FOREIGN KEY (`purchase_id`) REFERENCES `purchases`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE `purchase_return_items` ADD CONSTRAINT `purchase_return_items_purchase_return_id_fkey` FOREIGN KEY (`purchase_return_id`) REFERENCES `purchase_returns`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE `purchase_return_items` ADD CONSTRAINT `purchase_return_items_item_id_fkey` FOREIGN KEY (`item_id`) REFERENCES `items`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Migration: 20260310000003_add_returned_payment_status
+ALTER TABLE \ MODIFY COLUMN \ ENUM('PAID', 'PARTIALLY_PAID', 'UNPAID', 'RETURNED') NOT NULL DEFAULT 'UNPAID';
+
+-- Migration: 20260310000003_add_returned_payment_status
+ALTER TABLE `purchases` MODIFY COLUMN `payment_status` ENUM('PAID', 'PARTIALLY_PAID', 'UNPAID', 'RETURNED') NOT NULL DEFAULT 'UNPAID';
