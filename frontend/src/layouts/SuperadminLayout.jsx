@@ -18,6 +18,7 @@ const SuperadminLayout = () => {
     { path: "/superadmin/users", icon: "people", label: "Users" },
     { path: "/superadmin/roles", icon: "badge", label: "Roles & Permissions" },
     { path: "/superadmin/audit-logs", icon: "history", label: "Audit Logs" },
+    { path: "/superadmin/reset-database", icon: "delete_sweep", label: "Database Reset" },
   ];
 
   const SidebarContent = () => (

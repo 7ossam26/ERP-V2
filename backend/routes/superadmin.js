@@ -443,4 +443,207 @@ router.put("/roles/:id/permissions", async (req, res) => {
   }
 });
 
+// ============================================
+// Database Reset
+// ============================================
+
+// Helper: verify manager credentials before any reset
+async function verifyManager(managerUsername, managerPassword) {
+  if (!managerUsername || !managerPassword) {
+    const err = new Error("Manager credentials are required");
+    err.status = 400;
+    throw err;
+  }
+  const manager = await prisma.user.findUnique({
+    where: { username: managerUsername },
+    include: { role: { select: { name: true } } },
+  });
+  if (!manager || !manager.isActive) {
+    const err = new Error("Invalid manager credentials");
+    err.status = 401;
+    throw err;
+  }
+  const valid = await bcrypt.compare(managerPassword, manager.password);
+  if (!valid) {
+    const err = new Error("Invalid manager credentials");
+    err.status = 401;
+    throw err;
+  }
+  const roleName = manager.role?.name;
+  const hasSensitive =
+    manager.hasSensitiveAccess ||
+    ["Superadmin", "Admin"].includes(roleName);
+  if (!hasSensitive) {
+    const err = new Error("Manager does not have sufficient access for this operation");
+    err.status = 403;
+    throw err;
+  }
+}
+
+router.post("/reset/:category", async (req, res) => {
+  const { category } = req.params;
+  const { managerUsername, managerPassword } = req.body;
+
+  try {
+    await verifyManager(managerUsername, managerPassword);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message });
+  }
+
+  try {
+    switch (category) {
+      case "all-transactions":
+        // Delete all transactional data in FK-safe order
+        await prisma.$transaction([
+          prisma.saleItem.deleteMany({}),
+          prisma.sale.deleteMany({}),
+          prisma.purchaseReturnItem.deleteMany({}),
+          prisma.purchaseReturn.deleteMany({}),
+          prisma.purchaseItem.deleteMany({}),
+          prisma.purchase.deleteMany({}),
+          prisma.stockTransferItem.deleteMany({}),
+          prisma.stockTransfer.deleteMany({}),
+          prisma.payroll.deleteMany({}),
+          prisma.employeeTransaction.deleteMany({}),
+          prisma.expense.deleteMany({}),
+          prisma.shift.deleteMany({}),
+          prisma.cashTransfer.deleteMany({}),
+          prisma.deposit.deleteMany({}),
+          prisma.withdrawal.deleteMany({}),
+          prisma.deliveryManTransaction.deleteMany({}),
+        ]);
+        break;
+
+      case "sales":
+        await prisma.$transaction([
+          prisma.saleItem.deleteMany({}),
+          prisma.sale.deleteMany({}),
+        ]);
+        break;
+
+      case "purchases":
+        await prisma.$transaction([
+          prisma.purchaseReturnItem.deleteMany({}),
+          prisma.purchaseReturn.deleteMany({}),
+          prisma.purchaseItem.deleteMany({}),
+          prisma.purchase.deleteMany({}),
+        ]);
+        break;
+
+      case "treasury":
+        await prisma.$transaction([
+          prisma.expense.deleteMany({}),
+          prisma.cashTransfer.deleteMany({}),
+          prisma.deposit.deleteMany({}),
+          prisma.withdrawal.deleteMany({}),
+        ]);
+        break;
+
+      case "cash-transfers":
+        await prisma.cashTransfer.deleteMany({});
+        break;
+
+      case "deposits":
+        await prisma.deposit.deleteMany({});
+        break;
+
+      case "inventory-movements":
+        await prisma.$transaction([
+          prisma.stockTransferItem.deleteMany({}),
+          prisma.stockTransfer.deleteMany({}),
+        ]);
+        break;
+
+      case "hr":
+        await prisma.employeeTransaction.deleteMany({});
+        break;
+
+      case "payroll":
+        await prisma.payroll.deleteMany({});
+        break;
+
+      case "advances":
+        await prisma.employeeTransaction.deleteMany({ where: { type: "ADVANCE" } });
+        break;
+
+      case "shifts":
+        // Sale references shift with onDelete: Restrict — null it out first
+        await prisma.sale.updateMany({ data: { shiftId: null } });
+        await prisma.shift.deleteMany({});
+        break;
+
+      case "items": {
+        // Check for transaction references before deleting master data
+        const salesCount = await prisma.sale.count();
+        const purchasesCount = await prisma.purchase.count();
+        if (salesCount > 0 || purchasesCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete items while sales or purchases exist. Clear transactions first.",
+          });
+        }
+        await prisma.$transaction([
+          prisma.bomItem.deleteMany({}),
+          prisma.bOM.deleteMany({}),
+          prisma.itemSupplier.deleteMany({}),
+          prisma.itemCategory.deleteMany({}),
+          prisma.inventory.deleteMany({}),
+          prisma.item.deleteMany({}),
+          prisma.category.deleteMany({}),
+        ]);
+        break;
+      }
+
+      case "clients": {
+        const salesCount = await prisma.sale.count();
+        if (salesCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete clients while sales exist. Clear sales first.",
+          });
+        }
+        await prisma.client.deleteMany({});
+        break;
+      }
+
+      case "suppliers": {
+        const purchasesCount = await prisma.purchase.count();
+        if (purchasesCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete suppliers while purchases exist. Clear purchases first.",
+          });
+        }
+        await prisma.$transaction([
+          prisma.supplierPayment.deleteMany({}),
+          prisma.supplierAccount.deleteMany({}),
+          prisma.itemSupplier.deleteMany({}),
+          prisma.supplier.deleteMany({}),
+        ]);
+        break;
+      }
+
+      case "employees": {
+        const salesCount = await prisma.sale.count();
+        if (salesCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete employees while sales exist. Clear sales first.",
+          });
+        }
+        await prisma.$transaction([
+          prisma.payroll.deleteMany({}),
+          prisma.employeeTransaction.deleteMany({}),
+          prisma.employee.deleteMany({}),
+        ]);
+        break;
+      }
+
+      default:
+        return res.status(400).json({ error: "Unknown reset category" });
+    }
+
+    res.json({ message: "Reset completed successfully" });
+  } catch (error) {
+    console.error(`Reset error [${category}]:`, error);
+    res.status(500).json({ error: "Reset failed", details: error.message });
+  }
+});
+
 module.exports = router;
