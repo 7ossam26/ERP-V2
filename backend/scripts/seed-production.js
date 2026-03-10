@@ -157,9 +157,9 @@ async function main() {
 
     // 3. INFRASTRUCTURE: MAIN BRANCH
     // -------------------------------------------------------------
-    const MAIN_BRANCH_NAME = "Main Branch";
-    const MAIN_WAREHOUSE_NAME = "Main Warehouse";
-    const MAIN_TREASURY_NAME = "Main Treasury";
+    const MAIN_BRANCH_NAME = "الفرع الرئيسي";
+    const MAIN_WAREHOUSE_NAME = "المخزن الرئيسي";
+    const MAIN_TREASURY_NAME = "الخزنة الرئيسية";
 
     // Warehouse
     let warehouseId;
