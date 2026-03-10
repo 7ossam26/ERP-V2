@@ -894,11 +894,15 @@ const POSPage = () => {
   // Handle quick payment with confirmation
   const handleQuickPayment = (method) => {
     if (!selectedClient && !isWalkIn) {
-      toast.error("يرجى اختيار العميل أولاً");
-      if (clientInputRef.current) {
-        clientInputRef.current.focus();
+      if (method === "cash") {
+        setIsWalkIn(true);
+      } else {
+        toast.error("يرجى اختيار العميل أولاً");
+        if (clientInputRef.current) {
+          clientInputRef.current.focus();
+        }
+        return;
       }
-      return;
     }
     if (cartItems.length === 0) {
       toast.error("السلة فارغة");
