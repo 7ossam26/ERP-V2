@@ -131,6 +131,7 @@ const allowedOrigins = process.env.FRONTEND_URL
 if (process.env.NODE_ENV !== "production") {
   const localOrigins = [
     "http://localhost:5173",
+    "http://localhost:5174",
     "http://localhost:3000",
     "http://localhost:3001",
   ];

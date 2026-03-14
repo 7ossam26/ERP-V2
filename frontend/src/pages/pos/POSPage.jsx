@@ -419,14 +419,20 @@ const POSPage = () => {
             price: parseFloat(bom.price) || 0, // Use BOM's own price
             purchasePrice: 0,
             unit: bom.unit || "piece", // Use BOM's own unit
-            // Use BOM's own categories, fall back to output item categories
+            // Normalize BOM categories to IDs (same format as inventory items) for POS filtering
             categories:
-              bom.categories?.map((bc) => bc.category || bc) ||
-              (outputItem ? outputItem.categories : []),
+              bom.categories?.map((bc) =>
+                bc.category ? bc.category.id : bc.categoryId ?? bc.id ?? bc,
+              ) ||
+              (outputItem ? outputItem.categories.map((c) => c.category?.id ?? c.categoryId ?? c) : []),
             quantity: quantity,
             hasBom: true,
             hasLinkedOutput: !!bom.outputItemId, // true = real warehouse stock, false = theoretical max
-            showInPos: true,
+            showInPos: outputItem
+              ? outputItem.showInPos !== false
+              : bom.outputItem
+                ? bom.outputItem.showInPos !== false
+                : true,
           };
         });
 
