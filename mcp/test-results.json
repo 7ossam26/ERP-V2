@@ -1,0 +1,736 @@
+{
+  "timestamp": "2026-03-14T06:01:31.002Z",
+  "environment": "production — https://elghonemy.kiko-tech.com",
+  "roles": {
+    "admin": "Admin (id=2) — full back-office, hasSensitiveAccess=true, no POS",
+    "manager": "Manager (id=3) — POS + expenses + employees + reports, no sensitive",
+    "cashier": "Employee (id=4) — POS + SALES + CLIENTS + ITEMS only"
+  },
+  "results": {
+    "admin": {
+      "username": "test_mcp_admin",
+      "roleId": 2,
+      "hasSensitiveAccess": true,
+      "tests": [
+        {
+          "name": "A1",
+          "description": "GET /auth/me — token validity & role check",
+          "expectedStatuses": [
+            200
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "{\"id\":6,\"name\":\"Test test_mcp_admin\",\"username\":\"test_mcp_admin\"}"
+        },
+        {
+          "name": "B1",
+          "description": "GET /clients — client list access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[3 items]\""
+        },
+        {
+          "name": "B2",
+          "description": "GET /items — item catalog access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[24 items]\""
+        },
+        {
+          "name": "B3",
+          "description": "GET /sales — sales list access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[2 items]\""
+        },
+        {
+          "name": "B4",
+          "description": "GET /purchases — purchase access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[1 items]\""
+        },
+        {
+          "name": "B5",
+          "description": "GET /employees — HR employee access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[0 items]\""
+        },
+        {
+          "name": "B6",
+          "description": "GET /expenses — treasury expenses access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[1 items]\""
+        },
+        {
+          "name": "B7",
+          "description": "GET /reports/sales-summary — reports access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 404,
+          "pass": false,
+          "snippet": "{\"error\":\"API endpoint not found\"}"
+        },
+        {
+          "name": "B8",
+          "description": "GET /treasuries — treasury configuration access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[5 items]\""
+        },
+        {
+          "name": "B9",
+          "description": "GET /warehouses — warehouse configuration access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[5 items]\""
+        },
+        {
+          "name": "B10",
+          "description": "GET /shifts — shift management access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "{\"data\":[{\"id\":4,\"userId\":3,\"branchId\":2,\"type\":\"EVENING\",\"startTime\":\"2026-02-04T22:28:40.323Z\",\"endTime\":\"2026-02-04T2"
+        },
+        {
+          "name": "C1",
+          "description": "POST /clients — create new client",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 201,
+          "pass": true,
+          "snippet": "{\"id\":4,\"name\":\"TEST_MCP_admin_CLIENT\",\"phoneNumber\":\"01000000000\"}"
+        },
+        {
+          "name": "C2",
+          "description": "POST /categories — create item category",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 201,
+          "pass": true,
+          "snippet": "{\"id\":8,\"name\":\"TEST_MCP_admin_CAT\",\"createdAt\":\"2026-03-14T06:01:25.222Z\"}"
+        },
+        {
+          "name": "C3",
+          "description": "POST /items — create new inventory item",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 201,
+          "pass": true,
+          "snippet": "{\"id\":28,\"name\":\"TEST_MCP_admin_ITEM\",\"price\":\"99.99\"}"
+        },
+        {
+          "name": "D1",
+          "description": "DELETE /clients/:id — delete a client (sensitive)",
+          "expectedStatuses": [
+            200,
+            204,
+            403,
+            404
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. CLIENTS module permission required.\",\"resolution\":\"Please contact your administrator to request"
+        },
+        {
+          "name": "D2",
+          "description": "DELETE /items/:id — delete an item (sensitive)",
+          "expectedStatuses": [
+            200,
+            204,
+            403,
+            404
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. ITEMS module permission required.\",\"resolution\":\"Please contact your administrator to request a"
+        },
+        {
+          "name": "D3",
+          "description": "POST /superadmin/reset/:cat — manager verify gate (wrong creds)",
+          "expectedStatuses": [
+            401,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E1",
+          "description": "GET /superadmin/users — must be blocked (not superadmin)",
+          "expectedStatuses": [
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E2",
+          "description": "POST /superadmin/roles — must be blocked (not superadmin)",
+          "expectedStatuses": [
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E3",
+          "description": "No token → GET /clients — must return 401",
+          "expectedStatuses": [
+            401
+          ],
+          "actualStatus": 401,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. No token provided.\",\"resolution\":\"Please log in to access this resource.\"}"
+        },
+        {
+          "name": "E4",
+          "description": "Bad token → GET /clients — must return 401",
+          "expectedStatuses": [
+            401
+          ],
+          "actualStatus": 401,
+          "pass": true,
+          "snippet": "{\"error\":\"Invalid or expired token.\",\"resolution\":\"Please log out and log back in to refresh your session.\"}"
+        }
+      ],
+      "passed": 20,
+      "failed": 1,
+      "total": 21
+    },
+    "manager": {
+      "username": "test_mcp_manager",
+      "roleId": 3,
+      "hasSensitiveAccess": false,
+      "tests": [
+        {
+          "name": "A1",
+          "description": "GET /auth/me — token validity & role check",
+          "expectedStatuses": [
+            200
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "{\"id\":7,\"name\":\"Test test_mcp_manager\",\"username\":\"test_mcp_manager\"}"
+        },
+        {
+          "name": "B1",
+          "description": "GET /clients — client list access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[6 items]\""
+        },
+        {
+          "name": "B2",
+          "description": "GET /items — item catalog access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[26 items]\""
+        },
+        {
+          "name": "B3",
+          "description": "GET /sales — sales list access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[0 items]\""
+        },
+        {
+          "name": "B4",
+          "description": "GET /purchases — purchase access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. PURCHASES module permission required.\",\"resolution\":\"Please contact your administrator to reque"
+        },
+        {
+          "name": "B5",
+          "description": "GET /employees — HR employee access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 500,
+          "pass": false,
+          "snippet": "{\"error\":\"Failed to fetch employees\",\"message\":\"\\nInvalid `prisma.employee.findMany()` invocation:\\n\\n{\\n  where: {\\n   "
+        },
+        {
+          "name": "B6",
+          "description": "GET /expenses — treasury expenses access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 500,
+          "pass": false,
+          "snippet": "{\"error\":\"Internal Server Error\",\"message\":\"Something went wrong. Please try again later.\",\"stack\":\"PrismaClientValidati"
+        },
+        {
+          "name": "B7",
+          "description": "GET /reports/sales-summary — reports access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 404,
+          "pass": false,
+          "snippet": "{\"error\":\"API endpoint not found\"}"
+        },
+        {
+          "name": "B8",
+          "description": "GET /treasuries — treasury configuration access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[1 items]\""
+        },
+        {
+          "name": "B9",
+          "description": "GET /warehouses — warehouse configuration access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[5 items]\""
+        },
+        {
+          "name": "B10",
+          "description": "GET /shifts — shift management access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "{\"data\":[{\"id\":1,\"userId\":3,\"branchId\":1,\"type\":\"EVENING\",\"startTime\":\"2026-02-04T17:55:01.666Z\",\"endTime\":\"2026-02-04T2"
+        },
+        {
+          "name": "C1",
+          "description": "POST /clients — create new client",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 201,
+          "pass": true,
+          "snippet": "{\"id\":7,\"name\":\"TEST_MCP_manager_CLIENT\",\"phoneNumber\":\"01000000000\"}"
+        },
+        {
+          "name": "C2",
+          "description": "POST /categories — create item category",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. CREATES_CATEGORIES permission required to create this item.\",\"resolution\":\"Contact your adminis"
+        },
+        {
+          "name": "C3",
+          "description": "POST /items — create new inventory item",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. CREATES_ITEMS permission required to create this item.\",\"resolution\":\"Contact your administrato"
+        },
+        {
+          "name": "D1",
+          "description": "DELETE /clients/:id — delete a client (sensitive)",
+          "expectedStatuses": [
+            200,
+            204,
+            403,
+            404
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. CLIENTS module permission required.\",\"resolution\":\"Please contact your administrator to request"
+        },
+        {
+          "name": "D2",
+          "description": "DELETE /items/:id — delete an item (sensitive)",
+          "expectedStatuses": [
+            200,
+            204,
+            403,
+            404
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. ITEMS module permission required.\",\"resolution\":\"Please contact your administrator to request a"
+        },
+        {
+          "name": "D3",
+          "description": "POST /superadmin/reset/:cat — manager verify gate (wrong creds)",
+          "expectedStatuses": [
+            401,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E1",
+          "description": "GET /superadmin/users — must be blocked (not superadmin)",
+          "expectedStatuses": [
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E2",
+          "description": "POST /superadmin/roles — must be blocked (not superadmin)",
+          "expectedStatuses": [
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E3",
+          "description": "No token → GET /clients — must return 401",
+          "expectedStatuses": [
+            401
+          ],
+          "actualStatus": 401,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. No token provided.\",\"resolution\":\"Please log in to access this resource.\"}"
+        },
+        {
+          "name": "E4",
+          "description": "Bad token → GET /clients — must return 401",
+          "expectedStatuses": [
+            401
+          ],
+          "actualStatus": 401,
+          "pass": true,
+          "snippet": "{\"error\":\"Invalid or expired token.\",\"resolution\":\"Please log out and log back in to refresh your session.\"}"
+        }
+      ],
+      "passed": 18,
+      "failed": 3,
+      "total": 21
+    },
+    "cashier": {
+      "username": "test_mcp_cashier",
+      "roleId": 4,
+      "hasSensitiveAccess": false,
+      "tests": [
+        {
+          "name": "A1",
+          "description": "GET /auth/me — token validity & role check",
+          "expectedStatuses": [
+            200
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "{\"id\":8,\"name\":\"Test test_mcp_cashier\",\"username\":\"test_mcp_cashier\"}"
+        },
+        {
+          "name": "B1",
+          "description": "GET /clients — client list access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[9 items]\""
+        },
+        {
+          "name": "B2",
+          "description": "GET /items — item catalog access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[26 items]\""
+        },
+        {
+          "name": "B3",
+          "description": "GET /sales — sales list access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[0 items]\""
+        },
+        {
+          "name": "B4",
+          "description": "GET /purchases — purchase access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. PURCHASES module permission required.\",\"resolution\":\"Please contact your administrator to reque"
+        },
+        {
+          "name": "B5",
+          "description": "GET /employees — HR employee access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 500,
+          "pass": false,
+          "snippet": "{\"error\":\"Failed to fetch employees\",\"message\":\"\\nInvalid `prisma.employee.findMany()` invocation:\\n\\n{\\n  where: {\\n   "
+        },
+        {
+          "name": "B6",
+          "description": "GET /expenses — treasury expenses access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 500,
+          "pass": false,
+          "snippet": "{\"error\":\"Internal Server Error\",\"message\":\"Something went wrong. Please try again later.\",\"stack\":\"PrismaClientValidati"
+        },
+        {
+          "name": "B7",
+          "description": "GET /reports/sales-summary — reports access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 404,
+          "pass": false,
+          "snippet": "{\"error\":\"API endpoint not found\"}"
+        },
+        {
+          "name": "B8",
+          "description": "GET /treasuries — treasury configuration access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[1 items]\""
+        },
+        {
+          "name": "B9",
+          "description": "GET /warehouses — warehouse configuration access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 200,
+          "pass": true,
+          "snippet": "\"[5 items]\""
+        },
+        {
+          "name": "B10",
+          "description": "GET /shifts — shift management access",
+          "expectedStatuses": [
+            200,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. One of the following permissions is required: SHIFTS, REPORTS\",\"resolution\":\"Contact your admin"
+        },
+        {
+          "name": "C1",
+          "description": "POST /clients — create new client",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 201,
+          "pass": true,
+          "snippet": "{\"id\":10,\"name\":\"TEST_MCP_cashier_CLIENT\",\"phoneNumber\":\"01000000000\"}"
+        },
+        {
+          "name": "C2",
+          "description": "POST /categories — create item category",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. CREATES_CATEGORIES permission required to create this item.\",\"resolution\":\"Contact your adminis"
+        },
+        {
+          "name": "C3",
+          "description": "POST /items — create new inventory item",
+          "expectedStatuses": [
+            201,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. CREATES_ITEMS permission required to create this item.\",\"resolution\":\"Contact your administrato"
+        },
+        {
+          "name": "D1",
+          "description": "DELETE /clients/:id — delete a client (sensitive)",
+          "expectedStatuses": [
+            200,
+            204,
+            403,
+            404
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. This operation requires sensitive access permissions.\",\"resolution\":\"Update and delete operatio"
+        },
+        {
+          "name": "D2",
+          "description": "DELETE /items/:id — delete an item (sensitive)",
+          "expectedStatuses": [
+            200,
+            204,
+            403,
+            404
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. This operation requires sensitive access permissions.\",\"resolution\":\"Update and delete operatio"
+        },
+        {
+          "name": "D3",
+          "description": "POST /superadmin/reset/:cat — manager verify gate (wrong creds)",
+          "expectedStatuses": [
+            401,
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E1",
+          "description": "GET /superadmin/users — must be blocked (not superadmin)",
+          "expectedStatuses": [
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E2",
+          "description": "POST /superadmin/roles — must be blocked (not superadmin)",
+          "expectedStatuses": [
+            403
+          ],
+          "actualStatus": 403,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. Superadmin privileges required.\",\"resolution\":\"This action is restricted to superadmin users on"
+        },
+        {
+          "name": "E3",
+          "description": "No token → GET /clients — must return 401",
+          "expectedStatuses": [
+            401
+          ],
+          "actualStatus": 401,
+          "pass": true,
+          "snippet": "{\"error\":\"Access denied. No token provided.\",\"resolution\":\"Please log in to access this resource.\"}"
+        },
+        {
+          "name": "E4",
+          "description": "Bad token → GET /clients — must return 401",
+          "expectedStatuses": [
+            401
+          ],
+          "actualStatus": 401,
+          "pass": true,
+          "snippet": "{\"error\":\"Invalid or expired token.\",\"resolution\":\"Please log out and log back in to refresh your session.\"}"
+        }
+      ],
+      "passed": 18,
+      "failed": 3,
+      "total": 21
+    }
+  },
+  "summary": {
+    "admin": "20/21 passed",
+    "manager": "18/21 passed",
+    "cashier": "18/21 passed"
+  }
+}

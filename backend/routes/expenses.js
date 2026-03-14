@@ -20,7 +20,7 @@ router.get("/", async (req, res, next) => {
             });
 
             if (branches.length > 0) {
-                const treasuryIds = branches.map(b => b.treasuryId);
+                const treasuryIds = branches.map(b => b.treasuryId).filter(id => id != null);
                 whereClause.treasuryId = { in: treasuryIds };
             } else {
                 // User has branch access but no branches found (shouldn't happen technically due to auth middleware but good for safety)
