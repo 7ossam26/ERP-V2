@@ -13,7 +13,7 @@ const {
 router.use(authenticateToken);
 
 // GET all treasuries
-router.get("/", async (req, res) => {
+router.get("/", requirePermission("TREASURIES"), async (req, res) => {
   try {
     const branchFilter = await getUserBranchFilter(req.user.id);
 

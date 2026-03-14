@@ -14,7 +14,7 @@ const getMonthDateRange = (month, year) => {
 router.use(authenticateToken);
 
 // GET all employees (with calculated current month stats)
-router.get("/", async (req, res) => {
+router.get("/", requirePermission("EMPLOYEES"), async (req, res) => {
   try {
     const { month, year } = req.query;
     const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
