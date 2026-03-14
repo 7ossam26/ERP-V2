@@ -30,6 +30,12 @@ ChartJS.register(
   Filler,
 );
 
+const getLocalToday = () => {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date - offset).toISOString().slice(0, 10);
+};
+
 const GeneralReportPage = () => {
   const currentUser = AuthService.getCurrentUser();
   console.log("Logged In User:", currentUser); // DEBUG USER ROLE
@@ -38,9 +44,8 @@ const GeneralReportPage = () => {
   const [error, setError] = useState(null);
   const [branches, setBranches] = useState([]);
   const [filters, setFilters] = useState({
-    startDate: "",
-    endDate: "",
-    period: "today",
+    startDate: getLocalToday(),
+    endDate: getLocalToday(),
     branchId: BranchFilterHelper.getDefaultBranchId(currentUser),
   });
 
@@ -71,31 +76,8 @@ const GeneralReportPage = () => {
       setLoading(true);
       setError(null);
 
-      // Calc dates based on period
-      let startDate = new Date();
-      let endDate = new Date(); // Defaults to now
-
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
-
-      if (filters.period === "yesterday") {
-        startDate.setDate(startDate.getDate() - 1);
-        endDate.setDate(endDate.getDate() - 1);
-        endDate.setHours(23, 59, 59, 999);
-      } else if (filters.period === "week") {
-        startDate.setDate(startDate.getDate() - 7);
-      } else if (filters.period === "month") {
-        startDate.setDate(1);
-      }
-
-      const toLocalISOString = (date) => {
-        const offset = date.getTimezoneOffset() * 60000;
-        const localISOTime = new Date(date - offset).toISOString().slice(0, 10);
-        return localISOTime;
-      };
-
-      const formattedStart = toLocalISOString(startDate);
-      const formattedEnd = toLocalISOString(endDate);
+      const formattedStart = filters.startDate;
+      const formattedEnd = filters.endDate;
 
       console.log("Fetching report with:", {
         formattedStart,
@@ -231,24 +213,39 @@ const GeneralReportPage = () => {
       {/* Filters Section */}
       <div className="bg-surface-light dark:bg-surface-dark p-4 rounded-2xl shadow-sm border border-border-light dark:border-border-dark mb-8">
         <div className="flex flex-wrap items-end gap-4">
-          <div className="w-full sm:w-auto flex-1 min-w-[200px]">
+          <div className="w-full sm:w-auto flex-1 min-w-[150px]">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              الفترة الزمنية
+              من تاريخ
             </label>
             <div className="relative">
-              <select
-                value={filters.period}
+              <input
+                type="date"
+                value={filters.startDate}
                 onChange={(e) =>
-                  setFilters({ ...filters, period: e.target.value })
+                  setFilters({ ...filters, startDate: e.target.value })
                 }
-                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
-                <option value="today">اليوم</option>
-                <option value="yesterday">أمس</option>
-                <option value="week">آخر 7 أيام</option>
-                <option value="month">هذا الشهر</option>
-              </select>
+                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm"
+              />
               <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
-                calendar_today
+                event
+              </span>
+            </div>
+          </div>
+          <div className="w-full sm:w-auto flex-1 min-w-[150px]">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              إلى تاريخ
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) =>
+                  setFilters({ ...filters, endDate: e.target.value })
+                }
+                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm"
+              />
+              <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
+                event
               </span>
             </div>
           </div>
