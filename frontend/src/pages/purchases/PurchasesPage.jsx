@@ -602,9 +602,20 @@ const PurchasesPage = () => {
                         className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 text-center text-text-light dark:text-text-dark"
                         type="number"
                         value={item.quantity}
-                        onChange={(e) =>
-                          updateItem(item.id, "quantity", e.target.value)
-                        }
+                        onChange={(e) => {
+                          const val = Math.max(1, Number(e.target.value));
+                          updateItem(item.id, "quantity", val);
+                        }}
+                        onWheel={(e) => {
+                          if (document.activeElement === e.target) {
+                            const delta = e.deltaY > 0 ? -1 : 1;
+                            const newVal = Math.max(
+                              1,
+                              Number(item.quantity) + delta,
+                            );
+                            updateItem(item.id, "quantity", newVal);
+                          }
+                        }}
                         min="1"
                       />
                     </td>
@@ -614,9 +625,21 @@ const PurchasesPage = () => {
                         placeholder="0.00"
                         type="number"
                         value={item.purchasePrice || ""}
-                        onChange={(e) =>
-                          updateItem(item.id, "purchasePrice", e.target.value)
-                        }
+                        onChange={(e) => {
+                          const val = Math.max(0, Number(e.target.value));
+                          updateItem(item.id, "purchasePrice", val);
+                        }}
+                        onWheel={(e) => {
+                          if (document.activeElement === e.target) {
+                            const delta = e.deltaY > 0 ? -1 : 1;
+                            const newVal = Math.max(
+                              0,
+                              Number(item.purchasePrice || 0) + delta,
+                            );
+                            updateItem(item.id, "purchasePrice", newVal);
+                          }
+                        }}
+                        min="0"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -625,9 +648,21 @@ const PurchasesPage = () => {
                         placeholder="0.00"
                         type="number"
                         value={item.sellPrice || ""}
-                        onChange={(e) =>
-                          updateItem(item.id, "sellPrice", e.target.value)
-                        }
+                        onChange={(e) => {
+                          const val = Math.max(0, Number(e.target.value));
+                          updateItem(item.id, "sellPrice", val);
+                        }}
+                        onWheel={(e) => {
+                          if (document.activeElement === e.target) {
+                            const delta = e.deltaY > 0 ? -1 : 1;
+                            const newVal = Math.max(
+                              0,
+                              Number(item.sellPrice || 0) + delta,
+                            );
+                            updateItem(item.id, "sellPrice", newVal);
+                          }
+                        }}
+                        min="0"
                       />
                     </td>
                     <td className="px-4 py-3 text-center">

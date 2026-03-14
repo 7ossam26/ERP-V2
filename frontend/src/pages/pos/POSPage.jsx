@@ -375,26 +375,21 @@ const POSPage = () => {
             ? inventoryItems.find((i) => i.id === bom.outputItemId)
             : null;
 
-          let quantity;
-          if (bom.outputItemId) {
-            // Use ACTUAL warehouse stock of the manufactured output
-            quantity = parseFloat(
-              (inventoryMap[bom.outputItemId] || 0).toFixed(2),
-            );
-          } else {
-            // No linked item → fall back to max possible production from raw materials
-            const maxProduction = bom.items.reduce((min, bomItem) => {
-              const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
-              const requiredQty = bomItem.quantity;
-              if (requiredQty <= 0) return min;
-              const possible = rawMaterialQty / requiredQty;
-              return Math.min(min, possible);
-            }, Infinity);
-            quantity =
-              maxProduction === Infinity
-                ? 0
-                : parseFloat(maxProduction.toFixed(2));
-          }
+          // Always calculate quantity from raw material availability.
+          // This works for both linked and unlinked BOMs, and supports
+          // "make on demand" café/food-service workflows where the
+          // output item typically has zero pre-manufactured stock.
+          const maxProduction = bom.items.reduce((min, bomItem) => {
+            const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
+            const requiredQty = parseFloat(bomItem.quantity);
+            if (requiredQty <= 0) return min;
+            const possible = rawMaterialQty / requiredQty;
+            return Math.min(min, possible);
+          }, Infinity);
+          const quantity =
+            maxProduction === Infinity
+              ? 0
+              : parseFloat(maxProduction.toFixed(2));
 
           // Map to Product Structure used by POS
           return {
@@ -451,9 +446,14 @@ const POSPage = () => {
     if (product.showInPos === false) return false;
 
     // Check if product belongs to selected category (many-to-many)
+    // product.categories can be an array of objects {id, name} (for BOMs)
+    // or an array of IDs (for non-BOM inventory items)
     const matchesCategory =
       activeCategory === "All" ||
-      (product.categories && product.categories.includes(activeCategory));
+      (product.categories &&
+        product.categories.some((c) =>
+          typeof c === "object" ? c.id === activeCategory : c === activeCategory,
+        ));
 
     const productName = product.name ? product.name.toLowerCase() : "";
     const matchesSearch = productName.includes(searchTerm.toLowerCase());
@@ -462,8 +462,9 @@ const POSPage = () => {
 
   // Handle product clicks - check unit type and show appropriate selector
   const handleProductClick = (product) => {
-    // Check stock availability first
-    if (!product.quantity || product.quantity <= 0) {
+    // For BOM products (make on demand), allow clicking even with qty=0.
+    // Their raw-material limits are enforced in addToCartWithQuantity.
+    if (!product.hasBom && (!product.quantity || product.quantity <= 0)) {
       toast.error(`الكمية غير متوفرة! المتاح: ${product.quantity || 0}`);
       return;
     }
@@ -516,9 +517,9 @@ const POSPage = () => {
     const existingQty = existingItem ? existingItem.quantity : 0;
     const totalRequested = existingQty + quantity;
 
-    // Skip stock check ONLY for unlinked BOM items (auto-manufactured on demand)
-    // Linked BOM items have real warehouse stock, so enforce the check
-    const skipStockCheck = product.hasBom && !product.hasLinkedOutput;
+    // Skip stock check for ALL BOM products — they are made on demand
+    // from raw materials. Availability is shown as max possible production.
+    const skipStockCheck = product.hasBom;
     if (!skipStockCheck && totalRequested > currentStock) {
       toast.error(`الكمية غير متوفرة! المتاح: ${currentStock}`);
       return false; // Return failure
