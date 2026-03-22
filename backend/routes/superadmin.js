@@ -560,6 +560,10 @@ router.post("/reset/:category", async (req, res) => {
         ]);
         break;
 
+      case "inventory-quantities":
+        await prisma.inventory.updateMany({ data: { quantity: 0 } });
+        break;
+
       case "hr":
         await prisma.employeeTransaction.deleteMany({});
         break;

@@ -44,6 +44,12 @@ const RESET_CATEGORIES = {
             description: "حذف جميع تحويلات المخزون بين المستودعات",
         },
         {
+            category: "inventory-quantities",
+            label: "تصفير كميات المخزون",
+            icon: "exposure_zero",
+            description: "تصفير جميع كميات الأصناف في المستودعات إلى صفر",
+        },
+        {
             category: "hr",
             label: "مسح بيانات الموارد البشرية",
             icon: "groups",
