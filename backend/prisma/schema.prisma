@@ -1,10 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
-  engineType = "binary"
+  provider      = "prisma-client-js"
+  output        = "./generated/client"
+  binaryTargets = ["native", "windows"]
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -61,58 +62,21 @@ model Role {
   @@map("roles")
 }
 
-enum Module {
-  // Module Access Permissions
-  HR
-  INVENTORY
-  INVENTORY_COUNT
-  STOCK_TRANSFER
-  POS
-  PURCHASES
-  SALES
-  REPORTS
-  TREASURIES
-  CASH_TRANSFER
-  TRANSFER_MANAGEMENT
-  BRANCHES
-  EMPLOYEES
-  CLIENTS
-  SUPPLIERS
-  SUPPLIER_ACCOUNTS
-  CATEGORIES
-  ITEMS
-  WAREHOUSES
-  SETTINGS
-  EXPENSES
-  SHIFTS
-  DELIVERY_SETTLEMENT
-
-  // Creation Permissions (CREATES)
-  CREATES_WAREHOUSES
-  CREATES_EMPLOYEES
-  CREATES_SUPPLIERS
-  CREATES_CLIENTS
-  CREATES_CATEGORIES
-  CREATES_ITEMS
-  CREATES_TREASURIES
-  CREATES_BRANCHES
-
-  DEPOSITS
-  CREATES_DEPOSITS
-  WITHDRAWALS
-  CREATES_WITHDRAWALS
-  DELIVERY_MEN
-  CREATES_DELIVERY_MEN
-  DELIVERY_ZONES
-  CREATES_DELIVERY_ZONES
-  CREATES_PRODUCTION
-  PRODUCTION
-}
+// NOTE: enum Module converted to String for SQLite compatibility
+// Valid values: HR, INVENTORY, INVENTORY_COUNT, STOCK_TRANSFER, POS, PURCHASES,
+// SALES, REPORTS, TREASURIES, CASH_TRANSFER, TRANSFER_MANAGEMENT, BRANCHES,
+// EMPLOYEES, CLIENTS, SUPPLIERS, SUPPLIER_ACCOUNTS, CATEGORIES, ITEMS,
+// WAREHOUSES, SETTINGS, EXPENSES, SHIFTS, DELIVERY_SETTLEMENT,
+// CREATES_WAREHOUSES, CREATES_EMPLOYEES, CREATES_SUPPLIERS, CREATES_CLIENTS,
+// CREATES_CATEGORIES, CREATES_ITEMS, CREATES_TREASURIES, CREATES_BRANCHES,
+// DEPOSITS, CREATES_DEPOSITS, WITHDRAWALS, CREATES_WITHDRAWALS,
+// DELIVERY_MEN, CREATES_DELIVERY_MEN, DELIVERY_ZONES, CREATES_DELIVERY_ZONES,
+// CREATES_PRODUCTION, PRODUCTION
 
 model Permission {
   id        Int     @id @default(autoincrement())
   roleId    Int     @map("role_id")
-  module    Module
+  module    String
   canAccess Boolean @default(false) @map("can_access")
 
   // Relations
@@ -125,14 +89,14 @@ model Permission {
 model AuditLog {
   id           Int      @id @default(autoincrement())
   userId       Int?     @map("user_id")
-  action       String   @db.VarChar(20)
-  targetEntity String   @map("target_entity") @db.VarChar(60)
-  targetId     String?  @map("target_id") @db.VarChar(40)
-  details      Json?
-  oldValues    Json?    @map("old_values")
-  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  action       String
+  targetEntity String   @map("target_entity")
+  targetId     String?  @map("target_id")
+  details      String?
+  oldValues    String?  @map("old_values")
+  ipAddress    String?  @map("ip_address")
   branchId     Int?     @map("branch_id")
-  rowHash      String?  @map("row_hash") @db.Char(64)
+  rowHash      String?  @map("row_hash")
   createdAt    DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -158,9 +122,9 @@ model Employee {
   phoneNumber         String   @map("phone_number")
   nationalId          String?  @map("national_id")
   workingDaysPerMonth Int      @default(26) @map("working_days_per_month")
-  workingHoursPerDay  Decimal  @default(8) @map("working_hours_per_day") @db.Decimal(4, 2)
+  workingHoursPerDay  Decimal  @default(8) @map("working_hours_per_day")
   weeklyHoliday       String   @default("Friday") @map("weekly_holiday")
-  salary              Decimal  @db.Decimal(10, 2)
+  salary              Decimal
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
@@ -174,14 +138,14 @@ model Employee {
 }
 
 model EmployeeTransaction {
-  id          Int             @id @default(autoincrement())
-  employeeId  Int             @map("employee_id")
-  type        TransactionType
-  amount      Decimal         @db.Decimal(10, 2)
-  reason      String?         @db.Text
-  date        DateTime        @default(now())
-  createdById Int?            @map("created_by_id")
-  createdAt   DateTime        @default(now()) @map("created_at")
+  id          Int      @id @default(autoincrement())
+  employeeId  Int      @map("employee_id")
+  type        String   @default("ADVANCE") // Was enum TransactionType: ADVANCE, DEDUCTION
+  amount      Decimal
+  reason      String?
+  date        DateTime @default(now())
+  createdById Int?     @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   // Relations
   employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -190,25 +154,22 @@ model EmployeeTransaction {
   @@map("employee_transactions")
 }
 
-enum TransactionType {
-  ADVANCE
-  DEDUCTION
-}
+// enum TransactionType removed — values: ADVANCE, DEDUCTION
 
 model Payroll {
-  id          Int           @id @default(autoincrement())
-  employeeId  Int           @map("employee_id")
+  id          Int      @id @default(autoincrement())
+  employeeId  Int      @map("employee_id")
   month       Int
   year        Int
-  baseSalary  Decimal       @map("base_salary") @db.Decimal(10, 2)
-  advances    Decimal       @default(0) @db.Decimal(10, 2)
-  deductions  Decimal       @default(0) @db.Decimal(10, 2)
-  netSalary   Decimal       @map("net_salary") @db.Decimal(10, 2)
-  status      PayrollStatus @default(PENDING)
-  paymentDate DateTime?     @map("payment_date")
-  createdById Int?          @map("created_by_id")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  baseSalary  Decimal  @map("base_salary")
+  advances    Decimal  @default(0)
+  deductions  Decimal  @default(0)
+  netSalary   Decimal  @map("net_salary")
+  status      String   @default("PENDING") // Was enum PayrollStatus: PENDING, PAID
+  paymentDate DateTime? @map("payment_date")
+  createdById Int?     @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   createdBy User?    @relation("PayrollCreator", fields: [createdById], references: [id])
@@ -217,10 +178,7 @@ model Payroll {
   @@map("payrolls")
 }
 
-enum PayrollStatus {
-  PENDING
-  PAID
-}
+// enum PayrollStatus removed — values: PENDING, PAID
 
 // ============================================
 // Warehouse Management
@@ -256,7 +214,7 @@ model Warehouse {
 model Treasury {
   id        Int      @id @default(autoincrement())
   name      String
-  balance   Decimal  @default(0) @db.Decimal(10, 2)
+  balance   Decimal  @default(0)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   isActive  Boolean  @default(true) @map("is_active")
@@ -297,8 +255,8 @@ model Branch {
   warehouse     Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   treasury      Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   employees     Employee[]
-  users         User[] // Main branch users (employees, branch managers)
-  accessibleUsers User[] @relation("AccessibleBranches") // Users who have access to this branch (e.g. Area Managers)
+  users         User[]
+  accessibleUsers User[] @relation("AccessibleBranches")
   sales         Sale[]
   shifts        Shift[]
   DeliveryMan   DeliveryMan[]
@@ -316,7 +274,7 @@ model Client {
   id          Int      @id @default(autoincrement())
   name        String
   phoneNumber String   @map("phone_number")
-  address     String?  @db.Text
+  address     String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -366,8 +324,8 @@ model Category {
 model Item {
   id           Int      @id @default(autoincrement())
   name         String   @unique
-  price        Decimal  @db.Decimal(10, 2)
-  costPrice    Decimal  @default(0) @map("cost_price") @db.Decimal(10, 2)
+  price        Decimal
+  costPrice    Decimal  @default(0) @map("cost_price")
   unit         String
   reorderPoint Int      @default(10) @map("reorder_point")
   showInPos    Boolean  @default(true) @map("show_in_pos")
@@ -393,7 +351,7 @@ model Item {
 model Inventory {
   itemId      Int      @map("item_id")
   warehouseId Int      @map("warehouse_id")
-  quantity    Decimal  @default(0) @db.Decimal(10, 6)
+  quantity    Decimal  @default(0)
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
@@ -438,42 +396,27 @@ model BOMCategory {
 // Purchase Management
 // ============================================
 
-enum PaymentMethod {
-  CASH // نقد - pay with cash now
-  CREDIT // كريدت/فيزا - pay with card now
-  DEFERRED // آجل - pay later
-  MIXED // متنوع - partial payment
-}
-
-enum DiscountType {
-  PERCENTAGE
-  VALUE
-}
-
-enum PaymentStatus {
-  PAID
-  PARTIALLY_PAID
-  UNPAID
-  RETURNED
-}
+// enum PaymentMethod removed — values: CASH, CREDIT, DEFERRED, MIXED
+// enum DiscountType removed — values: PERCENTAGE, VALUE
+// enum PaymentStatus removed — values: PAID, PARTIALLY_PAID, UNPAID, RETURNED
 
 model Purchase {
-  id                Int           @id @default(autoincrement())
-  supplierId        Int           @map("supplier_id")
-  treasuryId        Int           @map("treasury_id")
-  warehouseId       Int           @map("warehouse_id")
-  supplierInvoiceNo String?       @map("supplier_invoice_no")
-  paymentMethod     PaymentMethod @default(CASH) @map("payment_method")
-  paymentStatus     PaymentStatus @default(UNPAID) @map("payment_status")
-  subtotal          Decimal       @db.Decimal(10, 2)
-  discountType      DiscountType  @default(PERCENTAGE) @map("discount_type")
-  discountValue     Decimal       @default(0) @map("discount_value") @db.Decimal(10, 2)
-  discountAmount    Decimal       @default(0) @map("discount_amount") @db.Decimal(10, 2)
-  netTotal          Decimal       @map("net_total") @db.Decimal(10, 2)
-  paidAmount        Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
-  remaining         Decimal       @default(0) @db.Decimal(10, 2)
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
+  id                Int      @id @default(autoincrement())
+  supplierId        Int      @map("supplier_id")
+  treasuryId        Int      @map("treasury_id")
+  warehouseId       Int      @map("warehouse_id")
+  supplierInvoiceNo String?  @map("supplier_invoice_no")
+  paymentMethod     String   @default("CASH") @map("payment_method")    // Was enum PaymentMethod
+  paymentStatus     String   @default("UNPAID") @map("payment_status")  // Was enum PaymentStatus
+  subtotal          Decimal
+  discountType      String   @default("PERCENTAGE") @map("discount_type") // Was enum DiscountType
+  discountValue     Decimal  @default(0) @map("discount_value")
+  discountAmount    Decimal  @default(0) @map("discount_amount")
+  netTotal          Decimal  @map("net_total")
+  paidAmount        Decimal  @default(0) @map("paid_amount")
+  remaining         Decimal  @default(0)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   // Relations
   supplier         Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
@@ -490,10 +433,10 @@ model Purchase {
 model PurchaseItem {
   purchaseId    Int     @map("purchase_id")
   itemId        Int     @map("item_id")
-  quantity      Decimal @db.Decimal(10, 2)
-  purchasePrice Decimal @map("purchase_price") @db.Decimal(10, 2)
-  sellPrice     Decimal @map("sell_price") @db.Decimal(10, 2)
-  total         Decimal @db.Decimal(10, 2)
+  quantity      Decimal
+  purchasePrice Decimal @map("purchase_price")
+  sellPrice     Decimal @map("sell_price")
+  total         Decimal
 
   // Relations
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
@@ -504,12 +447,12 @@ model PurchaseItem {
 }
 
 model PurchaseReturn {
-  id           Int                  @id @default(autoincrement())
-  purchaseId   Int                  @map("purchase_id")
-  returnNumber String               @unique @map("return_number")
-  notes        String?              @db.VarChar(500)
-  totalAmount  Decimal              @map("total_amount") @db.Decimal(10, 2)
-  createdAt    DateTime             @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  purchaseId   Int      @map("purchase_id")
+  returnNumber String   @unique @map("return_number")
+  notes        String?
+  totalAmount  Decimal  @map("total_amount")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   purchase Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
   items    PurchaseReturnItem[]
@@ -518,12 +461,12 @@ model PurchaseReturn {
 }
 
 model PurchaseReturnItem {
-  id               Int            @id @default(autoincrement())
-  purchaseReturnId Int            @map("purchase_return_id")
-  itemId           Int            @map("item_id")
-  quantity         Decimal        @db.Decimal(10, 2)
-  purchasePrice    Decimal        @map("purchase_price") @db.Decimal(10, 2)
-  total            Decimal        @db.Decimal(10, 2)
+  id               Int     @id @default(autoincrement())
+  purchaseReturnId Int     @map("purchase_return_id")
+  itemId           Int     @map("item_id")
+  quantity         Decimal
+  purchasePrice    Decimal @map("purchase_price")
+  total            Decimal
 
   purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
   item           Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
@@ -535,21 +478,27 @@ model PurchaseReturnItem {
 // POS (Point of Sale) Management
 // ============================================
 
+// enum ShiftType removed — values: MORNING, EVENING
+// enum ShiftStatus removed — values: OPEN, PENDING_REVIEW, CLOSED
+// enum SalePaymentMethod removed — values: CASH, CARD
+// enum SaleStatus removed — values: COMPLETED, HELD, CANCELLED
+// enum DeliveryStatus removed — values: PENDING, OUT_FOR_DELIVERY, DELIVERED, RETURNED, CANCELED
+
 model Shift {
-  id                 Int         @id @default(autoincrement())
-  userId             Int         @map("user_id")
-  branchId           Int         @map("branch_id")
-  type               ShiftType   @default(MORNING)
-  startTime          DateTime    @default(now()) @map("start_time")
-  endTime            DateTime?   @map("end_time")
-  startCash          Decimal     @default(0) @map("start_cash") @db.Decimal(10, 2)
-  endCash            Decimal?    @map("end_cash") @db.Decimal(10, 2)
-  systemExpectedCash Decimal?    @map("system_expected_cash") @db.Decimal(10, 2)
-  actualCash         Decimal?    @map("actual_cash") @db.Decimal(10, 2)
-  shortage           Decimal?    @db.Decimal(10, 2)
-  status             ShiftStatus @default(OPEN)
-  reviewedById       Int?        @map("reviewed_by_id")
-  reviewedAt         DateTime?   @map("reviewed_at")
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @map("user_id")
+  branchId           Int      @map("branch_id")
+  type               String   @default("MORNING") // Was enum ShiftType
+  startTime          DateTime @default(now()) @map("start_time")
+  endTime            DateTime? @map("end_time")
+  startCash          Decimal  @default(0) @map("start_cash")
+  endCash            Decimal? @map("end_cash")
+  systemExpectedCash Decimal? @map("system_expected_cash")
+  actualCash         Decimal? @map("actual_cash")
+  shortage           Decimal?
+  status             String   @default("OPEN") // Was enum ShiftStatus
+  reviewedById       Int?     @map("reviewed_by_id")
+  reviewedAt         DateTime? @map("reviewed_at")
 
   // Relations
   user       User      @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -561,63 +510,33 @@ model Shift {
   @@map("shifts")
 }
 
-enum ShiftType {
-  MORNING
-  EVENING
-}
-
-enum ShiftStatus {
-  OPEN
-  PENDING_REVIEW
-  CLOSED
-}
-
-enum SalePaymentMethod {
-  CASH
-  CARD
-}
-
-enum SaleStatus {
-  COMPLETED
-  HELD
-  CANCELLED
-}
-
-enum DeliveryStatus {
-  PENDING
-  OUT_FOR_DELIVERY
-  DELIVERED
-  RETURNED
-  CANCELED
-}
-
 model Sale {
-  id              Int               @id @default(autoincrement())
-  saleNumber      String            @unique @map("sale_number")
-  clientId        Int               @map("client_id")
-  employeeId      Int?              @map("employee_id")
-  userId          Int?              @map("user_id")
-  branchId        Int               @map("branch_id")
-  treasuryId      Int               @map("treasury_id")
-  warehouseId     Int?              @map("warehouse_id")
-  shiftId         Int?              @map("shift_id")
-  deliveryManId   Int?              @map("delivery_man_id")
-  deliveryZoneId  Int?              @map("delivery_zone_id")
-  deliveryFee     Decimal?          @map("delivery_fee") @db.Decimal(10, 2)
-  deliveryDriverShare Decimal?      @map("delivery_driver_share") @db.Decimal(10, 2)
-  deliveryAddress String?           @map("delivery_address") @db.Text
-  deliveryStatus  DeliveryStatus?   @map("delivery_status")
-  subtotal        Decimal           @db.Decimal(10, 2)
-  taxRate         Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
-  taxAmount       Decimal           @map("tax_amount") @db.Decimal(10, 2)
-  total           Decimal           @db.Decimal(10, 2)
-  paymentMethod   SalePaymentMethod @default(CASH) @map("payment_method")
-  paidAmount      Decimal           @map("paid_amount") @db.Decimal(10, 2)
-  changeAmount    Decimal           @default(0) @map("change_amount") @db.Decimal(10, 2)
-  status          SaleStatus        @default(COMPLETED)
-  notes           String?           @db.Text
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
+  id              Int      @id @default(autoincrement())
+  saleNumber      String   @unique @map("sale_number")
+  clientId        Int      @map("client_id")
+  employeeId      Int?     @map("employee_id")
+  userId          Int?     @map("user_id")
+  branchId        Int      @map("branch_id")
+  treasuryId      Int      @map("treasury_id")
+  warehouseId     Int?     @map("warehouse_id")
+  shiftId         Int?     @map("shift_id")
+  deliveryManId   Int?     @map("delivery_man_id")
+  deliveryZoneId  Int?     @map("delivery_zone_id")
+  deliveryFee     Decimal? @map("delivery_fee")
+  deliveryDriverShare Decimal? @map("delivery_driver_share")
+  deliveryAddress String?  @map("delivery_address")
+  deliveryStatus  String?  @map("delivery_status") // Was enum DeliveryStatus
+  subtotal        Decimal
+  taxRate         Decimal  @default(0.14) @map("tax_rate")
+  taxAmount       Decimal  @map("tax_amount")
+  total           Decimal
+  paymentMethod   String   @default("CASH") @map("payment_method") // Was enum SalePaymentMethod
+  paidAmount      Decimal  @map("paid_amount")
+  changeAmount    Decimal  @default(0) @map("change_amount")
+  status          String   @default("COMPLETED") // Was enum SaleStatus
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Relations
   client       Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
@@ -639,9 +558,9 @@ model SaleItem {
   saleId    Int     @map("sale_id")
   itemId    Int?    @map("item_id")
   bomId     Int?    @map("bom_id")
-  quantity  Decimal @db.Decimal(10, 2)
-  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
-  total     Decimal @db.Decimal(10, 2)
+  quantity  Decimal
+  unitPrice Decimal @map("unit_price")
+  total     Decimal
 
   // Relations
   sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
@@ -655,14 +574,16 @@ model SaleItem {
 // Financial Transactions
 // ============================================
 
+// enum TransferStatus removed — values: PENDING, APPROVED, REJECTED
+
 model CashTransfer {
-  id             Int            @id @default(autoincrement())
-  amount         Decimal        @db.Decimal(10, 2)
-  notes          String?        @db.Text
-  fromTreasuryId Int            @map("from_treasury_id")
-  toTreasuryId   Int            @map("to_treasury_id")
-  status         TransferStatus @default(PENDING)
-  createdAt      DateTime       @default(now()) @map("created_at")
+  id             Int      @id @default(autoincrement())
+  amount         Decimal
+  notes          String?
+  fromTreasuryId Int      @map("from_treasury_id")
+  toTreasuryId   Int      @map("to_treasury_id")
+  status         String   @default("PENDING") // Was enum TransferStatus
+  createdAt      DateTime @default(now()) @map("created_at")
 
   // Relations
   fromTreasury Treasury @relation("TransfersFrom", fields: [fromTreasuryId], references: [id], onDelete: Restrict)
@@ -673,12 +594,6 @@ model CashTransfer {
   acceptedById Int?     @map("accepted_by_id")
 
   @@map("cash_transfers")
-}
-
-enum TransferStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 // ============================================
@@ -696,7 +611,7 @@ model SystemConfiguration {
   bankTreasuryId  Int? @map("bank_treasury_id")
 
   // Financial Defaults
-  taxRate Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
+  taxRate Decimal @default(14.0) @map("tax_rate")
 
   // HR Defaults
   salaryStartDay Int    @default(1) @map("salary_start_day")
@@ -724,16 +639,18 @@ model SystemConfiguration {
 // Stock Transfers
 // ============================================
 
+// enum StockTransferStatus removed — values: PENDING, APPROVED, REJECTED, COMPLETED
+
 model StockTransfer {
-  id              Int                 @id @default(autoincrement())
-  transferNumber  String              @unique @map("transfer_number")
-  fromWarehouseId Int                 @map("from_warehouse_id")
-  toWarehouseId   Int                 @map("to_warehouse_id")
-  userId          Int                 @map("user_id")
-  status          StockTransferStatus @default(PENDING)
-  notes           String?             @db.Text
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
+  id              Int      @id @default(autoincrement())
+  transferNumber  String   @unique @map("transfer_number")
+  fromWarehouseId Int      @map("from_warehouse_id")
+  toWarehouseId   Int      @map("to_warehouse_id")
+  userId          Int      @map("user_id")
+  status          String   @default("PENDING") // Was enum StockTransferStatus
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Relations
   fromWarehouse Warehouse           @relation("StockTransferFrom", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
@@ -748,20 +665,13 @@ model StockTransferItem {
   id              Int     @id @default(autoincrement())
   stockTransferId Int     @map("stock_transfer_id")
   itemId          Int     @map("item_id")
-  quantity        Decimal @db.Decimal(10, 2)
+  quantity        Decimal
 
   // Relations
   stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
   item          Item          @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@map("stock_transfer_items")
-}
-
-enum StockTransferStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  COMPLETED
 }
 
 // ============================================
@@ -771,7 +681,7 @@ enum StockTransferStatus {
 model SupplierAccount {
   id         Int      @id @default(autoincrement())
   supplierId Int      @unique @map("supplier_id")
-  balance    Decimal  @default(0) @db.Decimal(10, 2)
+  balance    Decimal  @default(0)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -786,9 +696,9 @@ model SupplierPayment {
   id                Int      @id @default(autoincrement())
   supplierAccountId Int      @map("supplier_account_id")
   purchaseId        Int?     @map("purchase_id")
-  amount            Decimal  @db.Decimal(10, 2)
+  amount            Decimal
   treasuryId        Int      @map("treasury_id")
-  notes             String?  @db.Text
+  notes             String?
   paymentDate       DateTime @default(now()) @map("payment_date")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -804,28 +714,21 @@ model SupplierPayment {
 // Expense Management
 // ============================================
 
-enum ExpenseType {
-  MANUAL
-  PURCHASE
-}
-
-enum ExpensePaymentMethod {
-  CASH
-  CARD
-}
+// enum ExpenseType removed — values: MANUAL, PURCHASE
+// enum ExpensePaymentMethod removed — values: CASH, CARD
 
 model Expense {
-  id            Int                  @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   description   String
-  amount        Decimal              @db.Decimal(10, 2)
-  date          DateTime             @db.Date
-  type          ExpenseType          @default(MANUAL)
-  treasuryId    Int                  @map("treasury_id")
-  purchaseId    Int?                 @unique @map("purchase_id")
-  shiftId       Int?                 @map("shift_id")
-  paymentMethod ExpensePaymentMethod @default(CASH) @map("payment_method")
-  createdAt     DateTime             @default(now()) @map("created_at")
-  updatedAt     DateTime             @updatedAt @map("updated_at")
+  amount        Decimal
+  date          DateTime
+  type          String   @default("MANUAL") // Was enum ExpenseType
+  treasuryId    Int      @map("treasury_id")
+  purchaseId    Int?     @unique @map("purchase_id")
+  shiftId       Int?     @map("shift_id")
+  paymentMethod String   @default("CASH") @map("payment_method") // Was enum ExpensePaymentMethod
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
   treasury Treasury  @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
@@ -841,9 +744,9 @@ model Expense {
 
 model Deposit {
   id          Int      @id @default(autoincrement())
-  amount      Decimal  @db.Decimal(10, 2)
-  description String?  @db.Text
-  date        DateTime @default(now()) @db.DateTime(0)
+  amount      Decimal
+  description String?
+  date        DateTime @default(now())
   treasuryId  Int      @map("treasury_id")
   createdById Int      @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -862,9 +765,9 @@ model Deposit {
 
 model Withdrawal {
   id          Int      @id @default(autoincrement())
-  amount      Decimal  @db.Decimal(10, 2)
-  description String?  @db.Text
-  date        DateTime @default(now()) @db.DateTime(0)
+  amount      Decimal
+  description String?
+  date        DateTime @default(now())
   treasuryId  Int      @map("treasury_id")
   createdById Int      @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -886,9 +789,9 @@ model DeliveryMan {
   name        String
   phone       String
   nationalId  String?  @map("national_id")
-  vehicleType String?  @map("vehicle_type") // motorcycle, car, van, etc.
+  vehicleType String?  @map("vehicle_type")
   branchId    Int      @map("branch_id")
-  walletBalance Decimal @default(0) @map("wallet_balance") @db.Decimal(10, 2)
+  walletBalance Decimal @default(0) @map("wallet_balance")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -904,7 +807,7 @@ model DeliveryMan {
 model DeliveryManTransaction {
   id            Int      @id @default(autoincrement())
   deliveryManId Int      @map("delivery_man_id")
-  amount        Decimal  @db.Decimal(10, 2)
+  amount        Decimal
   type          String   // "DEBT_ACCRUED" (Order), "PAYMENT" (Settlement)
   description   String?
   createdAt     DateTime @default(now()) @map("created_at")
@@ -920,8 +823,8 @@ model DeliveryManTransaction {
 model DeliveryZone {
   id        Int      @id @default(autoincrement())
   name      String
-  fee       Decimal  @db.Decimal(10, 2)
-  driverShare Decimal @default(0) @map("driver_share") @db.Decimal(10, 2)
+  fee       Decimal
+  driverShare Decimal @default(0) @map("driver_share")
   branchId  Int?     @map("branch_id")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
@@ -943,11 +846,11 @@ model BOM {
   id             Int      @id @default(autoincrement())
   name           String   @unique
   outputItemId   Int?     @map("output_item_id")
-  outputQuantity Decimal  @default(1) @map("output_quantity") @db.Decimal(10, 2)
-  price          Decimal  @default(0) @db.Decimal(10, 2)
+  outputQuantity Decimal  @default(1) @map("output_quantity")
+  price          Decimal  @default(0)
   unit           String   @default("piece")
   isActive       Boolean  @default(true) @map("is_active")
-  notes          String?  @db.Text
+  notes          String?
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -965,8 +868,8 @@ model BOMItem {
   id       Int     @id @default(autoincrement())
   bomId    Int     @map("bom_id")
   itemId   Int     @map("item_id")
-  quantity Decimal @db.Decimal(10, 4)
-  notes    String? @db.Text
+  quantity Decimal
+  notes    String?
 
   // Relations
   bom  BOM  @relation(fields: [bomId], references: [id], onDelete: Cascade)
@@ -985,11 +888,11 @@ model ProductionOrder {
   bomId             Int      @map("bom_id")
   sourceWarehouseId Int      @map("source_warehouse_id")
   destWarehouseId   Int?     @map("dest_warehouse_id")
-  targetOutputQty   Decimal  @map("target_output_qty") @db.Decimal(10, 3)
-  actualOutputQty   Decimal  @map("actual_output_qty")  @db.Decimal(10, 3)
-  outputWasteQty    Decimal  @default(0) @map("output_waste_qty") @db.Decimal(10, 3)
-  totalCost         Decimal  @default(0) @map("total_cost") @db.Decimal(10, 2)
-  notes             String?  @db.Text
+  targetOutputQty   Decimal  @map("target_output_qty")
+  actualOutputQty   Decimal  @map("actual_output_qty")
+  outputWasteQty    Decimal  @default(0) @map("output_waste_qty")
+  totalCost         Decimal  @default(0) @map("total_cost")
+  notes             String?
   createdById       Int      @map("created_by_id")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -1007,7 +910,7 @@ model ProductionOrderItem {
   id                Int     @id @default(autoincrement())
   productionOrderId Int     @map("production_order_id")
   itemId            Int     @map("item_id")
-  quantityUsed      Decimal @map("quantity_used") @db.Decimal(10, 6)
+  quantityUsed      Decimal @map("quantity_used")
 
   // Relations
   productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)

@@ -99,8 +99,8 @@ async function writeAudit({ action, targetEntity, targetId, userId, branchId, ne
         targetId:     targetId != null ? String(targetId).substring(0, 40) : null,
         userId:       userId    ?? null,
         branchId:     branchId  ?? null,
-        details:      cleanedNew ?? undefined,   // "new values" / request body
-        oldValues:    cleanedOld ?? undefined,   // "old values" / before state
+        details:      cleanedNew ? JSON.stringify(cleanedNew) : undefined,   // "new values" / request body
+        oldValues:    cleanedOld ? JSON.stringify(cleanedOld) : undefined,   // "old values" / before state
         ipAddress:    ipAddress  ?? null,
         rowHash,
         createdAt:    now,

@@ -15,6 +15,7 @@ const SuperadminLayout = () => {
   };
 
   const navItems = [
+    { path: "/dashboard", icon: "dashboard", label: "Dashboard", exact: true },
     { path: "/superadmin/users", icon: "people", label: "Users" },
     { path: "/superadmin/roles", icon: "badge", label: "Roles & Permissions" },
     { path: "/superadmin/audit-logs", icon: "history", label: "Audit Logs" },

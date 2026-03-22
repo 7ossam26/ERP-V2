@@ -107,6 +107,15 @@ const MainLayout = ({ children }) => {
                 </span>
               </div>
 
+              {/* Admin Panel Button */}
+              <Link
+                to="/superadmin/users"
+                title="لوحة الإدارة"
+                className="flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-text-light/60 hover:text-amber-600 dark:text-text-dark/60 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
+                <span className="material-icons-round text-xl">admin_panel_settings</span>
+                <span className="text-xs font-semibold hidden sm:inline">الإدارة</span>
+              </Link>
+
               {/* Help / User Manual Button */}
               <Link
                 to="/manual"

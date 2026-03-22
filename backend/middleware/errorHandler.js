@@ -59,13 +59,12 @@ const errorHandler = (err, req, res, next) => {
     }
 
     // Send sanitized response
+    const isProduction = process.env.NODE_ENV === "production";
     res.status(statusCode).json({
         error,
         message,
-        // Only include code in development for easier debugging if needed
-        code: err.code,
-        meta: err.meta,
-        stack: err.stack, // Optional: might be too noisy, but useful
+        // Only include debug info in development
+        ...(isProduction ? {} : { code: err.code, meta: err.meta, stack: err.stack }),
     });
 };
 

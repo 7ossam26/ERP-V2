@@ -19,11 +19,8 @@ const LoginPage = () => {
   useEffect(() => {
     const user = AuthService.getCurrentUser();
     if (user) {
-      if (user.role === "Superadmin") {
-        navigate("/superadmin/users", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
+      // Desktop app: always go to main dashboard
+      navigate("/dashboard", { replace: true });
     }
   }, [navigate]);
 
@@ -42,12 +39,8 @@ const LoginPage = () => {
 
       toast.success(`Welcome back, ${response.user.username}!`);
 
-      // Redirect based on role
-      if (response.user.role === "Superadmin") {
-        navigate("/superadmin/users");
-      } else {
-        navigate(from, { replace: true });
-      }
+      // Desktop app: always go to main dashboard
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       console.error("Login error:", error);
       showErrorToast(error, "Login failed. Please check your credentials.");

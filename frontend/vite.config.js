@@ -8,10 +8,9 @@ export default defineConfig(({ mode }) => {
   //   prod → .env.production
   const env = loadEnv(mode, process.cwd(), "");
 
-  const isDev = mode === "development";
-  const apiUrl =
-    env.VITE_API_URL ||
-    (isDev ? "http://localhost:3001" : "https://elghonemy.kiko-tech.com");
+  // Use explicit 127.0.0.1 — Node 18+ resolves "localhost" to ::1 (IPv6),
+  // but Express binds to 127.0.0.1 (IPv4), causing ECONNREFUSED.
+  const apiUrl = env.VITE_API_URL || "http://127.0.0.1:3001";
 
   console.log(`\n🔧 Vite Mode: ${mode.toUpperCase()}`);
   console.log(`🌐 API Target: ${apiUrl}\n`);

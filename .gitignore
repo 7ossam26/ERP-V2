@@ -2,14 +2,20 @@
 .env
 .env.local
 .env.*.local
-# .env.development and .env.production are intentionally committed (no secrets, URL-only)
 # IDE/editor settings
 .vscode/
 # Dependency directories
 node_modules/
 # Build output
+dist/
 Dist/
 # Local configuration files (if any)
 *.local.js
-# *.config.js -> Removed to allow vite.config.js
-#
+
+# Electron / Desktop
+*.exe
+*.db
+*.db-journal
+*.db-wal
+backend/deployment.log
+backend/logs/
