@@ -511,6 +511,10 @@ router.post("/reset/:category", async (req, res) => {
           prisma.deposit.deleteMany({}),
           prisma.withdrawal.deleteMany({}),
           prisma.deliveryManTransaction.deleteMany({}),
+          // Reset balances
+          prisma.treasury.updateMany({ data: { balance: 0 } }),
+          prisma.supplierAccount.updateMany({ data: { balance: 0 } }),
+          prisma.inventory.updateMany({ data: { quantity: 0 } }),
         ]);
         break;
 
@@ -536,6 +540,8 @@ router.post("/reset/:category", async (req, res) => {
           prisma.cashTransfer.deleteMany({}),
           prisma.deposit.deleteMany({}),
           prisma.withdrawal.deleteMany({}),
+          // Reset treasury balances
+          prisma.treasury.updateMany({ data: { balance: 0 } }),
         ]);
         break;
 
