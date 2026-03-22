@@ -264,6 +264,11 @@ router.delete("/users/:id", async (req, res) => {
     });
     res.status(204).send();
   } catch (error) {
+    if (error.code === 'P2003') {
+      return res.status(400).json({ 
+        error: "Cannot delete this user because they have associated records (sales, transfers, etc.). Please deactivate the user instead." 
+      });
+    }
     res
       .status(500)
       .json({ error: "Failed to delete user", details: error.message });
