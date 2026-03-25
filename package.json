@@ -26,6 +26,7 @@
         "prisma": "^5.18.0"
     },
     "devDependencies": {
+        "@playwright/test": "^1.58.2",
         "@types/node": "^25.0.3",
         "concurrently": "^8.2.2",
         "cross-env": "^10.1.0",
