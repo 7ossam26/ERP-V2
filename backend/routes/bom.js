@@ -649,4 +649,192 @@ router.post(
   },
 );
 
+// ============================================================
+// PUT /production-orders/:id — Edit a production order (delete + recreate)
+// ============================================================
+router.put(
+  "/production-orders/:id",
+  requireCreatePermission("CREATES_PRODUCTION"),
+  async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      const { targetOutputQty, actualOutputQty, outputWasteQty, notes } =
+        req.body;
+
+      if (!targetOutputQty || parseFloat(targetOutputQty) <= 0) {
+        return res
+          .status(400)
+          .json({ error: "الكمية المستهدفة يجب أن تكون أكبر من صفر" });
+      }
+
+      const parsedTarget = parseFloat(targetOutputQty);
+      const parsedActual = parseFloat(actualOutputQty || targetOutputQty);
+      const parsedWaste = parseFloat(outputWasteQty || 0);
+
+      // Fetch original order with all relations
+      const original = await prisma.productionOrder.findUnique({
+        where: { id: orderId },
+        include: {
+          bom: { include: { items: { include: { item: true } } } },
+          items: { include: { item: true } },
+          sourceWarehouse: true,
+          destWarehouse: true,
+        },
+      });
+
+      if (!original) {
+        return res.status(404).json({ error: "أمر الإنتاج غير موجود" });
+      }
+
+      const { bom, sourceWarehouseId, destWarehouseId } = original;
+      const bomOutputQty = Number(bom.outputQuantity);
+      const newMultiplier = parsedTarget / bomOutputQty;
+
+      // Calculate new material usage
+      const newMaterialUsage = bom.items.map((bomItem) => ({
+        itemId: bomItem.itemId,
+        quantityUsed: Number(bomItem.quantity) * newMultiplier,
+      }));
+
+      // Validate material availability (new - old delta)
+      const oldMultiplier = Number(original.targetOutputQty) / bomOutputQty;
+      for (const mat of newMaterialUsage) {
+        const oldUsed =
+          (bom.items.find((b) => b.itemId === mat.itemId)?.quantity || 0) *
+          oldMultiplier;
+        const delta = mat.quantityUsed - Number(oldUsed);
+        if (delta > 0) {
+          const inv = await prisma.inventory.findUnique({
+            where: {
+              itemId_warehouseId: {
+                itemId: mat.itemId,
+                warehouseId: sourceWarehouseId,
+              },
+            },
+          });
+          const avail = inv ? Number(inv.quantity) : 0;
+          if (avail < delta) {
+            const matName = bom.items.find(
+              (b) => b.itemId === mat.itemId,
+            )?.item?.name;
+            return res.status(400).json({
+              error: `مواد خام غير كافية: ${matName}. متاح: ${avail.toFixed(2)}, إضافة مطلوبة: ${delta.toFixed(2)}`,
+            });
+          }
+        }
+      }
+
+      const newTotalCost = newMaterialUsage.reduce((sum, mat) => {
+        const bomItem = bom.items.find((b) => b.itemId === mat.itemId);
+        return sum + mat.quantityUsed * Number(bomItem?.item?.costPrice || 0);
+      }, 0);
+
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Reverse original inventory changes
+        //    a. Re-add raw materials to source warehouse
+        for (const origItem of original.items) {
+          await tx.inventory.update({
+            where: {
+              itemId_warehouseId: {
+                itemId: origItem.itemId,
+                warehouseId: sourceWarehouseId,
+              },
+            },
+            data: { quantity: { increment: Number(origItem.quantityUsed) } },
+          });
+        }
+        //    b. Remove finished goods from dest warehouse
+        if (bom.outputItemId && destWarehouseId) {
+          await tx.inventory.update({
+            where: {
+              itemId_warehouseId: {
+                itemId: bom.outputItemId,
+                warehouseId: destWarehouseId,
+              },
+            },
+            data: {
+              quantity: { decrement: Number(original.actualOutputQty) },
+            },
+          });
+        }
+
+        // 2. Delete original order items and order
+        await tx.productionOrderItem.deleteMany({
+          where: { productionOrderId: orderId },
+        });
+        await tx.productionOrder.delete({ where: { id: orderId } });
+
+        // 3. Deduct new raw materials
+        for (const mat of newMaterialUsage) {
+          await tx.inventory.update({
+            where: {
+              itemId_warehouseId: {
+                itemId: mat.itemId,
+                warehouseId: sourceWarehouseId,
+              },
+            },
+            data: { quantity: { decrement: mat.quantityUsed } },
+          });
+        }
+
+        // 4. Add new finished goods
+        if (bom.outputItemId && destWarehouseId) {
+          await tx.inventory.upsert({
+            where: {
+              itemId_warehouseId: {
+                itemId: bom.outputItemId,
+                warehouseId: destWarehouseId,
+              },
+            },
+            update: { quantity: { increment: parsedActual } },
+            create: {
+              itemId: bom.outputItemId,
+              warehouseId: destWarehouseId,
+              quantity: parsedActual,
+            },
+          });
+        }
+
+        // 5. Create new production order
+        const newOrder = await tx.productionOrder.create({
+          data: {
+            bomId: bom.id,
+            sourceWarehouseId,
+            destWarehouseId: destWarehouseId || null,
+            targetOutputQty: parsedTarget,
+            actualOutputQty: parsedActual,
+            outputWasteQty: parsedWaste,
+            totalCost: parseFloat(newTotalCost.toFixed(2)),
+            notes: notes || original.notes,
+            createdById: req.user.id,
+            items: {
+              create: newMaterialUsage.map((m) => ({
+                itemId: m.itemId,
+                quantityUsed: m.quantityUsed,
+              })),
+            },
+          },
+          include: {
+            bom: { select: { name: true } },
+            sourceWarehouse: { select: { name: true } },
+            destWarehouse: { select: { name: true } },
+            items: {
+              include: { item: { select: { name: true, unit: true } } },
+            },
+          },
+        });
+
+        return newOrder;
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("[BOM EDIT PRODUCTION]", error);
+      res
+        .status(500)
+        .json({ error: "فشل تعديل أمر الإنتاج", message: error.message });
+    }
+  },
+);
+
 module.exports = router;

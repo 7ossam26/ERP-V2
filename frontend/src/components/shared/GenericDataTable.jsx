@@ -11,7 +11,7 @@ const GenericDataTable = ({
   customActions,
 }) => {
   return (
-    <div className="overflow-x-auto print:overflow-visible">
+    <div className="overflow-x-auto overflow-y-auto max-h-[60vh] print:overflow-visible">
       <table className="w-full text-center border-collapse print:border print:border-black">
         <thead className="bg-gray-50 dark:bg-gray-800/50 sticky top-0 z-10 border-b border-gray-100 dark:border-gray-700 print:bg-gray-200 print:border-b-2 print:border-black">
           <tr>

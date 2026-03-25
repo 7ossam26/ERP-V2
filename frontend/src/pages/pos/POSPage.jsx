@@ -8,6 +8,7 @@ import EndShiftModal from "../../components/pos/EndShiftModal";
 import ShiftVerificationModal from "../../components/pos/ShiftVerificationModal";
 import DeliveryModal from "../../components/pos/DeliveryModal";
 import DeliveryDebtsModal from "../../components/pos/DeliveryDebtsModal";
+import PreparationQueueModal from "../../components/pos/PreparationQueueModal";
 import Modal from "../../components/ui/Modal";
 import RefundModal from "./RefundModal";
 import OrdersHistoryModal from "./OrdersHistoryModal";
@@ -208,6 +209,7 @@ const POSPage = () => {
     useState(false);
   const [pendingDeliveries, setPendingDeliveries] = useState(null);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [newClientInitialData, setNewClientInitialData] = useState(null);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isWalkIn, setIsWalkIn] = useState(false);
@@ -223,6 +225,7 @@ const POSPage = () => {
   const [deliveryData, setDeliveryData] = useState(null); // {riderId, riderName, zoneId, zoneName, zoneFee, address}
   const [isDeliveryDebtsModalOpen, setIsDeliveryDebtsModalOpen] =
     useState(false);
+  const [isPreparationQueueOpen, setIsPreparationQueueOpen] = useState(false);
 
   useEffect(() => {
     const fetchDeliveryMen = async () => {
@@ -394,7 +397,7 @@ const POSPage = () => {
           if (bom.outputItemId) {
             // Use ACTUAL warehouse stock of the manufactured output
             quantity = parseFloat(
-              (inventoryMap[bom.outputItemId] || 0).toFixed(2),
+              (inventoryMap[bom.outputItemId] || 0).toFixed(4),
             );
           } else {
             // No linked item → fall back to max possible production from raw materials
@@ -408,7 +411,7 @@ const POSPage = () => {
             quantity =
               maxProduction === Infinity
                 ? 0
-                : parseFloat(maxProduction.toFixed(2));
+                : parseFloat(maxProduction.toFixed(4));
           }
 
           // Map to Product Structure used by POS
@@ -595,6 +598,7 @@ const POSPage = () => {
     setSelectedClient(null);
     setIsWalkIn(false);
     setClientSearchTerm("");
+    setDeliveryData(null);
   };
 
   const handleItemClick = (id) => {
@@ -946,12 +950,12 @@ const POSPage = () => {
     }
 
     // Prepare sale data for backend
-    // Normalize payment method: if not CASH, treat as CARD (covers VISA, MASTERCARD, etc.)
+    // Normalize payment method: CASH or INSTAPAY
     const normalizedPaymentMethod =
       typeof paymentMethod === "string"
         ? paymentMethod.toUpperCase() === "CASH"
           ? "CASH"
-          : "CARD"
+          : "INSTAPAY"
         : "CASH"; // Default to CASH for delivery orders
 
     const currentUser = AuthService.getCurrentUser();
@@ -967,13 +971,19 @@ const POSPage = () => {
       paidAmount: finalPaidAmount,
       changeAmount: finalChangeAmount,
       status: "COMPLETED",
-      deliveryManId: activeDeliveryData?.riderId,
+      deliveryManId: activeDeliveryData?.preparationOnly
+        ? null
+        : activeDeliveryData?.riderId,
       deliveryZoneId: activeDeliveryData?.zoneId,
       deliveryFee: activeDeliveryData?.zoneFee
         ? parseFloat(activeDeliveryData.zoneFee)
         : null,
       deliveryAddress: activeDeliveryData?.address,
-      deliveryStatus: activeDeliveryData ? "OUT_FOR_DELIVERY" : null,
+      deliveryStatus: activeDeliveryData
+        ? activeDeliveryData.preparationOnly
+          ? "PENDING"
+          : "OUT_FOR_DELIVERY"
+        : null,
       items: cartItems.map((item) => ({
         itemId: item.id,
         quantity: item.quantity,
@@ -995,9 +1005,19 @@ const POSPage = () => {
         `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`,
       );
       if (createdSale.warnings && createdSale.warnings.length > 0) {
-        createdSale.warnings.forEach((warning) =>
-          toast(warning, { icon: "⚠️", duration: 5000 }),
-        );
+        createdSale.warnings.forEach((warning) => {
+          if (warning.startsWith("AUTO_PRODUCED:")) {
+            const parts = warning.split(":");
+            const name = parts[1];
+            const qty = parts[2];
+            toast.success(`تم إنتاج ${qty} وحدة من "${name}" تلقائياً من المواد الخام`, {
+              icon: "🏭",
+              duration: 5000,
+            });
+          } else {
+            toast(warning, { icon: "⚠️", duration: 5000 });
+          }
+        });
       }
 
       // REFRESH INVENTORY
@@ -1065,7 +1085,7 @@ const POSPage = () => {
 
     // Call main completion function
     const normalizedPaymentMethod =
-      pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "CARD";
+      pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "INSTAPAY";
     await handleCompleteSale(
       normalizedPaymentMethod,
       null,
@@ -1131,6 +1151,8 @@ const POSPage = () => {
     const newHeldCart = {
       id: Date.now(),
       items: cartItems,
+      // Save full client object so it can be restored on retrieve
+      clientData: selectedClient || null,
       customerName: selectedClient ? selectedClient.name : "عميل نقدي",
       timestamp: new Date().toLocaleTimeString("ar-EG"),
       total: total.toFixed(2),
@@ -1142,6 +1164,8 @@ const POSPage = () => {
     // Reset to default client "عميل عام"
     const defaultClient = clients.find((c) => c.name.includes("عميل عام"));
     setSelectedClient(defaultClient || null);
+    setClientSearchTerm("");
+    setDeliveryData(null);
 
     toast.success("تم تعليق الفاتورة بنجاح");
   };
@@ -1152,6 +1176,17 @@ const POSPage = () => {
 
     const proceedRetrieval = () => {
       setCartItems(cartToRetrieve.items);
+      // Restore full client data if saved (backwards-compat: fall back to search by name)
+      if (cartToRetrieve.clientData) {
+        setSelectedClient(cartToRetrieve.clientData);
+        setClientSearchTerm(cartToRetrieve.clientData.name || "");
+      } else if (cartToRetrieve.customerName && cartToRetrieve.customerName !== "عميل نقدي") {
+        const found = clients.find((c) => c.name === cartToRetrieve.customerName);
+        if (found) {
+          setSelectedClient(found);
+          setClientSearchTerm(found.name);
+        }
+      }
       setHeldCarts((prev) => prev.filter((c) => c.id !== cartId));
       setIsHeldCartsModalOpen(false);
       toast.success("تم استرجاع الفاتورة");
@@ -1189,11 +1224,12 @@ const POSPage = () => {
 
       <Modal
         isOpen={isClientModalOpen}
-        onClose={() => setIsClientModalOpen(false)}
+        onClose={() => { setIsClientModalOpen(false); setNewClientInitialData(null); }}
         title="تكويد عميل جديد">
         <ClientForm
           data={clients}
-          onClose={() => setIsClientModalOpen(false)}
+          initialData={newClientInitialData}
+          onClose={() => { setIsClientModalOpen(false); setNewClientInitialData(null); }}
           onSave={handleSaveClient}
         />
       </Modal>
@@ -1239,6 +1275,17 @@ const POSPage = () => {
                     onClick={() => handleRetrieveCart(cart.id)}
                     className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all">
                     استرجاع
+                  </button>
+                  <button
+                    onClick={() => {
+                      confirmAction(
+                        "هل تريد حذف هذه الفاتورة المعلقة؟",
+                        () => setHeldCarts((prev) => prev.filter((c) => c.id !== cart.id))
+                      );
+                    }}
+                    className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-all"
+                    title="إلغاء الفاتورة المعلقة">
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
                   </button>
                 </div>
               </div>
@@ -1408,9 +1455,16 @@ const POSPage = () => {
           try {
             await handleCompleteSale("CASH", data);
             setIsDeliveryModalOpen(false);
-            toast.success(
-              `تم تأكيد طلب التوصيل: ${data.zoneName} - ${data.riderName}`,
-            );
+            if (data.preparationOnly) {
+              toast.success(`تم إرسال الطلب لقسم التجهيز — ${data.zoneName}`, {
+                icon: "🍽️",
+                duration: 4000,
+              });
+            } else {
+              toast.success(
+                `تم تأكيد طلب التوصيل: ${data.zoneName} - ${data.riderName}`,
+              );
+            }
           } catch (error) {
             console.error("Failed to save delivery order:", error);
             toast.error(error.message || "فشل حفظ طلب التوصيل");
@@ -1427,6 +1481,12 @@ const POSPage = () => {
         onClose={() => setIsDeliveryDebtsModalOpen(false)}
         branchId={currentUser?.branch?.id}
         currentShiftId={currentShiftId}
+      />
+
+      <PreparationQueueModal
+        isOpen={isPreparationQueueOpen}
+        onClose={() => setIsPreparationQueueOpen(false)}
+        deliveryMen={deliveryMen}
       />
 
       {/* Header */}
@@ -1472,6 +1532,13 @@ const POSPage = () => {
             className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
             <FaHistory />
             <span className="hidden md:inline">سجل الفواتير</span>
+          </button>
+
+          <button
+            onClick={() => setIsPreparationQueueOpen(true)}
+            className="flex items-center gap-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-sm">kitchen</span>
+            <span className="hidden md:inline">قسم التجهيز</span>
           </button>
 
           <button
@@ -1767,8 +1834,32 @@ const POSPage = () => {
                         </div>
                       ))
                     ) : (
-                      <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-sm">
-                        لا توجد نتائج
+                      <div className="flex flex-col items-center gap-2 px-4 py-3">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          لا توجد نتائج
+                        </span>
+                        <button
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setIsClientDropdownOpen(false);
+                            setNewClientInitialData(
+                              clientSearchTerm
+                                ? { phone: clientSearchTerm }
+                                : null
+                            );
+                            setIsClientModalOpen(true);
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-lg transition-colors">
+                          <span className="material-symbols-outlined text-[18px]">
+                            person_add
+                          </span>
+                          إضافة عميل جديد
+                          {clientSearchTerm && (
+                            <span className="text-xs opacity-80">
+                              ({clientSearchTerm})
+                            </span>
+                          )}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1826,7 +1917,7 @@ const POSPage = () => {
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {item.quantity.toFixed(2)} وحدة x{" "}
+                        {item.quantity.toFixed(4)} وحدة x{" "}
                         {item.price.toFixed(2)} ج.م / وحدة
                       </div>
                     </div>
@@ -1839,15 +1930,7 @@ const POSPage = () => {
               <div className="bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700">
                 {/* Payment Action Buttons - Only show when keypad is closed */}
                 {keypadMode === "default" && (
-                  <div className="grid grid-cols-4 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
-                    <button
-                      onClick={() => setIsClientModalOpen(true)}
-                      className="flex flex-col items-center justify-center p-3 bg-[#6F4E37] hover:bg-[#5D4030] text-white transition-all duration-300 border-l border-white/10 group">
-                      <span className="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">
-                        person_add
-                      </span>
-                      <span className="font-bold">تكويد عميل جديد</span>
-                    </button>
+                  <div className="grid grid-cols-3 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
                     <button
                       onClick={() => handleQuickPayment("cash")}
                       className="flex flex-col items-center justify-center p-3 bg-green-500 hover:bg-green-600 text-white transition-colors border-l border-white/10">

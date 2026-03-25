@@ -1220,3 +1220,15 @@ ALTER TABLE \ MODIFY COLUMN \ ENUM('PAID', 'PARTIALLY_PAID', 'UNPAID', 'RETURNED
 -- Migration: 20260310000003_add_returned_payment_status
 ALTER TABLE `purchases` MODIFY COLUMN `payment_status` ENUM('PAID', 'PARTIALLY_PAID', 'UNPAID', 'RETURNED') NOT NULL DEFAULT 'UNPAID';
 ALTER TABLE `audit_logs` ADD COLUMN `old_values` JSON NULL AFTER `details`;
+
+-- Migration: 20260325000001_increase_quantity_precision_add_instapay
+ALTER TABLE `sale_items` MODIFY COLUMN `quantity` DECIMAL(10,4) NOT NULL;
+ALTER TABLE `purchase_items` MODIFY COLUMN `quantity` DECIMAL(10,4) NOT NULL;
+ALTER TABLE `purchase_return_items` MODIFY COLUMN `quantity` DECIMAL(10,4) NOT NULL;
+ALTER TABLE `stock_transfer_items` MODIFY COLUMN `quantity` DECIMAL(10,4) NOT NULL;
+ALTER TABLE `production_orders` MODIFY COLUMN `target_output_qty` DECIMAL(10,4) NOT NULL;
+ALTER TABLE `production_orders` MODIFY COLUMN `actual_output_qty` DECIMAL(10,4) NOT NULL;
+ALTER TABLE `production_orders` MODIFY COLUMN `output_waste_qty` DECIMAL(10,4) NOT NULL DEFAULT 0;
+ALTER TABLE `sales` MODIFY COLUMN `payment_method` ENUM('CASH', 'CARD', 'INSTAPAY') NOT NULL DEFAULT 'CASH';
+UPDATE `sales` SET `payment_method` = 'INSTAPAY' WHERE `payment_method` = 'CARD';
+ALTER TABLE `sales` MODIFY COLUMN `payment_method` ENUM('CASH', 'INSTAPAY') NOT NULL DEFAULT 'CASH';

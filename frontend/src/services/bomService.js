@@ -100,4 +100,8 @@ export const bomService = {
   async getProductionOrderById(id) {
     return await api.get(`${BOM_URL}/production-orders/${id}`);
   },
+
+  async updateProductionOrder(id, data) {
+    return await api.put(`${BOM_URL}/production-orders/${id}`, data);
+  },
 };

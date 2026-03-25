@@ -490,7 +490,7 @@ model Purchase {
 model PurchaseItem {
   purchaseId    Int     @map("purchase_id")
   itemId        Int     @map("item_id")
-  quantity      Decimal @db.Decimal(10, 2)
+  quantity      Decimal @db.Decimal(10, 4)
   purchasePrice Decimal @map("purchase_price") @db.Decimal(10, 2)
   sellPrice     Decimal @map("sell_price") @db.Decimal(10, 2)
   total         Decimal @db.Decimal(10, 2)
@@ -521,7 +521,7 @@ model PurchaseReturnItem {
   id               Int            @id @default(autoincrement())
   purchaseReturnId Int            @map("purchase_return_id")
   itemId           Int            @map("item_id")
-  quantity         Decimal        @db.Decimal(10, 2)
+  quantity         Decimal        @db.Decimal(10, 4)
   purchasePrice    Decimal        @map("purchase_price") @db.Decimal(10, 2)
   total            Decimal        @db.Decimal(10, 2)
 
@@ -574,7 +574,7 @@ enum ShiftStatus {
 
 enum SalePaymentMethod {
   CASH
-  CARD
+  INSTAPAY
 }
 
 enum SaleStatus {
@@ -639,7 +639,7 @@ model SaleItem {
   saleId    Int     @map("sale_id")
   itemId    Int?    @map("item_id")
   bomId     Int?    @map("bom_id")
-  quantity  Decimal @db.Decimal(10, 2)
+  quantity  Decimal @db.Decimal(10, 4)
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
   total     Decimal @db.Decimal(10, 2)
 
@@ -748,7 +748,7 @@ model StockTransferItem {
   id              Int     @id @default(autoincrement())
   stockTransferId Int     @map("stock_transfer_id")
   itemId          Int     @map("item_id")
-  quantity        Decimal @db.Decimal(10, 2)
+  quantity        Decimal @db.Decimal(10, 4)
 
   // Relations
   stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
@@ -985,9 +985,9 @@ model ProductionOrder {
   bomId             Int      @map("bom_id")
   sourceWarehouseId Int      @map("source_warehouse_id")
   destWarehouseId   Int?     @map("dest_warehouse_id")
-  targetOutputQty   Decimal  @map("target_output_qty") @db.Decimal(10, 3)
-  actualOutputQty   Decimal  @map("actual_output_qty")  @db.Decimal(10, 3)
-  outputWasteQty    Decimal  @default(0) @map("output_waste_qty") @db.Decimal(10, 3)
+  targetOutputQty   Decimal  @map("target_output_qty") @db.Decimal(10, 4)
+  actualOutputQty   Decimal  @map("actual_output_qty")  @db.Decimal(10, 4)
+  outputWasteQty    Decimal  @default(0) @map("output_waste_qty") @db.Decimal(10, 4)
   totalCost         Decimal  @default(0) @map("total_cost") @db.Decimal(10, 2)
   notes             String?  @db.Text
   createdById       Int      @map("created_by_id")

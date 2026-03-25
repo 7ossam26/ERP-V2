@@ -6,6 +6,7 @@ const SALES_URL = "/sales";
 const mapPaymentMethod = (backendMethod) => {
   const mapping = {
     CASH: "cash",
+    INSTAPAY: "instapay",
     CREDIT: "credit",
     MIXED: "mixed",
   };
@@ -16,6 +17,8 @@ const mapPaymentMethod = (backendMethod) => {
 const mapPaymentMethodToBackend = (frontendMethod) => {
   const mapping = {
     cash: "CASH",
+    instapay: "INSTAPAY",
+    visa: "INSTAPAY",
     credit: "CREDIT",
     mixed: "MIXED",
   };
@@ -63,5 +66,19 @@ export const salesService = {
 
   async markDelivered(saleId) {
     return await api.patch(`${SALES_URL}/${saleId}/mark-delivered`);
+  },
+
+  async getRecent(limit = 50) {
+    return await api.get(`${SALES_URL}/recent`, { params: { limit } });
+  },
+
+  async getPreparationQueue() {
+    return await api.get(`${SALES_URL}/preparation-queue`);
+  },
+
+  async dispatchDelivery(saleId, deliveryManId) {
+    return await api.patch(`${SALES_URL}/${saleId}/dispatch-delivery`, {
+      deliveryManId,
+    });
   },
 };

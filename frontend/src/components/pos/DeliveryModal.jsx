@@ -15,6 +15,7 @@ const DeliveryModal = ({
   currentShiftId,
   branchId,
 }) => {
+  const [deliveryMode, setDeliveryMode] = useState("direct"); // "direct" or "prepare"
   const [activeTab, setActiveTab] = useState("riders");
   const [deliveryZones, setDeliveryZones] = useState([]);
   const [selectedRider, setSelectedRider] = useState(null);
@@ -99,7 +100,8 @@ const DeliveryModal = ({
   };
 
   const handleConfirm = async () => {
-    if (!selectedRider) {
+    // In "prepare" mode, rider is optional
+    if (deliveryMode === "direct" && !selectedRider) {
       toast.error("يرجى اختيار طيار التوصيل");
       return;
     }
@@ -129,12 +131,13 @@ const DeliveryModal = ({
     }
 
     const confirmationPayload = {
-      riderId: selectedRider.id,
-      riderName: selectedRider.name,
+      riderId: selectedRider?.id || null,
+      riderName: selectedRider?.name || null,
       zoneId: selectedZone.id,
       zoneName: selectedZone.name,
       zoneFee: selectedZone.fee,
       address: clientAddress,
+      preparationOnly: deliveryMode === "prepare",
     };
 
     console.log(
@@ -178,22 +181,48 @@ const DeliveryModal = ({
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 mt-4">
+            {/* Delivery mode toggle */}
+            <div className="flex gap-2 mt-4 mb-1">
               <button
-                onClick={() => setActiveTab("riders")}
-                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "riders"
-                  ? "bg-primary text-white shadow-md"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}>
-                <span className="material-icons-round text-sm align-middle mr-1">
-                  delivery_dining
-                </span>
-                الطيارين
+                onClick={() => setDeliveryMode("direct")}
+                className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-sm transition-all ${
+                  deliveryMode === "direct"
+                    ? "bg-orange-500 text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200"
+                }`}>
+                <span className="material-icons-round text-sm align-middle mr-1">local_shipping</span>
+                توصيل مباشر
               </button>
               <button
+                onClick={() => setDeliveryMode("prepare")}
+                className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-sm transition-all ${
+                  deliveryMode === "prepare"
+                    ? "bg-blue-500 text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200"
+                }`}>
+                <span className="material-icons-round text-sm align-middle mr-1">kitchen</span>
+                إرسال للتجهيز
+              </button>
+            </div>
+
+            {/* Tabs (only relevant for "direct" mode) */}
+            <div className="flex gap-2 mt-2">
+              {deliveryMode === "direct" && (
+                <button
+                  onClick={() => setActiveTab("riders")}
+                  className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "riders"
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}>
+                  <span className="material-icons-round text-sm align-middle mr-1">
+                    delivery_dining
+                  </span>
+                  الطيارين
+                </button>
+              )}
+              <button
                 onClick={() => setActiveTab("zones")}
-                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "zones"
+                className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${activeTab === "zones" || deliveryMode === "prepare"
                   ? "bg-primary text-white shadow-md"
                   : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}>
@@ -226,7 +255,7 @@ const DeliveryModal = ({
             </div>
 
             {/* Tab Content */}
-            {activeTab === "riders" && (
+            {activeTab === "riders" && deliveryMode === "direct" && (
               <div className="space-y-3">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-3">
                   اختر الطيار
@@ -364,32 +393,31 @@ const DeliveryModal = ({
           <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
             {/* Summary */}
             <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">
-                  الطيار:
-                </span>
-                <span className="font-bold text-gray-900 dark:text-white">
-                  {selectedRider?.name || "-"}
-                </span>
-              </div>
+              {deliveryMode === "direct" && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">الطيار:</span>
+                  <span className="font-bold text-gray-900 dark:text-white">
+                    {selectedRider?.name || "-"}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm mt-2">
-                <span className="text-gray-600 dark:text-gray-400">
-                  المنطقة:
-                </span>
+                <span className="text-gray-600 dark:text-gray-400">المنطقة:</span>
                 <span className="font-bold text-gray-900 dark:text-white">
                   {selectedZone?.name || "-"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm mt-2">
-                <span className="text-gray-600 dark:text-gray-400">
-                  رسوم التوصيل:
-                </span>
+                <span className="text-gray-600 dark:text-gray-400">رسوم التوصيل:</span>
                 <span className="font-bold text-primary text-lg">
-                  {selectedZone
-                    ? `${parseFloat(selectedZone.fee).toFixed(2)} ج.م`
-                    : "-"}
+                  {selectedZone ? `${parseFloat(selectedZone.fee).toFixed(2)} ج.م` : "-"}
                 </span>
               </div>
+              {deliveryMode === "prepare" && (
+                <div className="mt-2 text-xs text-blue-600 font-medium bg-blue-50 rounded p-1.5 text-center">
+                  سيتم إرسال الطلب لقسم التجهيز بدون تعيين طيار
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">
@@ -401,13 +429,19 @@ const DeliveryModal = ({
               <button
                 onClick={handleConfirm}
                 disabled={
-                  !selectedRider || !selectedZone || !clientAddress.trim()
+                  (deliveryMode === "direct" && !selectedRider) ||
+                  !selectedZone ||
+                  !clientAddress.trim()
                 }
-                className="flex-1 px-6 py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg">
+                className={`flex-1 px-6 py-3 rounded-xl text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg ${
+                  deliveryMode === "prepare"
+                    ? "bg-blue-500 hover:bg-blue-600"
+                    : "bg-primary hover:bg-primary-hover"
+                }`}>
                 <span className="material-icons-round text-sm align-middle mr-1">
-                  check
+                  {deliveryMode === "prepare" ? "kitchen" : "check"}
                 </span>
-                تأكيد التوصيل
+                {deliveryMode === "prepare" ? "إرسال للتجهيز" : "تأكيد التوصيل"}
               </button>
             </div>
           </div>

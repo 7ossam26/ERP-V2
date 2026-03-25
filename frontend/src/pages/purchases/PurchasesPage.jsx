@@ -52,6 +52,17 @@ const PurchasesPage = () => {
   const [historyFilter, setHistoryFilter] = useState("");
   const [selectedHistoryPurchase, setSelectedHistoryPurchase] = useState(null);
 
+  // P1/P2: Searchable item dropdown state
+  const [itemSearches, setItemSearches] = useState({}); // { [rowId]: searchText }
+  const [openItemDropdown, setOpenItemDropdown] = useState(null); // rowId of open dropdown
+
+  // P5: Held purchases (persisted to localStorage)
+  const [heldPurchases, setHeldPurchases] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("heldPurchases") || "[]"); }
+    catch { return []; }
+  });
+  const [isHeldPurchasesOpen, setIsHeldPurchasesOpen] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -158,8 +169,12 @@ const PurchasesPage = () => {
     });
   };
 
-  // Show all items when supplier is selected (supplier filter removed — items may not have supplier pre-linked)
-  const availableItems = allItems;
+  // P2: Per-row available items — exclude already-selected items (but keep current row's own selection)
+  const selectedItemIds = new Set(items.filter((i) => i.itemId).map((i) => i.itemId));
+  const getAvailableItems = (rowId) => {
+    const thisRow = items.find((r) => r.id === rowId);
+    return allItems.filter((i) => !selectedItemIds.has(i.id) || thisRow?.itemId === i.id);
+  };
 
   const addItem = () => {
     const newItem = {
@@ -186,27 +201,85 @@ const PurchasesPage = () => {
     );
   };
 
-  // Handle item selection from database
-  const handleItemSelect = (rowId, selectedItemId) => {
-    const selectedItem = availableItems.find(
-      (item) => item.id === parseInt(selectedItemId),
+  // Handle item selection from searchable dropdown (P1/P2/P4)
+  const handleItemSelect = (rowId, selectedItem) => {
+    setItems(
+      items.map((item) =>
+        item.id === rowId
+          ? {
+              ...item,
+              itemId: selectedItem.id,
+              name: selectedItem.name,
+              // P4: auto-fill last purchase price from costPrice field
+              purchasePrice: parseFloat(selectedItem.costPrice) || 0,
+              sellPrice: selectedItem.price || 0,
+              unit: selectedItem.unit || "piece",
+              quantity: 1,
+            }
+          : item,
+      ),
     );
-    if (selectedItem) {
-      setItems(
-        items.map((item) =>
-          item.id === rowId
-            ? {
-                ...item,
-                itemId: selectedItem.id,
-                name: selectedItem.name,
-                sellPrice: selectedItem.price || 0,
-                unit: selectedItem.unit || "piece",
-                quantity: 1,
-              }
-            : item,
-        ),
-      );
+    setItemSearches((prev) => ({ ...prev, [rowId]: selectedItem.name }));
+    setOpenItemDropdown(null);
+  };
+
+  // P5: Hold/suspend purchase invoice
+  const handleHoldPurchase = () => {
+    if (!selectedSupplierId || !items.some((i) => i.itemId)) {
+      toast.error("أضف موردًا وصنف واحد على الأقل");
+      return;
     }
+    const held = {
+      id: Date.now(),
+      supplierId: selectedSupplierId,
+      supplierName: suppliers.find((s) => s.id === parseInt(selectedSupplierId))?.name || "",
+      items: items.filter((i) => i.itemId),
+      timestamp: new Date().toLocaleTimeString("ar-EG"),
+      total: totals.net.toFixed(2),
+      paymentMethod,
+      discountType,
+      discountValue,
+      warehouseId: selectedWarehouseId,
+      treasuryId: selectedTreasuryId,
+      supplierInvoiceNo,
+    };
+    const updated = [held, ...heldPurchases];
+    setHeldPurchases(updated);
+    localStorage.setItem("heldPurchases", JSON.stringify(updated));
+    // Reset form
+    setItems([{ id: Date.now(), name: "", itemId: null, quantity: 1, purchasePrice: 0, sellPrice: 0, unit: "piece" }]);
+    setItemSearches({});
+    setDiscountValue(0);
+    setSupplierInvoiceNo("");
+    toast.success("تم تعليق فاتورة المشتريات بنجاح");
+  };
+
+  const handleRetrievePurchase = (id) => {
+    const held = heldPurchases.find((h) => h.id === id);
+    if (!held) return;
+    setItems(held.items);
+    setSelectedSupplierId(held.supplierId);
+    setPaymentMethod(held.paymentMethod || "CASH");
+    setDiscountType(held.discountType || "percent");
+    setDiscountValue(held.discountValue || 0);
+    setSelectedWarehouseId(held.warehouseId || selectedWarehouseId);
+    setSelectedTreasuryId(held.treasuryId || selectedTreasuryId);
+    setSupplierInvoiceNo(held.supplierInvoiceNo || "");
+    // Restore search labels
+    const searches = {};
+    held.items.forEach((i) => { searches[i.id] = i.name; });
+    setItemSearches(searches);
+    const updated = heldPurchases.filter((h) => h.id !== id);
+    setHeldPurchases(updated);
+    localStorage.setItem("heldPurchases", JSON.stringify(updated));
+    setIsHeldPurchasesOpen(false);
+    toast.success("تم استرجاع فاتورة المشتريات");
+  };
+
+  const handleDeleteHeldPurchase = (id) => {
+    const updated = heldPurchases.filter((h) => h.id !== id);
+    setHeldPurchases(updated);
+    localStorage.setItem("heldPurchases", JSON.stringify(updated));
   };
 
   const handlePaymentMethodChange = (method) => {
@@ -499,6 +572,20 @@ const PurchasesPage = () => {
               <span className="material-symbols-outlined text-sm">assignment_return</span>
               <span>مرتجع</span>
             </button>
+            <button
+              onClick={handleHoldPurchase}
+              className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
+              <span className="material-symbols-outlined text-sm">pause_circle</span>
+              <span>تعليق</span>
+            </button>
+            {heldPurchases.length > 0 && (
+              <button
+                onClick={() => setIsHeldPurchasesOpen(true)}
+                className="relative flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
+                <span className="material-symbols-outlined text-sm">inventory</span>
+                <span>معلق ({heldPurchases.length})</span>
+              </button>
+            )}
             <Link
               to="/dashboard"
               className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
@@ -667,22 +754,46 @@ const PurchasesPage = () => {
                     className="bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark/50 border-b border-border-light dark:border-border-dark transition-colors">
                     <td className="px-4 py-3">
                       <div className="relative">
-                        <select
-                          value={item.itemId || ""}
-                          onChange={(e) =>
-                            handleItemSelect(item.id, e.target.value)
-                          }
-                          className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pl-8 text-text-light dark:text-text-dark font-bold appearance-none">
-                          <option value="">اختر صنف...</option>
-                          {availableItems.map((availItem) => (
-                            <option key={availItem.id} value={availItem.id}>
-                              {availItem.name}
-                            </option>
-                          ))}
-                        </select>
-                        <span className="material-symbols-outlined absolute left-2 top-2.5 text-text-muted pointer-events-none text-base">
-                          expand_more
+                        <input
+                          type="text"
+                          value={itemSearches[item.id] ?? item.name ?? ""}
+                          onChange={(e) => {
+                            setItemSearches((prev) => ({ ...prev, [item.id]: e.target.value }));
+                            setOpenItemDropdown(item.id);
+                          }}
+                          onFocus={() => setOpenItemDropdown(item.id)}
+                          onBlur={() => setTimeout(() => setOpenItemDropdown(null), 150)}
+                          placeholder="ابحث عن صنف..."
+                          className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pr-8 text-text-light dark:text-text-dark font-bold"
+                        />
+                        <span className="material-symbols-outlined absolute right-2 top-2.5 text-text-muted pointer-events-none text-base">
+                          search
                         </span>
+                        {openItemDropdown === item.id && (
+                          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-52 overflow-y-auto">
+                            {getAvailableItems(item.id)
+                              .filter((ai) =>
+                                ai.name.toLowerCase().includes((itemSearches[item.id] || "").toLowerCase())
+                              )
+                              .slice(0, 40)
+                              .map((ai) => (
+                                <div
+                                  key={ai.id}
+                                  onMouseDown={() => handleItemSelect(item.id, ai)}
+                                  className="px-3 py-2 cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/20 flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-700 last:border-0">
+                                  <span className="font-medium text-text-light dark:text-text-dark">{ai.name}</span>
+                                  <span className="text-xs text-gray-400 shrink-0 mr-2">
+                                    {parseFloat(ai.costPrice) > 0 ? `${parseFloat(ai.costPrice).toFixed(2)} ج.م` : ai.unit}
+                                  </span>
+                                </div>
+                              ))}
+                            {getAvailableItems(item.id).filter((ai) =>
+                              ai.name.toLowerCase().includes((itemSearches[item.id] || "").toLowerCase())
+                            ).length === 0 && (
+                              <div className="px-3 py-3 text-center text-gray-400 text-sm">لا توجد نتائج</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -1066,6 +1177,50 @@ const PurchasesPage = () => {
           </div>
         </section>
       </div>
+
+      {/* P5: Held Purchases Modal */}
+      {isHeldPurchasesOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" dir="rtl">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700">
+            <div className="bg-yellow-500 p-4 rounded-t-2xl text-white flex justify-between items-center">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined">inventory</span>
+                فواتير المشتريات المعلقة
+              </h2>
+              <button onClick={() => setIsHeldPurchasesOpen(false)} className="hover:bg-yellow-600 p-1.5 rounded-full transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              {heldPurchases.length === 0 ? (
+                <p className="text-center text-gray-400 py-6">لا توجد فواتير معلقة</p>
+              ) : (
+                heldPurchases.map((h) => (
+                  <div key={h.id} className="bg-gray-50 dark:bg-zinc-800 p-3 rounded-xl border border-gray-200 dark:border-zinc-700 flex justify-between items-center">
+                    <div>
+                      <div className="font-bold text-gray-800 dark:text-gray-200">{h.supplierName || "مورد"}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{h.timestamp} · {h.items.length} أصناف</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-primary">{h.total} ج.م</span>
+                      <button
+                        onClick={() => handleRetrievePurchase(h.id)}
+                        className="bg-primary hover:bg-primary-hover text-white px-3 py-1.5 rounded-lg text-sm font-bold transition-all">
+                        استرجاع
+                      </button>
+                      <button
+                        onClick={() => handleDeleteHeldPurchase(h.id)}
+                        className="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1.5 rounded-lg text-sm transition-all">
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

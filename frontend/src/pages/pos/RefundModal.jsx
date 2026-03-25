@@ -14,8 +14,9 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
   const [refundNote, setRefundNote] = useState("");
   const [searchResults, setSearchResults] = useState([]); // List of found sales for selection
   const [shiftRefunds, setShiftRefunds] = useState([]); // Returns made in this shift
+  const [recentSales, setRecentSales] = useState([]); // S8: auto-loaded recent sales
 
-  // Effect to auto-load if saleId provided, and load shift refunds
+  // Effect to auto-load if saleId provided, and load shift refunds + recent sales
   useEffect(() => {
     if (isOpen && initialSaleId) {
       setSearchSaleId(initialSaleId);
@@ -26,6 +27,10 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
       setRefundItems([]);
       setRefundNote("");
       setSearchResults([]);
+      // S8: Load recent sales automatically
+      salesService.getRecent(50)
+        .then(setRecentSales)
+        .catch(() => setRecentSales([]));
     }
     if (isOpen && shiftId) {
       salesService.getShiftRefunds(shiftId)
@@ -233,7 +238,21 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
             <input
               type="text"
               value={searchSaleId}
-              onChange={(e) => setSearchSaleId(e.target.value)}
+              onChange={(e) => {
+                setSearchSaleId(e.target.value);
+                // Filter recent sales as user types
+                if (e.target.value.trim()) {
+                  const q = e.target.value.trim().toLowerCase();
+                  setSearchResults(recentSales.filter(s =>
+                    s.saleNumber?.toLowerCase().includes(q) ||
+                    s.client?.name?.toLowerCase().includes(q) ||
+                    s.client?.phoneNumber?.includes(q)
+                  ));
+                } else {
+                  setSearchResults([]);
+                  setSaleData(null);
+                }
+              }}
               placeholder="بحث برقم الفاتورة، اسم العميل، أو رقم الهاتف..."
               className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:border-red-500"
               autoFocus
@@ -245,6 +264,43 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
               <FaSearch /> بحث
             </button>
           </form>
+
+          {/* S8: Recent sales list (shown when no search query and no sale selected) */}
+          {!saleData && !searchSaleId && recentSales.length > 0 && searchResults.length === 0 && (
+            <div>
+              <h3 className="font-bold text-gray-600 dark:text-gray-400 text-sm mb-2">آخر الفواتير</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-52 overflow-y-auto">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-900 text-xs text-gray-500 sticky top-0">
+                    <tr>
+                      <th className="p-2">رقم الفاتورة</th>
+                      <th className="p-2">العميل</th>
+                      <th className="p-2">التاريخ</th>
+                      <th className="p-2">الإجمالي</th>
+                      <th className="p-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {recentSales.map((sale) => (
+                      <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="p-2 font-mono text-xs">{sale.saleNumber}</td>
+                        <td className="p-2">{sale.client?.name || "عميل نقدي"}</td>
+                        <td className="p-2 text-xs text-gray-400">{new Date(sale.createdAt).toLocaleDateString("ar-EG")}</td>
+                        <td className="p-2 font-bold">{parseFloat(sale.total).toFixed(2)}</td>
+                        <td className="p-2">
+                          <button
+                            onClick={() => selectSale(sale)}
+                            className="bg-red-100 text-red-700 hover:bg-red-200 px-2 py-1 rounded text-xs font-bold">
+                            اختيار
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           {/* Search Results List */}
           {searchResults.length > 0 && !saleData && (
             <div className="animate-fade-in space-y-2">

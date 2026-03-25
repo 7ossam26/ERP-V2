@@ -30,6 +30,7 @@ import POSPage from "./pages/pos/POSPage";
 import StockTransferPage from "./pages/stock/StockTransferPage";
 import CashierTransferPage from "./pages/treasuries/CashierTransferPage";
 import BranchesSalesPage from "./pages/sales/BranchesSalesPage";
+import BranchBalancesPage from "./pages/branches/BranchBalancesPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import HRPage from "./pages/hr/HRPage";
@@ -236,6 +237,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="BRANCHES">
                 <BranchesSalesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/branches/balances"
+            element={
+              <ProtectedRoute requiredPermission="BRANCHES">
+                <BranchBalancesPage />
               </ProtectedRoute>
             }
           />

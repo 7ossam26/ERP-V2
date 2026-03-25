@@ -104,11 +104,11 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               </p>
             </div>
 
-            {/* Card Payments */}
+            {/* InstaPay Payments */}
             <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
               <div className="flex items-center gap-3 mb-2 text-purple-600">
                 <FaCreditCard />
-                <h4 className="font-bold">مبيعات عن طريق الفيزا</h4>
+                <h4 className="font-bold">مبيعات InstaPay</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
                 {report.cardPayments.toLocaleString()} ج.م
@@ -160,7 +160,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                         <td className="p-3">
                           <span
                             className={`px-2 py-0.5 rounded text-xs ${order.paymentMethod === "CASH" ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"}`}>
-                            {order.paymentMethod === "CASH" ? "كاش" : "فيزا"}
+                            {order.paymentMethod === "CASH" ? "نقدي" : "InstaPay"}
                           </span>
                         </td>
                         <td className="p-3 font-bold">
@@ -227,15 +227,12 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
           </div>
 
           <div className="mt-6 flex justify-end gap-3 print:hidden">
-            {/* 
-            <button 
-                onClick={handlePrint} 
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors"
-            >
-                <FaPrint />
-                طباعة التقرير
-            </button> 
-            */}
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors">
+              <FaPrint />
+              طباعة التقرير
+            </button>
             <button
               onClick={onClose}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">

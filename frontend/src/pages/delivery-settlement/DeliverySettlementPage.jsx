@@ -173,14 +173,13 @@ const DeliverySettlementPage = () => {
     };
 
     const handleSettle = async () => {
-        // Bulk settlement
+        // S9: Cashier settles directly — no manager password required
         if (selectedDrivers.length > 1) {
             setSettlementType('bulk');
-            setShowManagerVerification(true);
+            await handleBulkSettle({});
         } else if (selectedDriver && selectedSales.length > 0) {
-            // Single driver settlement
             setSettlementType('single');
-            setShowManagerVerification(true);
+            await handleSingleSettle({});
         }
     };
 

@@ -8,6 +8,9 @@ const ProductionHistory = () => {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,6 +32,35 @@ const ProductionHistory = () => {
   const filtered = orders.filter(
     (o) => !search || o.bom?.name?.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const handleStartEdit = (order) => {
+    setEditingId(order.id);
+    setEditForm({
+      targetOutputQty: parseFloat(order.targetOutputQty).toFixed(4),
+      actualOutputQty: parseFloat(order.actualOutputQty).toFixed(4),
+      outputWasteQty: parseFloat(order.outputWasteQty || 0).toFixed(4),
+      notes: order.notes || "",
+    });
+    setExpandedId(order.id); // ensure card is expanded
+  };
+
+  const handleSaveEdit = async (orderId) => {
+    setSaving(true);
+    try {
+      const updated = await bomService.updateProductionOrder(orderId, editForm);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...updated } : o)),
+      );
+      setEditingId(null);
+      toast.success("تم تعديل أمر الإنتاج بنجاح");
+      // Refetch to get fresh data with relations
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.message || "فشل تعديل أمر الإنتاج");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fmt = (v) => parseFloat(v || 0).toFixed(3);
   const fmtCost = (v) => parseFloat(v || 0).toFixed(2);
@@ -175,7 +207,7 @@ const ProductionHistory = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="flex items-center gap-3 flex-shrink-0">
                     <div className="text-right hidden sm:block">
                       <p className="font-bold text-sm text-text-light dark:text-text-dark">
                         {fmtCost(order.totalCost)} ج.م
@@ -187,6 +219,15 @@ const ProductionHistory = () => {
                         {date} {time}
                       </p>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEdit(order);
+                      }}
+                      className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="تعديل">
+                      <span className="material-icons-round text-lg">edit</span>
+                    </button>
                     <span
                       className={`material-icons-round text-gray-400 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}>
                       expand_more
@@ -197,6 +238,95 @@ const ProductionHistory = () => {
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t border-gray-100 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-800/30">
+
+                    {/* Edit form (shown when in edit mode for this order) */}
+                    {editingId === order.id && (
+                      <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
+                        <h4 className="font-bold text-blue-700 dark:text-blue-300 mb-3 flex items-center gap-2">
+                          <span className="material-icons-round text-lg">edit</span>
+                          تعديل الكميات
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">
+                              الكمية المستهدفة
+                            </label>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              min="0.0001"
+                              value={editForm.targetOutputQty}
+                              onChange={(e) =>
+                                setEditForm((f) => ({ ...f, targetOutputQty: e.target.value }))
+                              }
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">
+                              الكمية الفعلية
+                            </label>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              min="0"
+                              value={editForm.actualOutputQty}
+                              onChange={(e) =>
+                                setEditForm((f) => ({ ...f, actualOutputQty: e.target.value }))
+                              }
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">
+                              الهالك
+                            </label>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              min="0"
+                              value={editForm.outputWasteQty}
+                              onChange={(e) =>
+                                setEditForm((f) => ({ ...f, outputWasteQty: e.target.value }))
+                              }
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="mb-3">
+                          <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">
+                            ملاحظات
+                          </label>
+                          <input
+                            type="text"
+                            value={editForm.notes}
+                            onChange={(e) =>
+                              setEditForm((f) => ({ ...f, notes: e.target.value }))
+                            }
+                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveEdit(order.id)}
+                            disabled={saving}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-bold text-sm transition-colors flex items-center gap-1">
+                            <span className="material-icons-round text-base">save</span>
+                            {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm transition-colors">
+                            إلغاء
+                          </button>
+                        </div>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+                          <span className="material-icons-round text-sm">warning</span>
+                          سيتم حذف أمر الإنتاج الحالي وإنشاء أمر جديد بالكميات المعدّلة
+                        </p>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                       <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center border border-gray-100 dark:border-gray-700">
                         <p className="text-xs text-gray-500 mb-1">

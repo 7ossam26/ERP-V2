@@ -304,71 +304,11 @@ exports.settleDeliveryMan = async (req, res) => {
       notes,
       userId,
       saleIds,
-      managerUsername,
-      managerPassword,
     } = req.body;
 
-    // Verify manager credentials (REQUIRED)
-    if (!managerUsername || !managerPassword) {
-      return res.status(400).json({
-        error: "Manager credentials are required for settlement",
-        message: "يجب تأكيد التسوية ببيانات المدير",
-      });
-    }
-
-    const manager = await prisma.user.findUnique({
-      where: { username: managerUsername },
-      include: {
-        role: {
-          include: {
-            permissions: true,
-          },
-        },
-        accessibleBranches: { select: { id: true } },
-      },
-    });
-
-    if (!manager) {
-      return res.status(401).json({
-        error: "Invalid manager credentials",
-        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
-      });
-    }
-
-    const isPasswordValid = await bcrypt.compare(
-      managerPassword,
-      manager.password,
-    );
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        error: "Invalid manager credentials",
-        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
-      });
-    }
-
-    const hasRole =
-      manager.role.name === "Superadmin" ||
-      manager.role.name === "Manager" ||
-      manager.role.name === "Branch Manager" ||
-      manager.role.name === "Admin" ||
-      manager.role.name === "General Manager";
-
-    // Check permissions if role check fails
-    let hasPermission = false;
-    if (!hasRole && manager.role.permissions) {
-      hasPermission = manager.role.permissions.some(
-        (p) =>
-          (p.module === "DELIVERY_SETTLEMENT" || p.module === "POS") &&
-          p.canAccess === true,
-      );
-    }
-
-    if (!hasRole && !hasPermission) {
-      return res.status(403).json({
-        error: "Access denied. Only managers can approve settlements.",
-        message: "عذراً، هذه العملية متاحة للمديرين فقط",
-      });
-    }
+    // Settlement is allowed for all authenticated users with POS or DELIVERY_SETTLEMENT permission
+    // (enforced by route middleware). No additional manager auth required.
+    const settledById = userId ? parseInt(userId) : (req.user?.id || null);
 
     // Determine if this is a bulk settlement or single
     const isBulk = Array.isArray(deliveryMen) && deliveryMen.length > 0;
@@ -413,7 +353,7 @@ exports.settleDeliveryMan = async (req, res) => {
               amount: driverAmount,
               type: "PAYMENT",
               description: notes || "Bulk Settlement",
-              createdById: userId ? parseInt(userId) : manager.id,
+              createdById: settledById,
             },
           });
 
@@ -518,7 +458,7 @@ exports.settleDeliveryMan = async (req, res) => {
           amount: parseFloat(amount),
           type: "PAYMENT",
           description: notes || "Manual Settlement",
-          createdById: userId ? parseInt(userId) : manager.id,
+          createdById: settledById,
         },
       });
 

@@ -125,6 +125,72 @@ router.get("/summary", async (req, res, next) => {
   }
 });
 
+// GET branch balances — Cash treasury + today's INSTAPAY sales per branch (BR1)
+router.get("/balances", async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { role: true },
+    });
+
+    const canSeeAllBranches =
+      user.role.name === "Superadmin" ||
+      user.role.name === "General Manager";
+
+    const where = { isActive: true };
+    if (!canSeeAllBranches) {
+      const branchFilter = await getUserBranchFilter(req.user.id);
+      if (branchFilter) {
+        where.id = branchFilter.id.in ? { in: branchFilter.id.in } : branchFilter.id;
+      }
+    }
+
+    const branches = await prisma.branch.findMany({
+      where,
+      include: {
+        treasury: { select: { balance: true, name: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // Today's range
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Aggregate INSTAPAY sales per branch for today
+    const instapaySales = await prisma.sale.groupBy({
+      by: ["branchId"],
+      where: {
+        paymentMethod: "INSTAPAY",
+        status: "COMPLETED",
+        createdAt: { gte: todayStart, lte: todayEnd },
+        branchId: { in: branches.map((b) => b.id) },
+      },
+      _sum: { total: true },
+    });
+
+    const instapayMap = {};
+    instapaySales.forEach((row) => {
+      instapayMap[row.branchId] = Number(row._sum.total || 0);
+    });
+
+    const result = branches.map((branch) => ({
+      id: branch.id,
+      name: branch.name,
+      address: branch.address,
+      cashBalance: Number(branch.treasury?.balance || 0),
+      treasuryName: branch.treasury?.name || "الخزينة",
+      instapayToday: instapayMap[branch.id] || 0,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET branch by ID - Accessible if it matches user's branch or user has global access
 router.get("/:id", async (req, res, next) => {
   try {

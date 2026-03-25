@@ -93,6 +93,73 @@ router.get(
   },
 );
 
+// GET recent sales — for return/refund modal (S8)
+router.get(
+  "/recent",
+  authenticateToken,
+  requireAnyPermission(["SALES", "POS"]),
+  async (req, res, next) => {
+    try {
+      const limit = parseInt(req.query.limit) || 50;
+      const branchFilter = await getUserBranchFilter(req.user.id);
+      const whereClause = { status: "COMPLETED" };
+      if (branchFilter) {
+        if (branchFilter.id.in) {
+          whereClause.branchId = { in: branchFilter.id.in };
+        } else {
+          whereClause.branchId = branchFilter.id;
+        }
+      }
+      const sales = await prisma.sale.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        include: {
+          client: true,
+          items: { include: { item: true } },
+        },
+      });
+      res.json(sales);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// GET pending preparation orders (S11 Phase 1 queue) — must be before /:id
+router.get(
+  "/preparation-queue",
+  authenticateToken,
+  requireAnyPermission(["POS", "SALES"]),
+  async (req, res, next) => {
+    try {
+      const branchFilter = await getUserBranchFilter(req.user.id);
+      const whereClause = {
+        deliveryStatus: "PENDING",
+        deliveryZoneId: { not: null },
+        status: "COMPLETED",
+      };
+      if (branchFilter) {
+        whereClause.branchId = branchFilter.id.in
+          ? { in: branchFilter.id.in }
+          : branchFilter.id;
+      }
+      const orders = await prisma.sale.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "asc" }, // Oldest first (FIFO)
+        include: {
+          client: { select: { name: true, phone: true } },
+          deliveryZone: true,
+          items: { include: { item: true, bom: true } },
+        },
+      });
+      res.json(orders);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // GET sale by ID - Requires SALES or POS permission
 router.get(
   "/:id",
@@ -525,10 +592,14 @@ router.post(
         const method = (paymentMethod || "CASH").toUpperCase();
 
         // Skip treasury update for delivery orders (money still with rider)
-        const isDeliveryOrder =
+        // Also skip for PENDING delivery orders (no driver assigned yet — Phase 1 of two-phase delivery)
+        const isDeliveryOrderDispatched =
           sale.deliveryStatus === "OUT_FOR_DELIVERY" && sale.deliveryManId;
+        const isDeliveryOrderPending =
+          sale.deliveryZoneId && sale.deliveryStatus === "PENDING";
+        const isDeliveryOrder = isDeliveryOrderDispatched || isDeliveryOrderPending;
 
-        if (isDeliveryOrder) {
+        if (isDeliveryOrderDispatched) {
           // ---------------------------------------------------------
           // NEW: Driver Share Logic
           // ---------------------------------------------------------
@@ -590,7 +661,7 @@ router.post(
             data: { balance: { increment: parseFloat(total) } },
           });
           console.log("✅ Branch Treasury balance updated.");
-        } else if (method === "CARD" || method === "VISA") {
+        } else if (method === "INSTAPAY" || method === "CARD" || method === "VISA") {
           console.log(`💳 Payment is ${method}. Checking for Bank Treasury...`);
 
           // Fetch System Configuration for Bank Treasury ID
@@ -703,7 +774,7 @@ router.post(
             }
           } else if (saleItemId) {
             // === DIRECT ITEM DEDUCTION (no BOM, only if we have a real itemId) ===
-            const inventory = await tx.inventory.findUnique({
+            let inventory = await tx.inventory.findUnique({
               where: {
                 itemId_warehouseId: {
                   itemId: saleItemId,
@@ -713,17 +784,116 @@ router.post(
               include: { item: true },
             });
 
-            if (!inventory || inventory.quantity < item.quantity) {
+            const currentQty = inventory ? Number(inventory.quantity) : 0;
+
+            if (currentQty < saleQty) {
               const itemName = inventory?.item?.name || `Item #${item.itemId}`;
-              const available = inventory ? inventory.quantity : 0;
-              const error = new Error(
-                `Insufficient stock for ${itemName}. Available: ${available}, Requested: ${item.quantity}`,
-              );
-              error.resolution = `Check the inventory for ${itemName} or reduce the quantity. You may also need to create a purchase order to restock.`;
-              throw error;
+              const needed = saleQty - currentQty;
+
+              // B2: Auto-produce if a BOM exists for this item
+              const autoBom = await tx.bOM.findFirst({
+                where: { outputItemId: saleItemId },
+                include: { items: { include: { item: true } } },
+              });
+
+              if (autoBom) {
+                const outputPerRun = Number(autoBom.outputQuantity);
+                const runsNeeded = Math.ceil(needed / outputPerRun);
+                const totalProduced = runsNeeded * outputPerRun;
+
+                // Check raw material availability
+                const missingMaterials = [];
+                for (const bomItem of autoBom.items) {
+                  const materialQty = Number(bomItem.quantity) * runsNeeded;
+                  const matInv = await tx.inventory.findUnique({
+                    where: {
+                      itemId_warehouseId: {
+                        itemId: bomItem.itemId,
+                        warehouseId: warehouseId,
+                      },
+                    },
+                    include: { item: true },
+                  });
+                  const matAvail = matInv ? Number(matInv.quantity) : 0;
+                  if (matAvail < materialQty) {
+                    missingMaterials.push({
+                      name: bomItem.item.name,
+                      required: materialQty,
+                      available: matAvail,
+                    });
+                  }
+                }
+
+                if (missingMaterials.length > 0) {
+                  const matList = missingMaterials
+                    .map(
+                      (m) =>
+                        `${m.name} (متاح: ${Number(m.available).toFixed(2)}, مطلوب: ${Number(m.required).toFixed(2)})`,
+                    )
+                    .join("، ");
+                  const error = new Error(
+                    `لا يمكن إنتاج "${itemName}" تلقائياً — مواد خام غير كافية: ${matList}`,
+                  );
+                  error.missingMaterials = missingMaterials;
+                  throw error;
+                }
+
+                // Deduct raw materials
+                for (const bomItem of autoBom.items) {
+                  const materialQty = Number(bomItem.quantity) * runsNeeded;
+                  await tx.inventory.update({
+                    where: {
+                      itemId_warehouseId: {
+                        itemId: bomItem.itemId,
+                        warehouseId: warehouseId,
+                      },
+                    },
+                    data: { quantity: { decrement: materialQty } },
+                  });
+                }
+
+                // Add produced quantity to inventory
+                if (inventory) {
+                  inventory = await tx.inventory.update({
+                    where: {
+                      itemId_warehouseId: {
+                        itemId: saleItemId,
+                        warehouseId: warehouseId,
+                      },
+                    },
+                    data: { quantity: { increment: totalProduced } },
+                    include: { item: true },
+                  });
+                } else {
+                  inventory = await tx.inventory.create({
+                    data: {
+                      itemId: saleItemId,
+                      warehouseId: warehouseId,
+                      quantity: totalProduced,
+                    },
+                    include: { item: true },
+                  });
+                }
+
+                // Record auto-production in warnings for frontend toast
+                if (!sale.warnings) sale.warnings = [];
+                sale.warnings.push(
+                  `AUTO_PRODUCED:${itemName}:${totalProduced.toFixed(2)}`,
+                );
+                console.log(
+                  `🏭 B2 Auto-produced ${totalProduced} of "${itemName}" using BOM "${autoBom.name}"`,
+                );
+              } else {
+                // No BOM available — hard stop
+                const error = new Error(
+                  `Insufficient stock for ${itemName}. Available: ${currentQty}, Requested: ${saleQty}`,
+                );
+                error.resolution = `Check the inventory for ${itemName} or reduce the quantity.`;
+                throw error;
+              }
             }
 
-            // Decrement stock
+            // Decrement stock (works whether we just auto-produced or had enough stock)
             const updatedInventory = await tx.inventory.update({
               where: {
                 itemId_warehouseId: {
@@ -736,11 +906,12 @@ router.post(
 
             // Check Low Stock Warning
             if (
-              updatedInventory.quantity <= (inventory.item.reorderPoint || 0)
+              Number(updatedInventory.quantity) <=
+              (inventory?.item?.reorderPoint || 0)
             ) {
               if (!sale.warnings) sale.warnings = [];
               sale.warnings.push(
-                `Low stock warning: ${inventory.item.name} is now at ${updatedInventory.quantity}`,
+                `Low stock warning: ${inventory?.item?.name || saleItemId} is now at ${updatedInventory.quantity}`,
               );
             }
           }
@@ -802,6 +973,85 @@ router.patch(
         });
 
         return updatedSale;
+      });
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// PATCH dispatch delivery - Assign driver to a PENDING delivery order (Phase 2 of two-phase delivery)
+router.patch(
+  "/:id/dispatch-delivery",
+  authenticateToken,
+  requireAnyPermission(["POS", "SALES"]),
+  async (req, res, next) => {
+    try {
+      const saleId = parseInt(req.params.id);
+      const { deliveryManId } = req.body;
+
+      if (!deliveryManId) {
+        return res
+          .status(400)
+          .json({ error: "Delivery man ID is required" });
+      }
+
+      const sale = await prisma.sale.findUnique({
+        where: { id: saleId },
+        include: { deliveryZone: true },
+      });
+
+      if (!sale) return res.status(404).json({ error: "Sale not found" });
+      if (sale.deliveryStatus !== "PENDING" || !sale.deliveryZoneId) {
+        return res.status(400).json({
+          error: "This order is not in preparation status",
+          message: "هذا الطلب ليس في قسم التجهيز",
+        });
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Calculate driver share from zone
+        let driverShare = 0;
+        if (sale.deliveryZone?.driverShare) {
+          driverShare = Number(sale.deliveryZone.driverShare);
+        }
+        const totalCashHeld = parseFloat(sale.total);
+        const netDebt = totalCashHeld - driverShare;
+
+        // Assign driver and dispatch
+        const updated = await tx.sale.update({
+          where: { id: saleId },
+          data: {
+            deliveryManId: parseInt(deliveryManId),
+            deliveryStatus: "OUT_FOR_DELIVERY",
+            deliveryDriverShare: driverShare || null,
+          },
+          include: {
+            client: true,
+            deliveryMan: true,
+            deliveryZone: true,
+          },
+        });
+
+        // Update driver wallet
+        await tx.deliveryMan.update({
+          where: { id: parseInt(deliveryManId) },
+          data: { walletBalance: { increment: netDebt } },
+        });
+
+        await tx.deliveryManTransaction.create({
+          data: {
+            deliveryManId: parseInt(deliveryManId),
+            amount: netDebt,
+            type: "DEBT_ACCRUED",
+            description: `Order #${sale.saleNumber} Dispatched`,
+            createdById: req.user.id,
+          },
+        });
+
+        return updated;
       });
 
       res.json(result);
