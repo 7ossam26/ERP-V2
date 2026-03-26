@@ -394,11 +394,23 @@ const POSPage = () => {
             : null;
 
           let quantity;
+          let autoProducible = 0;
           if (bom.outputItemId) {
             // Use ACTUAL warehouse stock of the manufactured output
             quantity = parseFloat(
               (inventoryMap[bom.outputItemId] || 0).toFixed(4),
             );
+            // Also calculate max auto-producible from raw materials
+            if (bom.items && bom.items.length > 0) {
+              const maxRuns = bom.items.reduce((min, bomItem) => {
+                const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
+                const requiredQty = Number(bomItem.quantity);
+                if (requiredQty <= 0) return min;
+                return Math.min(min, rawMaterialQty / requiredQty);
+              }, Infinity);
+              const outputPerRun = Number(bom.outputQuantity) || 1;
+              autoProducible = maxRuns === Infinity ? 0 : parseFloat((maxRuns * outputPerRun).toFixed(4));
+            }
           } else {
             // No linked item → fall back to max possible production from raw materials
             const maxProduction = bom.items.reduce((min, bomItem) => {
@@ -429,6 +441,7 @@ const POSPage = () => {
               ) ||
               (outputItem ? outputItem.categories.map((c) => c.category?.id ?? c.categoryId ?? c) : []),
             quantity: quantity,
+            autoProducible: autoProducible,
             hasBom: true,
             hasLinkedOutput: !!bom.outputItemId, // true = real warehouse stock, false = theoretical max
             showInPos: outputItem
@@ -486,8 +499,9 @@ const POSPage = () => {
 
   // Handle product clicks - check unit type and show appropriate selector
   const handleProductClick = (product) => {
-    // Check stock availability first
-    if (!product.quantity || product.quantity <= 0) {
+    // Check stock availability (include auto-producible for BOM items)
+    const totalAvailable = (product.quantity || 0) + (product.autoProducible || 0);
+    if (totalAvailable <= 0) {
       toast.error(`الكمية غير متوفرة! المتاح: ${product.quantity || 0}`);
       return;
     }
@@ -540,19 +554,28 @@ const POSPage = () => {
     const existingQty = existingItem ? existingItem.quantity : 0;
     const totalRequested = existingQty + quantity;
 
-    // Skip stock check ONLY for unlinked BOM items (auto-manufactured on demand)
-    // Linked BOM items have real warehouse stock, so enforce the check
+    // Skip stock check for unlinked BOM items (auto-manufactured on demand)
     const skipStockCheck = product.hasBom && !product.hasLinkedOutput;
-    if (!skipStockCheck && totalRequested > currentStock) {
+    // Linked BOM items can auto-produce from raw materials if stock is insufficient
+    const canAutoProduce = product.hasBom && product.hasLinkedOutput && (product.autoProducible || 0) > 0;
+
+    if (canAutoProduce) {
+      // For linked BOMs with auto-production, check against combined availability
+      const combinedAvailable = currentStock + (product.autoProducible || 0);
+      if (totalRequested > combinedAvailable) {
+        toast.error(`الكمية غير متوفرة! المتاح: ${combinedAvailable.toFixed(2)}`);
+        return false;
+      }
+    } else if (!skipStockCheck && totalRequested > currentStock) {
       toast.error(`الكمية غير متوفرة! المتاح: ${currentStock}`);
-      return false; // Return failure
+      return false;
     }
 
     // Warning for Reorder Point
     const reorderPoint = product.reorderPoint || 0;
     const remainingAfterSale = currentStock - totalRequested;
 
-    if (!skipStockCheck && remainingAfterSale <= reorderPoint) {
+    if (!skipStockCheck && !canAutoProduce && remainingAfterSale <= reorderPoint) {
       toast(`تحذير: المخزون سيصبح منخفض (${remainingAfterSale})`, {
         icon: "⚠️",
       });
@@ -1714,6 +1737,11 @@ const POSPage = () => {
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">
                       المتاح: {Number(product.quantity || 0)}{" "}
                       {getArabicUnit(product.unit)}
+                      {product.autoProducible > 0 && (
+                        <span className="text-emerald-600 dark:text-emerald-400 mr-1">
+                          {" "}(+{Math.floor(product.autoProducible)} إنتاج تلقائي)
+                        </span>
+                      )}
                     </div>
                     <div className="mt-auto">
                       <span className="block text-primary dark:text-primary/90 font-bold text-base">

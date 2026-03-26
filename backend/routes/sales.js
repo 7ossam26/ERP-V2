@@ -875,6 +875,30 @@ router.post(
                   });
                 }
 
+                // Create ProductionOrder for audit trail
+                const autoTotalCost = autoBom.items.reduce((sum, bi) => {
+                  return sum + Number(bi.quantity) * runsNeeded * Number(bi.item.costPrice || 0);
+                }, 0);
+                await tx.productionOrder.create({
+                  data: {
+                    bomId: autoBom.id,
+                    sourceWarehouseId: warehouseId,
+                    destWarehouseId: warehouseId,
+                    targetOutputQty: totalProduced,
+                    actualOutputQty: totalProduced,
+                    outputWasteQty: 0,
+                    totalCost: parseFloat(autoTotalCost.toFixed(2)),
+                    notes: `إنتاج تلقائي من نقطة البيع - فاتورة رقم ${sale.saleNumber}`,
+                    createdById: req.user.id,
+                    items: {
+                      create: autoBom.items.map((bi) => ({
+                        itemId: bi.itemId,
+                        quantityUsed: Number(bi.quantity) * runsNeeded,
+                      })),
+                    },
+                  },
+                });
+
                 // Record auto-production in warnings for frontend toast
                 if (!sale.warnings) sale.warnings = [];
                 sale.warnings.push(
