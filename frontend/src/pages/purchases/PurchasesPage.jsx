@@ -726,7 +726,7 @@ const PurchasesPage = () => {
               <span>تكويد سريع</span>
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-visible">
             <table className="w-full text-sm text-right text-text-muted dark:text-accent">
               <thead className="text-xs text-text-light uppercase bg-accent/20 dark:bg-surface-dark/80 dark:text-text-dark border-b border-border-light dark:border-border-dark">
                 <tr>
