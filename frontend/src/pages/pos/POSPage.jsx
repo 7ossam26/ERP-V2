@@ -1271,7 +1271,25 @@ const POSPage = () => {
               لا توجد فواتير معلقة
             </p>
           ) : (
-            heldCarts.map((cart) => (
+            <>
+            {/* Clear All Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  confirmAction(
+                    `هل تريد مسح جميع الفواتير المعلقة؟ (${heldCarts.length} فاتورة)`,
+                    () => {
+                      setHeldCarts([]);
+                      toast.success("تم مسح جميع الفواتير المعلقة");
+                    }
+                  );
+                }}
+                className="flex items-center gap-1.5 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg font-bold text-sm transition-all">
+                <span className="material-symbols-outlined text-[18px]">delete_sweep</span>
+                مسح الكل
+              </button>
+            </div>
+            {heldCarts.map((cart) => (
               <div
                 key={cart.id}
                 className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex justify-between items-center group hover:border-primary/50 transition-colors">
@@ -1316,7 +1334,8 @@ const POSPage = () => {
                   </button>
                 </div>
               </div>
-            ))
+            ))}
+            </>
           )}
         </div>
       </Modal>
