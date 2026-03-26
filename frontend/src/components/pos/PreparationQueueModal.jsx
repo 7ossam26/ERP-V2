@@ -120,9 +120,9 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
                       <p className="font-bold text-gray-800 dark:text-white mt-1">
                         {order.client?.name || "عميل نقدي"}
                       </p>
-                      {order.client?.phone && (
+                      {order.client?.phoneNumber && (
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {order.client.phone}
+                          {order.client.phoneNumber}
                         </p>
                       )}
                     </div>

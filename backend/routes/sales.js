@@ -148,7 +148,7 @@ router.get(
         where: whereClause,
         orderBy: { createdAt: "asc" }, // Oldest first (FIFO)
         include: {
-          client: { select: { name: true, phone: true } },
+          client: { select: { name: true, phoneNumber: true } },
           deliveryZone: true,
           items: { include: { item: true, bom: true } },
         },
