@@ -128,8 +128,8 @@ const ExecuteProductionModal = ({
               </label>
               <input
                 type="number"
-                step="0.001"
-                min="0.001"
+                step="0.1"
+                min="0.1"
                 className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-background-light dark:bg-background-dark py-2.5 px-4 text-center font-bold focus:ring-2 focus:ring-primary"
                 placeholder="0"
                 value={targetQty}
@@ -145,7 +145,7 @@ const ExecuteProductionModal = ({
               </label>
               <input
                 type="number"
-                step="0.001"
+                step="0.1"
                 min="0"
                 className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-background-light dark:bg-background-dark py-2.5 px-4 text-center font-bold focus:ring-2 focus:ring-primary"
                 placeholder="0"
@@ -158,11 +158,10 @@ const ExecuteProductionModal = ({
                 الهالك (تلقائي)
               </label>
               <div
-                className={`rounded-xl border py-2.5 px-4 text-center font-bold ${
-                  wasteQty > 0
+                className={`rounded-xl border py-2.5 px-4 text-center font-bold ${wasteQty > 0
                     ? "border-red-300 bg-red-50 dark:bg-red-900/20 text-red-600"
                     : "border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-400"
-                }`}>
+                  }`}>
                 {wasteQty > 0 ? wasteQty.toFixed(3) : "-"}
               </div>
             </div>
@@ -335,10 +334,10 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
     items:
       initialData?.items?.length > 0
         ? initialData.items.map((i) => ({
-            itemId: String(i.itemId),
-            quantity: String(i.quantity),
-            notes: i.notes || "",
-          }))
+          itemId: String(i.itemId),
+          quantity: String(i.quantity),
+          notes: i.notes || "",
+        }))
         : [{ itemId: "", quantity: "", notes: "" }],
   });
   const [loading, setLoading] = useState(false);
@@ -536,11 +535,10 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
             {allCategories.map((cat) => (
               <label
                 key={cat.id}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-all text-sm font-bold ${
-                  selectedCategoryIds.includes(cat.id)
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-all text-sm font-bold ${selectedCategoryIds.includes(cat.id)
                     ? "bg-primary/10 border-primary text-primary dark:text-accent"
                     : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary/40"
-                }`}>
+                  }`}>
                 <input
                   type="checkbox"
                   className="sr-only"
@@ -981,11 +979,10 @@ const BOMManager = () => {
                 onClick={() => toggleExpand(bom.id)}>
                 <div className="flex items-center gap-4">
                   <div
-                    className={`p-2.5 rounded-xl ${
-                      bom.isActive
+                    className={`p-2.5 rounded-xl ${bom.isActive
                         ? "bg-green-100 dark:bg-green-900/30 text-green-600"
                         : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-                    }`}>
+                      }`}>
                     <span className="material-icons-round text-xl">
                       receipt
                     </span>
@@ -1014,11 +1011,10 @@ const BOMManager = () => {
                         •
                       </span>
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          bom.isActive
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${bom.isActive
                             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                             : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                        }`}>
+                          }`}>
                         {bom.isActive ? "مفعّل" : "معطّل"}
                       </span>
                     </div>
@@ -1121,9 +1117,8 @@ const BOMManager = () => {
                     </>
                   )}
                   <span
-                    className={`material-icons-round text-gray-400 transform transition-transform ${
-                      expandedBom === bom.id ? "rotate-180" : ""
-                    }`}>
+                    className={`material-icons-round text-gray-400 transform transition-transform ${expandedBom === bom.id ? "rotate-180" : ""
+                      }`}>
                     expand_more
                   </span>
                 </div>
