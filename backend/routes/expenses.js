@@ -9,7 +9,7 @@ router.use(authenticateToken, requirePermission("EXPENSES"));
 // GET all expenses
 router.get("/", async (req, res, next) => {
     try {
-        const branchFilter = await getUserBranchFilter(req.user.id);
+        const branchFilter = await getUserBranchFilter(req.user.id, req);
         const whereClause = {};
 
         if (branchFilter) {

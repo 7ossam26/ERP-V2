@@ -47,7 +47,7 @@ router.get("/", async (req, res, next) => {
     // whereClause.showInPos = true; // REMOVED: Inventory should show all items including raw materials
 
     // Determine warehouse limitation based on user branch
-    const branchFilter = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id, req);
     let inventoryWhere = {};
 
     if (branchFilter) {
@@ -217,7 +217,7 @@ router.get("/stats", async (req, res, next) => {
     }
 
     // Determine warehouse limitation based on user branch
-    const branchFilter = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id, req);
     let inventoryWhere = {};
 
     if (branchFilter) {

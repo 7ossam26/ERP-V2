@@ -33,6 +33,20 @@ export const apiClient = async (endpoint, options = {}) => {
     config.headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // Add active branch header if set
+  const userStr = localStorage.getItem("user");
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      const activeBranch = localStorage.getItem(`activeBranch_${user.id}`);
+      if (activeBranch && activeBranch !== "0") {
+        config.headers["X-Active-Branch-Id"] = activeBranch;
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+  }
+
   try {
     const response = await fetch(url, config);
 

@@ -110,12 +110,16 @@ const AuthService = {
           const hasNameChanged = currentUser.name !== userData.name;
           const hasSensitiveAccessChanged =
             currentUser.hasSensitiveAccess !== userData.hasSensitiveAccess;
+          const hasBranchesChanged =
+            JSON.stringify(currentUser.accessibleBranches || []) !==
+            JSON.stringify(userData.accessibleBranches || []);
 
           if (
             !hasPermissionsChanged &&
             !hasRoleChanged &&
             !hasNameChanged &&
-            !hasSensitiveAccessChanged
+            !hasSensitiveAccessChanged &&
+            !hasBranchesChanged
           ) {
             return null; // No significant change, avoid re-render
           }

@@ -196,7 +196,8 @@ const requireSensitiveAccess = async (req, res, next) => {
 };
 
 // Get branch filter for queries (returns null if user can see all branches)
-const getUserBranchFilter = async (userId) => {
+// If req is provided, checks X-Active-Branch-Id header to filter to a single branch
+const getUserBranchFilter = async (userId, req = null) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -212,20 +213,39 @@ const getUserBranchFilter = async (userId) => {
       throw new Error("User not found");
     }
 
-    // Superadmin, Admin, OR General Manager sees ALL (return null)
-    if (user.role && (user.role.name === "Superadmin" || user.role.name === "Admin" || user.role.name === "General Manager")) {
-      return null;
-    }
+    const isGlobalRole = user.role && (user.role.name === "Superadmin" || user.role.name === "Admin" || user.role.name === "General Manager");
 
-    // Collect all allowed branch IDs
+    // Collect all allowed branch IDs (for non-global roles)
     const allowedBranchIds = [];
-    if (user.branchId) allowedBranchIds.push(user.branchId);
-    if (user.accessibleBranches && user.accessibleBranches.length > 0) {
-      user.accessibleBranches.forEach(b => allowedBranchIds.push(b.id));
+    if (!isGlobalRole) {
+      if (user.branchId) allowedBranchIds.push(user.branchId);
+      if (user.accessibleBranches && user.accessibleBranches.length > 0) {
+        user.accessibleBranches.forEach(b => allowedBranchIds.push(b.id));
+      }
+    }
+    const uniqueIds = [...new Set(allowedBranchIds)];
+
+    // Check for active branch header
+    const activeBranchHeader = req && req.headers && req.headers["x-active-branch-id"];
+    if (activeBranchHeader) {
+      const activeBranchId = parseInt(activeBranchHeader, 10);
+      if (!isNaN(activeBranchId) && activeBranchId > 0) {
+        // Global roles can filter to any branch
+        if (isGlobalRole) {
+          return { id: activeBranchId };
+        }
+        // Non-global roles: validate the branch is in their allowed list
+        if (uniqueIds.includes(activeBranchId)) {
+          return { id: activeBranchId };
+        }
+        // If not allowed, fall through to default behavior
+      }
     }
 
-    // Remove duplicates
-    const uniqueIds = [...new Set(allowedBranchIds)];
+    // No active branch header — use default behavior
+    if (isGlobalRole) {
+      return null; // See all branches
+    }
 
     // If user has no access to any branch
     if (uniqueIds.length === 0) {

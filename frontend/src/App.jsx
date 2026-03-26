@@ -61,6 +61,7 @@ import DataImportPage from "./pages/import/DataImportPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
+import { BranchProvider } from "./contexts/BranchContext";
 import { seedData } from "./services/seedData";
 import toast from "react-hot-toast";
 
@@ -78,6 +79,7 @@ function App() {
 
   return (
     <Router>
+      <BranchProvider>
       <div className="no-print">
         <Toaster position="top-center" reverseOrder={false} />
       </div>
@@ -435,6 +437,7 @@ function App() {
         {/* 404 Catch-All Route */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </BranchProvider>
     </Router>
   );
 }

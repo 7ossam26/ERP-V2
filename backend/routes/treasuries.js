@@ -15,7 +15,7 @@ router.use(authenticateToken);
 // GET all treasuries
 router.get("/", requirePermission("TREASURIES"), async (req, res) => {
   try {
-    const branchFilter = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id, req);
 
     // Build query: Active treasuries
     const where = { isActive: true };

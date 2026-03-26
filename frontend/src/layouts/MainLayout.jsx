@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import AuthService from "../services/authService";
 import Modal from "../components/ui/Modal";
 import Footer from "../components/shared/Footer";
+import BranchSwitcher from "../components/BranchSwitcher";
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -97,15 +98,8 @@ const MainLayout = ({ children }) => {
             </Link>
 
             <div className="flex items-center gap-3">
-              {/* Branch Info */}
-              <div className="hidden md:flex items-center gap-2 bg-primary/5 dark:bg-primary/10 px-3 py-1.5 rounded-full border border-primary/10 dark:border-primary/20">
-                <span className="material-icons-round text-sm text-primary">
-                  store
-                </span>
-                <span className="text-sm font-medium text-primary">
-                  {user?.branch?.name || "الفرع الرئيسي"}
-                </span>
-              </div>
+              {/* Branch Switcher */}
+              <BranchSwitcher />
 
               {/* Help / User Manual Button */}
               <Link

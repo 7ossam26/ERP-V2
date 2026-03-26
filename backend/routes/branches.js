@@ -26,7 +26,7 @@ router.get("/", async (req, res, next) => {
 
     // Apply branch filter only for non-global roles
     if (!canSeeAllBranches) {
-      const branchFilter = await getUserBranchFilter(req.user.id);
+      const branchFilter = await getUserBranchFilter(req.user.id, req);
       if (branchFilter) {
         if (branchFilter.id.in) {
           // Multi-branch user
@@ -139,7 +139,7 @@ router.get("/balances", async (req, res, next) => {
 
     const where = { isActive: true };
     if (!canSeeAllBranches) {
-      const branchFilter = await getUserBranchFilter(req.user.id);
+      const branchFilter = await getUserBranchFilter(req.user.id, req);
       if (branchFilter) {
         where.id = branchFilter.id.in ? { in: branchFilter.id.in } : branchFilter.id;
       }

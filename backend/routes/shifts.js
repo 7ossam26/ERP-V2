@@ -38,7 +38,7 @@ router.get(
         whereClause.branchId = parseInt(branchId);
       } else {
         // Enforce branch access if not filtering by specific branch
-        const branchFilter = await getUserBranchFilter(req.user.id);
+        const branchFilter = await getUserBranchFilter(req.user.id, req);
         if (branchFilter) {
           if (branchFilter.id.in) {
             // Multi-branch user (e.g., General Manager)
@@ -234,7 +234,7 @@ router.post("/start", async (req, res, next) => {
     }
 
     // Validate Branch Access
-    const branchFilter = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id, req);
     if (branchFilter) {
       // Handle both single ID and IN clause
       const allowedIds = branchFilter.id.in || [branchFilter.id];
@@ -623,7 +623,7 @@ router.get("/pending/:branchId", async (req, res, next) => {
     const branchId = parseInt(req.params.branchId);
 
     // Validate branch access
-    const branchFilter = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id, req);
     if (branchFilter) {
       const allowedIds = branchFilter.id.in || [branchFilter.id];
       if (!allowedIds.includes(branchId)) {

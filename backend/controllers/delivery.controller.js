@@ -38,7 +38,7 @@ exports.getAllDeliveryMen = async (req, res) => {
     const where = { isActive: true };
 
     // Apply branch access control
-    const branchFilter = await getUserBranchFilter(req.user.id);
+    const branchFilter = await getUserBranchFilter(req.user.id, req);
 
     if (branchId) {
       // If specific branch is requested, use it

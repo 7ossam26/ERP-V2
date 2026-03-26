@@ -9,7 +9,7 @@ router.use(authenticateToken, requirePermission("PURCHASES"));
 // GET all purchases
 router.get("/", async (req, res, next) => {
   try {
-    const branchId = await getUserBranchFilter(req.user.id);
+    const branchId = await getUserBranchFilter(req.user.id, req);
     // Purchases are linked to a warehouse. Branches are linked to a warehouse.
     // However, the Purchase model links to `warehouse`. 
     // We should filter purchases where the warehouse belongs to the user's branch.
@@ -62,7 +62,7 @@ router.get("/search", async (req, res, next) => {
     const { q } = req.query;
     if (!q) return res.json([]);
 
-    const branchId = await getUserBranchFilter(req.user.id);
+    const branchId = await getUserBranchFilter(req.user.id, req);
     let whereClause = {};
     if (branchId) {
       const branches = await prisma.branch.findMany({

@@ -66,6 +66,9 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
           },
         },
         branch: true,
+        accessibleBranches: {
+          select: { id: true, name: true },
+        },
       },
     });
 
@@ -146,6 +149,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
         role: user.role.name,
         roleId: user.roleId,
         branch: user.branch,
+        accessibleBranches: user.accessibleBranches || [],
         permissions: permissions,
         hasSensitiveAccess: user.hasSensitiveAccess,
       },
@@ -183,6 +187,9 @@ router.get("/me", authenticateToken, async (req, res, next) => {
           },
         },
         branch: true,
+        accessibleBranches: {
+          select: { id: true, name: true },
+        },
       },
     });
 
@@ -205,6 +212,7 @@ router.get("/me", authenticateToken, async (req, res, next) => {
       role: user.role.name,
       roleId: user.roleId,
       branch: user.branch,
+      accessibleBranches: user.accessibleBranches || [],
       permissions: permissions,
       hasSensitiveAccess: user.hasSensitiveAccess,
     });

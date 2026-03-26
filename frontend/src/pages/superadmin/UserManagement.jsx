@@ -396,6 +396,7 @@ const UserManagement = () => {
                 const isMultiBranchRole = [
                   "General Manager",
                   "Area Manager",
+                  "Manager",
                 ].includes(selectedRoleName);
 
                 if (isSuperadmin) return null;

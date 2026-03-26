@@ -59,7 +59,7 @@ router.get(
   requireAnyPermission(["SALES", "REPORTS"]),
   async (req, res, next) => {
     try {
-      const branchFilter = await getUserBranchFilter(req.user.id);
+      const branchFilter = await getUserBranchFilter(req.user.id, req);
       const whereClause = {};
       if (branchFilter) {
         if (branchFilter.id.in) {
@@ -101,7 +101,7 @@ router.get(
   async (req, res, next) => {
     try {
       const limit = parseInt(req.query.limit) || 50;
-      const branchFilter = await getUserBranchFilter(req.user.id);
+      const branchFilter = await getUserBranchFilter(req.user.id, req);
       const whereClause = { status: "COMPLETED" };
       if (branchFilter) {
         if (branchFilter.id.in) {
@@ -133,7 +133,7 @@ router.get(
   requireAnyPermission(["POS", "SALES"]),
   async (req, res, next) => {
     try {
-      const branchFilter = await getUserBranchFilter(req.user.id);
+      const branchFilter = await getUserBranchFilter(req.user.id, req);
       const whereClause = {
         deliveryStatus: "PENDING",
         deliveryZoneId: { not: null },
@@ -239,7 +239,7 @@ router.get(
       }
 
       const searchTerm = query.trim();
-      const branchFilter = await getUserBranchFilter(req.user.id);
+      const branchFilter = await getUserBranchFilter(req.user.id, req);
 
       const whereClause = {
         OR: [
