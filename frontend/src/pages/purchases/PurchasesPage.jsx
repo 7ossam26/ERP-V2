@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { Link } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import KgQuantityInput from "../../components/ui/KgQuantityInput";
 import {
   supplierService,
@@ -62,6 +62,39 @@ const PurchasesPage = () => {
     catch { return []; }
   });
   const [isHeldPurchasesOpen, setIsHeldPurchasesOpen] = useState(false);
+
+  const navigate = useNavigate();
+
+  // Detect unsaved invoice data
+  const hasUnsavedData = selectedSupplierId && items.some((i) => i.itemId);
+
+  // Block in-app navigation when there's unsaved data
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    return hasUnsavedData && currentLocation.pathname !== nextLocation.pathname;
+  });
+
+  // Browser tab close / refresh guard
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedData) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedData]);
+
+  // Hold invoice and proceed with blocked navigation
+  const handleHoldAndLeave = () => {
+    handleHoldPurchase();
+    blocker.proceed?.();
+  };
+
+  // Discard and proceed with blocked navigation
+  const handleDiscardAndLeave = () => {
+    blocker.proceed?.();
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -586,14 +619,14 @@ const PurchasesPage = () => {
                 <span>معلق ({heldPurchases.length})</span>
               </button>
             )}
-            <Link
-              to="/dashboard"
+            <button
+              onClick={() => navigate("/dashboard")}
               className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
               <span className="material-symbols-outlined text-sm">
                 arrow_forward
               </span>
               <span>رجوع</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -726,7 +759,7 @@ const PurchasesPage = () => {
               <span>تكويد سريع</span>
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-visible">
             <table className="w-full text-sm text-right text-text-muted dark:text-accent">
               <thead className="text-xs text-text-light uppercase bg-accent/20 dark:bg-surface-dark/80 dark:text-text-dark border-b border-border-light dark:border-border-dark">
                 <tr>
@@ -1217,6 +1250,43 @@ const PurchasesPage = () => {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Confirmation Modal */}
+      {blocker.state === "blocked" && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" dir="rtl">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="bg-orange-500 p-4 text-white flex items-center gap-3">
+              <span className="material-symbols-outlined text-2xl">warning</span>
+              <h2 className="text-lg font-bold">فاتورة غير محفوظة</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+                يوجد فاتورة مشتريات قيد الإنشاء. هل تريد تعليقها للرجوع إليها لاحقًا أو الخروج بدون حفظ؟
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleHoldAndLeave}
+                  className="w-full flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-xl font-bold transition-colors shadow-sm">
+                  <span className="material-symbols-outlined text-lg">pause_circle</span>
+                  <span>تعليق الفاتورة والخروج</span>
+                </button>
+                <button
+                  onClick={handleDiscardAndLeave}
+                  className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold transition-colors shadow-sm">
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                  <span>خروج بدون حفظ</span>
+                </button>
+                <button
+                  onClick={() => blocker.reset?.()}
+                  className="w-full flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-3 rounded-xl font-bold transition-colors">
+                  <span className="material-symbols-outlined text-lg">arrow_back</span>
+                  <span>البقاء في الصفحة</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

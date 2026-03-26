@@ -35,13 +35,9 @@ const BranchesSalesPage = () => {
           setBankTreasury(bankTreasuryData);
         }
 
-        // Fetch All Branches
-        const branchesData = await branchService.getAll();
-        const branchesWithBalance = branchesData.map((branch) => ({
-          ...branch,
-          balance: branch.treasury?.balance || 0,
-        }));
-        setBranches(branchesWithBalance);
+        // Fetch Branch Balances (includes cash + instapay)
+        const balancesData = await branchService.getBalances();
+        setBranches(balancesData);
 
         // Fetch Financial Summary for percentage change and total balance
         const summaryData = await branchService.getSummary();
@@ -188,30 +184,52 @@ const BranchesSalesPage = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
               {branches.map((branch) => (
                 <div
                   key={branch.id}
-                  className="group bg-surface-light dark:bg-card-dark rounded-xl border border-border-light dark:border-border-dark p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 flex items-center justify-between">
-                  <div className="flex gap-3 items-center">
-                    <div className="size-12 rounded-full bg-accent/20 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                      <span className="material-symbols-outlined text-2xl">
+                  className="group bg-surface-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark p-5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 flex flex-col gap-4">
+                  {/* Branch Header */}
+                  <div className="flex gap-3 items-center border-b border-border-light dark:border-border-dark pb-3">
+                    <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                      <span className="material-symbols-outlined text-xl">
                         storefront
                       </span>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-lg text-text-light dark:text-text-dark">
-                        {branch.name}
-                      </h4>
-                    </div>
+                    <h4 className="font-bold text-lg text-text-light dark:text-text-dark">
+                      {branch.name}
+                    </h4>
                   </div>
-                  <div className="text-left space-y-1">
-                    <p className="text-sm text-primary/70 dark:text-accent/70">
-                      النقدية في الفرع
-                    </p>
-                    <p className="text-2xl font-bold text-text-light dark:text-text-dark">
-                      {branch.balance.toLocaleString()} جنيه مصري
-                    </p>
+                  {/* Balances */}
+                  <div className="flex flex-col gap-3">
+                    {/* Cash Balance */}
+                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/10 rounded-xl px-4 py-3 border border-green-100 dark:border-green-900/30">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-lg">
+                          payments
+                        </span>
+                        <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                          النقدية
+                        </span>
+                      </div>
+                      <span className="text-xl font-black text-green-700 dark:text-green-300">
+                        {(branch.cashBalance || 0).toLocaleString()} <span className="text-xs font-bold">ج.م</span>
+                      </span>
+                    </div>
+                    {/* InstaPay Balance */}
+                    <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/10 rounded-xl px-4 py-3 border border-purple-100 dark:border-purple-900/30">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-lg">
+                          phone_iphone
+                        </span>
+                        <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                          انستا باي اليوم
+                        </span>
+                      </div>
+                      <span className="text-xl font-black text-purple-700 dark:text-purple-300">
+                        {(branch.instapayToday || 0).toLocaleString()} <span className="text-xs font-bold">ج.م</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
