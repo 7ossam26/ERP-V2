@@ -13,3 +13,6 @@ Dist/
 *.local.js
 # *.config.js -> Removed to allow vite.config.js
 #
+# Playwright auth state
+e2e/.auth/
+test-results/

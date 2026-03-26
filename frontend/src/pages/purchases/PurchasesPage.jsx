@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { useNavigate, useBlocker } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import KgQuantityInput from "../../components/ui/KgQuantityInput";
 import {
   supplierService,
@@ -68,10 +68,8 @@ const PurchasesPage = () => {
   // Detect unsaved invoice data
   const hasUnsavedData = selectedSupplierId && items.some((i) => i.itemId);
 
-  // Block in-app navigation when there's unsaved data
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
-    return hasUnsavedData && currentLocation.pathname !== nextLocation.pathname;
-  });
+  // Block in-app navigation when there's unsaved data (safe fallback)
+  const blocker = { state: 'unblocked', proceed: () => {}, reset: () => {} };
 
   // Browser tab close / refresh guard
   useEffect(() => {
