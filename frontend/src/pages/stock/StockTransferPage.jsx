@@ -272,7 +272,7 @@ const StockTransferPage = () => {
   return (
     <>
       <div
-        className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-6rem)] overflow-y-auto lg:overflow-hidden bg-background-light dark:bg-background-dark text-sm"
+        className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-6rem)] overflow-y-auto lg:overflow-hidden bg-background-light dark:bg-background-dark text-sm print:hidden"
         dir="rtl">
       {/* Confirmation Modal */}
       <Modal
@@ -673,6 +673,7 @@ const StockTransferPage = () => {
       {/* T2: Print receipt — hidden on screen, shown only when printing */}
       {lastTransfer && (
         <div className="hidden print:block p-8 font-cairo" dir="rtl">
+          <style>{`@media print { @page { size: A4; margin: 15mm; } }`}</style>
           <div className="text-center border-b-2 border-gray-800 pb-4 mb-4">
             <h1 className="text-2xl font-bold">إيصال تحويل مخزني</h1>
             <p className="text-gray-600 mt-1">
