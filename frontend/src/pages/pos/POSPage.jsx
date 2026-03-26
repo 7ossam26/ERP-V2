@@ -37,6 +37,7 @@ const POSPage = () => {
   const [lastSale, setLastSale] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const clientInputRef = useRef(null);
+  const cashClientRef = useRef(null);
 
   // User & Shift State
   const [currentUser, setCurrentUser] = useState(AuthService.getCurrentUser());
@@ -280,15 +281,17 @@ const POSPage = () => {
         const fetchedClients = await clientService.getAll();
         setClients(fetchedClients);
 
-        // Auto-select "عميل عام" if no client is selected
-        if (!selectedClient) {
-          const defaultClient = fetchedClients.find((c) =>
-            c.name.includes("عميل عام"),
-          );
-          if (defaultClient) {
-            setSelectedClient(defaultClient);
-            // setClientSearchTerm(defaultClient.name); // Optional: if we want the input filled
-          }
+        // Find and store the cash customer (عميل نقدي) for default selection
+        const cashClient =
+          fetchedClients.find((c) => c.name.includes("عميل نقدي")) ||
+          fetchedClients.find((c) => c.id === 1);
+        if (cashClient) {
+          cashClientRef.current = cashClient;
+        }
+
+        // Auto-select cash customer if no client is selected
+        if (!selectedClient && cashClient) {
+          setSelectedClient(cashClient);
         }
       } catch (error) {
         console.error("Failed to fetch clients", error);
@@ -618,7 +621,8 @@ const POSPage = () => {
   const clearCart = () => {
     setCartItems([]);
     setSelectedItemId(null);
-    setSelectedClient(null);
+    // Reset to cash customer instead of null
+    setSelectedClient(cashClientRef.current || null);
     setIsWalkIn(false);
     setClientSearchTerm("");
     setDeliveryData(null);
@@ -1843,7 +1847,7 @@ const POSPage = () => {
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
                     <div
                       className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-zinc-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-zinc-700/50 font-bold"
-                      onClick={() => handleSelectClient(null)}>
+                      onClick={() => handleSelectClient(cashClientRef.current || null)}>
                       عميل نقدي (Walk-in)
                     </div>
                     {filteredClients.length > 0 ? (
