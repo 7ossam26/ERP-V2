@@ -738,6 +738,9 @@ router.get(
       let totalSales = 0;
       let cashSales = 0;
       let cardSales = 0;
+      let takeawayCount = 0, takeawayTotal = 0;
+      let deliveryCount = 0, deliveryTotal = 0;
+      let returnCount = 0, returnTotal = 0;
       const itemsMap = new Map();
 
       // Map sales to simplified orders format
@@ -751,13 +754,23 @@ router.get(
       }));
 
       sales.forEach((sale) => {
-        totalSales += parseFloat(sale.total);
+        const saleTotal = parseFloat(sale.total);
+        totalSales += saleTotal;
 
         const paymentMethod = sale.paymentMethod;
         if (paymentMethod === "CASH") {
-          cashSales += parseFloat(sale.total);
+          cashSales += saleTotal;
         } else {
-          cardSales += parseFloat(sale.total);
+          cardSales += saleTotal;
+        }
+
+        // Breakdown by type: takeaway vs delivery
+        if (sale.deliveryManId) {
+          deliveryCount++;
+          deliveryTotal += saleTotal;
+        } else {
+          takeawayCount++;
+          takeawayTotal += saleTotal;
         }
 
         // Aggregate Items
@@ -829,11 +842,55 @@ router.get(
 
       const salesDetails = Array.from(itemsMap.values());
 
+      // Count returned/cancelled sales for this shift
+      const cancelledSales = await prisma.sale.findMany({
+        where: {
+          shiftId: shiftId,
+          status: "CANCELLED",
+        },
+      });
+      cancelledSales.forEach((s) => {
+        returnCount++;
+        returnTotal += parseFloat(s.total);
+      });
+
       // Calculate expenses
       let totalExpenses = 0;
+      let cashExpenseCount = 0;
+      let cashExpenseTotal = 0;
       shift.expenses.forEach((expense) => {
-        totalExpenses += parseFloat(expense.amount);
+        const amt = parseFloat(expense.amount);
+        totalExpenses += amt;
+        if (expense.paymentMethod === "CASH") {
+          cashExpenseCount++;
+          cashExpenseTotal += amt;
+        }
       });
+
+      // Query deposits during this shift's time range for the branch treasury
+      let depositCount = 0;
+      let depositTotal = 0;
+      if (shift.branch?.treasuryId && shift.startTime) {
+        const endFilter = shift.endTime || new Date();
+        const deposits = await prisma.deposit.findMany({
+          where: {
+            treasuryId: shift.branch.treasuryId,
+            createdAt: {
+              gte: shift.startTime,
+              lte: endFilter,
+            },
+          },
+        });
+        deposits.forEach((d) => {
+          depositCount++;
+          depositTotal += parseFloat(d.amount);
+        });
+      }
+
+      const netSales = Math.round((takeawayTotal + deliveryTotal) * 100) / 100;
+      const drawerAmount = Math.round(
+        ((parseFloat(shift.startCash) || 0) + cashSales - cashExpenseTotal + depositTotal) * 100
+      ) / 100;
 
       const report = {
         shiftId: shift.id,
@@ -858,8 +915,19 @@ router.get(
         cashReceived: cashSales,
         cardPayments: cardSales,
         salesDetails: salesDetails,
-        deliveryDetails: deliveryDetails, // Add Delivery Breakdown
-        orders: orders, // Add Orders History
+        deliveryDetails: deliveryDetails,
+        orders: orders,
+
+        // Sales breakdown by type
+        takeaway: { count: takeawayCount, total: Math.round(takeawayTotal * 100) / 100 },
+        delivery: { count: deliveryCount, total: Math.round(deliveryTotal * 100) / 100 },
+        returned: { count: returnCount, total: Math.round(returnTotal * 100) / 100 },
+        netSales,
+
+        // Cash movements
+        deposits: { count: depositCount, total: Math.round(depositTotal * 100) / 100 },
+        expenseBreakdown: { count: cashExpenseCount, total: Math.round(cashExpenseTotal * 100) / 100 },
+        drawerAmount,
 
         // Expenses
         totalExpenses,
