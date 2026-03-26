@@ -270,9 +270,10 @@ const StockTransferPage = () => {
   }, {});
 
   return (
-    <div
-      className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-6rem)] overflow-y-auto lg:overflow-hidden bg-background-light dark:bg-background-dark text-sm"
-      dir="rtl">
+    <>
+      <div
+        className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-6rem)] overflow-y-auto lg:overflow-hidden bg-background-light dark:bg-background-dark text-sm"
+        dir="rtl">
       {/* Confirmation Modal */}
       <Modal
         isOpen={isConfirmModalOpen}
@@ -716,6 +717,7 @@ const StockTransferPage = () => {
           )}
         </div>
       )}
+    </>
   );
 };
 
