@@ -22,6 +22,7 @@ router.get("/", async (req, res, next) => {
     // General Manager and Superadmin see ALL branches
     const canSeeAllBranches =
       user.role.name === "Superadmin" ||
+      user.role.name === "Admin" ||
       user.role.name === "General Manager";
 
     // Apply branch filter only for non-global roles
@@ -135,6 +136,7 @@ router.get("/balances", async (req, res, next) => {
 
     const canSeeAllBranches =
       user.role.name === "Superadmin" ||
+      user.role.name === "Admin" ||
       user.role.name === "General Manager";
 
     const where = { isActive: true };
