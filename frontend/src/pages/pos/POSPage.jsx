@@ -26,6 +26,7 @@ import {
   bomService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import { confirmAction } from "../../utils/toastUtils";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 
 const POSPage = () => {
@@ -1326,7 +1327,10 @@ const POSPage = () => {
                     onClick={() => {
                       confirmAction(
                         "هل تريد حذف هذه الفاتورة المعلقة؟",
-                        () => setHeldCarts((prev) => prev.filter((c) => c.id !== cart.id))
+                        () => {
+                          setHeldCarts((prev) => prev.filter((c) => c.id !== cart.id));
+                          toast.success("تم حذف الفاتورة المعلقة");
+                        }
                       );
                     }}
                     className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-all"
