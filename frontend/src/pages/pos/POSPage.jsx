@@ -537,7 +537,7 @@ const POSPage = () => {
     }
 
     if (keypadMode === "piece") {
-      handleQuantitySelected(value);
+      handleQuantitySelected(Math.round(value));
     } else if (keypadMode === "weight") {
       handleWeightSelected(value);
     }
@@ -1904,8 +1904,11 @@ const POSPage = () => {
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {item.quantity.toFixed(4)} وحدة x{" "}
-                        {item.price.toFixed(2)} ج.م / وحدة
+                        {["kg", "kilo", "kilogram"].includes(item.unit?.toLowerCase())
+                          ? item.quantity.toFixed(3)
+                          : Math.round(item.quantity)
+                        } {getArabicUnit(item.unit) || "وحدة"} x{" "}
+                        {item.price.toFixed(2)} ج.م
                       </div>
                     </div>
                   </div>
@@ -2080,8 +2083,8 @@ const POSPage = () => {
                         }
                         placeholder="كمية"
                         className="w-full bg-transparent text-center text-lg font-bold text-gray-800 dark:text-gray-200 outline-none"
-                        min="0"
-                        step="any"
+                        min="1"
+                        step="1"
                       />
                     </div>
 
@@ -2309,7 +2312,7 @@ const POSPage = () => {
               (item, idx) => (
                 <tr key={idx}>
                   <td style={{ textAlign: "right", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{item.name}</td>
-                  <td style={{ textAlign: "center", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{item.quantity}</td>
+                  <td style={{ textAlign: "center", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{["kg", "kilo", "kilogram"].includes(item.unit?.toLowerCase()) ? item.quantity.toFixed(3) : Math.round(item.quantity)}</td>
                   <td style={{ textAlign: "left", padding: "2px 1px", borderBottom: "1px dashed #999", whiteSpace: "nowrap" }}>{item.total.toFixed(2)}</td>
                 </tr>
               ),
