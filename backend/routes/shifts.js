@@ -741,6 +741,7 @@ router.get(
       let takeawayCount = 0, takeawayTotal = 0;
       let deliveryCount = 0, deliveryTotal = 0;
       let returnCount = 0, returnTotal = 0;
+      let deliveryDriverShareTotal = 0, salesWithDriverDiscount = 0;
       const itemsMap = new Map();
 
       // Map sales to simplified orders format
@@ -771,6 +772,13 @@ router.get(
         } else {
           takeawayCount++;
           takeawayTotal += saleTotal;
+        }
+
+        // Track driver discount (delivery driver share)
+        const driverShare = parseFloat(sale.deliveryDriverShare || 0);
+        if (driverShare > 0) {
+          salesWithDriverDiscount++;
+          deliveryDriverShareTotal += driverShare;
         }
 
         // Aggregate Items
@@ -927,6 +935,10 @@ router.get(
         // Cash movements
         deposits: { count: depositCount, total: Math.round(depositTotal * 100) / 100 },
         expenseBreakdown: { count: cashExpenseCount, total: Math.round(cashExpenseTotal * 100) / 100 },
+        discounts: {
+          driverDiscount: { count: salesWithDriverDiscount, total: Math.round(deliveryDriverShareTotal * 100) / 100 },
+          invoiceDiscount: { count: 0, total: 0 },
+        },
         drawerAmount,
 
         // Expenses

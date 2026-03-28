@@ -45,6 +45,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
   const netSales = reportData?.netSales || 0;
   const deposits = reportData?.deposits || { count: 0, total: 0 };
   const expenseBreakdown = reportData?.expenseBreakdown || { count: 0, total: 0 };
+  const discounts = reportData?.discounts || { driverDiscount: { count: 0, total: 0 }, invoiceDiscount: { count: 0, total: 0 } };
   const drawerAmount = reportData?.drawerAmount || 0;
 
   const expenses = reportData?.expenses || [];
@@ -106,6 +107,8 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
             <Row label="تيك أواى :" count={takeaway.count} amount={takeaway.total} />
             <Row label="دليفرى :" count={delivery.count} amount={delivery.total} />
             <Row label="مرتجع :" count={returned.count} amount={returned.total} negative={returned.total > 0} />
+            <Row label="خصم السائق :" count={discounts.driverDiscount.count} amount={discounts.driverDiscount.total} negative={discounts.driverDiscount.total > 0} />
+            <Row label="خصم الفاتورة :" count={discounts.invoiceDiscount.count} amount={discounts.invoiceDiscount.total} negative={discounts.invoiceDiscount.total > 0} />
             <Row label="صافي المبيعات :" amount={netSales} bold border />
           </div>
 
@@ -234,7 +237,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
             <button
               onClick={onConfirm}
               className="flex-1 bg-[#6F4E37] hover:bg-[#5D4030] text-white font-bold py-3 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
-              تأكيد وإغلاق الوردية
+              إنهاء
             </button>
           )}
           <button
@@ -254,8 +257,16 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
       <style>{`
         @media print {
           body > * { display: none !important; }
-          body > [data-print-root], body > div:last-child { display: flex !important; }
+          body > [data-print-root] { display: flex !important; }
           @page { size: A4; margin: 10mm; }
+          [data-print-root] { background: white !important; position: static !important; }
+          [data-print-root] [class*="bg-emerald"], [data-print-root] [class*="bg-blue-50"],
+          [data-print-root] [class*="bg-gray-1"], [data-print-root] [class*="bg-red-50"],
+          [data-print-root] [class*="bg-orange-50"], [data-print-root] [class*="bg-amber-50"] {
+            background: #f5f5f5 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
         }
       `}</style>
     </div>,
