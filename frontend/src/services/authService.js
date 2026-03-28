@@ -57,8 +57,8 @@ const AuthService = {
     const user = AuthService.getCurrentUser();
     if (!user) return false;
 
-    // Superadmin has all permissions
-    if (user.role === "Superadmin") return true;
+    // Superadmin and Admin have all permissions
+    if (user.role === "Superadmin" || user.role === "Admin") return true;
 
     // Check permissions object if available
     // Backend returns simplified boolean map: { "INVENTORY": true, "Sales": false }

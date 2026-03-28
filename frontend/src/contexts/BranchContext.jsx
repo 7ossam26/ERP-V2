@@ -15,19 +15,27 @@ const STORAGE_KEY_PREFIX = "activeBranch_";
 const getStorageKey = (userId) => `${STORAGE_KEY_PREFIX}${userId}`;
 
 export const BranchProvider = ({ children }) => {
-  const user = AuthService.getCurrentUser();
+  const [user, setUser] = useState(() => AuthService.getCurrentUser());
   const userId = user?.id;
   const isGlobalRole = user && ["Superadmin", "Admin"].includes(user.role);
 
   // For global roles, fetch all branches from API
+  // For non-global roles (Manager), refresh profile to get latest branch assignments
   const [allBranches, setAllBranches] = useState([]);
 
   useEffect(() => {
-    if (!isGlobalRole || !userId) return;
-    branchService.getAll().then((res) => {
-      const branches = Array.isArray(res) ? res : res?.data || [];
-      setAllBranches(branches);
-    }).catch(() => {});
+    if (!userId) return;
+    if (isGlobalRole) {
+      branchService.getAll().then((res) => {
+        const branches = Array.isArray(res) ? res : res?.data || [];
+        setAllBranches(branches);
+      }).catch(() => {});
+    } else {
+      // Refresh user profile to get latest branch assignments from server
+      AuthService.refreshProfile().then((updatedUser) => {
+        if (updatedUser) setUser(updatedUser);
+      }).catch(() => {});
+    }
   }, [isGlobalRole, userId]);
 
   // Build list of branches user can access

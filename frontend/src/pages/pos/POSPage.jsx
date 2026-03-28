@@ -26,6 +26,7 @@ import {
   bomService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import { confirmAction } from "../../utils/toastUtils";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 
 const POSPage = () => {
@@ -1255,7 +1256,10 @@ const POSPage = () => {
                     onClick={() => {
                       confirmAction(
                         "هل تريد حذف هذه الفاتورة المعلقة؟",
-                        () => setHeldCarts((prev) => prev.filter((c) => c.id !== cart.id))
+                        () => {
+                          setHeldCarts((prev) => prev.filter((c) => c.id !== cart.id));
+                          toast.success("تم حذف الفاتورة المعلقة");
+                        }
                       );
                     }}
                     className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-all"
@@ -1675,32 +1679,31 @@ const POSPage = () => {
             </div>
 
             {/* Product Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="bg-card-light dark:bg-card-dark rounded shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-24 group relative active:scale-95 transition-transform"
+                  className="bg-card-light dark:bg-card-dark rounded-lg shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden hover:shadow-md cursor-pointer flex flex-col min-h-[6rem] group relative active:scale-[0.97] transition-all duration-150"
                   onClick={() => handleProductClick(product)}>
-                  <span className="absolute top-1 left-1 text-gray-300 hover:text-gray-500 dark:text-gray-500 cursor-help">
+                  <span className="absolute top-1 left-1 text-gray-300 hover:text-gray-500 dark:text-gray-500 cursor-help z-10">
                     <span className="material-symbols-outlined text-sm">
                       info
                     </span>
                   </span>
-                  <div className="p-3 flex flex-col flex-1 justify-between h-full">
-                    <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-1 line-clamp-2 leading-tight">
+                  <div className="p-2 md:p-3 flex flex-col flex-1 justify-between">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 text-xs md:text-sm mb-0.5 md:mb-1 line-clamp-2 leading-tight pl-4">
                       {product.name}
                     </h3>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">
-                      المتاح: {Number(product.quantity || 0)}{" "}
-                      {getArabicUnit(product.unit)}
+                    <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mb-0.5 md:mb-1 font-medium leading-snug">
+                      <span>المتاح: {Number(product.quantity || 0)} {getArabicUnit(product.unit)}</span>
                       {product.autoProducible > 0 && (
-                        <span className="text-emerald-600 dark:text-emerald-400 mr-1">
-                          {" "}(+{Math.floor(product.autoProducible)} إنتاج تلقائي)
+                        <span className="block text-emerald-600 dark:text-emerald-400 text-[10px]">
+                          (+{Math.floor(product.autoProducible)} إنتاج تلقائي)
                         </span>
                       )}
                     </div>
                     <div className="mt-auto">
-                      <span className="block text-primary dark:text-primary/90 font-bold text-base">
+                      <span className="block text-primary dark:text-primary/90 font-bold text-sm md:text-base leading-tight">
                         {Number(
                           product.sellPrice || product.price || 0,
                         ).toFixed(2)}{" "}

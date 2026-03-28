@@ -9,6 +9,7 @@ import {
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
+import { confirmAction } from "../../utils/toastUtils";
 import { useNavigate } from "react-router-dom";
 
 // ==========================================
@@ -850,14 +851,15 @@ const BOMManager = () => {
   };
 
   const handleDelete = async (bom) => {
-    if (!window.confirm(`هل أنت متأكد من حذف "${bom.name}"؟`)) return;
-    try {
-      await bomService.delete(bom.id);
-      toast.success("تم حذف الوصفة");
-      fetchData();
-    } catch (error) {
-      toast.error(error.message || "فشل في حذف الوصفة");
-    }
+    confirmAction(`هل أنت متأكد من حذف "${bom.name}"؟`, async () => {
+      try {
+        await bomService.delete(bom.id);
+        toast.success("تم حذف الوصفة");
+        fetchData();
+      } catch (error) {
+        toast.error(error.message || "فشل في حذف الوصفة");
+      }
+    });
   };
 
   const toggleExpand = (bomId) => {
