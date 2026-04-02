@@ -10,6 +10,9 @@ const DeliverySettlementPage = () => {
     // View mode: 'settlement' or 'report'
     const [viewMode, setViewMode] = useState('settlement');
 
+    // Mobile: show driver list or detail panel
+    const [showDriverList, setShowDriverList] = useState(true);
+
     // Settlement Mode State
     const [drivers, setDrivers] = useState([]);
     const [allDrivers, setAllDrivers] = useState([]); // For search filtering
@@ -107,6 +110,7 @@ const DeliverySettlementPage = () => {
         setSelectedDriver(driver);
         setSelectedSales([]);
         setNotes("");
+        setShowDriverList(false); // On mobile: switch to detail view
         try {
             setLoading(true);
             const params = {};
@@ -281,9 +285,9 @@ const DeliverySettlementPage = () => {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden" style={{ direction: "rtl" }}>
+        <div className="flex flex-col lg:flex-row h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden" style={{ direction: "rtl" }}>
             {/* Sidebar: Drivers List */}
-            <div className="w-1/3 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+            <div className={`${showDriverList ? 'flex' : 'hidden'} lg:flex w-full lg:w-1/3 border-b lg:border-b-0 lg:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-col`}>
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <h2 className="text-xl font-bold text-gray-800 dark:text-white">تسوية الطيارين</h2>
                     <p className="text-sm text-gray-500">الطيارين مديوني الذمة فقط</p>
@@ -361,43 +365,52 @@ const DeliverySettlementPage = () => {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className={`${showDriverList ? 'hidden' : 'flex'} lg:flex flex-1 flex-col h-full overflow-hidden`}>
                 {/* View Mode Toggle */}
-                <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex gap-4">
-                    <button
-                        onClick={() => setViewMode('settlement')}
-                        className={`px-4 py-2 rounded-xl font-bold transition-all ${viewMode === 'settlement'
-                            ? 'bg-blue-600 text-white shadow-lg'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                            }`}
-                    >
-                        التسوية
-                    </button>
-                    <button
-                        onClick={() => setViewMode('report')}
-                        className={`px-4 py-2 rounded-xl font-bold transition-all ${viewMode === 'report'
-                            ? 'bg-blue-600 text-white shadow-lg'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                            }`}
-                    >
-                        التقرير اليومي
-                    </button>
+                <div className="p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row gap-2">
+                    <div className="flex items-center gap-2">
+                        {/* Mobile: back to drivers list */}
+                        <button
+                            onClick={() => setShowDriverList(true)}
+                            className="lg:hidden flex items-center gap-1 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm"
+                        >
+                            <span className="material-icons-round text-base">arrow_forward</span>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('settlement')}
+                            className={`px-3 py-2 rounded-xl font-bold transition-all text-sm ${viewMode === 'settlement'
+                                ? 'bg-blue-600 text-white shadow-lg'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                }`}
+                        >
+                            التسوية
+                        </button>
+                        <button
+                            onClick={() => setViewMode('report')}
+                            className={`px-3 py-2 rounded-xl font-bold transition-all text-sm ${viewMode === 'report'
+                                ? 'bg-blue-600 text-white shadow-lg'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                }`}
+                        >
+                            التقرير اليومي
+                        </button>
+                    </div>
 
                     {/* Date Range */}
-                    <div className="flex gap-2 mr-auto">
+                    <div className="flex flex-wrap gap-2 sm:mr-auto">
                         <input
                             type="date"
                             value={dateRange.start}
                             onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                            className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                            className="flex-1 min-w-[130px] px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
                             max={new Date().toISOString().split("T")[0]}
                         />
-                        <span className="self-center text-gray-500">إلى</span>
+                        <span className="self-center text-gray-500 text-sm">إلى</span>
                         <input
                             type="date"
                             value={dateRange.end}
                             onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                            className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                            className="flex-1 min-w-[130px] px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
                             max={new Date().toISOString().split("T")[0]}
                         />
                     </div>
@@ -407,15 +420,15 @@ const DeliverySettlementPage = () => {
                 {viewMode === 'settlement' && (
                     selectedDriver || selectedDrivers.length > 0 ? (
                         <>
-                            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center shadow-sm z-10">
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col sm:flex-row justify-between gap-3 shadow-sm z-10">
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                                         {selectedDrivers.length > 1
                                             ? `تسوية جماعية (${selectedDrivers.length} طيار)`
                                             : selectedDriver?.name
                                         }
                                     </h2>
-                                    <p className="text-gray-500">
+                                    <p className="text-gray-500 text-sm">
                                         {selectedDrivers.length > 1
                                             ? "التسوية ستتم لجميع الطلبات المعلقة"
                                             : "تحديد الطلبات المراد تسويتها"
@@ -424,8 +437,8 @@ const DeliverySettlementPage = () => {
                                 </div>
 
                                 {/* Treasury Info (Read-only) */}
-                                <div className="flex items-center gap-4">
-                                    <div className="text-left bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-xl border border-blue-200 dark:border-blue-700">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div className="text-left bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-700">
                                         <span className="block text-xs text-blue-600 dark:text-blue-400">💰 الخزن المستهدفة</span>
                                         <span className="block text-sm font-bold text-blue-700 dark:text-blue-300">
                                             {selectedDrivers.length > 1
@@ -436,8 +449,8 @@ const DeliverySettlementPage = () => {
                                     </div>
 
                                     <div className="text-left">
-                                        <span className="block text-sm text-gray-500">المبلغ المحدد للتسوية</span>
-                                        <span className="block text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                        <span className="block text-xs text-gray-500">المبلغ المحدد للتسوية</span>
+                                        <span className="block text-xl font-bold text-blue-600 dark:text-blue-400">
                                             {selectedDrivers.length > 1
                                                 ? calculateTotalDebtForSelectedDrivers().toFixed(2)
                                                 : calculateTotal().toFixed(2)
@@ -447,8 +460,8 @@ const DeliverySettlementPage = () => {
                                     <button
                                         onClick={handleSettle}
                                         disabled={(selectedDrivers.length === 0 && selectedSales.length === 0) || settling}
-                                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
-                                        <span className="material-icons-round">lock</span>
+                                        className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 text-sm">
+                                        <span className="material-icons-round text-base">lock</span>
                                         {settling ? "جاري التسوية..." : "تأكيد المدير والتسوية"}
                                     </button>
                                 </div>

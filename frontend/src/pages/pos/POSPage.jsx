@@ -1211,12 +1211,12 @@ const POSPage = () => {
             {heldCarts.map((cart) => (
               <div
                 key={cart.id}
-                className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex justify-between items-center group hover:border-primary/50 transition-colors">
+                className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 group hover:border-primary/50 transition-colors">
                 <div>
                   <div className="font-bold text-gray-800 dark:text-gray-200 mb-1">
                     {cart.customerName || "عميل نقدي"}
                   </div>
-                  <div className="text-xs text-gray-500 flex gap-3">
+                  <div className="text-xs text-gray-500 flex flex-wrap gap-3">
                     <span className="flex items-center gap-1">
                       <span className="material-symbols-outlined text-[14px]">
                         schedule
@@ -1231,13 +1231,13 @@ const POSPage = () => {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 justify-between sm:justify-end">
                   <span className="font-bold text-lg text-primary">
                     {cart.total} ج.م
                   </span>
                   <button
                     onClick={() => handleRetrieveCart(cart.id)}
-                    className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all">
+                    className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all min-h-touch">
                     استرجاع
                   </button>
                   <button
@@ -1250,7 +1250,7 @@ const POSPage = () => {
                         }
                       );
                     }}
-                    className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-all"
+                    className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-all min-h-touch min-w-touch flex items-center justify-center"
                     title="إلغاء الفاتورة المعلقة">
                     <span className="material-symbols-outlined text-[18px]">delete</span>
                   </button>
@@ -1311,15 +1311,15 @@ const POSPage = () => {
         isOpen={isPaymentConfirmOpen}
         onClose={() => setIsPaymentConfirmOpen(false)}
         title="تأكيد الدفع">
-        <div className="space-y-6">
-          <div className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-xl p-6 border border-primary/20">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-gray-600 dark:text-gray-400 text-lg">
+        <div className="space-y-4">
+          <div className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-xl p-4 sm:p-6 border border-primary/20">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-lg">
                 طريقة الدفع:
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`material-symbols-outlined text-3xl ${
+                  className={`material-symbols-outlined text-2xl sm:text-3xl ${
                     pendingPaymentMethod === "cash"
                       ? "text-green-500"
                       : "text-[#4c096e]"
@@ -1328,16 +1328,16 @@ const POSPage = () => {
                     ? "payments"
                     : "account_balance_wallet"}
                 </span>
-                <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <span className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
                   {pendingPaymentMethod === "cash" ? "نقدي" : "InstaPay"}
                 </span>
               </div>
             </div>
-            <div className="flex items-center justify-between pt-4 border-t border-primary/20">
-              <span className="text-gray-600 dark:text-gray-400 text-lg">
+            <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-primary/20">
+              <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-lg">
                 المبلغ الإجمالي:
               </span>
-              <span className="text-3xl font-bold text-primary">
+              <span className="text-2xl sm:text-3xl font-bold text-primary">
                 {total.toFixed(2)} ج.م
               </span>
             </div>
@@ -1345,9 +1345,9 @@ const POSPage = () => {
 
           {/* Cash Payment Input Fields */}
           {pendingPaymentMethod === "cash" && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">
                   المبلغ المدفوع:
                 </label>
                 <input
@@ -1355,16 +1355,16 @@ const POSPage = () => {
                   step="1"
                   value={cashPaidAmount}
                   onChange={(e) => setCashPaidAmount(e.target.value)}
-                  className="w-full px-4 py-3 text-xl font-bold text-center border-2 border-primary/30 rounded-lg focus:outline-none focus:border-primary dark:bg-zinc-800 dark:text-gray-100"
+                  className="w-full px-4 py-3 text-lg sm:text-xl font-bold text-center border-2 border-primary/30 rounded-lg focus:outline-none focus:border-primary dark:bg-zinc-800 dark:text-gray-100"
                   placeholder="أدخل المبلغ المدفوع"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">
                   الباقي:
                 </label>
-                <div className="w-full px-4 py-3 text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
+                <div className="w-full px-4 py-3 text-lg sm:text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
                   {cashPaidAmount &&
                   !isNaN(parseFloat(cashPaidAmount)) &&
                   parseFloat(cashPaidAmount) >= total
@@ -1376,13 +1376,13 @@ const POSPage = () => {
             </div>
           )}
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
             <div className="flex items-start gap-3">
-              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">
+              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">
                 info
               </span>
               <div className="text-sm text-blue-800 dark:text-blue-200">
-                <p className="font-bold mb-1">
+                <p className="font-bold mb-0.5">
                   العميل: {selectedClient?.name || "عميل نقدي"}
                 </p>
                 <p>عدد الأصناف: {cartItems.length}</p>
@@ -1393,13 +1393,13 @@ const POSPage = () => {
           <div className="flex gap-3">
             <button
               onClick={() => setIsPaymentConfirmOpen(false)}
-              className="flex-1 px-6 py-3 bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 text-gray-800 dark:text-gray-200 rounded-lg font-bold transition-colors flex items-center justify-center gap-2">
+              className="flex-1 px-4 py-3 bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 text-gray-800 dark:text-gray-200 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 min-h-touch">
               <span className="material-symbols-outlined">close</span>
               <span>إلغاء</span>
             </button>
             <button
               onClick={handleConfirmPayment}
-              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+              className={`flex-1 px-4 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 min-h-touch ${
                 pendingPaymentMethod === "cash"
                   ? "bg-green-500 hover:bg-green-600"
                   : "bg-[#4c096e] hover:bg-[#3a0654]"
@@ -1946,10 +1946,10 @@ const POSPage = () => {
 
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50">
                   <div className="flex justify-between items-end mb-1">
-                    <span className="text-2xl font-bold text-gray-800 dark:text-white">
+                    <span className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white">
                       الإجمالي:
                     </span>
-                    <span className="text-2xl font-bold text-gray-800 dark:text-white">
+                    <span className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white">
                       {total.toFixed(2)} ج.م
                     </span>
                   </div>

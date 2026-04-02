@@ -177,23 +177,23 @@ const SupplierAccountsPage = () => {
                     <span className="material-symbols-outlined">account_balance_wallet</span>
                     حسابات الموردين
                 </h2>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setShowZeroBalance(!showZeroBalance)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-sm ${showZeroBalance
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors shadow-sm text-sm ${showZeroBalance
                             ? "bg-primary text-white"
                             : "bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark"
                             }`}>
                         <span className="material-symbols-outlined text-sm">
                             {showZeroBalance ? "visibility" : "visibility_off"}
                         </span>
-                        <span>{showZeroBalance ? "إخفاء الأرصدة الصفرية" : "إظهار الكل"}</span>
+                        <span className="hidden sm:inline">{showZeroBalance ? "إخفاء الأرصدة الصفرية" : "إظهار الكل"}</span>
                     </button>
                     <Link
                         to="/dashboard"
-                        className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
+                        className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-3 py-2 rounded-lg transition-colors shadow-sm text-sm">
                         <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                        <span>رجوع</span>
+                        <span className="hidden sm:inline">رجوع</span>
                     </Link>
                 </div>
             </div>
@@ -208,7 +208,7 @@ const SupplierAccountsPage = () => {
                         </h3>
                     </div>
 
-                    <div className="overflow-y-auto max-h-[600px]">
+                    <div className="overflow-y-auto max-h-[40vh] lg:max-h-[600px]">
                         {isLoading ? (
                             <div className="p-8 text-center text-text-muted">
                                 <span className="material-symbols-outlined animate-spin text-4xl">progress_activity</span>

@@ -547,7 +547,7 @@ router.post(
             taxRate: taxRate !== undefined ? parseFloat(taxRate) : 0.14,
             taxAmount: parseFloat(taxAmount),
             total: parseFloat(total),
-            paymentMethod: paymentMethod || "CASH",
+            paymentMethod: (paymentMethod || "CASH").toUpperCase(),
             paidAmount: parseFloat(paidAmount),
             changeAmount: parseFloat(changeAmount) || 0,
             status: status || "COMPLETED",

@@ -517,8 +517,8 @@ const PurchasesPage = () => {
                   className="w-full pr-10 pl-4 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:border-blue-500 text-right text-sm" autoFocus />
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-sm text-right">
+            <div className="flex-1 overflow-y-auto overflow-x-auto">
+              <table className="w-full min-w-[800px] text-sm text-right">
                 <thead className="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 sticky top-0">
                   <tr>
                     <th className="p-3">رقم الفاتورة</th>
@@ -590,40 +590,40 @@ const PurchasesPage = () => {
           {/* Note: The back button in MainLayout already exists, but this specific back button was requested in the HTML. 
             We can keep it or rely on MainLayout. Since MainLayout has a back button to Dashboard, this might be redundant, 
             but for fidelity to the HTML, I'll keep it as a link to Dashboard. */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsHistoryOpen(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm font-bold text-sm">
               <span className="material-symbols-outlined text-sm">receipt_long</span>
-              <span>سجل المشتريات</span>
+              <span className="hidden sm:inline">سجل المشتريات</span>
             </button>
             <button
               onClick={() => setIsReturnModalOpen(true)}
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
+              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg transition-colors shadow-sm font-bold text-sm">
               <span className="material-symbols-outlined text-sm">assignment_return</span>
-              <span>مرتجع</span>
+              <span className="hidden sm:inline">مرتجع</span>
             </button>
             <button
               onClick={handleHoldPurchase}
-              className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
+              className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg transition-colors shadow-sm font-bold text-sm">
               <span className="material-symbols-outlined text-sm">pause_circle</span>
-              <span>تعليق</span>
+              <span className="hidden sm:inline">تعليق</span>
             </button>
             {heldPurchases.length > 0 && (
               <button
                 onClick={() => setIsHeldPurchasesOpen(true)}
-                className="relative flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
+                className="relative flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm font-bold text-sm">
                 <span className="material-symbols-outlined text-sm">inventory</span>
-                <span>معلق ({heldPurchases.length})</span>
+                <span className="hidden sm:inline">معلق </span>({heldPurchases.length})
               </button>
             )}
             <button
               onClick={() => navigate("/dashboard")}
-              className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
+              className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-3 py-2 rounded-lg transition-colors shadow-sm text-sm">
               <span className="material-symbols-outlined text-sm">
                 arrow_forward
               </span>
-              <span>رجوع</span>
+              <span className="hidden sm:inline">رجوع</span>
             </button>
           </div>
         </div>
@@ -757,8 +757,8 @@ const PurchasesPage = () => {
               <span>تكويد سريع</span>
             </button>
           </div>
-          <div className="overflow-visible">
-            <table className="w-full text-sm text-right text-text-muted dark:text-accent">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px] text-sm text-right text-text-muted dark:text-accent">
               <thead className="text-xs text-text-light uppercase bg-accent/20 dark:bg-surface-dark/80 dark:text-text-dark border-b border-border-light dark:border-border-dark">
                 <tr>
                   <th className="px-6 py-3" scope="col">

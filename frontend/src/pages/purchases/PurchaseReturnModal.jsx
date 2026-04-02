@@ -158,8 +158,8 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
                 </div>
               ) : (
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                  <div className="overflow-y-auto max-h-[50vh]">
-                    <table className="w-full text-sm text-right">
+                  <div className="overflow-y-auto overflow-x-auto max-h-[50vh]">
+                    <table className="w-full min-w-[500px] text-sm text-right">
                       <thead className="bg-orange-50 dark:bg-orange-900/20 text-gray-600 dark:text-gray-300 sticky top-0">
                         <tr>
                           <th className="p-3">رقم الفاتورة</th>
@@ -251,7 +251,8 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
               </div>
 
               {/* Items table */}
-              <table className="w-full text-sm text-right">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-sm text-right">
                 <thead className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                   <tr>
                     <th className="p-3 rounded-r-lg">الصنف</th>
@@ -287,6 +288,7 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {/* Notes */}
               <div className="flex items-center gap-3">

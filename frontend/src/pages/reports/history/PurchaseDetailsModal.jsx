@@ -201,7 +201,7 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
               className="fixed inset-0 bg-background-dark/60 backdrop-blur-sm transition-opacity"
               onClick={onClose}
               aria-hidden="true"></div>
-            <div className="relative bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl w-[75%] transform transition-all flex flex-col max-h-[90vh] border border-white/10 dark:border-border-dark animate-fade-in-up">
+            <div className="relative bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl w-full sm:w-[90%] md:w-[80%] lg:w-[75%] transform transition-all flex flex-col max-h-[90vh] border border-white/10 dark:border-border-dark animate-fade-in-up">
               <div className="px-6 py-5 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-accent/5 dark:bg-primary/5 rounded-t-2xl">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary text-white p-2 rounded-lg shadow-sm">
@@ -286,7 +286,7 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                       الأصناف
                     </h3>
                     <div className="overflow-x-auto border border-gray-200 dark:border-zinc-700 rounded-lg">
-                      <table className="w-full text-sm">
+                      <table className="w-full min-w-[480px] text-sm">
                         <thead className="bg-gray-100 dark:bg-zinc-800">
                           <tr>
                             <th className="px-4 py-3 text-right font-bold text-gray-700 dark:text-gray-300">
