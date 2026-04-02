@@ -12,8 +12,10 @@ import {
 import { toast } from "react-hot-toast";
 import apiClient from "../../services/apiClient";
 import { branchService } from "../../services/branchService";
+import shiftService from "../../services/shiftService";
 import ShiftApprovalModal from "./components/ShiftApprovalModal";
 import ShiftReportModal from "./components/ShiftReportModal";
+import POSReportModal from "../pos/POSReportModal";
 
 const ShiftManagementPage = () => {
   const navigate = useNavigate();
@@ -39,6 +41,9 @@ const ShiftManagementPage = () => {
 
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [selectedShiftReportId, setSelectedShiftReportId] = useState(null);
+
+  const [shiftReportForApprovalOpen, setShiftReportForApprovalOpen] = useState(false);
+  const [shiftReportForApprovalData, setShiftReportForApprovalData] = useState(null);
 
   useEffect(() => {
     fetchBranches();
@@ -83,9 +88,15 @@ const ShiftManagementPage = () => {
     setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
   };
 
-  const openApproveModal = (shift) => {
-    setSelectedShiftForApproval(shift);
-    setApprovalModalOpen(true);
+  const openApproveModal = async (shift) => {
+    try {
+      const report = await shiftService.getReport(shift.id);
+      setSelectedShiftForApproval(shift);
+      setShiftReportForApprovalData(report);
+      setShiftReportForApprovalOpen(true);
+    } catch (error) {
+      toast.error("فشل تحميل تقرير الوردية");
+    }
   };
 
   const openReportModal = (shiftId) => {
@@ -284,6 +295,20 @@ const ShiftManagementPage = () => {
       </div>
 
       {/* Modals */}
+      <POSReportModal
+        isOpen={shiftReportForApprovalOpen}
+        onClose={() => {
+          setShiftReportForApprovalOpen(false);
+          setShiftReportForApprovalData(null);
+        }}
+        onConfirm={() => {
+          setShiftReportForApprovalOpen(false);
+          setApprovalModalOpen(true);
+        }}
+        reportData={shiftReportForApprovalData}
+        confirmLabel="متابعة واعتماد الوردية"
+      />
+
       <ShiftApprovalModal
         isOpen={approvalModalOpen}
         onClose={() => setApprovalModalOpen(false)}

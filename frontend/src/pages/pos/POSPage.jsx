@@ -729,95 +729,12 @@ const POSPage = () => {
         return; // Don't redirect yet
       }
 
-      // Show detailed toast (Twist)
-      const shortage = updatedShift.shortage;
-      const amountColor =
-        shortage === 0
-          ? "text-green-600"
-          : shortage > 0
-            ? "text-green-600"
-            : "text-red-600";
-      const statusText =
-        shortage === 0 ? "متطابق تماماً" : shortage > 0 ? "زيادة" : "عجز";
-
-      const breakdown = updatedShift.calculationBreakdown || {};
-
-      toast.custom(
-        (t) => (
-          <div
-            className={`${
-              t.visible ? "animate-enter" : "animate-leave"
-            } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 font-cairo`}
-            dir="rtl">
-            <div className="flex-1 w-0 p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5 ml-3">
-                  <span className="text-3xl">🧾</span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-gray-900 border-b pb-2 mb-2">
-                    تم إغلاق الوردية بنجاح
-                  </p>
-                  <div className="text-xs text-gray-500 space-y-1">
-                    {breakdown.startCash !== undefined && (
-                      <div className="flex justify-between">
-                        <span>رصيد البداية:</span>
-                        <span className="font-mono">{breakdown.startCash}</span>
-                      </div>
-                    )}
-                    {breakdown.cashSales !== undefined && (
-                      <div className="flex justify-between text-green-600">
-                        <span>+ مبيعات كاش:</span>
-                        <span className="font-mono">{breakdown.cashSales}</span>
-                      </div>
-                    )}
-                    {breakdown.cashExpenses !== undefined && (
-                      <div className="flex justify-between text-red-600">
-                        <span>- مصروفات:</span>
-                        <span className="font-mono">
-                          {breakdown.cashExpenses}
-                        </span>
-                      </div>
-                    )}
-                    <div className="border-t border-dashed my-1"></div>
-                    <div className="flex justify-between font-bold text-gray-700">
-                      <span>= المتوقع:</span>
-                      <span className="font-mono">
-                        {updatedShift.systemExpectedCash} ج.م
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>الفعلي (العد):</span>
-                      <span className="font-mono font-bold text-blue-600">
-                        {updatedShift.actualCash} ج.م
-                      </span>
-                    </div>
-                    <div
-                      className={`flex justify-between font-bold mt-2 pt-2 border-t ${amountColor}`}>
-                      <span>الفرق ({statusText}):</span>
-                      <span>{Math.abs(shortage)} ج.م</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex border-l border-gray-200">
-              <button
-                onClick={() => toast.dismiss(t.id)}
-                className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                إغلاق
-              </button>
-            </div>
-          </div>
-        ),
-        { duration: 6000 },
-      );
-
-      // Close blind count modal
+      // Close blind count modal and show full report
       setIsEndShiftModalOpen(false);
 
-      // Redirect to dashboard immediately
-      navigate("/dashboard");
+      const report = await shiftService.getReport(currentShiftId);
+      setShiftReportData(report);
+      setIsReportOpen(true);
     } catch (error) {
       console.error("Failed to end shift:", error);
 

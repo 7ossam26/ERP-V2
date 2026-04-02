@@ -6,6 +6,46 @@ const { authenticateToken, requirePermission, requireSensitiveAccess, getUserBra
 // Protect all routes with EXPENSES permission
 router.use(authenticateToken, requirePermission("EXPENSES"));
 
+// GET treasuries available for expense creation (scoped to user's branch)
+// This avoids requiring the TREASURIES permission that employees may not have
+router.get("/treasuries", async (req, res, next) => {
+    try {
+        const branchFilter = await getUserBranchFilter(req.user.id, req);
+
+        // Build branch query
+        const branchWhere = { isActive: true };
+        if (branchFilter) {
+            if (branchFilter.id && branchFilter.id.in) {
+                branchWhere.id = { in: branchFilter.id.in };
+            } else if (branchFilter.id) {
+                branchWhere.id = branchFilter.id;
+            }
+        }
+
+        // Find branches with their treasuries
+        const branches = await prisma.branch.findMany({
+            where: branchWhere,
+            include: {
+                treasury: {
+                    select: { id: true, name: true, balance: true, isActive: true }
+                }
+            }
+        });
+
+        // Extract active treasuries
+        const treasuries = branches
+            .map(b => b.treasury)
+            .filter(t => t && t.isActive);
+
+        // Deduplicate by id (in case multiple branches share a treasury)
+        const uniqueTreasuries = [...new Map(treasuries.map(t => [t.id, t])).values()];
+
+        res.json(uniqueTreasuries);
+    } catch (error) {
+        next(error);
+    }
+});
+
 // GET all expenses
 router.get("/", async (req, res, next) => {
     try {

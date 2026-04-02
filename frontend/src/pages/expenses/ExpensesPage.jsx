@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import AddExpenseModal from "./AddExpenseModal";
+import NoShiftModal from "./NoShiftModal";
 import { expenseService } from "../../services/domainServices";
+import shiftService from "../../services/shiftService";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 import { confirmAction } from "../../utils/toastUtils";
@@ -12,7 +14,13 @@ const ExpensesPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeShift, setActiveShift] = useState(null);
+  const [shiftLoading, setShiftLoading] = useState(true);
+  const [showNoShiftModal, setShowNoShiftModal] = useState(false);
   const itemsPerPage = 8;
+
+  const isManager = AuthService.hasSensitiveAccess();
+  const canAddExpense = isManager || !!activeShift;
 
   // Derived state for filtering and pagination
   const filteredExpenses = (expenses || []).filter((expense) => {
@@ -54,6 +62,30 @@ const ExpensesPage = () => {
   useEffect(() => {
     fetchExpenses();
   }, []);
+
+  useEffect(() => {
+    if (isManager) {
+      setShiftLoading(false);
+      return;
+    }
+    const checkShift = async () => {
+      try {
+        const user = AuthService.getCurrentUser();
+        if (!user) return;
+        const shift = await shiftService.checkActive(user.id);
+        setActiveShift(shift);
+        if (!shift) {
+          setShowNoShiftModal(true);
+        }
+      } catch (err) {
+        console.error("Failed to check active shift", err);
+        setActiveShift(null);
+      } finally {
+        setShiftLoading(false);
+      }
+    };
+    checkShift();
+  }, [isManager]);
 
   const handleAddExpense = async (newExpense) => {
     try {
@@ -207,8 +239,9 @@ const ExpensesPage = () => {
                 <span>تصدير تقرير</span>
               </button>
               <button
-                onClick={() => setIsModalOpen(true)} // This is fine, editingExpense is null by default
-                className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-text-dark px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
+                onClick={() => canAddExpense && !shiftLoading && setIsModalOpen(true)}
+                disabled={!canAddExpense || shiftLoading}
+                className={`flex items-center gap-2 bg-primary hover:bg-primary-hover text-text-dark px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all ${!canAddExpense || shiftLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
                 <span className="material-symbols-outlined text-[20px]">
                   add
                 </span>
@@ -216,7 +249,7 @@ const ExpensesPage = () => {
               </button>
             </div>
           </div>
-          // Search and Filters
+          {/* Search and Filters */}
           <div className="bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-96">
               <span className="material-symbols-outlined absolute top-1/2 right-3 -translate-y-1/2 text-text-light/70 dark:text-text-dark/70 pointer-events-none text-[20px]">
@@ -453,6 +486,11 @@ const ExpensesPage = () => {
           />
         )}
       </div>
+
+      <NoShiftModal
+        isOpen={showNoShiftModal}
+        onViewOnly={() => setShowNoShiftModal(false)}
+      />
     </>
   );
 };

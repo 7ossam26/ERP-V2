@@ -196,9 +196,10 @@ async function calculateSystemExpectedCash(shiftId) {
   let cashExpenses = 0;
 
   // Add cash sales only (card sales don't go in drawer)
+  // Use sale.total (net invoice amount = cash that stays in drawer after change)
   shift.sales.forEach((sale) => {
     if (sale.paymentMethod === "CASH") {
-      const amount = parseFloat(sale.paidAmount) || 0;
+      const amount = parseFloat(sale.total) || 0;
       cashSales += amount;
       expected += amount;
     }
@@ -826,10 +827,7 @@ router.get(
           }
           const stats = deliveryMap.get(key);
           stats.count += 1;
-          stats.total += parseFloat(sale.deliveryFee || 0); // OR Total sale amount? User likely wants Total Cash collected.
-          // User: "delivery order numbers and it's amount details" -> likely Total Amount (Order + Fee)
-          // Let's assume Total Sale Amount for now as that's what constitutes the debt.
-          stats.total += parseFloat(sale.total);
+          stats.total += parseFloat(sale.total); // sale.total already includes deliveryFee
 
           if (sale.deliveryStatus === "DELIVERED") {
             stats.paidCount += 1;

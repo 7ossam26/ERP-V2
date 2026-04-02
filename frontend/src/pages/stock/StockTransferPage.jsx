@@ -114,13 +114,13 @@ const StockTransferPage = () => {
       selectedItems.map((item) => {
         if (item.id === id) {
           const isDecimal = isDecimalUnit(item.unit);
-          const step = isDecimal ? 0.25 : 1;
+          const step = isDecimal ? 0.1 : 1;
           const change = direction * step;
 
           let newQty = (item.transferQty || 0) + change;
 
-          // Ensure min quantity is at least the step size (e.g. 0.25) or 1
-          const minQty = isDecimal ? 0.25 : 1;
+          // Ensure min quantity is at least the step size (e.g. 0.1) or 1
+          const minQty = isDecimal ? 0.1 : 1;
           newQty = Math.max(minQty, Math.min(item.quantity, newQty));
 
           // Fix floating point precision

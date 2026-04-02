@@ -226,6 +226,52 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
             </div>
           </div>
 
+          {/* Expenses Breakdown */}
+          {report.expenses && report.expenses.length > 0 && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-3 font-bold text-gray-700 border-b border-gray-200 flex justify-between items-center">
+                <span>تفاصيل المصروفات</span>
+                <span className="text-xs font-normal bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                  {report.expenses.length} مصروف
+                </span>
+              </div>
+              <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-gray-50 text-gray-500 font-medium">
+                    <tr>
+                      <th className="p-3">الوصف</th>
+                      <th className="p-3">طريقة الدفع</th>
+                      <th className="p-3">المبلغ (ج.م)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {report.expenses.map((expense, index) => (
+                      <tr key={index} className="hover:bg-gray-50/50">
+                        <td className="p-3 font-medium">{expense.description}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded text-xs ${expense.paymentMethod === "CASH" ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"}`}>
+                            {expense.paymentMethod === "CASH" ? "نقدي" : "بطاقة"}
+                          </span>
+                        </td>
+                        <td className="p-3 font-bold text-red-600">
+                          {expense.amount.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t border-gray-200">
+                    <tr>
+                      <td colSpan="2" className="p-3 font-bold text-gray-700">الإجمالي</td>
+                      <td className="p-3 font-bold text-red-600">
+                        {report.totalExpenses.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 flex justify-end gap-3 print:hidden">
             <button
               onClick={handlePrint}

@@ -7,6 +7,10 @@ const { Prisma } = require("@prisma/client");
  * and ensures that sensitive database details are not leaked to the client.
  */
 const errorHandler = (err, req, res, next) => {
+    const fs = require('fs');
+    try {
+        fs.appendFileSync('err.log', new Date().toISOString() + '\\n' + req.method + ' ' + req.originalUrl + '\\n' + (err.stack || err.message || JSON.stringify(err)) + '\\n\\n');
+    } catch (e) {}
     // Log the full error for server-side debugging
     console.error(`[ERROR] ${req.method} ${req.originalUrl}:`, err);
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { treasuryService } from "../../services/domainServices";
-import AuthService from "../../services/authService";
+import { expenseService } from "../../services/domainServices";
 import toast from "react-hot-toast";
 
 const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
@@ -28,58 +27,20 @@ const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
     useEffect(() => {
         const fetchTreasuries = async () => {
             try {
-                const data = await treasuryService.getAll();
+                const data = await expenseService.getTreasuries();
                 setTreasuries(data);
 
-                // If not editing, default to user branch or first treasury
-                if (!expenseToEdit) {
-                    const user = AuthService.getCurrentUser();
-                    if (user && user.branchId && data.length > 0) {
-                        // Default logic here...
-                        // For simplicity just pick first if no strict match logic implemented yet
-                        setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
-                    } else if (data.length > 0) {
-                        setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
-                    }
-                }
-            } catch (error) {
-                console.error("Failed to fetch treasuries", error);
-            }
-        };
-        fetchTreasuries();
-    }, [expenseToEdit]); // Re-run if edit mode changes? No, just once. But dependent on expenseToEdit for default logic. 
-    // Actually simpler: fetch treasuries once. Set default only if !expenseToEdit.
-
-
-    useEffect(() => {
-        const fetchTreasuries = async () => {
-            try {
-                const data = await treasuryService.getAll();
-                setTreasuries(data);
-
-                // Default to user's branch treasury if available
-                const user = AuthService.getCurrentUser();
-                if (user && user.branchId) {
-                    // Assuming we can find the treasury for the branch, or if branch object has treasuryId
-                    // Usually backend returns simple user object.
-                    // If we can't find exact match, we might need to rely on manual selection or advanced logic.
-                    // For now, let's try to find a treasury that matches user's branch logic if possible, 
-                    // or just select the first one if strict mapping isn't available.
-                    // Actually, let's just default to the first one if no specific logic.
-                    if (data.length > 0) {
-                        // If we knew which treasury belongs to the branch, we would select it. 
-                        // For now, default to the first one to ensure a valid selection
-                        setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
-                    }
-                } else if (data.length > 0) {
+                // Auto-select treasury if not editing
+                if (!expenseToEdit && data.length > 0) {
                     setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
                 }
             } catch (error) {
                 console.error("Failed to fetch treasuries", error);
+                toast.error("فشل تحميل الخزينة");
             }
         };
         fetchTreasuries();
-    }, []);
+    }, [expenseToEdit]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;

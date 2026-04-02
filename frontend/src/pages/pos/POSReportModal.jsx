@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = false }) => {
+const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = false, confirmLabel = "تأكيد وإغلاق الوردية" }) => {
   const hasPrinted = useRef(false);
 
   useEffect(() => {
@@ -32,7 +32,6 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
   const cashReceived = reportData?.cashReceived || 0;
   const cardPayments = reportData?.cardPayments || 0;
   const totalSales = reportData?.totalSales || 0;
-  const totalExpenses = reportData?.totalExpenses || 0;
   const startCash = reportData?.startCash || 0;
   const systemExpectedCash = reportData?.systemExpectedCash || 0;
   const actualCash = reportData?.actualCash || 0;
@@ -156,15 +155,9 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
                 <span className="flex-1 text-right">+ مبيعات نقدي</span>
                 <span className="w-32 text-left font-mono font-bold">+{fmt(cashReceived)}</span>
               </div>
-              {deposits.total > 0 && (
-                <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-green-600 dark:text-green-400">
-                  <span className="flex-1 text-right">+ إيداعات</span>
-                  <span className="w-32 text-left font-mono font-bold">+{fmt(deposits.total)}</span>
-                </div>
-              )}
               <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-red-600 dark:text-red-400">
-                <span className="flex-1 text-right">- مصروفات</span>
-                <span className="w-32 text-left font-mono font-bold">-{fmt(totalExpenses)}</span>
+                <span className="flex-1 text-right">- مصروفات نقدي</span>
+                <span className="w-32 text-left font-mono font-bold">-{fmt(expenseBreakdown.total)}</span>
               </div>
               <div className="flex items-center py-2.5 px-4 bg-gray-50 dark:bg-zinc-800 font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-zinc-700">
                 <span className="flex-1 text-right">= المتوقع في الدرج</span>
@@ -234,7 +227,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
             <button
               onClick={onConfirm}
               className="flex-1 bg-[#6F4E37] hover:bg-[#5D4030] text-white font-bold py-3 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
-              تأكيد وإغلاق الوردية
+              {confirmLabel}
             </button>
           )}
           <button

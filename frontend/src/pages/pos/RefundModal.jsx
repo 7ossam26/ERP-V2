@@ -96,6 +96,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
     const items = sale.items.map((i) => ({
       itemId: i.itemId,
       name: i.item.name,
+      unit: i.item.unit,
       quantity: 0,
       maxQty: parseFloat(i.quantity),
       unitPrice: parseFloat(i.unitPrice),
@@ -384,7 +385,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
                           type="number"
                           min="0"
                           max={item.maxQty}
-                          step="0.01"
+                          step={item.unit === "kg" ? "0.1" : "1"}
                           value={item.quantity}
                           onChange={(e) =>
                             handleQuantityChange(item.itemId, e.target.value)

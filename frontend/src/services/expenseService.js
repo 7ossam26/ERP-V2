@@ -4,6 +4,14 @@ const EXPENSES_URL = "/expenses";
 
 export const expenseService = {
     /**
+     * Get treasuries available for expense creation (scoped to user's branch)
+     * @returns {Promise<Array>} Array of treasuries
+     */
+    async getTreasuries() {
+        return await api.get(`${EXPENSES_URL}/treasuries`);
+    },
+
+    /**
      * Get all expenses
      * @returns {Promise<Array>} Array of expenses
      */
