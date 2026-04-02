@@ -310,7 +310,7 @@ const SupplierAccountsPage = () => {
                                             </h3>
                                         </div>
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
+                                            <table className="w-full text-sm whitespace-nowrap">
                                                 <thead className="text-xs uppercase bg-accent/20 dark:bg-surface-dark/80">
                                                     <tr>
                                                         <th className="px-4 py-3">رقم الفاتورة</th>
@@ -344,7 +344,7 @@ const SupplierAccountsPage = () => {
                                                             </td>
                                                             <td className="px-4 py-3">
                                                                 <span
-                                                                    className={`px-2 py-1 rounded text-xs font-bold ${purchase.paymentStatus === "PAID"
+                                                                    className={`whitespace-nowrap inline-block text-center px-2 py-1 rounded text-xs font-bold ${purchase.paymentStatus === "PAID"
                                                                         ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
                                                                         : purchase.paymentStatus === "PARTIALLY_PAID"
                                                                             ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
@@ -397,7 +397,7 @@ const SupplierAccountsPage = () => {
                                             لا يوجد دفعات مسجلة
                                         </div>
                                     ) : (
-                                        <table className="w-full text-sm">
+                                        <table className="w-full text-sm whitespace-nowrap">
                                             <thead className="text-xs uppercase bg-accent/20 dark:bg-surface-dark/80">
                                                 <tr>
                                                     <th className="px-4 py-3">التاريخ</th>
