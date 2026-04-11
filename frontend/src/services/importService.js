@@ -39,4 +39,18 @@ async function getBranches() {
   return res.json();
 }
 
-export const importService = { downloadTemplate, importFile, getBranches };
+async function exportData(entity) {
+  const res = await fetch(`${API_BASE}/export/${entity}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error("فشل تصدير البيانات");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `export_${entity}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export const importService = { downloadTemplate, importFile, getBranches, exportData };

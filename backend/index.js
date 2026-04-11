@@ -250,6 +250,7 @@ app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
 app.use("/api/bom",   require("./routes/bom"));
 app.use("/api/audit", require("./routes/audit"));
 app.use("/api/import", require("./routes/dataImport"));
+app.use("/api/export", require("./routes/dataExport"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);

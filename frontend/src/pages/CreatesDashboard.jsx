@@ -54,8 +54,8 @@ const CreatesDashboard = () => {
           ))}
         <DashboardCard
           icon="upload"
-          title="استيراد البيانات"
-          description="رفع بيانات جماعية من Excel أو CSV"
+          title="استيراد وتصدير البيانات"
+          description="رفع وتحميل البيانات بصيغة Excel أو CSV"
           onClick={() => navigate("/data-import")}
         />
       </div>

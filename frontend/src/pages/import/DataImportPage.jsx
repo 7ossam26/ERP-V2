@@ -99,6 +99,7 @@ function ResultBanner({ result, onClear }) {
 function ImportCard({ entity, branches }) {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [result, setResult] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef();
@@ -112,6 +113,18 @@ function ImportCard({ entity, branches }) {
       toast.error(e.message);
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await importService.exportData(entity.key);
+      toast.success("تم تصدير البيانات");
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -149,13 +162,22 @@ function ImportCard({ entity, branches }) {
             <p className="text-xs text-slate-500 dark:text-slate-400">{entity.description}</p>
           </div>
         </div>
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50">
-          <span className="material-icons-round text-sm">{downloading ? "hourglass_empty" : "download"}</span>
-          {downloading ? "جاري التحميل..." : "تحميل القالب"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors disabled:opacity-50">
+            <span className="material-icons-round text-sm">{exporting ? "hourglass_empty" : "upload_file"}</span>
+            {exporting ? "جاري التصدير..." : "تصدير البيانات"}
+          </button>
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50">
+            <span className="material-icons-round text-sm">{downloading ? "hourglass_empty" : "download"}</span>
+            {downloading ? "جاري التحميل..." : "تحميل القالب"}
+          </button>
+        </div>
       </div>
 
       {/* Fields hint */}
@@ -241,8 +263,8 @@ export default function DataImportPage() {
           <span className="material-icons-round text-primary text-2xl">upload</span>
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">استيراد البيانات</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">رفع بيانات جماعية من ملفات Excel أو CSV</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">استيراد وتصدير البيانات</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">رفع وتحميل البيانات بصيغة Excel أو CSV</p>
         </div>
       </div>
 
