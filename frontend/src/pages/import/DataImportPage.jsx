@@ -254,7 +254,7 @@ export default function DataImportPage() {
         </h2>
         <ol className="space-y-1.5 text-sm text-slate-600 dark:text-slate-400 list-decimal list-inside">
           <li>اضغط <strong>"تحميل القالب"</strong> للحصول على ملف Excel جاهز لكل نوع بيانات</li>
-          <li>افتح الملف وأدخل بياناتك في الصف الثالث فما بعده (لا تعدّل الصفين الأولين)</li>
+          <li>افتح الملف وأدخل بياناتك من الصف الثاني فصاعداً (لا تعدّل الصف الأول)</li>
           <li>احفظ الملف وارفعه باستخدام منطقة الرفع أدناه</li>
           <li>ستظهر نتائج الاستيراد فوراً مع تفاصيل أي أخطاء</li>
         </ol>

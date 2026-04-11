@@ -19,9 +19,9 @@ const upload = multer({
 const TEMPLATES = {
   items: {
     nameAr: "الأصناف",
-    arabicRow: ["اسم الصنف *", "سعر البيع *", "سعر التكلفة", "الوحدة *", "حد إعادة الطلب", "يظهر في POS"],
+    arabicRow: ["اسم الصنف *", "سعر البيع *", "سعر التكلفة", "الوحدة * (piece / kg / box)", "حد إعادة الطلب", "يظهر في POS"],
     headerRow: ["name", "price", "costPrice", "unit", "reorderPoint", "showInPos"],
-    exampleRow: ["مياه معدنية", 5, 3, "كرتونة", 10, "true"],
+    exampleRow: ["مياه معدنية", 5, 3, "piece", 10, "true"],
   },
   clients: {
     nameAr: "العملاء",
@@ -56,21 +56,21 @@ const TEMPLATES = {
 };
 
 // ── Helper: parse uploaded file → array of row objects ──────────────────────
-function parseFile(buffer, filename) {
+// headers: the ordered field name array from TEMPLATES[entity].headerRow
+function parseFile(buffer, headers) {
   const wb = XLSX.read(buffer, { type: "buffer" });
   const ws = wb.Sheets[wb.SheetNames[0]];
   // raw rows as arrays
   const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-  if (raw.length < 3) throw new Error("الملف لا يحتوي على بيانات كافية (يجب أن يكون هناك 3 صفوف على الأقل: العناوين العربية، الأسماء الإنجليزية، والبيانات)");
+  if (raw.length < 2) throw new Error("الملف لا يحتوي على بيانات كافية (يجب أن يكون هناك صف عناوين وصف بيانات على الأقل)");
 
-  // row index 0 = Arabic labels, row index 1 = English field names, row index 2+ = data
-  const headers = raw[1].map((h) => String(h).trim());
-  const dataRows = raw.slice(2);
+  // row index 0 = Arabic header row (skip), row index 1+ = data
+  const dataRows = raw.slice(1);
 
   return dataRows
     .filter((row) => row.some((cell) => cell !== "")) // skip blank rows
     .map((row, i) => {
-      const obj = { _rowNum: i + 3 }; // 1-based, skipping 2 header rows
+      const obj = { _rowNum: i + 2 }; // 1-based, skipping 1 header row
       headers.forEach((h, idx) => {
         obj[h] = row[idx] !== undefined ? row[idx] : "";
       });
@@ -85,28 +85,26 @@ router.get("/template/:entity", authenticateToken, (req, res) => {
 
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: Data template
+  // Sheet 1: Data template — Row 1: Arabic headers, Row 2: example data
   const wsData = [
     tmpl.arabicRow,
-    tmpl.headerRow,
     tmpl.exampleRow,
   ];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws["!cols"] = tmpl.headerRow.map(() => ({ wch: 28 }));
+  ws["!cols"] = tmpl.arabicRow.map(() => ({ wch: 28 }));
 
-  // Style first row (Arabic) as bold — xlsx CE doesn't support rich styles, but setting RTL helps
   XLSX.utils.book_append_sheet(wb, ws, tmpl.nameAr);
 
   // Sheet 2: Instructions in Arabic
   const instructions = [
     ["تعليمات الاستيراد"],
     [""],
-    ["الصف الأول: التسميات العربية (لا تعدّل هذا الصف)"],
-    ["الصف الثاني: أسماء الحقول الإنجليزية (لا تعدّل هذا الصف)"],
-    ["الصف الثالث فما فوق: أدخل بياناتك هنا (يمكنك حذف صف المثال)"],
+    ["الصف الأول: عناوين الأعمدة — لا تعدّل هذا الصف أبداً"],
+    ["الصف الثاني فما فوق: أدخل بياناتك هنا (يمكنك حذف صف المثال)"],
     [""],
     ["الحقول المميزة بعلامة * إلزامية"],
     ["showInPos: اكتب true أو false"],
+    ["unit (الوحدة): piece = قطعة | kg = كيلو جرام | box = علبة"],
     ["weeklyHoliday: اكتب اسم اليوم بالعربية (مثال: الجمعة)"],
     ["branchId (الموظفين): أدخل رقم الفرع الصحيح من قاعدة البيانات"],
     ["itemName / warehouseName (المخزون): اكتب الاسم كما هو مسجل في النظام"],
@@ -125,7 +123,7 @@ router.get("/template/:entity", authenticateToken, (req, res) => {
 router.post("/items", authenticateToken, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "لم يتم رفع أي ملف" });
   let rows;
-  try { rows = parseFile(req.file.buffer, req.file.originalname); }
+  try { rows = parseFile(req.file.buffer, TEMPLATES.items.headerRow); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
   let imported = 0, skipped = 0;
@@ -137,9 +135,11 @@ router.post("/items", authenticateToken, upload.single("file"), async (req, res)
     const price = parseFloat(row.price);
     const unit = String(row.unit || "").trim();
 
+    const VALID_UNITS = ["piece", "kg", "box"];
     if (!name) { errors.push({ row: rowNum, reason: "اسم الصنف مطلوب" }); skipped++; continue; }
     if (isNaN(price) || price < 0) { errors.push({ row: rowNum, reason: "سعر البيع غير صالح" }); skipped++; continue; }
     if (!unit) { errors.push({ row: rowNum, reason: "الوحدة مطلوبة" }); skipped++; continue; }
+    if (!VALID_UNITS.includes(unit)) { errors.push({ row: rowNum, reason: `الوحدة "${unit}" غير صالحة. القيم المقبولة: piece, kg, box` }); skipped++; continue; }
 
     try {
       await prisma.item.create({
@@ -167,7 +167,7 @@ router.post("/items", authenticateToken, upload.single("file"), async (req, res)
 router.post("/clients", authenticateToken, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "لم يتم رفع أي ملف" });
   let rows;
-  try { rows = parseFile(req.file.buffer, req.file.originalname); }
+  try { rows = parseFile(req.file.buffer, TEMPLATES.clients.headerRow); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
   let imported = 0, skipped = 0;
@@ -203,7 +203,7 @@ router.post("/clients", authenticateToken, upload.single("file"), async (req, re
 router.post("/suppliers", authenticateToken, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "لم يتم رفع أي ملف" });
   let rows;
-  try { rows = parseFile(req.file.buffer, req.file.originalname); }
+  try { rows = parseFile(req.file.buffer, TEMPLATES.suppliers.headerRow); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
   let imported = 0, skipped = 0;
@@ -233,7 +233,7 @@ router.post("/suppliers", authenticateToken, upload.single("file"), async (req, 
 router.post("/employees", authenticateToken, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "لم يتم رفع أي ملف" });
   let rows;
-  try { rows = parseFile(req.file.buffer, req.file.originalname); }
+  try { rows = parseFile(req.file.buffer, TEMPLATES.employees.headerRow); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
   let imported = 0, skipped = 0;
@@ -288,7 +288,7 @@ router.post("/employees", authenticateToken, upload.single("file"), async (req, 
 router.post("/inventory", authenticateToken, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "لم يتم رفع أي ملف" });
   let rows;
-  try { rows = parseFile(req.file.buffer, req.file.originalname); }
+  try { rows = parseFile(req.file.buffer, TEMPLATES.inventory.headerRow); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
   let imported = 0, skipped = 0;
@@ -297,8 +297,8 @@ router.post("/inventory", authenticateToken, upload.single("file"), async (req, 
   // Pre-fetch items and warehouses for name → id lookup
   const items = await prisma.item.findMany({ select: { id: true, name: true } });
   const warehouses = await prisma.warehouse.findMany({ select: { id: true, name: true } });
-  const itemMap = new Map(items.map((i) => [i.name.trim(), i.id]));
-  const warehouseMap = new Map(warehouses.map((w) => [w.name.trim(), w.id]));
+  const itemMap = new Map(items.map((i) => [i.name.trim().toLowerCase(), i.id]));
+  const warehouseMap = new Map(warehouses.map((w) => [w.name.trim().toLowerCase(), w.id]));
 
   for (const row of rows) {
     const rowNum = row._rowNum;
@@ -310,14 +310,14 @@ router.post("/inventory", authenticateToken, upload.single("file"), async (req, 
     if (!warehouseName) { errors.push({ row: rowNum, reason: "اسم المستودع مطلوب" }); skipped++; continue; }
     if (isNaN(quantity) || quantity < 0) { errors.push({ row: rowNum, reason: "الكمية غير صالحة" }); skipped++; continue; }
 
-    const itemId = itemMap.get(itemName);
+    const itemId = itemMap.get(itemName.toLowerCase());
     if (!itemId) { errors.push({ row: rowNum, reason: `الصنف "${itemName}" غير موجود في النظام` }); skipped++; continue; }
 
-    const warehouseId = warehouseMap.get(warehouseName);
+    const warehouseId = warehouseMap.get(warehouseName.toLowerCase());
     if (!warehouseId) { errors.push({ row: rowNum, reason: `المستودع "${warehouseName}" غير موجود في النظام` }); skipped++; continue; }
 
     try {
-      await prisma.inventoryItem.upsert({
+      await prisma.inventory.upsert({
         where: { itemId_warehouseId: { itemId, warehouseId } },
         update: { quantity },
         create: { itemId, warehouseId, quantity },
@@ -336,7 +336,7 @@ router.post("/inventory", authenticateToken, upload.single("file"), async (req, 
 router.post("/treasury", authenticateToken, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "لم يتم رفع أي ملف" });
   let rows;
-  try { rows = parseFile(req.file.buffer, req.file.originalname); }
+  try { rows = parseFile(req.file.buffer, TEMPLATES.treasury.headerRow); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
   let imported = 0, skipped = 0;
