@@ -508,6 +508,7 @@ router.post("/reset/:category", async (req, res) => {
           prisma.purchase.deleteMany({}),
           prisma.stockTransferItem.deleteMany({}),
           prisma.stockTransfer.deleteMany({}),
+          prisma.productionOrder.deleteMany({}),
           prisma.payroll.deleteMany({}),
           prisma.employeeTransaction.deleteMany({}),
           prisma.expense.deleteMany({}),
@@ -591,13 +592,26 @@ router.post("/reset/:category", async (req, res) => {
         // Check for transaction references before deleting master data
         const salesCount = await prisma.sale.count();
         const purchasesCount = await prisma.purchase.count();
+        const stockTransfersCount = await prisma.stockTransfer.count();
+        const productionOrdersCount = await prisma.productionOrder.count();
         if (salesCount > 0 || purchasesCount > 0) {
           return res.status(409).json({
             error: "Cannot delete items while sales or purchases exist. Clear transactions first.",
           });
         }
+        if (stockTransfersCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete items while stock transfers exist. Clear inventory movements first.",
+          });
+        }
+        if (productionOrdersCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete items while production orders exist. Clear production orders first.",
+          });
+        }
         await prisma.$transaction([
           prisma.bomItem.deleteMany({}),
+          prisma.bOMCategory.deleteMany({}),
           prisma.bOM.deleteMany({}),
           prisma.itemSupplier.deleteMany({}),
           prisma.itemCategory.deleteMany({}),

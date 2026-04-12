@@ -249,6 +249,39 @@ router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res, n
 router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), requireSensitiveAccess, async (req, res, next) => {
   try {
     const { name, address, warehouseId, treasuryId } = req.body;
+    const branchId = parseInt(req.params.id);
+
+    // Check if the treasury is already linked to a different branch
+    if (treasuryId !== undefined) {
+      const conflict = await prisma.branch.findFirst({
+        where: {
+          treasuryId: parseInt(treasuryId),
+          id: { not: branchId },
+        },
+      });
+      if (conflict) {
+        return res.status(400).json({
+          error: "Treasury already in use",
+          message: `هذه الخزينة مرتبطة بالفرع "${conflict.name}" بالفعل. يرجى إلغاء ارتباطها أولاً.`,
+        });
+      }
+    }
+
+    // Check if the warehouse is already linked to a different branch
+    if (warehouseId !== undefined) {
+      const conflict = await prisma.branch.findFirst({
+        where: {
+          warehouseId: parseInt(warehouseId),
+          id: { not: branchId },
+        },
+      });
+      if (conflict) {
+        return res.status(400).json({
+          error: "Warehouse already in use",
+          message: `هذا المستودع مرتبط بالفرع "${conflict.name}" بالفعل. يرجى إلغاء ارتباطه أولاً.`,
+        });
+      }
+    }
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -258,7 +291,7 @@ router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), requi
     if (treasuryId !== undefined) updateData.treasuryId = parseInt(treasuryId);
 
     const branch = await prisma.branch.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id: branchId },
       data: updateData,
       include: {
         warehouse: true,

@@ -20,6 +20,20 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
   });
   const [warehouses, setWarehouses] = useState([]);
   const [treasuries, setTreasuries] = useState([]);
+
+  // IDs already linked to other branches (exclude current branch being edited)
+  const usedTreasuryIds = new Set(
+    (data || [])
+      .filter((b) => b.id !== initialData?.id)
+      .map((b) => b.treasuryId)
+      .filter(Boolean)
+  );
+  const usedWarehouseIds = new Set(
+    (data || [])
+      .filter((b) => b.id !== initialData?.id)
+      .map((b) => b.warehouseId)
+      .filter(Boolean)
+  );
   const [keepOpen, setKeepOpen] = useState(false);
 
   useEffect(() => {
@@ -142,11 +156,14 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             onChange={handleChange}
             required>
             <option value="">اختر المخزن...</option>
-            {warehouses.map((warehouse) => (
-              <option key={warehouse.id} value={warehouse.id}>
-                {warehouse.name}
-              </option>
-            ))}
+            {warehouses.map((warehouse) => {
+              const inUse = usedWarehouseIds.has(warehouse.id);
+              return (
+                <option key={warehouse.id} value={warehouse.id} disabled={inUse}>
+                  {warehouse.name}{inUse ? " (مستخدم)" : ""}
+                </option>
+              );
+            })}
           </select>
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             warehouse
@@ -169,11 +186,14 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             onChange={handleChange}
             required>
             <option value="">اختر الخزينة...</option>
-            {treasuries.map((treasury) => (
-              <option key={treasury.id} value={treasury.id}>
-                {treasury.name}
-              </option>
-            ))}
+            {treasuries.map((treasury) => {
+              const inUse = usedTreasuryIds.has(treasury.id);
+              return (
+                <option key={treasury.id} value={treasury.id} disabled={inUse}>
+                  {treasury.name}{inUse ? " (مستخدمة)" : ""}
+                </option>
+              );
+            })}
           </select>
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             savings
