@@ -7,7 +7,8 @@
     },
     "scripts": {
         "build": "cd frontend && npm install --include=dev && npm run build",
-        "start": "cd backend && npx prisma migrate deploy && node index.js",
+        "migrate": "cd backend && npx prisma migrate deploy",
+        "start": "node backend/start.js",
         "dev": "concurrently \"npm run dev:backend\" \"npm run dev --prefix frontend\"",
         "dev:backend": "cd backend && cross-env NODE_ENV=development nodemon index.js",
         "postinstall": "cd backend && npm install && npx prisma generate && cd ../frontend && npm install --include=dev && npm run build"
