@@ -6,22 +6,22 @@
 
 */
 -- DropForeignKey
-ALTER TABLE `_categorytoitem` DROP FOREIGN KEY `_CategoryToItem_A_fkey`;
+ALTER TABLE `_CategoryToItem` DROP FOREIGN KEY `_CategoryToItem_A_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `_categorytoitem` DROP FOREIGN KEY `_CategoryToItem_B_fkey`;
+ALTER TABLE `_CategoryToItem` DROP FOREIGN KEY `_CategoryToItem_B_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `_itemtosupplier` DROP FOREIGN KEY `_ItemToSupplier_A_fkey`;
+ALTER TABLE `_ItemToSupplier` DROP FOREIGN KEY `_ItemToSupplier_A_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `_itemtosupplier` DROP FOREIGN KEY `_ItemToSupplier_B_fkey`;
+ALTER TABLE `_ItemToSupplier` DROP FOREIGN KEY `_ItemToSupplier_B_fkey`;
 
 -- DropTable
-DROP TABLE `_categorytoitem`;
+DROP TABLE `_CategoryToItem`;
 
 -- DropTable
-DROP TABLE `_itemtosupplier`;
+DROP TABLE `_ItemToSupplier`;
 
 -- CreateTable
 CREATE TABLE `item_suppliers` (
