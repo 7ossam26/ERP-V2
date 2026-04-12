@@ -466,7 +466,7 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
   const healthHost =
     process.env.NODE_ENV === "production"
-      ? "elghonemydemo.kiko-tech.com"
+      ? "elghonemy.kiko-tech.com"
       : "localhost";
   console.log(
     `📍 [SERVER] Health check available at: http://${healthHost}:${PORT}/api/health`,
