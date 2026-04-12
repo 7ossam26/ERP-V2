@@ -44,6 +44,12 @@ const RESET_CATEGORIES = {
             description: "حذف جميع تحويلات المخزون بين المستودعات",
         },
         {
+            category: "production-orders",
+            label: "مسح أوامر الإنتاج",
+            icon: "precision_manufacturing",
+            description: "حذف جميع أوامر الإنتاج وعناصرها",
+        },
+        {
             category: "inventory-quantities",
             label: "تصفير كميات المخزون",
             icon: "exposure_zero",
@@ -79,7 +85,7 @@ const RESET_CATEGORIES = {
             category: "items",
             label: "مسح الأصناف والتصنيفات",
             icon: "category",
-            description: "حذف جميع الأصناف والتصنيفات (يتطلب مسح المعاملات أولاً)",
+            description: "حذف جميع الأصناف والتصنيفات (يتطلب مسح المعاملات وأوامر الإنتاج وحركات المخزون أولاً)",
             danger: true,
         },
         {
@@ -196,7 +202,7 @@ const DatabaseReset = () => {
                             مسح جميع الحركات (موصى به)
                         </h2>
                         <p className="text-amber-700 dark:text-amber-400 text-sm">
-                            حذف جميع المبيعات، المشتريات، الرواتب، الشيفتات، حركات المخزون والخزينة دفعة واحدة
+                            حذف جميع المبيعات، المشتريات، الرواتب، الشيفتات، أوامر الإنتاج، حركات المخزون والخزينة دفعة واحدة
                         </p>
                     </div>
                 </div>
