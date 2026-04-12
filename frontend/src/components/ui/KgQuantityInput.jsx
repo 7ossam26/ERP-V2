@@ -3,7 +3,7 @@ import React from "react";
 /**
  * Unit-aware quantity input used system-wide.
  *
- * - kg items  → single decimal input (step 0.1) with ك badge
+ * - kg items  → free decimal input (step any) with ك badge
  * - piece/box → integer input (step 1) with قطعة / علبة badge
  *
  * @param {number}   value    – current quantity in base unit (kg or count)
@@ -33,7 +33,7 @@ const KgQuantityInput = ({ value, onChange, unit, min = 0, className = "" }) => 
         <input
           type="number"
           min={min}
-          step="0.1"
+          step="any"
           value={parseFloat(value) || 0}
           onChange={(e) =>
             onChange(Math.max(min, parseFloat(e.target.value) || 0))
