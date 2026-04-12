@@ -6,7 +6,7 @@ CREATE TABLE `deposits` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `amount` DECIMAL(10, 2) NOT NULL,
     `description` TEXT NULL,
-    `date` DATE NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `date` DATE NOT NULL DEFAULT (CURRENT_DATE),
     `treasury_id` INTEGER NOT NULL,
     `created_by_id` INTEGER NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
