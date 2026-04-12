@@ -31,7 +31,7 @@ const TEMPLATES = {
   },
   suppliers: {
     nameAr: "الموردين",
-    arabicRow: ["اسم المورد *", "رقم الهاتف *"],
+    arabicRow: ["اسم المورد *", "رقم الهاتف"],
     headerRow: ["name", "phoneNumber"],
     exampleRow: ["شركة النيل للتوريدات", "01098765432"],
   },
@@ -215,7 +215,7 @@ router.post("/suppliers", authenticateToken, upload.single("file"), async (req, 
     const phoneNumber = String(row.phoneNumber || "").trim();
 
     if (!name) { errors.push({ row: rowNum, reason: "اسم المورد مطلوب" }); skipped++; continue; }
-    if (!phoneNumber) { errors.push({ row: rowNum, reason: "رقم الهاتف مطلوب" }); skipped++; continue; }
+
 
     try {
       await prisma.supplier.create({ data: { name, phoneNumber } });

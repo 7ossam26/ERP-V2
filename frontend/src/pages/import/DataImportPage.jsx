@@ -23,7 +23,7 @@ const ENTITIES = [
     label: "الموردين",
     icon: "local_shipping",
     description: "استيراد بيانات الموردين",
-    fields: ["name *", "phoneNumber *"],
+    fields: ["name *", "phoneNumber"],
   },
   {
     key: "employees",

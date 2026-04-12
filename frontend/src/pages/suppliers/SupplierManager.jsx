@@ -33,13 +33,15 @@ const SupplierForm = ({ initialData, onClose, onSave, data, showToast }) => {
       return;
     }
 
-    // Phone validation
-    const phoneValidation = validateEgyptianPhone(formData.phone);
-    if (!phoneValidation.isValid) {
-      if (showToast) {
-        showToast(phoneValidation.message, "error");
+    // Phone validation (Optional)
+    if (formData.phone) {
+      const phoneValidation = validateEgyptianPhone(formData.phone);
+      if (!phoneValidation.isValid) {
+        if (showToast) {
+          showToast(phoneValidation.message, "error");
+        }
+        return;
       }
-      return;
     }
 
     await onSave(formData, !keepOpen);
@@ -106,9 +108,8 @@ const SupplierForm = ({ initialData, onClose, onSave, data, showToast }) => {
             value={formData.phone}
             onChange={handleChange}
             dir="ltr"
-            placeholder="01xxxxxxxxx"
+            placeholder="01xxxxxxxxx (اختياري)"
             type="tel"
-            required
             maxLength={14}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">

@@ -43,7 +43,7 @@ export const supplierService = {
   async create(supplierData) {
     const backendData = {
       name: supplierData.name,
-      phoneNumber: supplierData.phone || supplierData.phoneNumber,
+      phoneNumber: supplierData.phone ?? supplierData.phoneNumber ?? "",
     };
     const data = await api.post(SUPPLIERS_URL, backendData);
     return toFrontend(data);
@@ -58,7 +58,7 @@ export const supplierService = {
   async update(id, updates) {
     const backendData = {
       name: updates.name,
-      phoneNumber: updates.phone || updates.phoneNumber,
+      phoneNumber: updates.phone ?? updates.phoneNumber ?? "",
     };
     const data = await api.put(`${SUPPLIERS_URL}/${id}`, backendData);
     return toFrontend(data);
