@@ -126,7 +126,7 @@ router.get("/summary", async (req, res, next) => {
   }
 });
 
-// GET branch balances — Cash treasury + today's INSTAPAY sales per branch (BR1)
+// GET branch balances — Cash treasury + today's INSTAPAY/VISA sales per branch + bank account balance
 router.get("/balances", async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
@@ -161,6 +161,8 @@ router.get("/balances", async (req, res, next) => {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
+    const branchIds = branches.map((b) => b.id);
+
     // Aggregate INSTAPAY sales per branch for today
     const instapaySales = await prisma.sale.groupBy({
       by: ["branchId"],
@@ -168,14 +170,44 @@ router.get("/balances", async (req, res, next) => {
         paymentMethod: "INSTAPAY",
         status: "COMPLETED",
         createdAt: { gte: todayStart, lte: todayEnd },
-        branchId: { in: branches.map((b) => b.id) },
+        branchId: { in: branchIds },
       },
       _sum: { total: true },
     });
 
+    // Aggregate VISA sales per branch for today
+    const visaSales = await prisma.sale.groupBy({
+      by: ["branchId"],
+      where: {
+        paymentMethod: "VISA",
+        status: "COMPLETED",
+        createdAt: { gte: todayStart, lte: todayEnd },
+        branchId: { in: branchIds },
+      },
+      _sum: { total: true },
+    });
+
+    // Get bank account (bank treasury) running balance from system config
+    const sysConfig = await prisma.systemConfiguration.findFirst({
+      select: { bankTreasuryId: true },
+    });
+    let bankAccountBalance = 0;
+    if (sysConfig?.bankTreasuryId) {
+      const bankTreasury = await prisma.treasury.findUnique({
+        where: { id: sysConfig.bankTreasuryId },
+        select: { balance: true },
+      });
+      bankAccountBalance = Number(bankTreasury?.balance || 0);
+    }
+
     const instapayMap = {};
     instapaySales.forEach((row) => {
       instapayMap[row.branchId] = Number(row._sum.total || 0);
+    });
+
+    const visaMap = {};
+    visaSales.forEach((row) => {
+      visaMap[row.branchId] = Number(row._sum.total || 0);
     });
 
     const result = branches.map((branch) => ({
@@ -185,6 +217,8 @@ router.get("/balances", async (req, res, next) => {
       cashBalance: Number(branch.treasury?.balance || 0),
       treasuryName: branch.treasury?.name || "الخزينة",
       instapayToday: instapayMap[branch.id] || 0,
+      visaToday: visaMap[branch.id] || 0,
+      bankAccountBalance,
     }));
 
     res.json(result);
