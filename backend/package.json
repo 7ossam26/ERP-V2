@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node scripts/baseline-migrations.js && npx prisma generate && npx prisma migrate deploy && node index.js",
-    "start:prod": "node scripts/baseline-migrations.js && npx prisma generate && npx prisma migrate deploy && node index.js",
+    "start": "node scripts/baseline-migrations.js && npx prisma migrate deploy && node index.js",
+    "start:prod": "node scripts/baseline-migrations.js && npx prisma migrate deploy && node index.js",
     "db:baseline": "node scripts/baseline-migrations.js",
     "db:migrate": "npx prisma migrate deploy",
     "db:studio": "npx prisma studio",

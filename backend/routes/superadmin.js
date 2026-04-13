@@ -594,7 +594,8 @@ router.post("/reset/:category", async (req, res) => {
         await prisma.shift.deleteMany({});
         break;
 
-      case "items": {
+      case "items":
+      case "items-only": {
         // Check for transaction references before deleting master data
         const salesCount = await prisma.sale.count();
         const purchasesCount = await prisma.purchase.count();
@@ -619,8 +620,18 @@ router.post("/reset/:category", async (req, res) => {
           prisma.itemCategory.deleteMany({}),
           prisma.inventory.deleteMany({}),
           prisma.item.deleteMany({}),
-          prisma.category.deleteMany({}),
         ]);
+        break;
+      }
+
+      case "categories-only": {
+        const itemsCount = await prisma.item.count();
+        if (itemsCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete categories while items exist. Clear items first.",
+          });
+        }
+        await prisma.category.deleteMany({});
         break;
       }
 

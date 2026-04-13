@@ -32,7 +32,8 @@ const RESET_CATEGORIES = {
         { category: "delivery-wallets", label: "تصفير محافظ المناديب", icon: "account_balance", description: "تصفير رصيد المحفظة لجميع المناديب دون حذف السجلات" },
     ],
     masterData: [
-        { category: "items", label: "مسح الأصناف والتصنيفات", icon: "category", description: "حذف جميع الأصناف والتصنيفات وأوامر الإنتاج وحركات المخزون (يتطلب مسح المعاملات أولاً)", danger: true },
+        { category: "items-only", label: "مسح الأصناف", icon: "inventory", description: "حذف جميع الأصناف وأوامر الإنتاج وحركات المخزون (يتطلب مسح المعاملات أولاً)", danger: true },
+        { category: "categories-only", label: "مسح التصنيفات", icon: "category", description: "حذف جميع التصنيفات فقط (يتطلب مسح الأصناف أولاً)", danger: true },
         { category: "boms", label: "مسح قوائم المكونات (BOM)", icon: "schema", description: "حذف جميع قوائم المكونات وعناصرها (يتطلب مسح أوامر الإنتاج والمبيعات أولاً)", danger: true },
         { category: "clients", label: "مسح العملاء", icon: "people", description: "حذف جميع سجلات العملاء (يتطلب مسح المبيعات أولاً)", danger: true },
         { category: "suppliers", label: "مسح الموردين", icon: "local_shipping", description: "حذف جميع سجلات الموردين (يتطلب مسح المشتريات أولاً)", danger: true },
