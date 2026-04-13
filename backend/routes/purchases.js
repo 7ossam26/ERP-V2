@@ -849,4 +849,190 @@ router.post("/:id/return", async (req, res, next) => {
   }
 });
 
+// POST cancel an entire purchase (إلغاء فاتورة بالكامل)
+router.post("/:id/cancel", async (req, res, next) => {
+  try {
+    const purchaseId = parseInt(req.params.id);
+    const { managerUsername, managerPassword, notes } = req.body;
+
+    if (!managerUsername || !managerPassword) {
+      return res.status(400).json({ error: "بيانات المدير مطلوبة" });
+    }
+
+    // Verify manager credentials
+    const bcrypt = require("bcryptjs");
+    const manager = await prisma.user.findUnique({
+      where: { username: managerUsername },
+      include: { role: true },
+    });
+    if (!manager) {
+      return res.status(401).json({ error: "اسم المستخدم غير موجود" });
+    }
+    const isValidPassword = await bcrypt.compare(managerPassword, manager.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: "كلمة مرور المدير غير صحيحة" });
+    }
+    const allowedRoles = ["Superadmin", "Manager", "Branch Manager", "General Manager"];
+    if (!allowedRoles.includes(manager.role?.name)) {
+      return res.status(403).json({ error: "ليس لديك صلاحية إلغاء الفاتورة" });
+    }
+
+    // Fetch purchase with items and relations
+    const purchase = await prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: { items: { include: { item: true } } },
+    });
+    if (!purchase) {
+      return res.status(404).json({ error: "الفاتورة غير موجودة" });
+    }
+    if (purchase.paymentStatus === "CANCELLED") {
+      return res.status(400).json({ error: "هذه الفاتورة ملغية مسبقاً" });
+    }
+
+    // Stock check — each item must have enough stock in the warehouse
+    // Account for already-returned quantities
+    const stockErrors = [];
+    for (const pi of purchase.items) {
+      const alreadyReturned = await prisma.purchaseReturnItem.aggregate({
+        where: {
+          itemId: pi.itemId,
+          purchaseReturn: { purchaseId },
+        },
+        _sum: { quantity: true },
+      });
+      const returnedSoFar = Number(alreadyReturned._sum.quantity || 0);
+      const neededQty = Number(pi.quantity) - returnedSoFar;
+      if (neededQty <= 0) continue; // already fully returned, skip
+
+      const currentStock = await prisma.inventory.findUnique({
+        where: {
+          itemId_warehouseId: { itemId: pi.itemId, warehouseId: purchase.warehouseId },
+        },
+      });
+      const availableQty = currentStock ? Number(currentStock.quantity) : 0;
+      if (availableQty < neededQty) {
+        stockErrors.push({
+          itemName: pi.item.name,
+          available: availableQty,
+          required: neededQty,
+        });
+      }
+    }
+    if (stockErrors.length > 0) {
+      return res.status(400).json({
+        error: "لا يوجد مخزون كافٍ لإلغاء الفاتورة",
+        details: stockErrors,
+      });
+    }
+
+    // Calculate full cancel amount (net of any prior returns)
+    const discountRatio =
+      Number(purchase.subtotal) > 0
+        ? Number(purchase.discountAmount) / Number(purchase.subtotal)
+        : 0;
+
+    // Items to reverse = all items minus already-returned quantities
+    const itemsToReverse = [];
+    for (const pi of purchase.items) {
+      const alreadyReturned = await prisma.purchaseReturnItem.aggregate({
+        where: { itemId: pi.itemId, purchaseReturn: { purchaseId } },
+        _sum: { quantity: true },
+      });
+      const returnedSoFar = Number(alreadyReturned._sum.quantity || 0);
+      const qty = Number(pi.quantity) - returnedSoFar;
+      if (qty > 0) {
+        itemsToReverse.push({ pi, qty });
+      }
+    }
+
+    const cancelSubtotal = itemsToReverse.reduce(
+      (sum, { pi, qty }) => sum + qty * Number(pi.purchasePrice),
+      0
+    );
+    const cancelAmount = cancelSubtotal * (1 - discountRatio);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate return number
+      const count = await tx.purchaseReturn.count();
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const returnNumber = `CAN-${yearMonth}-${String(count + 1).padStart(5, "0")}`;
+
+      // Create PurchaseReturn record for the full cancellation
+      const purchaseReturn = await tx.purchaseReturn.create({
+        data: {
+          purchaseId,
+          returnNumber,
+          notes: notes || "إلغاء فاتورة كاملة",
+          totalAmount: cancelAmount,
+          items: {
+            create: itemsToReverse.map(({ pi, qty }) => ({
+              itemId: pi.itemId,
+              quantity: qty,
+              purchasePrice: Number(pi.purchasePrice),
+              total: qty * Number(pi.purchasePrice),
+            })),
+          },
+        },
+        include: { items: { include: { item: true } } },
+      });
+
+      // Reverse inventory — decrement warehouse stock for each item
+      for (const { pi, qty } of itemsToReverse) {
+        await tx.inventory.update({
+          where: {
+            itemId_warehouseId: { itemId: pi.itemId, warehouseId: purchase.warehouseId },
+          },
+          data: { quantity: { decrement: qty } },
+        });
+      }
+
+      // Reverse financials
+      const paidRatio =
+        Number(purchase.netTotal) > 0
+          ? Number(purchase.paidAmount) / Number(purchase.netTotal)
+          : 0;
+
+      if (purchase.paymentMethod === "CASH" || purchase.paymentMethod === "CREDIT") {
+        await tx.treasury.update({
+          where: { id: purchase.treasuryId },
+          data: { balance: { increment: cancelAmount } },
+        });
+      } else if (purchase.paymentMethod === "DEFERRED") {
+        await tx.supplierAccount.updateMany({
+          where: { supplierId: purchase.supplierId },
+          data: { balance: { decrement: cancelAmount } },
+        });
+      } else if (purchase.paymentMethod === "MIXED") {
+        const treasuryRefund = cancelAmount * paidRatio;
+        const supplierReduction = cancelAmount * (1 - paidRatio);
+        if (treasuryRefund > 0) {
+          await tx.treasury.update({
+            where: { id: purchase.treasuryId },
+            data: { balance: { increment: treasuryRefund } },
+          });
+        }
+        if (supplierReduction > 0) {
+          await tx.supplierAccount.updateMany({
+            where: { supplierId: purchase.supplierId },
+            data: { balance: { decrement: supplierReduction } },
+          });
+        }
+      }
+
+      // Mark purchase as CANCELLED
+      await tx.purchase.update({
+        where: { id: purchaseId },
+        data: { paymentStatus: "CANCELLED" },
+      });
+
+      return purchaseReturn;
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

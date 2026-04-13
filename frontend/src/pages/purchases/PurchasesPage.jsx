@@ -473,8 +473,8 @@ const PurchasesPage = () => {
   };
 
   const pmLabel = (m) => ({ CASH:"نقدي", CREDIT:"كريدت", DEFERRED:"آجل", MIXED:"متنوع", cash:"نقدي", credit:"كريدت", deferred:"آجل", mixed:"متنوع" })[m] || m;
-  const psLabel = (s) => ({ PAID:"مدفوع", PARTIALLY_PAID:"جزئي", UNPAID:"غير مدفوع", RETURNED:"مرتجع" })[s] || s;
-  const psClass = (s) => s==="PAID" ? "bg-green-100 text-green-800" : s==="PARTIALLY_PAID" ? "bg-yellow-100 text-yellow-800" : s==="RETURNED" ? "bg-orange-100 text-orange-800" : "bg-red-100 text-red-800";
+  const psLabel = (s) => ({ PAID:"مدفوع", PARTIALLY_PAID:"جزئي", UNPAID:"غير مدفوع", RETURNED:"مرتجع", CANCELLED:"ملغي" })[s] || s;
+  const psClass = (s) => s==="PAID" ? "bg-green-100 text-green-800" : s==="PARTIALLY_PAID" ? "bg-yellow-100 text-yellow-800" : s==="RETURNED" ? "bg-orange-100 text-orange-800" : s==="CANCELLED" ? "bg-gray-200 text-gray-600 line-through" : "bg-red-100 text-red-800";
   const filteredHistory = [...purchases].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).filter(p=>{
     if (!historyFilter.trim()) return true;
     const q = historyFilter.toLowerCase();

@@ -461,6 +461,7 @@ enum PaymentStatus {
   PARTIALLY_PAID
   UNPAID
   RETURNED
+  CANCELLED
 }
 
 model Purchase {
