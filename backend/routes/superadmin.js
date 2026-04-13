@@ -517,9 +517,11 @@ router.post("/reset/:category", async (req, res) => {
           prisma.deposit.deleteMany({}),
           prisma.withdrawal.deleteMany({}),
           prisma.deliveryManTransaction.deleteMany({}),
+          prisma.supplierPayment.deleteMany({}),
           // Reset balances
           prisma.treasury.updateMany({ data: { balance: 0 } }),
           prisma.supplierAccount.updateMany({ data: { balance: 0 } }),
+          prisma.deliveryMan.updateMany({ data: { walletBalance: 0 } }),
           prisma.inventory.updateMany({ data: { quantity: 0 } }),
         ]);
         break;
@@ -663,6 +665,73 @@ router.post("/reset/:category", async (req, res) => {
         ]);
         break;
       }
+
+      case "purchase-returns":
+        await prisma.$transaction([
+          prisma.purchaseReturnItem.deleteMany({}),
+          prisma.purchaseReturn.deleteMany({}),
+        ]);
+        break;
+
+      case "withdrawals":
+        await prisma.withdrawal.deleteMany({});
+        break;
+
+      case "supplier-payments":
+        await prisma.$transaction([
+          prisma.supplierPayment.deleteMany({}),
+          prisma.supplierAccount.updateMany({ data: { balance: 0 } }),
+        ]);
+        break;
+
+      case "supplier-balances":
+        await prisma.supplierAccount.updateMany({ data: { balance: 0 } });
+        break;
+
+      case "delivery-man-transactions":
+        await prisma.deliveryManTransaction.deleteMany({});
+        break;
+
+      case "delivery-wallets":
+        await prisma.deliveryMan.updateMany({ data: { walletBalance: 0 } });
+        break;
+
+      case "delivery-men":
+        // Sale.deliveryManId → onDelete: SetNull (DB handles nulling automatically)
+        // DeliveryManTransaction → onDelete: Cascade (auto-deleted with deliveryMan)
+        await prisma.deliveryMan.deleteMany({});
+        break;
+
+      case "delivery-zones":
+        // Sale.deliveryZoneId → onDelete: SetNull (DB handles nulling automatically)
+        await prisma.deliveryZone.deleteMany({});
+        break;
+
+      case "boms": {
+        const productionOrdersCount = await prisma.productionOrder.count();
+        if (productionOrdersCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete BOMs while production orders exist. Clear production orders first.",
+          });
+        }
+        const bomSaleItemsCount = await prisma.saleItem.count({ where: { bomId: { not: null } } });
+        if (bomSaleItemsCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete BOMs while sale items reference them. Clear sales first.",
+          });
+        }
+        await prisma.$transaction([
+          prisma.bOMItem.deleteMany({}),
+          prisma.bOMCategory.deleteMany({}),
+          prisma.bOM.deleteMany({}),
+        ]);
+        break;
+      }
+
+      case "audit-logs":
+        // AuditLog.userId → onDelete: SetNull, AuditLog.branchId → onDelete: SetNull — safe
+        await prisma.auditLog.deleteMany({});
+        break;
 
       default:
         return res.status(400).json({ error: "Unknown reset category" });
