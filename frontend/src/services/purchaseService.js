@@ -52,6 +52,7 @@ const toFrontend = (backendData) => ({
   warehouseId: backendData.warehouseId,
   supplierInvoiceNo: backendData.supplierInvoiceNo,
   paymentMethod: mapPaymentMethod(backendData.paymentMethod),
+  paymentStatus: backendData.paymentStatus,
   subtotal: backendData.subtotal,
   discountType: mapDiscountType(backendData.discountType),
   discountValue: backendData.discountValue,

@@ -490,7 +490,10 @@ const PurchasesPage = () => {
       />
       <PurchaseDetailsModal
         isOpen={!!selectedHistoryPurchase}
-        onClose={() => setSelectedHistoryPurchase(null)}
+        onClose={() => {
+          setSelectedHistoryPurchase(null);
+          setIsHistoryOpen(true);
+        }}
         purchase={selectedHistoryPurchase}
       />
       <PurchaseReturnModal
@@ -548,7 +551,7 @@ const PurchasesPage = () => {
                         <td className="p-3">{pmLabel(p.paymentMethod)}</td>
                         <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${psClass(p.paymentStatus)}`}>{psLabel(p.paymentStatus)}</span></td>
                         <td className="p-3">
-                          <button onClick={()=>setSelectedHistoryPurchase(p)} className="text-blue-600 hover:text-blue-800 transition-colors" title="عرض التفاصيل">
+                          <button onClick={()=>{ setIsHistoryOpen(false); setSelectedHistoryPurchase(p); }} className="text-blue-600 hover:text-blue-800 transition-colors" title="عرض التفاصيل">
                             <span className="material-symbols-outlined text-xl">visibility</span>
                           </button>
                         </td>

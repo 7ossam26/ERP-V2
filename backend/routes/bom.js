@@ -54,8 +54,18 @@ router.get("/production-orders", async (req, res) => {
       },
     });
 
-    // Manually enrich cancelledBy since Prisma client predates this relation
-    const cancellerIds = [...new Set(orders.filter(o => o.cancelledById).map(o => o.cancelledById))];
+    // Fetch new columns via raw SQL since Prisma client predates this schema change
+    const orderIds = orders.map(o => o.id);
+    let rawMap = {};
+    if (orderIds.length > 0) {
+      const rawRows = await prisma.$queryRawUnsafe(
+        `SELECT id, status, cancelled_by_id, cancelled_at, linked_order_id FROM production_orders WHERE id IN (${orderIds.join(",")})`
+      );
+      rawMap = Object.fromEntries(rawRows.map(r => [r.id, r]));
+    }
+
+    // Fetch canceller user names
+    const cancellerIds = [...new Set(Object.values(rawMap).filter(r => r.cancelled_by_id).map(r => Number(r.cancelled_by_id)))];
     let cancellerMap = {};
     if (cancellerIds.length > 0) {
       const cancellers = await prisma.user.findMany({
@@ -64,10 +74,19 @@ router.get("/production-orders", async (req, res) => {
       });
       cancellerMap = Object.fromEntries(cancellers.map(u => [u.id, u]));
     }
-    const enriched = orders.map(o => ({
-      ...o,
-      cancelledBy: o.cancelledById ? (cancellerMap[o.cancelledById] || null) : null,
-    }));
+
+    const enriched = orders.map(o => {
+      const raw = rawMap[o.id] || {};
+      const cancelledById = raw.cancelled_by_id ? Number(raw.cancelled_by_id) : null;
+      return {
+        ...o,
+        status: raw.status || "COMPLETED",
+        cancelledById,
+        cancelledAt: raw.cancelled_at || null,
+        linkedOrderId: raw.linked_order_id ? Number(raw.linked_order_id) : null,
+        cancelledBy: cancelledById ? (cancellerMap[cancelledById] || null) : null,
+      };
+    });
 
     res.json(enriched);
   } catch (error) {
@@ -692,7 +711,13 @@ router.post(
         return res.status(404).json({ error: "أمر الإنتاج غير موجود" });
       }
 
-      if (order.status !== "COMPLETED") {
+      // Fetch status via raw SQL since Prisma client predates this column
+      const [rawOrder] = await prisma.$queryRawUnsafe(
+        `SELECT status FROM production_orders WHERE id = ?`, orderId
+      );
+      const currentStatus = rawOrder?.status || "COMPLETED";
+
+      if (currentStatus !== "COMPLETED") {
         return res.status(400).json({ error: "هذا الأمر تم إلغاؤه مسبقاً" });
       }
 
@@ -742,7 +767,7 @@ router.post(
           });
         }
 
-        // 3. Create the paired RETURNED entry first (we need its id for linkedOrderId)
+        // 3. Create the paired RETURNED entry (ORM for known fields + raw SQL for new columns)
         const returnEntry = await tx.productionOrder.create({
           data: {
             bomId: order.bomId,
@@ -752,11 +777,7 @@ router.post(
             actualOutputQty: order.actualOutputQty,
             outputWasteQty: order.outputWasteQty,
             totalCost: order.totalCost,
-            status: "RETURNED",
             createdById: req.user.id,
-            cancelledById: req.user.id,
-            cancelledAt: new Date(),
-            linkedOrderId: orderId,
             notes: `إلغاء أمر الإنتاج #${orderId}`,
             items: {
               create: order.items.map((i) => ({
@@ -767,18 +788,21 @@ router.post(
           },
         });
 
-        // 4. Mark original order as CANCELLED
-        const cancelled = await tx.productionOrder.update({
-          where: { id: orderId },
-          data: {
-            status: "CANCELLED",
-            cancelledById: req.user.id,
-            cancelledAt: new Date(),
-            linkedOrderId: returnEntry.id,
-          },
-        });
+        const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
-        return { cancelled, returnEntry };
+        // Patch new columns on the RETURNED entry via raw SQL
+        await tx.$executeRawUnsafe(
+          `UPDATE production_orders SET status='RETURNED', cancelled_by_id=?, cancelled_at=?, linked_order_id=? WHERE id=?`,
+          req.user.id, now, orderId, returnEntry.id
+        );
+
+        // 4. Mark original order as CANCELLED via raw SQL
+        await tx.$executeRawUnsafe(
+          `UPDATE production_orders SET status='CANCELLED', cancelled_by_id=?, cancelled_at=?, linked_order_id=? WHERE id=?`,
+          req.user.id, now, returnEntry.id, orderId
+        );
+
+        return { returnEntryId: returnEntry.id };
       });
 
       // 5. Write audit log
@@ -790,7 +814,7 @@ router.post(
         newValues: {
           cancelledById: req.user.id,
           cancelledAt: new Date(),
-          returnedOrderId: result.returnEntry.id,
+          returnedOrderId: result.returnEntryId,
           bomName: order.bom.name,
         },
         oldValues: {
@@ -806,8 +830,8 @@ router.post(
 
       res.json({
         message: "تم إلغاء أمر الإنتاج وإعادة المواد للمخزون",
-        cancelledOrder: result.cancelled,
-        returnEntry: result.returnEntry,
+        cancelledOrderId: orderId,
+        returnEntryId: result.returnEntryId,
       });
     } catch (error) {
       console.error("[BOM CANCEL]", error);
@@ -853,7 +877,11 @@ router.put(
         return res.status(404).json({ error: "أمر الإنتاج غير موجود" });
       }
 
-      if (original.status !== "COMPLETED") {
+      // Fetch status via raw SQL since Prisma client predates this column
+      const [rawOriginal] = await prisma.$queryRawUnsafe(
+        `SELECT status FROM production_orders WHERE id = ?`, orderId
+      );
+      if ((rawOriginal?.status || "COMPLETED") !== "COMPLETED") {
         return res.status(400).json({ error: "لا يمكن تعديل أمر ملغي أو مُرجَع" });
       }
 
