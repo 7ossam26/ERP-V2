@@ -124,6 +124,21 @@ const SupplierAccountsPage = () => {
         });
     };
 
+    const handleDeleteOldDebt = async (payment) => {
+        if (!window.confirm("هل أنت متأكد من حذف هذا الدين القديم؟ سيتم تعديل رصيد المورد تلقائياً.")) return;
+        try {
+            await supplierAccountService.deleteOldDebt(selectedAccount.supplierId, payment.id);
+            toast.success("تم حذف الدين القديم بنجاح");
+            // Refresh payments and accounts
+            await Promise.all([
+                handleAccountClick(selectedAccount),
+                fetchAccounts(),
+            ]);
+        } catch (error) {
+            toast.error(error.message || "فشل حذف الدين القديم");
+        }
+    };
+
     const handleViewDetails = async (purchaseId) => {
         try {
             const purchase = await purchaseService.getById(purchaseId);
@@ -454,6 +469,7 @@ const SupplierAccountsPage = () => {
                                                     <th className="px-4 py-3">الخزينة</th>
                                                     <th className="px-4 py-3">الفاتورة</th>
                                                     <th className="px-4 py-3">ملاحظات</th>
+                                                    <th className="px-4 py-3"></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -498,6 +514,16 @@ const SupplierAccountsPage = () => {
                                                                 {payment.notes
                                                                     ? payment.notes.replace("[رصيد أولي] ", "").trim() || "—"
                                                                     : "—"}
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                {isDebt && (
+                                                                    <button
+                                                                        onClick={() => handleDeleteOldDebt(payment)}
+                                                                        className="text-red-500 hover:text-red-700 transition-colors"
+                                                                        title="حذف الدين القديم">
+                                                                        <span className="material-symbols-outlined text-base">delete</span>
+                                                                    </button>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     );

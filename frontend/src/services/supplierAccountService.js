@@ -11,4 +11,6 @@ export const supplierAccountService = {
         apiClient.get(`/supplier-accounts/${supplierId}/purchases`),
     addOldDebt: (supplierId, data) =>
         apiClient.post(`/supplier-accounts/${supplierId}/old-debt`, data),
+    deleteOldDebt: (supplierId, paymentId) =>
+        apiClient.delete(`/supplier-accounts/${supplierId}/old-debt/${paymentId}`),
 };

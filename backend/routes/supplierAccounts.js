@@ -426,4 +426,49 @@ router.post("/:supplierId/old-debt", async (req, res) => {
     }
 });
 
+// DELETE an old debt entry (reverses balance, removes payment record)
+router.delete("/:supplierId/old-debt/:paymentId", async (req, res) => {
+    try {
+        const supplierId = parseInt(req.params.supplierId);
+        const paymentId = parseInt(req.params.paymentId);
+
+        // Find the payment and verify it belongs to this supplier and is an old debt
+        const payment = await prisma.supplierPayment.findUnique({
+            where: { id: paymentId },
+            include: { supplierAccount: true },
+        });
+
+        if (!payment) {
+            return res.status(404).json({ error: "Payment record not found" });
+        }
+
+        if (payment.supplierAccount.supplierId !== supplierId) {
+            return res.status(403).json({ error: "Payment does not belong to this supplier" });
+        }
+
+        // Only allow deleting old debt entries (negative amount = debt added)
+        if (Number(payment.amount) >= 0) {
+            return res.status(400).json({ error: "Only old debt entries can be deleted" });
+        }
+
+        const debtAmount = Math.abs(Number(payment.amount));
+
+        await prisma.$transaction(async (prisma) => {
+            // Remove the debt payment record
+            await prisma.supplierPayment.delete({ where: { id: paymentId } });
+
+            // Reverse the balance increment on the supplier account
+            await prisma.supplierAccount.update({
+                where: { id: payment.supplierAccountId },
+                data: { balance: { decrement: debtAmount } },
+            });
+        });
+
+        res.json({ message: "Old debt deleted successfully" });
+    } catch (error) {
+        console.error("Failed to delete old debt:", error);
+        res.status(500).json({ error: "Failed to delete old debt", message: error.message });
+    }
+});
+
 module.exports = router;
