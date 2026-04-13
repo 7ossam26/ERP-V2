@@ -9,13 +9,8 @@ router.use(authenticateToken, requirePermission("SUPPLIER_ACCOUNTS"));
 // GET all supplier accounts with balances
 router.get("/", async (req, res) => {
     try {
-        // Get all suppliers who have made purchases
+        // Get ALL suppliers (so users can track old debts even for suppliers with no purchases)
         const suppliersWithPurchases = await prisma.supplier.findMany({
-            where: {
-                purchases: {
-                    some: {}, // Has at least one purchase
-                },
-            },
             include: {
                 account: {
                     include: {
@@ -369,6 +364,65 @@ router.post("/:supplierId/payments", async (req, res) => {
         res
             .status(500)
             .json({ error: "Failed to process payment", message: error.message });
+    }
+});
+
+// POST add old/pre-existing debt for a supplier (does NOT create a purchase or touch treasury)
+router.post("/:supplierId/old-debt", async (req, res) => {
+    try {
+        const supplierId = parseInt(req.params.supplierId);
+        const { amount, notes, date } = req.body;
+
+        // Validations
+        if (!amount || Number(amount) <= 0) {
+            return res.status(400).json({ error: "Valid debt amount is required" });
+        }
+
+        // Verify supplier exists
+        const supplier = await prisma.supplier.findUnique({
+            where: { id: supplierId },
+        });
+
+        if (!supplier) {
+            return res.status(404).json({ error: "Supplier not found" });
+        }
+
+        // Upsert supplier account — create if not exists, otherwise increment balance
+        const account = await prisma.supplierAccount.upsert({
+            where: { supplierId },
+            update: {
+                balance: { increment: Number(amount) },
+            },
+            create: {
+                supplierId,
+                balance: Number(amount),
+            },
+            include: {
+                supplier: true,
+            },
+        });
+
+        // Create a special supplier payment record as a negative payment (debt entry)
+        // We use notes to mark this as an "old debt" entry for history tracking
+        await prisma.supplierPayment.create({
+            data: {
+                supplierAccountId: account.id,
+                amount: Number(amount) * -1, // Negative = debt added (not paid)
+                treasuryId: (await prisma.treasury.findFirst({ orderBy: { id: "asc" } }))?.id || 1,
+                notes: `[رصيد أولي] ${notes || ""}`.trim(),
+                paymentDate: date ? new Date(date) : new Date(),
+            },
+        });
+
+        res.status(201).json({
+            message: "Old debt recorded successfully",
+            account,
+        });
+    } catch (error) {
+        console.error("Failed to record old debt:", error);
+        res
+            .status(500)
+            .json({ error: "Failed to record old debt", message: error.message });
     }
 });
 

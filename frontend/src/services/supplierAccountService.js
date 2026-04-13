@@ -9,4 +9,6 @@ export const supplierAccountService = {
         apiClient.post(`/supplier-accounts/${supplierId}/payments`, data),
     getPurchases: (supplierId) =>
         apiClient.get(`/supplier-accounts/${supplierId}/purchases`),
+    addOldDebt: (supplierId, data) =>
+        apiClient.post(`/supplier-accounts/${supplierId}/old-debt`, data),
 };
