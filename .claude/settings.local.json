@@ -3,7 +3,12 @@
     "allow": [
       "Bash(grep -E \"\\\\.\\(jsx|js\\)$\")",
       "Bash(xargs grep:*)",
-      "Bash(grep -E \"\\\\.\\(js|ts\\)$\")"
+      "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
+      "Bash(grep -A 20 \"inventory\\\\`\" /d/ERP-V2/backend/prisma/migration.sql)",
+      "Bash(npx prisma:*)",
+      "Bash(PRISMA_MIGRATE_SKIP_GENERATE=true npx prisma db push)",
+      "Bash(2>&1)",
+      "Bash(node -e ':*)"
     ]
   }
 }

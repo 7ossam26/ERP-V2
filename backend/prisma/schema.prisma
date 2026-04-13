@@ -41,6 +41,7 @@ model User {
   withdrawals         Withdrawal[]          @relation("WithdrawalCreator")
   createdDeliveryTransactions DeliveryManTransaction[]
   createdProductionOrders     ProductionOrder[]          @relation("ProductionOrderCreator")
+  initialInventoryEntries     InitialInventory[]
 
   @@map("users")
 }
@@ -107,6 +108,8 @@ enum Module {
   CREATES_DELIVERY_ZONES
   CREATES_PRODUCTION
   PRODUCTION
+
+  INITIAL_INVENTORY
 }
 
 model Permission {
@@ -244,7 +247,8 @@ model Warehouse {
   destProductionOrders   ProductionOrder[] @relation("DestWarehouse")
 
   // Config Relations
-  systemConfigAsMain SystemConfiguration[]
+  systemConfigAsMain      SystemConfiguration[]
+  initialInventoryEntries InitialInventory[]
 
   @@map("warehouses")
 }
@@ -383,9 +387,10 @@ model Item {
   saleItems            SaleItem[]
   inventory            Inventory[]
   stockTransferItems   StockTransferItem[]
-  bomOutputs           BOM[]                  @relation("BOMOutput")
-  bomItems             BOMItem[]
-  productionOrderItems ProductionOrderItem[]
+  bomOutputs              BOM[]                  @relation("BOMOutput")
+  bomItems                BOMItem[]
+  productionOrderItems    ProductionOrderItem[]
+  initialInventoryEntries InitialInventory[]
 
   @@map("items")
 }
@@ -943,7 +948,7 @@ model BOM {
   id             Int      @id @default(autoincrement())
   name           String   @unique
   outputItemId   Int?     @map("output_item_id")
-  outputQuantity Decimal  @default(1) @map("output_quantity") @db.Decimal(10, 2)
+  outputQuantity Decimal  @default(1) @map("output_quantity") @db.Decimal(10, 4)
   price          Decimal  @default(0) @db.Decimal(10, 2)
   unit           String   @default("piece")
   isActive       Boolean  @default(true) @map("is_active")
@@ -1014,4 +1019,26 @@ model ProductionOrderItem {
   item            Item            @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@map("production_order_items")
+}
+
+// ============================================
+// Initial / Opening Inventory
+// ============================================
+
+model InitialInventory {
+  id          Int      @id @default(autoincrement())
+  itemId      Int      @map("item_id")
+  warehouseId Int      @map("warehouse_id")
+  quantity    Decimal  @db.Decimal(10, 6)
+  date        DateTime @default(now())
+  notes       String?  @db.Text
+  userId      Int      @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("initial_inventory")
 }

@@ -251,6 +251,7 @@ app.use("/api/bom",   require("./routes/bom"));
 app.use("/api/audit", require("./routes/audit"));
 app.use("/api/import", require("./routes/dataImport"));
 app.use("/api/export", require("./routes/dataExport"));
+app.use("/api/initial-inventory", require("./routes/initialInventory"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);

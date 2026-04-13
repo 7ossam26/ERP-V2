@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import GenericDataTable from "../../components/shared/GenericDataTable";
+import InitialInventoryTab from "./InitialInventoryTab";
 
 import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
 
 const InventoryPage = () => {
+  const [activeTab, setActiveTab] = useState("inventory");
   const [filter, setFilter] = useState("الكل");
   const [branches, setBranches] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -197,6 +199,36 @@ const InventoryPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Tab Switcher */}
+      <div className="flex gap-2 mb-6 bg-surface-light dark:bg-surface-dark p-1.5 rounded-xl border border-border-light dark:border-border-dark w-fit shadow-sm">
+        <button
+          onClick={() => setActiveTab("inventory")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            activeTab === "inventory"
+              ? "bg-primary text-white shadow-sm"
+              : "text-text-muted dark:text-gray-400 hover:text-primary hover:bg-primary/10"
+          }`}>
+          <span className="material-symbols-outlined text-base">inventory_2</span>
+          المخزون
+        </button>
+        <button
+          onClick={() => setActiveTab("initial")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            activeTab === "initial"
+              ? "bg-amber-500 text-white shadow-sm"
+              : "text-text-muted dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+          }`}>
+          <span className="material-symbols-outlined text-base">history_edu</span>
+          المخزون الافتتاحي
+        </button>
+      </div>
+
+      {/* Initial Inventory Tab */}
+      {activeTab === "initial" && <InitialInventoryTab />}
+
+      {/* Main Inventory (hidden when initial tab active) */}
+      {activeTab !== "initial" && <>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
@@ -431,6 +463,8 @@ const InventoryPage = () => {
           emptyMessage="لا توجد عناصر في المخزون"
         />
       </div>
+
+      </>}
     </div>
   );
 };
