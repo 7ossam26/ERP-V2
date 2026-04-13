@@ -27,4 +27,27 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+// Run baseline + migrations before starting the server
+const { execSync } = require("child_process");
+const scriptDir = __dirname;
+
+try {
+  console.log(">>> [MIGRATE] Running migration baseline...");
+  execSync("node scripts/baseline-migrations.js", {
+    cwd: scriptDir,
+    stdio: "inherit",
+  });
+
+  console.log(">>> [MIGRATE] Applying pending migrations...");
+  execSync("npx prisma migrate deploy", {
+    cwd: scriptDir,
+    stdio: "inherit",
+  });
+
+  console.log(">>> [MIGRATE] Database is up to date.");
+} catch (err) {
+  console.error(">>> [MIGRATE] Migration failed — aborting startup.");
+  process.exit(1);
+}
+
 require("./index.js");
