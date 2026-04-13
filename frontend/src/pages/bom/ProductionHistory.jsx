@@ -11,6 +11,8 @@ const ProductionHistory = () => {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [cancelingOrder, setCancelingOrder] = useState(null);
+  const [canceling, setCanceling] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,6 +61,21 @@ const ProductionHistory = () => {
       toast.error(error.message || "فشل تعديل أمر الإنتاج");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancelingOrder) return;
+    setCanceling(true);
+    try {
+      await bomService.cancelProductionOrder(cancelingOrder.id);
+      toast.success("تم إلغاء أمر الإنتاج وإعادة المواد للمخزون");
+      setCancelingOrder(null);
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.message || "فشل إلغاء أمر الإنتاج");
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -219,15 +236,38 @@ const ProductionHistory = () => {
                         {date} {time}
                       </p>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEdit(order);
-                      }}
-                      className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                      title="تعديل">
-                      <span className="material-icons-round text-lg">edit</span>
-                    </button>
+                    {order.status === "CANCELLED" && (
+                      <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-full font-bold border border-red-200 dark:border-red-700">
+                        ملغي
+                      </span>
+                    )}
+                    {order.status === "RETURNED" && (
+                      <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2.5 py-1 rounded-full font-bold border border-orange-200 dark:border-orange-700">
+                        مُرجَع
+                      </span>
+                    )}
+                    {order.status === "COMPLETED" && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(order);
+                          }}
+                          className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          title="تعديل">
+                          <span className="material-icons-round text-lg">edit</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCancelingOrder(order);
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="إلغاء/رجوع">
+                          <span className="material-icons-round text-lg">undo</span>
+                        </button>
+                      </>
+                    )}
                     <span
                       className={`material-icons-round text-gray-400 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}>
                       expand_more
@@ -406,11 +446,108 @@ const ProductionHistory = () => {
                         {order.notes}
                       </div>
                     )}
+                    {(order.status === "CANCELLED" || order.status === "RETURNED") && order.cancelledBy && (
+                      <div className="mt-3 flex items-start gap-2 text-sm bg-red-50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-800">
+                        <span className="material-icons-round text-red-400 text-sm mt-0.5">
+                          person
+                        </span>
+                        <span className="text-red-600 dark:text-red-400">
+                          {order.status === "CANCELLED" ? "تم الإلغاء بواسطة" : "تم الإرجاع بواسطة"}:{" "}
+                          <b>{order.cancelledBy.name}</b>
+                          {order.cancelledAt && (
+                            <span className="mr-2 text-gray-400">
+                              — {new Date(order.cancelledAt).toLocaleDateString("ar-EG")}{" "}
+                              {new Date(order.cancelledAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancelingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-xl border border-border-light dark:border-border-dark w-full max-w-md">
+            {/* Modal Header */}
+            <div className="flex items-center gap-3 p-5 border-b border-gray-100 dark:border-gray-700">
+              <div className="bg-red-100 dark:bg-red-900/30 p-2.5 rounded-xl">
+                <span className="material-icons-round text-xl text-red-600">undo</span>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-text-light dark:text-text-dark">
+                  تأكيد إلغاء أمر الإنتاج
+                </h3>
+                <p className="text-sm text-gray-500">{cancelingOrder.bom?.name}</p>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                سيتم إلغاء هذا الأمر وإعادة المواد الخام التالية إلى مستودع{" "}
+                <b className="text-text-light dark:text-text-dark">{cancelingOrder.sourceWarehouse?.name}</b>:
+              </p>
+
+              {/* Ingredients table */}
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th className="text-right py-2 px-3 font-semibold text-gray-500 text-xs">المادة الخام</th>
+                      <th className="text-center py-2 px-3 font-semibold text-gray-500 text-xs">الكمية المُعادة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cancelingOrder.items?.map((item) => (
+                      <tr key={item.id} className="border-t border-gray-100 dark:border-gray-700">
+                        <td className="py-2 px-3 font-medium text-text-light dark:text-text-dark">
+                          {item.item?.name}
+                        </td>
+                        <td className="py-2 px-3 text-center text-green-600 font-bold">
+                          +{parseFloat(item.quantityUsed).toFixed(4)}{" "}
+                          <span className="text-xs text-gray-400">{item.item?.unit}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {cancelingOrder.destWarehouse && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg">
+                  <span className="material-icons-round text-sm mt-0.5">warning</span>
+                  سيتم أيضاً خصم{" "}
+                  <b>{fmt(cancelingOrder.actualOutputQty)}</b>{" "}
+                  من المنتج النهائي في مستودع{" "}
+                  <b>{cancelingOrder.destWarehouse.name}</b>
+                </p>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex gap-3 p-5 pt-0">
+              <button
+                onClick={handleCancelOrder}
+                disabled={canceling}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                <span className="material-icons-round text-base">undo</span>
+                {canceling ? "جاري الإلغاء..." : "تأكيد الإلغاء"}
+              </button>
+              <button
+                onClick={() => setCancelingOrder(null)}
+                disabled={canceling}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm transition-colors">
+                تراجع
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -41,6 +41,7 @@ model User {
   withdrawals         Withdrawal[]          @relation("WithdrawalCreator")
   createdDeliveryTransactions DeliveryManTransaction[]
   createdProductionOrders     ProductionOrder[]          @relation("ProductionOrderCreator")
+  cancelledProductionOrders   ProductionOrder[]          @relation("ProductionOrderCanceller")
   initialInventoryEntries     InitialInventory[]
 
   @@map("users")
@@ -986,23 +987,30 @@ model BOMItem {
 // ============================================
 
 model ProductionOrder {
-  id                Int      @id @default(autoincrement())
-  bomId             Int      @map("bom_id")
-  sourceWarehouseId Int      @map("source_warehouse_id")
-  destWarehouseId   Int?     @map("dest_warehouse_id")
-  targetOutputQty   Decimal  @map("target_output_qty") @db.Decimal(10, 4)
-  actualOutputQty   Decimal  @map("actual_output_qty")  @db.Decimal(10, 4)
-  outputWasteQty    Decimal  @default(0) @map("output_waste_qty") @db.Decimal(10, 4)
-  totalCost         Decimal  @default(0) @map("total_cost") @db.Decimal(10, 2)
-  notes             String?  @db.Text
-  createdById       Int      @map("created_by_id")
-  createdAt         DateTime @default(now()) @map("created_at")
+  id                Int       @id @default(autoincrement())
+  bomId             Int       @map("bom_id")
+  sourceWarehouseId Int       @map("source_warehouse_id")
+  destWarehouseId   Int?      @map("dest_warehouse_id")
+  targetOutputQty   Decimal   @map("target_output_qty") @db.Decimal(10, 4)
+  actualOutputQty   Decimal   @map("actual_output_qty")  @db.Decimal(10, 4)
+  outputWasteQty    Decimal   @default(0) @map("output_waste_qty") @db.Decimal(10, 4)
+  totalCost         Decimal   @default(0) @map("total_cost") @db.Decimal(10, 2)
+  notes             String?   @db.Text
+  status            String    @default("COMPLETED") @db.VarChar(20)
+  cancelledById     Int?      @map("cancelled_by_id")
+  cancelledAt       DateTime? @map("cancelled_at")
+  linkedOrderId     Int?      @map("linked_order_id")
+  createdById       Int       @map("created_by_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
   // Relations
-  bom             BOM       @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  bom             BOM        @relation(fields: [bomId], references: [id], onDelete: Restrict)
   sourceWarehouse Warehouse  @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
   destWarehouse   Warehouse? @relation("DestWarehouse", fields: [destWarehouseId], references: [id], onDelete: Restrict)
   createdBy       User       @relation("ProductionOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy     User?      @relation("ProductionOrderCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)
+  linkedOrder     ProductionOrder?  @relation("LinkedOrders", fields: [linkedOrderId], references: [id], onDelete: SetNull)
+  linkedFrom      ProductionOrder[] @relation("LinkedOrders")
   items           ProductionOrderItem[]
 
   @@map("production_orders")

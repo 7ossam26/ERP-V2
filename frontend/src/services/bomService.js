@@ -104,4 +104,8 @@ export const bomService = {
   async updateProductionOrder(id, data) {
     return await api.put(`${BOM_URL}/production-orders/${id}`, data);
   },
+
+  async cancelProductionOrder(id) {
+    return await api.post(`${BOM_URL}/production-orders/${id}/cancel`);
+  },
 };

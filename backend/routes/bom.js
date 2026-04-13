@@ -53,7 +53,23 @@ router.get("/production-orders", async (req, res) => {
         },
       },
     });
-    res.json(orders);
+
+    // Manually enrich cancelledBy since Prisma client predates this relation
+    const cancellerIds = [...new Set(orders.filter(o => o.cancelledById).map(o => o.cancelledById))];
+    let cancellerMap = {};
+    if (cancellerIds.length > 0) {
+      const cancellers = await prisma.user.findMany({
+        where: { id: { in: cancellerIds } },
+        select: { id: true, name: true },
+      });
+      cancellerMap = Object.fromEntries(cancellers.map(u => [u.id, u]));
+    }
+    const enriched = orders.map(o => ({
+      ...o,
+      cancelledBy: o.cancelledById ? (cancellerMap[o.cancelledById] || null) : null,
+    }));
+
+    res.json(enriched);
   } catch (error) {
     res.status(500).json({
       error: "Failed to fetch production orders",
@@ -650,6 +666,157 @@ router.post(
 );
 
 // ============================================================
+// POST /production-orders/:id/cancel — Cancel & reverse a production order
+// ============================================================
+router.post(
+  "/production-orders/:id/cancel",
+  requireCreatePermission("CREATES_PRODUCTION"),
+  async (req, res) => {
+    const { writeAudit } = require("../utils/auditLogger");
+    try {
+      const orderId = parseInt(req.params.id);
+
+      // Fetch the order with all relations needed for reversal
+      const order = await prisma.productionOrder.findUnique({
+        where: { id: orderId },
+        include: {
+          bom: { select: { id: true, name: true, outputItemId: true } },
+          sourceWarehouse: { select: { id: true, name: true } },
+          destWarehouse: { select: { id: true, name: true } },
+          items: { include: { item: { select: { id: true, name: true, unit: true } } } },
+          createdBy: { select: { id: true, name: true } },
+        },
+      });
+
+      if (!order) {
+        return res.status(404).json({ error: "أمر الإنتاج غير موجود" });
+      }
+
+      if (order.status !== "COMPLETED") {
+        return res.status(400).json({ error: "هذا الأمر تم إلغاؤه مسبقاً" });
+      }
+
+      // Stock check: can we remove finished goods from dest warehouse?
+      if (order.destWarehouseId && order.bom.outputItemId) {
+        const finishedStock = await prisma.inventory.findUnique({
+          where: {
+            itemId_warehouseId: {
+              itemId: order.bom.outputItemId,
+              warehouseId: order.destWarehouseId,
+            },
+          },
+        });
+        const available = finishedStock ? parseFloat(finishedStock.quantity) : 0;
+        const required = parseFloat(order.actualOutputQty);
+        if (available < required) {
+          return res.status(400).json({
+            error: `لا يوجد رصيد كافٍ من المنتج النهائي للإلغاء. متاح: ${available.toFixed(3)}, مطلوب: ${required.toFixed(3)}`,
+          });
+        }
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Return raw materials to source warehouse
+        for (const item of order.items) {
+          await tx.inventory.update({
+            where: {
+              itemId_warehouseId: {
+                itemId: item.itemId,
+                warehouseId: order.sourceWarehouseId,
+              },
+            },
+            data: { quantity: { increment: parseFloat(item.quantityUsed) } },
+          });
+        }
+
+        // 2. Remove finished goods from dest warehouse (if applicable)
+        if (order.destWarehouseId && order.bom.outputItemId) {
+          await tx.inventory.update({
+            where: {
+              itemId_warehouseId: {
+                itemId: order.bom.outputItemId,
+                warehouseId: order.destWarehouseId,
+              },
+            },
+            data: { quantity: { decrement: parseFloat(order.actualOutputQty) } },
+          });
+        }
+
+        // 3. Create the paired RETURNED entry first (we need its id for linkedOrderId)
+        const returnEntry = await tx.productionOrder.create({
+          data: {
+            bomId: order.bomId,
+            sourceWarehouseId: order.sourceWarehouseId,
+            destWarehouseId: order.destWarehouseId || null,
+            targetOutputQty: order.targetOutputQty,
+            actualOutputQty: order.actualOutputQty,
+            outputWasteQty: order.outputWasteQty,
+            totalCost: order.totalCost,
+            status: "RETURNED",
+            createdById: req.user.id,
+            cancelledById: req.user.id,
+            cancelledAt: new Date(),
+            linkedOrderId: orderId,
+            notes: `إلغاء أمر الإنتاج #${orderId}`,
+            items: {
+              create: order.items.map((i) => ({
+                itemId: i.itemId,
+                quantityUsed: i.quantityUsed,
+              })),
+            },
+          },
+        });
+
+        // 4. Mark original order as CANCELLED
+        const cancelled = await tx.productionOrder.update({
+          where: { id: orderId },
+          data: {
+            status: "CANCELLED",
+            cancelledById: req.user.id,
+            cancelledAt: new Date(),
+            linkedOrderId: returnEntry.id,
+          },
+        });
+
+        return { cancelled, returnEntry };
+      });
+
+      // 5. Write audit log
+      await writeAudit({
+        action: "CANCEL",
+        targetEntity: "production_order",
+        targetId: String(orderId),
+        userId: req.user.id,
+        newValues: {
+          cancelledById: req.user.id,
+          cancelledAt: new Date(),
+          returnedOrderId: result.returnEntry.id,
+          bomName: order.bom.name,
+        },
+        oldValues: {
+          status: "COMPLETED",
+          targetOutputQty: order.targetOutputQty,
+          actualOutputQty: order.actualOutputQty,
+          totalCost: order.totalCost,
+          createdById: order.createdBy?.id,
+          createdByName: order.createdBy?.name,
+        },
+        ipAddress: req.ip,
+      });
+
+      res.json({
+        message: "تم إلغاء أمر الإنتاج وإعادة المواد للمخزون",
+        cancelledOrder: result.cancelled,
+        returnEntry: result.returnEntry,
+      });
+    } catch (error) {
+      console.error("[BOM CANCEL]", error);
+      res.status(500).json({ error: "فشل إلغاء أمر الإنتاج", message: error.message });
+    }
+  },
+);
+
+// ============================================================
 // PUT /production-orders/:id — Edit a production order (delete + recreate)
 // ============================================================
 router.put(
@@ -684,6 +851,10 @@ router.put(
 
       if (!original) {
         return res.status(404).json({ error: "أمر الإنتاج غير موجود" });
+      }
+
+      if (original.status !== "COMPLETED") {
+        return res.status(400).json({ error: "لا يمكن تعديل أمر ملغي أو مُرجَع" });
       }
 
       const { bom, sourceWarehouseId, destWarehouseId } = original;
