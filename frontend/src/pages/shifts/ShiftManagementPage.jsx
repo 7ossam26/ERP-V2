@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useBranch } from "../../contexts/BranchContext";
 import {
   FaFilter,
   FaSearch,
@@ -19,6 +20,7 @@ import POSReportModal from "../pos/POSReportModal";
 
 const ShiftManagementPage = () => {
   const navigate = useNavigate();
+  const { activeBranchId } = useBranch();
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -51,7 +53,7 @@ const ShiftManagementPage = () => {
 
   useEffect(() => {
     fetchShifts();
-  }, [filters]);
+  }, [filters, activeBranchId]);
 
   const fetchBranches = async () => {
     try {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import AddExpenseModal from "./AddExpenseModal";
+import { useBranch } from "../../contexts/BranchContext";
 import NoShiftModal from "./NoShiftModal";
 import { expenseService } from "../../services/domainServices";
 import shiftService from "../../services/shiftService";
@@ -8,6 +9,7 @@ import toast from "react-hot-toast";
 import { confirmAction } from "../../utils/toastUtils";
 
 const ExpensesPage = () => {
+  const { activeBranchId } = useBranch();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenses, setExpenses] = useState([]);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -61,7 +63,7 @@ const ExpensesPage = () => {
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+  }, [activeBranchId]);
 
   useEffect(() => {
     if (isManager) {

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import GenericDataTable from "../../components/shared/GenericDataTable";
+import { useBranch } from "../../contexts/BranchContext";
 import InitialInventoryTab from "./InitialInventoryTab";
 
 import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
 
 const InventoryPage = () => {
+  const { activeBranchId } = useBranch();
   const [activeTab, setActiveTab] = useState("inventory");
   const [filter, setFilter] = useState("الكل");
   const [branches, setBranches] = useState([]);
@@ -57,7 +59,7 @@ const InventoryPage = () => {
       }
     };
     fetchData();
-  }, [filter, selectedWarehouse]);
+  }, [filter, selectedWarehouse, activeBranchId]);
 
   // Data is now already filtered by backend, so we just use inventoryItems
   // But searching is client side for now

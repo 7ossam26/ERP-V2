@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import AddDepositModal from "./AddDepositModal";
+import { useBranch } from "../../contexts/BranchContext";
 import AddWithdrawalModal from "./AddWithdrawalModal";
 import { depositService } from "../../services/depositService";
 import { withdrawalService } from "../../services/withdrawalService";
 import toast from "react-hot-toast";
 
 const DepositPage = () => {
+    const { activeBranchId } = useBranch();
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
     const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
     const [deposits, setDeposits] = useState([]);
@@ -57,7 +59,7 @@ const DepositPage = () => {
     useEffect(() => {
         fetchDeposits();
         fetchWithdrawals();
-    }, []);
+    }, [activeBranchId]);
 
     const handleAddDeposit = async (newDeposit) => {
         try {

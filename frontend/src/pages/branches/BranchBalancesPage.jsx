@@ -2,16 +2,18 @@ import React, { useState, useEffect } from "react";
 import apiClient from "../../services/apiClient";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useBranch } from "../../contexts/BranchContext";
 
 const BranchBalancesPage = () => {
   const [balances, setBalances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const navigate = useNavigate();
+  const { activeBranchId } = useBranch();
 
   useEffect(() => {
     fetchBalances();
-  }, []);
+  }, [activeBranchId]);
 
   const fetchBalances = async () => {
     try {

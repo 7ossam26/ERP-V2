@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useBranch } from "../../contexts/BranchContext";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../components/ui/Modal";
 import KgQuantityInput from "../../components/ui/KgQuantityInput";
@@ -14,6 +15,7 @@ import authService from "../../services/authService";
 
 const StockTransferPage = () => {
   const navigate = useNavigate();
+  const { activeBranchId } = useBranch();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [lastTransfer, setLastTransfer] = useState(null);
@@ -72,7 +74,7 @@ const StockTransferPage = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [activeBranchId]);
 
   // Filter products
   const filteredProducts = products.filter((product) => {

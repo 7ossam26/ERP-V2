@@ -4,8 +4,10 @@ import {
   settingsService,
   treasuryService,
 } from "../../services/domainServices";
+import { useBranch } from "../../contexts/BranchContext";
 
 const BranchesSalesPage = () => {
+  const { activeBranchId } = useBranch();
   const [branches, setBranches] = useState([]);
   const [mainTreasury, setMainTreasury] = useState(null);
   const [bankTreasury, setBankTreasury] = useState(null);
@@ -50,7 +52,7 @@ const BranchesSalesPage = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [activeBranchId]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">

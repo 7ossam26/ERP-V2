@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useBranch } from "../../contexts/BranchContext";
 import { useReactToPrint } from "react-to-print";
 import { deliveryService } from "../../services/deliveryService";
 import AuthService from "../../services/authService";
@@ -7,6 +8,7 @@ import ManagerVerificationModal from "../../components/shared/ManagerVerificatio
 import { toast } from "react-hot-toast";
 
 const DeliverySettlementPage = () => {
+    const { activeBranchId } = useBranch();
     // View mode: 'settlement' or 'report'
     const [viewMode, setViewMode] = useState('settlement');
 
@@ -53,7 +55,7 @@ const DeliverySettlementPage = () => {
     // Fetch Drivers with Debt
     useEffect(() => {
         fetchDrivers();
-    }, []);
+    }, [activeBranchId]);
 
     // Apply search filter
     useEffect(() => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useBranch } from "../../contexts/BranchContext";
 import GenericDataTable from "./GenericDataTable";
 import Modal from "../ui/Modal";
 import Toast, { useToast } from "../ui/Toast";
@@ -22,6 +23,7 @@ const GenericPageManager = ({
   ...props
 }) => {
   const navigate = useNavigate();
+  const { activeBranchId } = useBranch();
   const [data, setData] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -44,7 +46,7 @@ const GenericPageManager = ({
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [activeBranchId]);
 
   // Handle ESC key to navigate back when no modal is open
   useEffect(() => {

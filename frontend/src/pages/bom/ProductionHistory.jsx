@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { bomService } from "../../services/domainServices";
+import { useBranch } from "../../contexts/BranchContext";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 const ProductionHistory = () => {
+  const { activeBranchId } = useBranch();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
@@ -17,7 +19,7 @@ const ProductionHistory = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [activeBranchId]);
 
   const fetchOrders = async () => {
     setLoading(true);

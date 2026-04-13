@@ -26,6 +26,7 @@ import {
   bomService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import { useBranch } from "../../contexts/BranchContext";
 import { confirmAction } from "../../utils/toastUtils";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 
@@ -41,6 +42,7 @@ const POSPage = () => {
   const cashClientRef = useRef(null);
 
   // User & Shift State
+  const { activeBranchId } = useBranch();
   const [currentUser, setCurrentUser] = useState(AuthService.getCurrentUser());
   const [currentShiftId, setCurrentShiftId] = useState(null);
   const [isStartShiftModalOpen, setIsStartShiftModalOpen] = useState(false);
@@ -244,7 +246,7 @@ const POSPage = () => {
       }
     };
     fetchDeliveryMen();
-  }, []);
+  }, [activeBranchId]);
 
   // Hold Cart State
   const [heldCarts, setHeldCarts] = useState(() => {
@@ -485,7 +487,7 @@ const POSPage = () => {
 
   useEffect(() => {
     loadInventory();
-  }, []);
+  }, [activeBranchId]);
 
   const filteredProducts = products.filter((product) => {
     // Check if product is allowed in POS
