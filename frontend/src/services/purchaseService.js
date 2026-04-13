@@ -191,4 +191,14 @@ export const purchaseService = {
   async returnPurchase(purchaseId, payload) {
     return api.post(`${PURCHASES_URL}/${purchaseId}/return`, payload);
   },
+
+  /**
+   * Cancel an entire purchase invoice (إلغاء فاتورة بالكامل)
+   * @param {number} purchaseId
+   * @param {{ managerUsername, managerPassword, notes }} payload
+   * @returns {Promise<Object>}
+   */
+  async cancelPurchase(purchaseId, payload) {
+    return api.post(`${PURCHASES_URL}/${purchaseId}/cancel`, payload);
+  },
 };

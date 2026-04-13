@@ -38,7 +38,7 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
         [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       );
     } catch (err) {
-      toast.error("فشل تحميل الفواتير");
+      toast.error("❌ فشل تحميل الفواتير، يرجى المحاولة مرة أخرى");
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
 
   const initiateReturn = () => {
     if (returnItems.every((i) => i.quantity === 0)) {
-      toast.error("يرجى إدخال كمية الإرجاع لصنف واحد على الأقل");
+      toast.error("⚠️ يرجى إدخال كمية الإرجاع لصنف واحد على الأقل");
       return;
     }
     setCancelMode(false);
@@ -101,7 +101,7 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
           managerPassword: password,
           notes: returnNote,
         });
-        toast.success("تم إلغاء الفاتورة بالكامل");
+        toast.success("✅ تم إلغاء الفاتورة بالكامل وإعادة المخزون بنجاح");
       } else {
         // Partial return
         await purchaseService.returnPurchase(purchase.id, {
@@ -112,12 +112,15 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
           managerPassword: password,
           notes: returnNote,
         });
-        toast.success("تم تسجيل المرتجع بنجاح");
+        toast.success("✅ تم تسجيل مرتجع المشتريات بنجاح");
       }
       onClose();
     } catch (err) {
-      const msg = err.message || (cancelMode ? "فشل إلغاء الفاتورة" : "فشل تسجيل المرتجع");
-      toast.error(msg);
+      const msg = err.response?.data?.message || err.response?.data?.error || err.message;
+      toast.error(cancelMode
+        ? `❌ فشل إلغاء الفاتورة: ${msg || "حدث خطأ غير متوقع"}`
+        : `❌ فشل تسجيل المرتجع: ${msg || "حدث خطأ غير متوقع"}`
+      );
     } finally {
       setLoading(false);
       setCancelMode(false);

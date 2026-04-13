@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import KgQuantityInput from "../../components/ui/KgQuantityInput";
@@ -55,6 +56,10 @@ const PurchasesPage = () => {
   // P1/P2: Searchable item dropdown state
   const [itemSearches, setItemSearches] = useState({}); // { [rowId]: searchText }
   const [openItemDropdown, setOpenItemDropdown] = useState(null); // rowId of open dropdown
+
+  // Portal dropdown positioning
+  const inputRefs = useRef({});
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
 
   // P5: Held purchases (persisted to localStorage)
   const [heldPurchases, setHeldPurchases] = useState(() => {
@@ -206,6 +211,26 @@ const PurchasesPage = () => {
     const thisRow = items.find((r) => r.id === rowId);
     return allItems.filter((i) => !selectedItemIds.has(i.id) || thisRow?.itemId === i.id);
   };
+
+  // Portal dropdown: calculate position from input DOM element
+  const updateDropdownPos = (rowId) => {
+    const el = inputRefs.current[rowId];
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+  };
+
+  // Reposition portal dropdown on scroll or resize while open
+  useEffect(() => {
+    if (!openItemDropdown) return;
+    const reposition = () => updateDropdownPos(openItemDropdown);
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [openItemDropdown]);
 
   const addItem = () => {
     const newItem = {
@@ -789,13 +814,18 @@ const PurchasesPage = () => {
                     <td className="px-4 py-3">
                       <div className="relative">
                         <input
+                          ref={(el) => (inputRefs.current[item.id] = el)}
                           type="text"
                           value={itemSearches[item.id] ?? item.name ?? ""}
                           onChange={(e) => {
                             setItemSearches((prev) => ({ ...prev, [item.id]: e.target.value }));
                             setOpenItemDropdown(item.id);
+                            updateDropdownPos(item.id);
                           }}
-                          onFocus={() => setOpenItemDropdown(item.id)}
+                          onFocus={() => {
+                            setOpenItemDropdown(item.id);
+                            updateDropdownPos(item.id);
+                          }}
                           onBlur={() => setTimeout(() => setOpenItemDropdown(null), 150)}
                           placeholder="ابحث عن صنف..."
                           className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pr-8 text-text-light dark:text-text-dark font-bold"
@@ -803,31 +833,6 @@ const PurchasesPage = () => {
                         <span className="material-symbols-outlined absolute right-2 top-2.5 text-text-muted pointer-events-none text-base">
                           search
                         </span>
-                        {openItemDropdown === item.id && (
-                          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-52 overflow-y-auto">
-                            {getAvailableItems(item.id)
-                              .filter((ai) =>
-                                ai.name.toLowerCase().includes((itemSearches[item.id] || "").toLowerCase())
-                              )
-                              .slice(0, 40)
-                              .map((ai) => (
-                                <div
-                                  key={ai.id}
-                                  onMouseDown={() => handleItemSelect(item.id, ai)}
-                                  className="px-3 py-2 cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/20 flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-700 last:border-0">
-                                  <span className="font-medium text-text-light dark:text-text-dark">{ai.name}</span>
-                                  <span className="text-xs text-gray-400 shrink-0 mr-2">
-                                    {parseFloat(ai.costPrice) > 0 ? `${parseFloat(ai.costPrice).toFixed(2)} ج.م` : ai.unit}
-                                  </span>
-                                </div>
-                              ))}
-                            {getAvailableItems(item.id).filter((ai) =>
-                              ai.name.toLowerCase().includes((itemSearches[item.id] || "").toLowerCase())
-                            ).length === 0 && (
-                              <div className="px-3 py-3 text-center text-gray-400 text-sm">لا توجد نتائج</div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -1292,6 +1297,47 @@ const PurchasesPage = () => {
           </div>
         </div>
       )}
+
+      {/* Portal-rendered item dropdown — renders at body level to avoid overflow/z-index clipping */}
+      {openItemDropdown &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+              zIndex: 9999,
+            }}
+            className="bg-white border border-gray-200 rounded-lg shadow-xl max-h-52 overflow-y-auto"
+          >
+            {getAvailableItems(openItemDropdown)
+              .filter((ai) =>
+                ai.name.toLowerCase().includes((itemSearches[openItemDropdown] || "").toLowerCase())
+              )
+              .slice(0, 40)
+              .map((ai) => (
+                <div
+                  key={ai.id}
+                  onMouseDown={() => handleItemSelect(openItemDropdown, ai)}
+                  className="px-3 py-2 cursor-pointer hover:bg-primary/10 flex justify-between items-center text-sm border-b border-gray-100 last:border-0"
+                >
+                  <span className="font-medium text-text-light">{ai.name}</span>
+                  <span className="text-xs text-gray-400 shrink-0 mr-2">
+                    {parseFloat(ai.costPrice) > 0
+                      ? `${parseFloat(ai.costPrice).toFixed(2)} ج.م`
+                      : ai.unit}
+                  </span>
+                </div>
+              ))}
+            {getAvailableItems(openItemDropdown).filter((ai) =>
+              ai.name.toLowerCase().includes((itemSearches[openItemDropdown] || "").toLowerCase())
+            ).length === 0 && (
+              <div className="px-3 py-3 text-center text-gray-400 text-sm">لا توجد نتائج</div>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

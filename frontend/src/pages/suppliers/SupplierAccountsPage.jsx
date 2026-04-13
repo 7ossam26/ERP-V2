@@ -397,7 +397,9 @@ const SupplierAccountsPage = () => {
                                                                     ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
                                                                     : purchase.paymentStatus === "RETURNED"
                                                                         ? "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
-                                                                        : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                                                        : purchase.paymentStatus === "CANCELLED"
+                                                                            ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 line-through"
+                                                                            : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
                                                                 }`}>
                                                                 {purchase.paymentStatus === "PAID"
                                                                     ? "مدفوع"
@@ -405,7 +407,9 @@ const SupplierAccountsPage = () => {
                                                                         ? "غير مدفوع بالكامل"
                                                                         : purchase.paymentStatus === "RETURNED"
                                                                             ? "مرتجع"
-                                                                            : "غير مدفوع"}
+                                                                            : purchase.paymentStatus === "CANCELLED"
+                                                                                ? "ملغي"
+                                                                                : "غير مدفوع"}
                                                             </span>
                                                         </td>
                                                         <td className="px-4 py-3">
@@ -526,7 +530,7 @@ const SupplierAccountsPage = () => {
                             className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5">
                             <option value="">الكل</option>
                             {purchases.filter(
-                                (p) => p.paymentStatus !== "PAID" && p.paymentStatus !== "RETURNED"
+                                (p) => p.paymentStatus !== "PAID" && p.paymentStatus !== "RETURNED" && p.paymentStatus !== "CANCELLED"
                             ).map((purchase) => (
                                 <option key={purchase.id} value={purchase.id}>
                                     #{purchase.id} - {Number(purchase.remaining).toFixed(2)} EGP
