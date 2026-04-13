@@ -12,7 +12,7 @@ const InitialInventoryTab = () => {
   const [entries, setEntries] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [selectedWarehouseId, setSelectedWarehouseId] = useState(null);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,7 +59,7 @@ const InitialInventoryTab = () => {
 
   // Fetch items whenever the warehouse filter changes (skips initial null state)
   useEffect(() => {
-    if (selectedWarehouseId === null) return;
+    if (selectedWarehouseId === "") return;
     const fetchItems = async () => {
       try {
         setIsLoading(true);
