@@ -32,6 +32,12 @@ const { execSync } = require("child_process");
 const scriptDir = __dirname;
 
 try {
+  console.log(">>> [MIGRATE] Applying direct schema fixes...");
+  execSync("node scripts/fix-server-schema.js", {
+    cwd: scriptDir,
+    stdio: "inherit",
+  });
+
   console.log(">>> [MIGRATE] Running migration baseline...");
   execSync("node scripts/baseline-migrations.js", {
     cwd: scriptDir,
