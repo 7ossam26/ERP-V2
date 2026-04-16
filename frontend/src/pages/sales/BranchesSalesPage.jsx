@@ -138,7 +138,7 @@ const BranchesSalesPage = () => {
             </div>
           </div>
 
-          {/* Bank Treasury Card */}
+          {/* Bank Account Card */}
           {bankTreasury && (
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#4c096e] text-white p-6 md:p-8 shadow-lg">
               <div
@@ -152,15 +152,15 @@ const BranchesSalesPage = () => {
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-accent bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
                     <span className="material-symbols-outlined text-[18px]">
-                      account_balance_wallet
+                      account_balance
                     </span>
                     <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-                      {bankTreasury.name}
+                      حساب البنك
                     </span>
                   </div>
                   <div>
                     <p className="text-white/60 text-sm mb-1">
-                      الرصيد البنكي الحالي
+                      الرصيد المتراكم (فيزا + انستاباي)
                     </p>
                     <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white">
                       {Number(bankTreasury.balance).toLocaleString()} جنيه مصري
@@ -216,6 +216,20 @@ const BranchesSalesPage = () => {
                       </div>
                       <span className="text-xl font-black text-green-700 dark:text-green-300">
                         {(branch.cashBalance || 0).toLocaleString()} <span className="text-xs font-bold">ج.م</span>
+                      </span>
+                    </div>
+                    {/* Visa Balance */}
+                    <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/10 rounded-xl px-4 py-3 border border-blue-100 dark:border-blue-900/30">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">
+                          credit_card
+                        </span>
+                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                          فيزا اليوم
+                        </span>
+                      </div>
+                      <span className="text-xl font-black text-blue-700 dark:text-blue-300">
+                        {(branch.visaToday || 0).toLocaleString()} <span className="text-xs font-bold">ج.م</span>
                       </span>
                     </div>
                     {/* InstaPay Balance */}

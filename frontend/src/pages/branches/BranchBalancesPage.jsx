@@ -34,6 +34,9 @@ const BranchBalancesPage = () => {
 
   const totalCash = balances.reduce((s, b) => s + b.cashBalance, 0);
   const totalInstapay = balances.reduce((s, b) => s + b.instapayToday, 0);
+  const totalVisa = balances.reduce((s, b) => s + b.visaToday, 0);
+  // bankAccountBalance is the same for all rows (global bank treasury) — take from first row
+  const bankAccountBalance = balances.length > 0 ? balances[0].bankAccountBalance : 0;
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto" dir="rtl">
@@ -79,24 +82,55 @@ const BranchBalancesPage = () => {
 
       {/* Summary row */}
       {!loading && balances.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-2xl p-4 border border-green-100 dark:border-green-800">
-            <p className="text-sm text-green-700 dark:text-green-400 font-medium mb-1">
-              إجمالي النقدية (جميع الفروع)
-            </p>
-            <p className="text-2xl font-bold text-green-800 dark:text-green-300">
-              {fmt(totalCash)} ج.م
-            </p>
+        <>
+          {/* Per-method daily totals */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="bg-green-50 dark:bg-green-900/20 rounded-2xl p-4 border border-green-100 dark:border-green-800">
+              <p className="text-sm text-green-700 dark:text-green-400 font-medium mb-1">
+                إجمالي النقدية (جميع الفروع)
+              </p>
+              <p className="text-2xl font-bold text-green-800 dark:text-green-300">
+                {fmt(totalCash)} ج.م
+              </p>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-800">
+              <p className="text-sm text-blue-700 dark:text-blue-400 font-medium mb-1">
+                إجمالي فيزا اليوم
+              </p>
+              <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">
+                {fmt(totalVisa)} ج.م
+              </p>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-4 border border-purple-100 dark:border-purple-800">
+              <p className="text-sm text-purple-700 dark:text-purple-400 font-medium mb-1">
+                إجمالي InstaPay اليوم
+              </p>
+              <p className="text-2xl font-bold text-purple-800 dark:text-purple-300">
+                {fmt(totalInstapay)} ج.م
+              </p>
+            </div>
           </div>
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-4 border border-purple-100 dark:border-purple-800">
-            <p className="text-sm text-purple-700 dark:text-purple-400 font-medium mb-1">
-              إجمالي InstaPay اليوم
-            </p>
-            <p className="text-2xl font-bold text-purple-800 dark:text-purple-300">
-              {fmt(totalInstapay)} ج.م
-            </p>
+
+          {/* Bank account accumulated balance */}
+          <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl p-5 mb-6 text-white shadow-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-xl">
+                  <span className="material-symbols-outlined text-2xl">
+                    account_balance
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm opacity-80 font-medium">حساب البنك (الرصيد المتراكم)</p>
+                  <p className="text-xs opacity-60 mt-0.5">فيزا + انستاباي · جميع الفروع</p>
+                </div>
+              </div>
+              <p className="text-3xl font-bold">
+                {fmt(bankAccountBalance)} ج.م
+              </p>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Branch cards */}
@@ -132,6 +166,7 @@ const BranchBalancesPage = () => {
 
               {/* Balance cards */}
               <div className="p-4 space-y-3">
+                {/* Cash */}
                 <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800">
                   <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
                     <span className="material-symbols-outlined text-lg">
@@ -144,6 +179,20 @@ const BranchBalancesPage = () => {
                   </span>
                 </div>
 
+                {/* Visa today */}
+                <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                    <span className="material-symbols-outlined text-lg">
+                      credit_card
+                    </span>
+                    <span className="text-sm font-medium">فيزا اليوم</span>
+                  </div>
+                  <span className="font-bold text-blue-800 dark:text-blue-300 text-lg">
+                    {fmt(branch.visaToday)} ج.م
+                  </span>
+                </div>
+
+                {/* InstaPay today */}
                 <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
                   <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
                     <span className="material-symbols-outlined text-lg">
@@ -156,13 +205,23 @@ const BranchBalancesPage = () => {
                   </span>
                 </div>
 
-                {/* Total */}
+                {/* Digital subtotal (Visa + InstaPay) */}
+                <div className="flex items-center justify-between px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                  <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                    إجمالي رقمي (فيزا + InstaPay)
+                  </span>
+                  <span className="font-bold text-indigo-700 dark:text-indigo-300 text-sm">
+                    {fmt(branch.visaToday + branch.instapayToday)} ج.م
+                  </span>
+                </div>
+
+                {/* Grand total */}
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
                   <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
                     الإجمالي
                   </span>
                   <span className="font-bold text-gray-800 dark:text-white text-lg">
-                    {fmt(branch.cashBalance + branch.instapayToday)} ج.م
+                    {fmt(branch.cashBalance + branch.visaToday + branch.instapayToday)} ج.م
                   </span>
                 </div>
               </div>

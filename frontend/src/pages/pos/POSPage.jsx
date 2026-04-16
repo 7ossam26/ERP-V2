@@ -897,12 +897,14 @@ const POSPage = () => {
     }
 
     // Prepare sale data for backend
-    // Normalize payment method: CASH or INSTAPAY
+    // Normalize payment method: CASH, INSTAPAY, or VISA
     const normalizedPaymentMethod =
       typeof paymentMethod === "string"
         ? paymentMethod.toUpperCase() === "CASH"
           ? "CASH"
-          : "INSTAPAY"
+          : paymentMethod.toUpperCase() === "VISA"
+            ? "VISA"
+            : "INSTAPAY"
         : "CASH"; // Default to CASH for delivery orders
 
     const currentUser = AuthService.getCurrentUser();
@@ -946,7 +948,11 @@ const POSPage = () => {
 
       // Determine method name for display
       const methodName =
-        normalizedPaymentMethod === "CASH" ? "نقدي" : "InstaPay";
+        normalizedPaymentMethod === "CASH"
+          ? "نقدي"
+          : normalizedPaymentMethod === "VISA"
+            ? "فيزا"
+            : "InstaPay";
 
       toast.success(
         `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`,
@@ -1032,7 +1038,11 @@ const POSPage = () => {
 
     // Call main completion function
     const normalizedPaymentMethod =
-      pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "INSTAPAY";
+      pendingPaymentMethod.toUpperCase() === "CASH"
+        ? "CASH"
+        : pendingPaymentMethod === "visa_card"
+          ? "VISA"
+          : "INSTAPAY";
     await handleCompleteSale(
       normalizedPaymentMethod,
       null,
@@ -1324,14 +1334,22 @@ const POSPage = () => {
                   className={`material-symbols-outlined text-2xl sm:text-3xl ${
                     pendingPaymentMethod === "cash"
                       ? "text-green-500"
-                      : "text-[#4c096e]"
+                      : pendingPaymentMethod === "visa_card"
+                        ? "text-blue-600"
+                        : "text-[#4c096e]"
                   }`}>
                   {pendingPaymentMethod === "cash"
                     ? "payments"
-                    : "account_balance_wallet"}
+                    : pendingPaymentMethod === "visa_card"
+                      ? "credit_card"
+                      : "account_balance_wallet"}
                 </span>
                 <span className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
-                  {pendingPaymentMethod === "cash" ? "نقدي" : "InstaPay"}
+                  {pendingPaymentMethod === "cash"
+                    ? "نقدي"
+                    : pendingPaymentMethod === "visa_card"
+                      ? "فيزا"
+                      : "InstaPay"}
                 </span>
               </div>
             </div>
@@ -1404,7 +1422,9 @@ const POSPage = () => {
               className={`flex-1 px-4 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 min-h-touch ${
                 pendingPaymentMethod === "cash"
                   ? "bg-green-500 hover:bg-green-600"
-                  : "bg-[#4c096e] hover:bg-[#3a0654]"
+                  : pendingPaymentMethod === "visa_card"
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-[#4c096e] hover:bg-[#3a0654]"
               }`}>
               <span className="material-symbols-outlined">check_circle</span>
               <span>تأكيد الدفع</span>
@@ -1904,7 +1924,7 @@ const POSPage = () => {
               <div className="bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700">
                 {/* Payment Action Buttons - Only show when keypad is closed */}
                 {keypadMode === "default" && (
-                  <div className="grid grid-cols-3 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
+                  <div className="grid grid-cols-4 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
                     <button
                       onClick={() => handleQuickPayment("cash")}
                       className="flex flex-col items-center justify-center p-3 bg-green-500 hover:bg-green-600 text-white transition-colors border-l border-white/10">
@@ -1920,6 +1940,14 @@ const POSPage = () => {
                         account_balance_wallet
                       </span>
                       <span className="font-bold">InstaPay</span>
+                    </button>
+                    <button
+                      onClick={() => handleQuickPayment("visa_card")}
+                      className="flex flex-col items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white transition-colors border-l border-white/10">
+                      <span className="material-symbols-outlined mb-1">
+                        credit_card
+                      </span>
+                      <span className="font-bold">فيزا</span>
                     </button>
                     <button
                       onClick={() => {
