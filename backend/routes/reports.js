@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission } = require("../middleware/auth");
+const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
 
 /**
  * GET /api/reports/general
@@ -16,13 +16,7 @@ router.use(authenticateToken);
 
 router.get("/general", requirePermission("REPORTS"), async (req, res) => {
   try {
-    const { startDate, endDate, branchId } = req.query;
-
-    // console.log("📊 Generating General Report...", {
-    //   startDate,
-    //   endDate,
-    //   branchId,
-    // });
+    const { startDate, endDate } = req.query;
 
     // --- 1. Filter Setup ---
     const start = startDate ? new Date(startDate) : new Date();
@@ -31,8 +25,26 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    const isAllBranches = !branchId || branchId === "all";
-    const branchFilter = isAllBranches ? {} : { branchId: parseInt(branchId) };
+    // Use getUserBranchFilter to enforce branch access control
+    const authorizedBranchFilter = await getUserBranchFilter(req.user.id, req);
+
+    // Build branchFilter for queries based on authorized access
+    let branchFilter = {};
+    let isAllBranches = false;
+    let filterBranchIds = []; // resolved branch IDs for expense/inventory queries
+
+    if (!authorizedBranchFilter) {
+      // Global role with no active branch selected — see all
+      isAllBranches = true;
+    } else if (authorizedBranchFilter.id && authorizedBranchFilter.id.in) {
+      // Multi-branch user with no specific branch selected — filter to allowed set
+      branchFilter = { branchId: { in: authorizedBranchFilter.id.in } };
+      filterBranchIds = authorizedBranchFilter.id.in;
+    } else {
+      // Single branch (either active selection or single-branch user)
+      branchFilter = { branchId: authorizedBranchFilter.id };
+      filterBranchIds = [authorizedBranchFilter.id];
+    }
 
     // --- 2. Fetch Data ---
 
@@ -59,10 +71,10 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     };
 
     if (!isAllBranches) {
-      // Filter expenses where the treasury belongs to the branch
+      // Filter expenses where the treasury belongs to the authorized branches
       expenseWhere.treasury = {
         branch: {
-          id: parseInt(branchId),
+          id: filterBranchIds.length === 1 ? filterBranchIds[0] : { in: filterBranchIds },
         },
       };
     }
@@ -76,18 +88,16 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     // C. Inventory (Snapshot - Current State)
     let inventoryWhere = {};
     if (!isAllBranches) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: parseInt(branchId) },
-        select: { warehouseId: true }, // Get the linked warehouse
+      const branches = await prisma.branch.findMany({
+        where: { id: { in: filterBranchIds } },
+        select: { warehouseId: true },
       });
-      if (branch && branch.warehouseId) {
-        inventoryWhere = { warehouseId: branch.warehouseId };
-        // console.log(
-        //   `[DEBUG] Branch ${branchId} resolved to Warehouse ${branch.warehouseId}`
-        // );
+      const warehouseIds = branches
+        .map(b => b.warehouseId)
+        .filter(id => id != null);
+      if (warehouseIds.length > 0) {
+        inventoryWhere = { warehouseId: { in: warehouseIds } };
       } else {
-        // console.log(`[DEBUG] Branch ${branchId} has no warehouse linked!`);
-        // Fallback or empty? If no warehouse, no inventory.
         inventoryWhere = { warehouseId: -1 };
       }
     }
