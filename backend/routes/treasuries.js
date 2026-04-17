@@ -12,10 +12,11 @@ const {
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// GET all treasuries
-router.get("/", requirePermission("TREASURIES"), async (req, res) => {
+// GET all treasuries (readable by roles that need treasury selection: purchases, sales, cash transfer, etc.)
+router.get("/", requireAnyPermission(["TREASURIES", "PURCHASES", "SALES", "CASH_TRANSFER", "DEPOSITS", "WITHDRAWALS", "REPORTS"]), async (req, res) => {
   try {
-    const branchFilter = await getUserBranchFilter(req.user.id, req);
+    // Don't pass req — show all accessible treasuries for dropdowns, not just the active branch's
+    const branchFilter = await getUserBranchFilter(req.user.id);
 
     // Build query: Active treasuries
     const where = { isActive: true };

@@ -26,8 +26,10 @@ router.get("/", async (req, res, next) => {
       user.role.name === "General Manager";
 
     // Apply branch filter only for non-global roles
+    // NOTE: Don't pass req — ignore active branch header so the list
+    // shows ALL accessible branches (used for dropdowns/selectors)
     if (!canSeeAllBranches) {
-      const branchFilter = await getUserBranchFilter(req.user.id, req);
+      const branchFilter = await getUserBranchFilter(req.user.id);
       if (branchFilter) {
         if (branchFilter.id.in) {
           // Multi-branch user
@@ -141,7 +143,8 @@ router.get("/balances", async (req, res, next) => {
 
     const where = { isActive: true };
     if (!canSeeAllBranches) {
-      const branchFilter = await getUserBranchFilter(req.user.id, req);
+      // Don't pass req — show all accessible branches, not just the active one
+      const branchFilter = await getUserBranchFilter(req.user.id);
       if (branchFilter) {
         where.id = branchFilter.id.in ? { in: branchFilter.id.in } : branchFilter.id;
       }

@@ -16,7 +16,7 @@ router.use(authenticateToken);
 
 router.get("/general", requirePermission("REPORTS"), async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, branchId } = req.query;
 
     // --- 1. Filter Setup ---
     const start = startDate ? new Date(startDate) : new Date();
@@ -25,25 +25,40 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    // Use getUserBranchFilter to enforce branch access control
-    const authorizedBranchFilter = await getUserBranchFilter(req.user.id, req);
+    // Get user's allowed branches (without req to get full list, not active-branch filtered)
+    const authorizedBranchFilter = await getUserBranchFilter(req.user.id);
 
-    // Build branchFilter for queries based on authorized access
+    // Determine allowed branch IDs
+    let allowedBranchIds = null; // null = global role, can see all
+    if (authorizedBranchFilter) {
+      allowedBranchIds = authorizedBranchFilter.id.in
+        ? authorizedBranchFilter.id.in
+        : [authorizedBranchFilter.id];
+    }
+
+    // Build branchFilter: respect query param branchId but validate against allowed list
     let branchFilter = {};
     let isAllBranches = false;
-    let filterBranchIds = []; // resolved branch IDs for expense/inventory queries
+    let filterBranchIds = [];
 
-    if (!authorizedBranchFilter) {
-      // Global role with no active branch selected — see all
+    const requestedBranchId = branchId && branchId !== "all" ? parseInt(branchId) : null;
+
+    if (requestedBranchId) {
+      // User requested a specific branch — validate access
+      if (allowedBranchIds && !allowedBranchIds.includes(requestedBranchId)) {
+        return res.status(403).json({ error: "Access denied to this branch" });
+      }
+      branchFilter = { branchId: requestedBranchId };
+      filterBranchIds = [requestedBranchId];
+    } else if (!allowedBranchIds) {
+      // Global role requesting all branches
       isAllBranches = true;
-    } else if (authorizedBranchFilter.id && authorizedBranchFilter.id.in) {
-      // Multi-branch user with no specific branch selected — filter to allowed set
-      branchFilter = { branchId: { in: authorizedBranchFilter.id.in } };
-      filterBranchIds = authorizedBranchFilter.id.in;
     } else {
-      // Single branch (either active selection or single-branch user)
-      branchFilter = { branchId: authorizedBranchFilter.id };
-      filterBranchIds = [authorizedBranchFilter.id];
+      // Non-global role with no specific branch — scope to all allowed branches
+      branchFilter = allowedBranchIds.length === 1
+        ? { branchId: allowedBranchIds[0] }
+        : { branchId: { in: allowedBranchIds } };
+      filterBranchIds = allowedBranchIds;
     }
 
     // --- 2. Fetch Data ---

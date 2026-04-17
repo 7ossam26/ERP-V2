@@ -17,7 +17,7 @@ const getStorageKey = (userId) => `${STORAGE_KEY_PREFIX}${userId}`;
 export const BranchProvider = ({ children }) => {
   const [user, setUser] = useState(() => AuthService.getCurrentUser());
   const userId = user?.id;
-  const isGlobalRole = user && ["Superadmin", "Admin"].includes(user.role);
+  const isGlobalRole = user && ["Superadmin", "Admin", "General Manager"].includes(user.role);
 
   // For global roles, fetch all branches from API
   // For non-global roles (Manager), refresh profile to get latest branch assignments

@@ -23,16 +23,25 @@ const BranchFilterHelper = {
       return allBranches;
     }
 
-    // Manager can only see their assigned branch
-    if (role === "manager") {
-      const branchId = currentUser.branch?.id || currentUser.branchId;
-      if (branchId) {
-        return allBranches.filter((branch) => branch.id === branchId);
+    // Manager / Area Manager — see primary branch + accessible branches
+    if (role === "manager" || role === "area manager") {
+      const allowedIds = new Set();
+      if (currentUser.branch?.id) allowedIds.add(currentUser.branch.id);
+      if (currentUser.branchId) allowedIds.add(currentUser.branchId);
+      if (currentUser.accessibleBranches && Array.isArray(currentUser.accessibleBranches)) {
+        currentUser.accessibleBranches.forEach((b) => allowedIds.add(b.id));
+      }
+      if (allowedIds.size > 0) {
+        return allBranches.filter((branch) => allowedIds.has(branch.id));
       }
     }
 
-    // Default: return all branches for other roles (safest fallback, or maybe empty?)
-    // If we want to be strict: if role is manager but no branch, return empty?
+    // General Manager can see all branches
+    if (role === "general manager") {
+      return allBranches;
+    }
+
+    // Default: return all branches
     return allBranches;
   },
 
@@ -45,13 +54,15 @@ const BranchFilterHelper = {
     const currentUser = user || AuthService.getCurrentUser();
     if (!currentUser) return "all";
 
-    // Superadmin defaults to "all"
-    if (currentUser.role === "Superadmin") {
+    const role = currentUser.role?.toLowerCase();
+
+    // Global roles default to "all"
+    if (role === "superadmin" || role === "admin" || role === "general manager") {
       return "all";
     }
 
-    // Manager defaults to their assigned branch
-    if (currentUser.role === "Manager" && currentUser.branch) {
+    // Manager defaults to their primary branch
+    if (currentUser.branch) {
       return currentUser.branch.id;
     }
 
@@ -69,8 +80,8 @@ const BranchFilterHelper = {
     if (!currentUser) return false;
 
     const role = currentUser.role?.toLowerCase();
-    // Only Superadmin/Admin can see "All Branches"
-    return role === "superadmin" || role === "admin";
+    // Superadmin/Admin/General Manager can see "All Branches"
+    return role === "superadmin" || role === "admin" || role === "general manager";
   },
 
   /**

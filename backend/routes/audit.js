@@ -38,22 +38,23 @@ router.get("/", async (req, res, next) => {
     if (userId)   where.userId       = Number(userId);
 
     // Enforce branch access control
-    const authorizedBranchFilter = await getUserBranchFilter(req.user.id, req);
+    // Get user's full allowed branches (without req to skip active-branch header)
+    const authorizedBranchFilter = await getUserBranchFilter(req.user.id);
+    const allowedBranchIds = authorizedBranchFilter
+      ? (authorizedBranchFilter.id.in || [authorizedBranchFilter.id])
+      : null; // null = global role
+
     if (branchId) {
       const requestedId = Number(branchId);
-      // Validate the requested branch is within the user's allowed branches
-      if (authorizedBranchFilter) {
-        const allowedIds = authorizedBranchFilter.id.in || [authorizedBranchFilter.id];
-        if (!allowedIds.includes(requestedId)) {
-          return res.status(403).json({ error: "Access denied to this branch" });
-        }
+      if (allowedBranchIds && !allowedBranchIds.includes(requestedId)) {
+        return res.status(403).json({ error: "Access denied to this branch" });
       }
       where.branchId = requestedId;
-    } else if (authorizedBranchFilter) {
+    } else if (allowedBranchIds) {
       // No specific branch requested — scope to all allowed branches
-      where.branchId = authorizedBranchFilter.id.in
-        ? { in: authorizedBranchFilter.id.in }
-        : authorizedBranchFilter.id;
+      where.branchId = allowedBranchIds.length === 1
+        ? allowedBranchIds[0]
+        : { in: allowedBranchIds };
     }
 
     if (from || to) {
@@ -116,12 +117,11 @@ router.get("/summary", async (req, res, next) => {
     const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     // Enforce branch access control
-    const authorizedBranchFilter = await getUserBranchFilter(req.user.id, req);
+    const authorizedBranchFilter = await getUserBranchFilter(req.user.id);
     const branchWhere = {};
     if (authorizedBranchFilter) {
-      branchWhere.branchId = authorizedBranchFilter.id.in
-        ? { in: authorizedBranchFilter.id.in }
-        : authorizedBranchFilter.id;
+      const ids = authorizedBranchFilter.id.in || [authorizedBranchFilter.id];
+      branchWhere.branchId = ids.length === 1 ? ids[0] : { in: ids };
     }
 
     const counts = await prisma.auditLog.groupBy({
