@@ -113,6 +113,7 @@ enum Module {
 
   // Ramex Store Modules
   FABRIC_ROLLS
+  CREATES_FABRIC_ROLLS
   ADJUSTMENTS
   COUNTS
   OWNER_DASHBOARD
@@ -131,10 +132,19 @@ enum ItemType {
 
 enum FabricRollStatus {
   AVAILABLE
+  PARTIALLY_CUT
+  DEPLETED
+  DAMAGED
   RESERVED
   SOLD
-  DAMAGED
   RETURNED
+}
+
+enum LandedCostAllocation {
+  NONE
+  BY_VALUE
+  BY_QUANTITY
+  MANUAL
 }
 
 enum AdjustmentReason {
@@ -388,6 +398,7 @@ model Supplier {
   id          Int              @id @default(autoincrement())
   name        String
   phoneNumber String           @map("phone_number")
+  taxNumber   String           @default("") @map("tax_number")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
   items       ItemSupplier[]
@@ -535,6 +546,9 @@ model Purchase {
   shippingCost      Decimal       @default(0) @map("shipping_cost") @db.Decimal(10, 2)
   customsDuty       Decimal       @default(0) @map("customs_duty") @db.Decimal(10, 2)
   otherLandingCosts Decimal       @default(0) @map("other_landing_costs") @db.Decimal(10, 2)
+  clearanceCost         Decimal              @default(0) @map("clearance_cost") @db.Decimal(10, 2)
+  landedCostEnabled     Boolean              @default(false) @map("landed_cost_enabled")
+  landedCostAllocation  LandedCostAllocation @default(NONE) @map("landed_cost_allocation")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
@@ -557,6 +571,8 @@ model PurchaseItem {
   purchasePrice Decimal @map("purchase_price") @db.Decimal(10, 2)
   sellPrice     Decimal @map("sell_price") @db.Decimal(10, 2)
   total         Decimal @db.Decimal(10, 2)
+  allocatedLandedCost Decimal @default(0) @map("allocated_landed_cost") @db.Decimal(10, 2)
+  finalUnitCost       Decimal @default(0) @map("final_unit_cost") @db.Decimal(10, 2)
 
   // Relations
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
@@ -707,9 +723,10 @@ model SaleItem {
   total     Decimal @db.Decimal(10, 2)
 
   // Relations
-  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  item Item? @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  bom  BOM?  @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  sale           Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  item           Item?           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  bom            BOM?            @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  fabricRollCuts FabricRollCut[]
 
   @@map("sale_items")
 }
@@ -1103,28 +1120,58 @@ model PriceTier {
 // Ramex Store: Fabric Rolls
 // ============================================
 
-model FabricRoll {
-  id             Int              @id @default(autoincrement())
-  itemId         Int              @map("item_id")
-  rollNumber     String           @unique @map("roll_number") @db.VarChar(50)
-  lengthMeters   Decimal          @map("length_meters") @db.Decimal(10, 2)
-  widthCm        Decimal?         @map("width_cm") @db.Decimal(10, 2)
-  weightKg       Decimal?         @map("weight_kg") @db.Decimal(10, 3)
-  colorCode      String?          @map("color_code") @db.VarChar(50)
-  status         FabricRollStatus @default(AVAILABLE)
-  warehouseId    Int              @map("warehouse_id")
-  purchaseItemId Int?             @map("purchase_item_id")
-  notes          String?          @db.Text
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
+model RollNumberSequence {
+  yearMonth String @id @map("year_month") @db.Char(6)
+  lastSeq   Int    @default(0) @map("last_seq")
 
-  item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  @@map("roll_number_sequences")
+}
+
+model FabricRoll {
+  id              Int              @id @default(autoincrement())
+  itemId          Int              @map("item_id")
+  rollNumber      String           @unique @map("roll_number") @db.VarChar(50)
+  lengthMeters    Decimal          @map("length_meters") @db.Decimal(10, 2)
+  originalLength  Decimal          @map("original_length") @db.Decimal(10, 4)
+  remainingLength Decimal          @map("remaining_length") @db.Decimal(10, 4)
+  unitCost        Decimal          @default(0) @map("unit_cost") @db.Decimal(10, 2)
+  widthCm         Decimal?         @map("width_cm") @db.Decimal(10, 2)
+  weightKg        Decimal?         @map("weight_kg") @db.Decimal(10, 3)
+  colorCode       String?          @map("color_code") @db.VarChar(50)
+  barcode         String?          @unique @map("barcode") @db.VarChar(100)
+  status          FabricRollStatus @default(AVAILABLE)
+  warehouseId     Int              @map("warehouse_id")
+  purchaseItemId  Int?             @map("purchase_item_id")
+  notes           String?          @db.Text
+  lastCutAt       DateTime?        @map("last_cut_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  item      Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  cuts      FabricRollCut[]
 
   @@index([itemId])
   @@index([warehouseId])
   @@index([status])
   @@map("fabric_rolls")
+}
+
+model FabricRollCut {
+  id           Int      @id @default(autoincrement())
+  fabricRollId Int      @map("fabric_roll_id")
+  lengthCut    Decimal  @map("length_cut") @db.Decimal(10, 4)
+  saleItemId   Int?     @map("sale_item_id")
+  adjustmentId Int?     @map("adjustment_id")
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  fabricRoll FabricRoll           @relation(fields: [fabricRollId], references: [id], onDelete: Cascade)
+  saleItem   SaleItem?            @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
+  adjustment InventoryAdjustment? @relation(fields: [adjustmentId], references: [id], onDelete: SetNull)
+
+  @@index([fabricRollId])
+  @@map("fabric_roll_cuts")
 }
 
 // ============================================
@@ -1142,10 +1189,11 @@ model InventoryAdjustment {
   branchId       Int              @map("branch_id")
   createdAt      DateTime         @default(now()) @map("created_at")
 
-  item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  user      User      @relation("AdjustmentCreator", fields: [userId], references: [id], onDelete: Restrict)
-  branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  item           Item            @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  user           User            @relation("AdjustmentCreator", fields: [userId], references: [id], onDelete: Restrict)
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  fabricRollCuts FabricRollCut[]
 
   @@index([itemId])
   @@index([warehouseId])
