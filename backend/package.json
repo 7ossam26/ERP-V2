@@ -10,6 +10,8 @@
     "build:ui": "node scripts/prepare-production.js",
     "build": "npm run build:ui",
     "refresh-migration": "node scripts/refresh-migration-sql.js",
+    "seed:ramex": "node scripts/seed-ramex.js",
+    "permissions:ramex": "node scripts/ramex-permissions.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

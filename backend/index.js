@@ -41,6 +41,8 @@ if (fs.existsSync(envBackendLocal)) {
 }
 
 const isProduction = process.env.NODE_ENV === "production";
+const RAMEX_PROD_HOST = process.env.RAMEX_PROD_HOST || "ramex.example.com"; // Set real domain in Phase 8
+console.log(`>>> [BOOT] RAMEX_PROD_HOST: ${RAMEX_PROD_HOST}`);
 console.log(
   `>>> [ENV] Final NODE_ENV: ${process.env.NODE_ENV} (isProduction: ${isProduction})`,
 );
@@ -465,7 +467,7 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
   const healthHost =
     process.env.NODE_ENV === "production"
-      ? "elghonemydemo.kiko-tech.com"
+      ? "ramex-store.localhost"
       : "localhost";
   console.log(
     `📍 [SERVER] Health check available at: http://${healthHost}:${PORT}/api/health`,

@@ -265,6 +265,47 @@ const getUserBranchFilter = async (userId, req = null) => {
   }
 };
 
+// Block mutating operations for roles that only have read access to a module.
+// Write-capable roles for each module — if the role isn't listed, the request
+// is rejected with 403. Superadmin/Owner always pass.
+const WRITE_ALLOWED_ROLES = {
+  INVENTORY:          ["Owner", "BranchManager", "WarehouseKeeper", "Superadmin"],
+  INVENTORY_COUNT:    ["Owner", "BranchManager", "WarehouseKeeper", "Superadmin"],
+  PURCHASES:          ["Owner", "BranchManager", "WarehouseKeeper", "Superadmin"],
+  SALES:              ["Owner", "BranchManager", "Cashier", "Superadmin"],
+  POS:                ["Owner", "BranchManager", "Cashier", "Superadmin"],
+  CLIENTS:            ["Owner", "BranchManager", "Cashier", "Superadmin"],
+  SUPPLIERS:          ["Owner", "BranchManager", "WarehouseKeeper", "Superadmin"],
+  EXPENSES:           ["Owner", "BranchManager", "Accountant", "Superadmin"],
+  DEPOSITS:           ["Owner", "BranchManager", "Accountant", "Superadmin"],
+  WITHDRAWALS:        ["Owner", "BranchManager", "Accountant", "Superadmin"],
+  TREASURIES:         ["Owner", "Accountant", "Superadmin"],
+  CASH_TRANSFER:      ["Owner", "Accountant", "Superadmin"],
+  FABRIC_ROLLS:       ["Owner", "BranchManager", "WarehouseKeeper", "Superadmin"],
+  ADJUSTMENTS:        ["Owner", "BranchManager", "WarehouseKeeper", "Superadmin"],
+  COUNTS:             ["Owner", "BranchManager", "WarehouseKeeper", "Superadmin"],
+  STOCK_TRANSFER:     ["Owner", "BranchManager", "WarehouseKeeper", "Superadmin"],
+};
+
+const requireModuleWrite = (module) => {
+  return (req, res, next) => {
+    const role = req.user && req.user.role;
+    if (!role) {
+      return res.status(401).json({ error: "Unauthenticated" });
+    }
+    // Superadmin and Owner always have write access
+    if (role === "Superadmin" || role === "Owner") return next();
+
+    const allowed = WRITE_ALLOWED_ROLES[module] || [];
+    if (!allowed.includes(role)) {
+      return res.status(403).json({
+        error: `ليس لديك صلاحية تعديل بيانات ${module}. تواصل مع المدير.`,
+      });
+    }
+    next();
+  };
+};
+
 module.exports = {
   authenticateToken,
   isSuperadmin,
@@ -272,5 +313,6 @@ module.exports = {
   requireAnyPermission,
   requireCreatePermission,
   requireSensitiveAccess,
+  requireModuleWrite,
   getUserBranchFilter,
 };

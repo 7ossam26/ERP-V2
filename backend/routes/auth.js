@@ -152,6 +152,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
         accessibleBranches: user.accessibleBranches || [],
         permissions: permissions,
         hasSensitiveAccess: user.hasSensitiveAccess,
+        mustChangePassword: user.mustChangePassword ?? false,
       },
     });
   } catch (error) {
@@ -216,6 +217,39 @@ router.get("/me", authenticateToken, async (req, res, next) => {
       permissions: permissions,
       hasSensitiveAccess: user.hasSensitiveAccess,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// CHANGE PASSWORD (Protected)
+router.post("/change-password", authenticateToken, async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ error: "جميع الحقول مطلوبة" });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: "كلمة المرور الجديدة وتأكيدها غير متطابقتين" });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+    const valid = await bcrypt.compare(oldPassword, user.password);
+    if (!valid) return res.status(401).json({ error: "كلمة المرور الحالية غير صحيحة" });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashed, mustChangePassword: false },
+    });
+
+    res.json({ message: "تم تغيير كلمة المرور بنجاح" });
   } catch (error) {
     next(error);
   }

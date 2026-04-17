@@ -42,6 +42,12 @@ const LoginPage = () => {
 
       toast.success(`Welcome back, ${response.user.username}!`);
 
+      // Force password change before anything else
+      if (response.user.mustChangePassword) {
+        navigate("/change-password", { replace: true });
+        return;
+      }
+
       // Redirect based on role
       if (response.user.role === "Superadmin") {
         navigate("/superadmin/users");
@@ -64,7 +70,7 @@ const LoginPage = () => {
             <header className="flex items-center justify-center w-full mb-8">
               <img
                 src="/assets/logo.png"
-                alt="Elghonemy Logo"
+                alt="Ramex Store Logo"
                 className="h-20 w-auto object-contain"
               />
             </header>

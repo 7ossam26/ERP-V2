@@ -15,6 +15,7 @@ import PermissionConfig from "./pages/superadmin/PermissionConfig";
 import AuditLogs from "./pages/superadmin/AuditLogs";
 import DatabaseReset from "./pages/superadmin/DatabaseReset";
 import LoginPage from "./pages/LoginPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import MainDashboard from "./pages/MainDashboard";
 import CreatesDashboard from "./pages/CreatesDashboard";
 import WarehouseManager from "./pages/warehouses/WarehouseManager";
@@ -86,6 +87,7 @@ function App() {
       <Routes>
         {/* Public Route: Login */}
         <Route path="/" element={<LoginPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
         <Route path="/manual" element={<UserManualPage />} />
 
