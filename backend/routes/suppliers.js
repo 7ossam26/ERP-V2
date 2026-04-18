@@ -40,7 +40,7 @@ router.get("/:id", async (req, res) => {
 // POST create new supplier
 router.post("/", requireCreatePermission("CREATES_SUPPLIERS"), async (req, res) => {
   try {
-    const { name, phoneNumber } = req.body;
+    const { name, phoneNumber, taxNumber } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
@@ -50,6 +50,7 @@ router.post("/", requireCreatePermission("CREATES_SUPPLIERS"), async (req, res) 
       data: {
         name,
         phoneNumber: phoneNumber || "",
+        taxNumber: taxNumber || "",
       },
     });
     res.status(201).json(supplier);
@@ -63,13 +64,14 @@ router.post("/", requireCreatePermission("CREATES_SUPPLIERS"), async (req, res) 
 // PUT update supplier - Requires SENSITIVE ACCESS
 router.put("/:id", requireAnyPermission(["SUPPLIERS", "CREATES_SUPPLIERS"]), requireSensitiveAccess, async (req, res) => {
   try {
-    const { name, phoneNumber } = req.body;
+    const { name, phoneNumber, taxNumber } = req.body;
 
     const supplier = await prisma.supplier.update({
       where: { id: parseInt(req.params.id) },
       data: {
         name,
         phoneNumber,
+        ...(taxNumber !== undefined && { taxNumber }),
       },
     });
     res.json(supplier);
