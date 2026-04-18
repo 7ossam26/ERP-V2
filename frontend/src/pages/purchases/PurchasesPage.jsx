@@ -1,3 +1,4 @@
+// EGP only. For foreign supplier invoices in USD/EUR, convert to EGP manually before entering.
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +27,8 @@ const PurchasesPage = () => {
       purchasePrice: 0,
       sellPrice: 0,
       unit: "piece",
+      itemType: null,
+      rolls: [],
     },
   ]);
   const [discountType, setDiscountType] = useState("percent"); // percent, value
@@ -40,6 +43,17 @@ const PurchasesPage = () => {
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
+
+  // Phase 4 — international + landed cost
+  const [isInternational, setIsInternational] = useState(false);
+  const [landedCostEnabled, setLandedCostEnabled] = useState(false);
+  const [landedCostAllocation, setLandedCostAllocation] = useState("NONE");
+  const [freightCost, setFreightCost] = useState(0);
+  const [customsCost, setCustomsCost] = useState(0);
+  const [clearanceCost, setClearanceCost] = useState(0);
+  const [otherLandedCost, setOtherLandedCost] = useState(0);
+  const [landedCostFeatureEnabled, setLandedCostFeatureEnabled] = useState(false);
+
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [allItems, setAllItems] = useState([]);
   const [purchases, setPurchases] = useState([]);
@@ -128,6 +142,9 @@ const PurchasesPage = () => {
             // Fallback if no main warehouse configured
             setSelectedWarehouseId(fetchedWarehouses[0].id);
           }
+          if (settings?.landedCostFeatureEnabled) {
+            setLandedCostFeatureEnabled(true);
+          }
         } catch (settingsError) {
           console.error("Failed to fetch settings", settingsError);
           if (fetchedWarehouses.length > 0) {
@@ -200,6 +217,10 @@ const PurchasesPage = () => {
     });
   };
 
+  const totalLanded = landedCostEnabled
+    ? (parseFloat(freightCost) || 0) + (parseFloat(customsCost) || 0) + (parseFloat(clearanceCost) || 0) + (parseFloat(otherLandedCost) || 0)
+    : 0;
+
   // P2: Per-row available items — exclude already-selected items (but keep current row's own selection)
   const selectedItemIds = new Set(items.filter((i) => i.itemId).map((i) => i.itemId));
   const getAvailableItems = (rowId) => {
@@ -216,6 +237,8 @@ const PurchasesPage = () => {
       purchasePrice: 0,
       sellPrice: 0,
       unit: "piece",
+      itemType: null,
+      rolls: [],
     };
     setItems([...items, newItem]);
   };
@@ -246,6 +269,8 @@ const PurchasesPage = () => {
               sellPrice: selectedItem.price || 0,
               unit: selectedItem.unit || "piece",
               quantity: 1,
+              itemType: selectedItem.itemType || null,
+              rolls: selectedItem.itemType === "FABRIC" ? [{ originalLength: "", barcode: "", notes: "" }] : [],
             }
           : item,
       ),
@@ -427,12 +452,25 @@ const PurchasesPage = () => {
         netTotal: Number(totals.net),
         paidAmount: Number(paidAmount) || 0,
         remaining: Number(totals.remaining),
+        isInternational,
+        landedCostEnabled,
+        landedCostAllocation,
+        freightCost: parseFloat(freightCost) || 0,
+        customsCost: parseFloat(customsCost) || 0,
+        clearanceCost: parseFloat(clearanceCost) || 0,
+        otherLandedCost: parseFloat(otherLandedCost) || 0,
         items: items.map((item) => ({
           itemId: parseInt(item.itemId),
           quantity: Number(item.quantity),
           purchasePrice: Number(item.purchasePrice),
           sellPrice: Number(item.sellPrice),
           total: Number(item.quantity) * Number(item.purchasePrice),
+          rolls: item.itemType === "FABRIC" ? (item.rolls || []).map(r => ({
+            originalLength: parseFloat(r.originalLength) || 0,
+            barcode: r.barcode || undefined,
+            notes: r.notes || undefined,
+          })) : undefined,
+          manualAllocatedLandedCost: landedCostAllocation === "MANUAL" ? parseFloat(item.manualAllocatedLandedCost || 0) : undefined,
         })),
       };
 
@@ -457,6 +495,8 @@ const PurchasesPage = () => {
           quantity: 1,
           purchasePrice: 0,
           sellPrice: 0,
+          itemType: null,
+          rolls: [],
         },
       ]);
       setSelectedSupplierId("");
@@ -464,6 +504,13 @@ const PurchasesPage = () => {
       setDiscountType("percent");
       setDiscountValue(0);
       setPaidAmount(0);
+      setIsInternational(false);
+      setLandedCostEnabled(false);
+      setLandedCostAllocation("NONE");
+      setFreightCost(0);
+      setCustomsCost(0);
+      setClearanceCost(0);
+      setOtherLandedCost(0);
     } catch (error) {
       console.error("Failed to save purchase", error);
 
@@ -735,6 +782,19 @@ const PurchasesPage = () => {
                 </span>
               </button>
             </div>
+              {/* Phase 4: International purchase flag */}
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="isInternational"
+                  checked={isInternational}
+                  onChange={e => setIsInternational(e.target.checked)}
+                  className="w-4 h-4 rounded accent-blue-600"
+                />
+                <label htmlFor="isInternational" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                  فاتورة دولية
+                </label>
+              </div>
           </div>
         </section>
 
@@ -780,8 +840,8 @@ const PurchasesPage = () => {
               </thead>
               <tbody>
                 {items.map((item) => (
+                  <React.Fragment key={item.id}>
                   <tr
-                    key={item.id}
                     className="bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark/50 border-b border-border-light dark:border-border-dark transition-colors">
                     <td className="px-4 py-3">
                       <div className="relative">
@@ -867,6 +927,92 @@ const PurchasesPage = () => {
                       </button>
                     </td>
                   </tr>
+                {item.itemType === "FABRIC" && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-0">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-3 rounded-lg mt-1 mb-2">
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm">inventory_2</span>
+                      اللفات
+                    </div>
+                    <div className="space-y-2">
+                      {(item.rolls || []).map((roll, rIdx) => (
+                        <div key={rIdx} className="flex items-center gap-2">
+                          <input
+                            type="number" min="0.01" step="0.01"
+                            value={roll.originalLength}
+                            onChange={e => {
+                              const updated = item.rolls.map((r, ri) =>
+                                ri === rIdx ? { ...r, originalLength: e.target.value } : r
+                              );
+                              updateItem(item.id, "rolls", updated);
+                            }}
+                            className="w-28 border rounded-lg px-2 py-1 text-sm"
+                            placeholder="الطول (م)"
+                          />
+                          <input
+                            type="text"
+                            value={roll.barcode || ""}
+                            onChange={e => {
+                              const updated = item.rolls.map((r, ri) =>
+                                ri === rIdx ? { ...r, barcode: e.target.value } : r
+                              );
+                              updateItem(item.id, "rolls", updated);
+                            }}
+                            className="w-32 border rounded-lg px-2 py-1 text-sm"
+                            placeholder="باركود (اختياري)"
+                          />
+                          <input
+                            type="text"
+                            value={roll.notes || ""}
+                            onChange={e => {
+                              const updated = item.rolls.map((r, ri) =>
+                                ri === rIdx ? { ...r, notes: e.target.value } : r
+                              );
+                              updateItem(item.id, "rolls", updated);
+                            }}
+                            className="flex-1 border rounded-lg px-2 py-1 text-sm"
+                            placeholder="ملاحظات (اختياري)"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = item.rolls.filter((_, ri) => ri !== rIdx);
+                              updateItem(item.id, "rolls", updated);
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <span className="material-symbols-outlined text-lg">remove_circle</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {(() => {
+                      const rollsTotal = (item.rolls || []).reduce((s, r) => s + (parseFloat(r.originalLength) || 0), 0);
+                      const lineQty = parseFloat(item.quantity) || 0;
+                      const match = Math.abs(rollsTotal - lineQty) < 0.001;
+                      return (
+                        <div className={`text-xs mt-2 ${match ? "text-green-600" : "text-red-600"}`}>
+                          مجموع اللفات: {rollsTotal.toFixed(2)} م {match ? "✓" : `(المطلوب: ${lineQty.toFixed(2)} م)`}
+                        </div>
+                      );
+                    })()}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...(item.rolls || []), { originalLength: "", barcode: "", notes: "" }];
+                        updateItem(item.id, "rolls", updated);
+                      }}
+                      className="mt-2 text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-sm">add_circle_outline</span>
+                      إضافة لفة
+                    </button>
+                  </div>
+                    </td>
+                  </tr>
+                )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -887,6 +1033,72 @@ const PurchasesPage = () => {
             </button>
           </div>
         </section>
+
+            {/* Phase 4: Landed cost section */}
+            {landedCostFeatureEnabled && (
+              <div className="mt-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 text-right"
+                  onClick={() => setLandedCostEnabled(prev => !prev)}
+                >
+                  <span className="font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg">local_shipping</span>
+                    التكاليف الإضافية (Landed Cost)
+                  </span>
+                  <span className="material-symbols-outlined text-gray-500">
+                    {landedCostEnabled ? "expand_less" : "expand_more"}
+                  </span>
+                </button>
+
+                {landedCostEnabled && (
+                  <div className="p-4 space-y-4 bg-white dark:bg-gray-800">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">طريقة التوزيع</label>
+                      <select
+                        value={landedCostAllocation}
+                        onChange={e => setLandedCostAllocation(e.target.value)}
+                        className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="NONE">بدون توزيع</option>
+                        <option value="BY_VALUE">بالقيمة</option>
+                        <option value="BY_QUANTITY">بالكمية</option>
+                        <option value="MANUAL">يدوي</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">الشحن (ج.م)</label>
+                        <input type="number" min="0" step="0.01" value={freightCost}
+                          onChange={e => setFreightCost(e.target.value)}
+                          className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-xl px-2 py-1.5 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:border-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">الجمارك (ج.م)</label>
+                        <input type="number" min="0" step="0.01" value={customsCost}
+                          onChange={e => setCustomsCost(e.target.value)}
+                          className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-xl px-2 py-1.5 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:border-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">التخليص (ج.م)</label>
+                        <input type="number" min="0" step="0.01" value={clearanceCost}
+                          onChange={e => setClearanceCost(e.target.value)}
+                          className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-xl px-2 py-1.5 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:border-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">أخرى (ج.م)</label>
+                        <input type="number" min="0" step="0.01" value={otherLandedCost}
+                          onChange={e => setOtherLandedCost(e.target.value)}
+                          className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-xl px-2 py-1.5 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:border-blue-500" />
+                      </div>
+                    </div>
+                    <div className="text-sm text-right font-medium text-gray-700 dark:text-gray-300 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                      إجمالي التكاليف الإضافية: <span className="text-blue-600 dark:text-blue-400 font-bold">{totalLanded.toFixed(2)} ج.م</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
         {/* Totals & Payment Section */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
