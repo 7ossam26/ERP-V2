@@ -23,7 +23,7 @@ router.get("/", async (req, res, next) => {
       config = await prisma.systemConfiguration.create({
         data: {
           id: 1,
-          companyName: "ERP System",
+          companyName: "رامكس ستور",
         },
         include: {
           mainWarehouse: true,
@@ -56,6 +56,7 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       mainTreasuryId,
       bankTreasuryId,
       taxRate,
+      landedCostFeatureEnabled,
       salaryStartDay,
       salaryEndDay,
       shiftStartTime,
@@ -73,6 +74,7 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       mainTreasuryId: safeInt(mainTreasuryId),
       bankTreasuryId: safeInt(bankTreasuryId),
       taxRate: parsedTaxRate,
+      ...(landedCostFeatureEnabled !== undefined && { landedCostFeatureEnabled: Boolean(landedCostFeatureEnabled) }),
       salaryStartDay: safeInt(salaryStartDay),
       salaryEndDay: safeInt(salaryEndDay),
       shiftStartTime,
@@ -89,7 +91,7 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       update: updateData,
       create: {
         id: 1,
-        companyName: companyName || "ERP System",
+        companyName: companyName || "رامكس ستور",
         taxNumber: taxNumber ? String(taxNumber) : "",
         mainWarehouseId: safeInt(mainWarehouseId),
         mainTreasuryId: safeInt(mainTreasuryId),

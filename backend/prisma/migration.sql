@@ -1360,3 +1360,7 @@ ALTER TABLE `purchase_items`
 
 ALTER TABLE `suppliers`
   ADD COLUMN `tax_number` VARCHAR(191) NOT NULL DEFAULT '';
+
+-- Feature flag for landed cost UI
+ALTER TABLE `system_configuration`
+  ADD COLUMN `landed_cost_feature_enabled` BOOLEAN NOT NULL DEFAULT FALSE;

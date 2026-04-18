@@ -777,6 +777,7 @@ model SystemConfiguration {
 
   // Financial Defaults
   taxRate Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
+  landedCostFeatureEnabled Boolean @default(false) @map("landed_cost_feature_enabled")
 
   // HR Defaults
   salaryStartDay Int    @default(1) @map("salary_start_day")
