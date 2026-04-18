@@ -64,6 +64,8 @@ const PurchasesPage = () => {
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("");
+  const [filterInternational, setFilterInternational] = useState(false);
+  const [filterHasLandedCost, setFilterHasLandedCost] = useState(false);
   const [selectedHistoryPurchase, setSelectedHistoryPurchase] = useState(null);
 
   // P1/P2: Searchable item dropdown state
@@ -523,6 +525,8 @@ const PurchasesPage = () => {
   const psLabel = (s) => ({ PAID:"مدفوع", PARTIALLY_PAID:"جزئي", UNPAID:"غير مدفوع", RETURNED:"مرتجع" })[s] || s;
   const psClass = (s) => s==="PAID" ? "bg-green-100 text-green-800" : s==="PARTIALLY_PAID" ? "bg-yellow-100 text-yellow-800" : s==="RETURNED" ? "bg-orange-100 text-orange-800" : "bg-red-100 text-red-800";
   const filteredHistory = [...purchases].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).filter(p=>{
+    if (filterInternational && !p.isInternational) return false;
+    if (filterHasLandedCost && !p.landedCostEnabled) return false;
     if (!historyFilter.trim()) return true;
     const q = historyFilter.toLowerCase();
     return String(p.id).includes(q) || (p.supplier?.name||"").toLowerCase().includes(q) || (p.supplierInvoiceNo||"").toLowerCase().includes(q);
@@ -564,6 +568,16 @@ const PurchasesPage = () => {
                   className="w-full pr-10 pl-4 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:border-blue-500 text-right text-sm" autoFocus />
               </div>
             </div>
+            <div className="flex gap-3 px-4 pb-3 text-sm">
+              <label className="flex items-center gap-1 cursor-pointer text-gray-600 dark:text-gray-400">
+                <input type="checkbox" checked={filterInternational} onChange={e => setFilterInternational(e.target.checked)} className="accent-blue-600" />
+                دولية فقط
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer text-gray-600 dark:text-gray-400">
+                <input type="checkbox" checked={filterHasLandedCost} onChange={e => setFilterHasLandedCost(e.target.checked)} className="accent-blue-600" />
+                بتكاليف إضافية
+              </label>
+            </div>
             <div className="flex-1 overflow-y-auto">
               <table className="w-full text-sm text-right">
                 <thead className="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 sticky top-0">
@@ -587,7 +601,12 @@ const PurchasesPage = () => {
                       <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                         <td className="p-3 font-mono font-bold text-blue-600">#{p.id}</td>
                         <td className="p-3 text-gray-500">{new Date(p.createdAt).toLocaleDateString("ar-EG")}</td>
-                        <td className="p-3 font-medium">{p.supplier?.name||"—"}</td>
+                        <td className="p-3 font-medium">
+                          {p.supplier?.name||"—"}
+                          {p.isInternational && (
+                            <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-1.5 py-0.5 rounded mr-1">دولي</span>
+                          )}
+                        </td>
                         <td className="p-3 text-gray-500">{p.supplierInvoiceNo||"—"}</td>
                         <td className="p-3 font-bold">{parseFloat(p.netTotal).toFixed(2)}</td>
                         <td className="p-3 text-green-600">{parseFloat(p.paidAmount).toFixed(2)}</td>

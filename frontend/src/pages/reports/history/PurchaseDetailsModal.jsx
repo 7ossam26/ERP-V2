@@ -277,6 +277,24 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                     )}
                   </div>
 
+                  {/* Landed Cost Summary */}
+                  {purchase?.landedCostEnabled && (
+                    <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <div className="font-medium text-yellow-800 dark:text-yellow-300 mb-2 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm">local_shipping</span>
+                        التكاليف الإضافية
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <span>الشحن:</span> <span>{parseFloat(purchase.shippingCost || 0).toFixed(2)} ج.م</span>
+                        <span>الجمارك:</span> <span>{parseFloat(purchase.customsDuty || 0).toFixed(2)} ج.م</span>
+                        <span>التخليص:</span> <span>{parseFloat(purchase.clearanceCost || 0).toFixed(2)} ج.م</span>
+                        <span>أخرى:</span> <span>{parseFloat(purchase.otherLandingCosts || 0).toFixed(2)} ج.م</span>
+                        <span className="font-medium">طريقة التوزيع:</span>
+                        <span>{{ NONE: "بدون", BY_VALUE: "بالقيمة", BY_QUANTITY: "بالكمية", MANUAL: "يدوي" }[purchase.landedCostAllocation] || "—"}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Items Table */}
                   <div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
@@ -307,49 +325,81 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                             <th className="px-4 py-3 text-center font-bold text-gray-700 dark:text-gray-300">
                               الإجمالي
                             </th>
+                            {purchase?.landedCostEnabled && (
+                              <>
+                                <th className="px-4 py-3 text-center font-bold text-gray-700 dark:text-gray-300">
+                                  التكلفة المضافة
+                                </th>
+                                <th className="px-4 py-3 text-center font-bold text-gray-700 dark:text-gray-300">
+                                  التكلفة النهائية
+                                </th>
+                              </>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
                           {purchase.items && purchase.items.length > 0 ? (
                             purchase.items.map((purchaseItem, index) => (
-                              <tr
-                                key={index}
-                                className="hover:bg-gray-50 dark:hover:bg-zinc-800/50">
-                                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                                  {index + 1}
-                                </td>
-                                <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
-                                  {purchaseItem.name ||
-                                    purchaseItem.item?.name ||
-                                    "-"}
-                                </td>
-                                <td className="px-4 py-3 text-center text-gray-800 dark:text-gray-200">
-                                  {Number(purchaseItem.quantity || 0).toFixed(
-                                    2,
+                              <React.Fragment key={index}>
+                                <tr className="hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                                    {index + 1}
+                                  </td>
+                                  <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
+                                    {purchaseItem.name ||
+                                      purchaseItem.item?.name ||
+                                      "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-gray-800 dark:text-gray-200">
+                                    {Number(purchaseItem.quantity || 0).toFixed(
+                                      2,
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-gray-800 dark:text-gray-200">
+                                    {Number(
+                                      purchaseItem.purchasePrice || 0,
+                                    ).toFixed(2)}{" "}
+                                    ج.م
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-green-600 dark:text-green-400 font-medium">
+                                    {Number(purchaseItem.sellPrice || 0).toFixed(
+                                      2,
+                                    )}{" "}
+                                    ج.م
+                                  </td>
+                                  <td className="px-4 py-3 text-center font-bold text-gray-800 dark:text-gray-200">
+                                    {Number(purchaseItem.total || 0).toFixed(2)}{" "}
+                                    ج.م
+                                  </td>
+                                  {purchase?.landedCostEnabled && (
+                                    <>
+                                      <td className="px-4 py-3 text-center text-gray-800 dark:text-gray-200">
+                                        {parseFloat(purchaseItem.allocatedLandedCost || 0).toFixed(2)}
+                                      </td>
+                                      <td className="px-4 py-3 text-center text-gray-800 dark:text-gray-200">
+                                        {parseFloat(purchaseItem.finalUnitCost || 0).toFixed(2)}
+                                      </td>
+                                    </>
                                   )}
-                                </td>
-                                <td className="px-4 py-3 text-center text-gray-800 dark:text-gray-200">
-                                  {Number(
-                                    purchaseItem.purchasePrice || 0,
-                                  ).toFixed(2)}{" "}
-                                  ج.م
-                                </td>
-                                <td className="px-4 py-3 text-center text-green-600 dark:text-green-400 font-medium">
-                                  {Number(purchaseItem.sellPrice || 0).toFixed(
-                                    2,
-                                  )}{" "}
-                                  ج.م
-                                </td>
-                                <td className="px-4 py-3 text-center font-bold text-gray-800 dark:text-gray-200">
-                                  {Number(purchaseItem.total || 0).toFixed(2)}{" "}
-                                  ج.م
-                                </td>
-                              </tr>
+                                </tr>
+                                {purchaseItem.item?.itemType === "FABRIC" && (purchaseItem.fabricRolls || []).length > 0 && (
+                                  <tr>
+                                    <td colSpan={purchase?.landedCostEnabled ? 8 : 6} className="bg-blue-50 dark:bg-blue-900/20 px-4 py-2 text-xs">
+                                      <span className="font-medium text-blue-700 dark:text-blue-300">اللفات المُنشأة: </span>
+                                      {purchaseItem.fabricRolls.map(r => (
+                                        <span key={r.id} className="inline-block bg-white dark:bg-gray-700 border rounded px-2 py-0.5 mr-1 mb-1">
+                                          {r.rollNumber} ({parseFloat(r.originalLength).toFixed(2)}م)
+                                        </span>
+                                      ))}
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
                             ))
                           ) : (
                             <tr>
                               <td
-                                colSpan="6"
+                                colSpan={purchase?.landedCostEnabled ? 8 : 6}
                                 className="px-4 py-8 text-center text-gray-500">
                                 لا توجد أصناف
                               </td>
