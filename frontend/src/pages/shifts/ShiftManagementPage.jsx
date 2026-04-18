@@ -58,7 +58,7 @@ const ShiftManagementPage = () => {
   const fetchBranches = async () => {
     try {
       const res = await branchService.getAll();
-      setBranches(res.data || []);
+      setBranches(Array.isArray(res) ? res : res.data || []);
     } catch (error) {
       console.error("Error fetching branches:", error);
     }

@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/database");
 
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
@@ -12,20 +12,33 @@ const authenticateToken = (req, res, next) => {
     });
   }
 
-  jwt.verify(
-    token,
-    process.env.JWT_SECRET || "fallback_secret_key_change_me",
-    (err, user) => {
-      if (err) {
-        return res.status(401).json({
-          error: "Invalid or expired token.",
-          resolution: "Please log out and log back in to refresh your session."
-        });
-      }
-      req.user = user;
-      next();
+  try {
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "fallback_secret_key_change_me"
+    );
+
+    // Verify user still exists in DB (handles DB reset / deleted users)
+    const userExists = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true },
+    });
+
+    if (!userExists) {
+      return res.status(401).json({
+        error: "User no longer exists.",
+        resolution: "Please log out and log back in."
+      });
     }
-  );
+
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({
+      error: "Invalid or expired token.",
+      resolution: "Please log out and log back in to refresh your session."
+    });
+  }
 };
 
 const isSuperadmin = (req, res, next) => {
@@ -210,7 +223,9 @@ const getUserBranchFilter = async (userId, req = null) => {
     });
 
     if (!user) {
-      throw new Error("User not found");
+      const err = new Error("User not found");
+      err.status = 401;
+      throw err;
     }
 
     const isGlobalRole = user.role && (user.role.name === "Superadmin" || user.role.name === "Admin" || user.role.name === "General Manager");

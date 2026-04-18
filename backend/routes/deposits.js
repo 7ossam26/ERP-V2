@@ -12,7 +12,7 @@ const {
 router.use(authenticateToken);
 
 // GET all deposits
-router.get("/", requirePermission("DEPOSITS"), async (req, res, next) => {
+router.get("/", requireAnyPermission(["DEPOSITS", "WITHDRAWALS"]), async (req, res, next) => {
     try {
         const deposits = await prisma.deposit.findMany({
             include: {

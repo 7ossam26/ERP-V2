@@ -11,7 +11,7 @@ const {
 router.use(authenticateToken);
 
 // GET all withdrawals
-router.get("/", requirePermission("WITHDRAWALS"), async (req, res, next) => {
+router.get("/", requireAnyPermission(["WITHDRAWALS", "DEPOSITS"]), async (req, res, next) => {
     try {
         const withdrawals = await prisma.withdrawal.findMany({
             include: {

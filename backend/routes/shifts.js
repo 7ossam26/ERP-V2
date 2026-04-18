@@ -33,21 +33,22 @@ router.get(
 
       const whereClause = {};
 
-      // Filter by Branch
+      // Enforce branch access control
+      const branchFilter = await getUserBranchFilter(req.user.id);
+      const allowedBranchIds = branchFilter
+        ? (branchFilter.id.in || [branchFilter.id])
+        : null; // null = global role
+
       if (branchId && branchId !== "all") {
-        whereClause.branchId = parseInt(branchId);
-      } else {
-        // Enforce branch access if not filtering by specific branch
-        const branchFilter = await getUserBranchFilter(req.user.id, req);
-        if (branchFilter) {
-          if (branchFilter.id.in) {
-            // Multi-branch user (e.g., General Manager)
-            whereClause.branchId = { in: branchFilter.id.in };
-          } else {
-            // Single-branch user
-            whereClause.branchId = branchFilter.id;
-          }
+        const requestedId = parseInt(branchId);
+        if (allowedBranchIds && !allowedBranchIds.includes(requestedId)) {
+          return res.status(403).json({ error: "Access denied to this branch" });
         }
+        whereClause.branchId = requestedId;
+      } else if (allowedBranchIds) {
+        whereClause.branchId = allowedBranchIds.length === 1
+          ? allowedBranchIds[0]
+          : { in: allowedBranchIds };
       }
 
       // Filter by Status
