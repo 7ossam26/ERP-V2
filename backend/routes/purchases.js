@@ -602,8 +602,31 @@ router.put("/:id", async (req, res, next) => {
       paidAmount,
       remaining,
       items,
+      // Phase 4
+      isInternational = false,
+      landedCostEnabled = false,
+      landedCostAllocation = "NONE",
+      freightCost = 0,
+      customsCost = 0,
+      clearanceCost = 0,
+      otherLandedCost = 0,
     } = req.body;
     const purchaseId = parseInt(req.params.id);
+
+    // Phase 4: compute landed cost allocations
+    let lineAllocations;
+    try {
+      const totalLanded = landedCostEnabled
+        ? parseFloat(freightCost) + parseFloat(customsCost) + parseFloat(clearanceCost) + parseFloat(otherLandedCost)
+        : 0;
+      lineAllocations = allocateLandedCost({
+        items: items || [],
+        totalLanded,
+        method: landedCostEnabled ? landedCostAllocation : "NONE",
+      });
+    } catch (err) {
+      return res.status(err.status || 400).json({ error: err.message });
+    }
 
     const purchase = await prisma.$transaction(async (prisma) => {
       // 1. Get old purchase details for financial adjustment
@@ -644,6 +667,14 @@ router.put("/:id", async (req, res, next) => {
           netTotal,
           paidAmount,
           remaining,
+          // Phase 4
+          isInternational: Boolean(isInternational),
+          shippingCost: parseFloat(freightCost) || 0,
+          customsDuty: parseFloat(customsCost) || 0,
+          clearanceCost: parseFloat(clearanceCost) || 0,
+          otherLandingCosts: parseFloat(otherLandedCost) || 0,
+          landedCostEnabled: Boolean(landedCostEnabled),
+          landedCostAllocation: landedCostEnabled ? landedCostAllocation : "NONE",
         },
       });
 
@@ -677,13 +708,15 @@ router.put("/:id", async (req, res, next) => {
 
         if (items.length > 0) {
           await prisma.purchaseItem.createMany({
-            data: items.map((item) => ({
+            data: items.map((item, idx) => ({
               purchaseId,
               itemId: parseInt(item.itemId),
               quantity: item.quantity,
               purchasePrice: item.purchasePrice,
               sellPrice: item.sellPrice,
               total: item.total,
+              allocatedLandedCost: lineAllocations[idx].allocatedLandedCost,
+              finalUnitCost: lineAllocations[idx].finalUnitCost,
             })),
           });
 
@@ -786,6 +819,10 @@ router.put("/:id", async (req, res, next) => {
     next(error);
   }
 });
+
+// NOTE: Purchase returns do NOT reverse landed cost allocation.
+// Only original purchasePrice × quantity is reversed on return.
+// This is by design — landed cost is a one-way cost absorption.
 
 // DELETE purchase
 router.delete("/:id", async (req, res, next) => {
