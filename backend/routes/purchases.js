@@ -160,6 +160,14 @@ router.get("/", async (req, res, next) => {
       }
     }
 
+    // Phase 4 filters
+    if (req.query.isInternational !== undefined) {
+      whereClause.isInternational = req.query.isInternational === "true";
+    }
+    if (req.query.hasLandedCost !== undefined) {
+      whereClause.landedCostEnabled = req.query.hasLandedCost === "true";
+    }
+
     const purchases = await prisma.purchase.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
@@ -236,17 +244,50 @@ router.get("/:id", async (req, res, next) => {
         supplier: true,
         treasury: true,
         warehouse: true,
-        items: {
-          include: {
-            item: true,
-          },
-        },
+        items: { include: { item: true } },
+        returns: { include: { items: true } },
       },
     });
+
     if (!purchase) {
       return res.status(404).json({ error: "Purchase not found" });
     }
-    res.json(purchase);
+
+    // Phase 4: attach generated rolls per fabric line
+    const fabricItemIds = purchase.items
+      .filter(li => li.item.itemType === "FABRIC")
+      .map(li => li.itemId);
+
+    let rollsByItemId = {};
+    if (fabricItemIds.length > 0) {
+      const rolls = await prisma.fabricRoll.findMany({
+        where: {
+          itemId: { in: fabricItemIds },
+          warehouseId: purchase.warehouseId,
+        },
+        select: {
+          id: true,
+          rollNumber: true,
+          originalLength: true,
+          remainingLength: true,
+          status: true,
+          unitCost: true,
+          barcode: true,
+          itemId: true,
+        },
+      });
+      rolls.forEach(r => {
+        if (!rollsByItemId[r.itemId]) rollsByItemId[r.itemId] = [];
+        rollsByItemId[r.itemId].push(r);
+      });
+    }
+
+    const enrichedItems = purchase.items.map(li => ({
+      ...li,
+      fabricRolls: rollsByItemId[li.itemId] || [],
+    }));
+
+    res.json({ ...purchase, items: enrichedItems });
   } catch (error) {
     next(error);
   }
