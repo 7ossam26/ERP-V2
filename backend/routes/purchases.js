@@ -1,5 +1,128 @@
 const express = require("express");
 const router = express.Router();
+
+/**
+ * Allocates totalLanded across purchase lines.
+ *
+ * Rules:
+ * - BY_VALUE:    allocated_i = totalLanded × (line_total_i / subtotal)
+ * - BY_QUANTITY: allocated_i = totalLanded × (qty_i / totalQty)
+ * - MANUAL:      caller passes manualAllocatedLandedCost per line; we validate sum == totalLanded
+ * - NONE:        all zero
+ *
+ * Rounding: values are rounded to 2 decimal places per line.
+ * The rounding delta (sum − totalLanded) is absorbed into the LAST line so
+ * that Σ allocatedLandedCost == totalLanded exactly.
+ *
+ * Returns array of { allocatedLandedCost, finalUnitCost } aligned with `items`.
+ * Throws { status, message } on validation failure.
+ */
+function allocateLandedCost({ items, totalLanded, method }) {
+  const n = items.length;
+  const result = items.map(() => ({ allocatedLandedCost: 0, finalUnitCost: 0 }));
+
+  if (method === "NONE" || totalLanded === 0) {
+    items.forEach((item, i) => {
+      result[i].finalUnitCost = parseFloat(item.purchasePrice);
+    });
+    return result;
+  }
+
+  let rawAllocations;
+
+  if (method === "BY_VALUE") {
+    const subtotal = items.reduce((s, item) => s + parseFloat(item.purchasePrice) * parseFloat(item.quantity), 0);
+    if (subtotal === 0) {
+      throw { status: 400, message: "لا يمكن توزيع التكاليف الإضافية على فاتورة قيمتها صفر" };
+    }
+    rawAllocations = items.map(item => {
+      const lineTotal = parseFloat(item.purchasePrice) * parseFloat(item.quantity);
+      return totalLanded * (lineTotal / subtotal);
+    });
+
+  } else if (method === "BY_QUANTITY") {
+    const totalQty = items.reduce((s, item) => s + parseFloat(item.quantity), 0);
+    if (totalQty === 0) {
+      throw { status: 400, message: "لا يمكن توزيع التكاليف الإضافية على فاتورة قيمتها صفر" };
+    }
+    rawAllocations = items.map(item => {
+      return totalLanded * (parseFloat(item.quantity) / totalQty);
+    });
+
+  } else if (method === "MANUAL") {
+    const manualSum = items.reduce((s, item) => s + parseFloat(item.manualAllocatedLandedCost || 0), 0);
+    const diff = Math.abs(manualSum - totalLanded);
+    if (diff > 0.02) {
+      throw {
+        status: 400,
+        message: `مجموع التوزيع اليدوي (${manualSum.toFixed(2)}) لا يساوي إجمالي التكاليف الإضافية (${totalLanded.toFixed(2)})`,
+      };
+    }
+    rawAllocations = items.map(item => parseFloat(item.manualAllocatedLandedCost || 0));
+
+  } else {
+    throw { status: 400, message: `طريقة توزيع غير معروفة: ${method}` };
+  }
+
+  // Round to 2 decimals, absorb rounding delta into last line
+  let runningSum = 0;
+  for (let i = 0; i < n - 1; i++) {
+    const rounded = Math.round(rawAllocations[i] * 100) / 100;
+    result[i].allocatedLandedCost = rounded;
+    runningSum += rounded;
+  }
+  // Last line absorbs rounding error
+  result[n - 1].allocatedLandedCost = Math.round((totalLanded - runningSum) * 100) / 100;
+
+  // Compute finalUnitCost per line
+  items.forEach((item, i) => {
+    const qty = parseFloat(item.quantity);
+    const alloc = result[i].allocatedLandedCost;
+    result[i].finalUnitCost = Math.round((parseFloat(item.purchasePrice) + (qty > 0 ? alloc / qty : 0)) * 100) / 100;
+  });
+
+  return result;
+}
+
+/**
+ * Validates that fabric line items have rolls arrays whose lengths sum exactly
+ * to the line quantity. Also checks each roll has originalLength > 0.
+ *
+ * @param {Array} items - purchase line items
+ * @param {Object} itemTypeMap - { [itemId]: itemType } pre-fetched
+ * Throws { status, message } on failure.
+ */
+function validateFabricRolls(items, itemTypeMap) {
+  for (const item of items) {
+    const isFabric = itemTypeMap[parseInt(item.itemId)] === "FABRIC";
+    if (!isFabric) continue;
+
+    const rolls = item.rolls || [];
+    if (rolls.length === 0) {
+      throw {
+        status: 400,
+        message: `الصنف ${item.itemId} من نوع قماش — يجب تحديد اللفات (rolls)`,
+      };
+    }
+
+    const rollsTotal = rolls.reduce((s, r) => s + parseFloat(r.originalLength || 0), 0);
+    const lineQty = parseFloat(item.quantity);
+    const diff = Math.abs(rollsTotal - lineQty);
+    if (diff > 0.001) {
+      throw {
+        status: 400,
+        message: `مجموع أطوال اللفات (${rollsTotal}) لا يساوي كمية السطر (${lineQty}) للصنف ${item.itemId}`,
+      };
+    }
+
+    for (const roll of rolls) {
+      if (!roll.originalLength || parseFloat(roll.originalLength) <= 0) {
+        throw { status: 400, message: `كل لفة يجب أن يكون لها طول أصلي أكبر من صفر` };
+      }
+    }
+  }
+}
+
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
 
