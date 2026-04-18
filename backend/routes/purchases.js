@@ -125,6 +125,7 @@ function validateFabricRolls(items, itemTypeMap) {
 
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
+const { generateRollNumber } = require("../services/rollNumberService");
 
 // Protect all routes with PURCHASES permission
 router.use(authenticateToken, requirePermission("PURCHASES"));
@@ -254,9 +255,6 @@ router.get("/:id", async (req, res, next) => {
 // POST create new purchase
 router.post("/", async (req, res, next) => {
   try {
-    console.log("📦 Received purchase creation request");
-    console.log("Request body:", JSON.stringify(req.body, null, 2));
-
     const {
       supplierId,
       treasuryId,
@@ -271,258 +269,275 @@ router.post("/", async (req, res, next) => {
       paidAmount,
       remaining,
       items,
+      // Phase 4 — landed cost
+      isInternational = false,
+      landedCostEnabled = false,
+      landedCostAllocation = "NONE",
+      freightCost = 0,
+      customsCost = 0,
+      clearanceCost = 0,
+      otherLandedCost = 0,
     } = req.body;
 
-    if (!supplierId) {
-      console.error("❌ Validation failed: Supplier is required");
-      return res.status(400).json({ error: "Supplier is required" });
-    }
-    if (!treasuryId) {
-      console.error("❌ Validation failed: Treasury is required");
-      return res.status(400).json({ error: "Treasury is required" });
-    }
+    // ── Basic validation ──────────────────────────────────────────────────
+    if (!supplierId) return res.status(400).json({ error: "Supplier is required" });
+    if (!treasuryId) return res.status(400).json({ error: "Treasury is required" });
+    if (!items || items.length === 0) return res.status(400).json({ error: "At least one item is required" });
 
+    // ── Resolve warehouse ────────────────────────────────────────────────
     let effectiveWarehouseId = warehouseId;
-
     if (!effectiveWarehouseId) {
-      // Fallback to user's branch warehouse if not provided
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
         include: { branch: true },
       });
-
       if (!user || !user.branch || !user.branch.warehouseId) {
-        return res.status(400).json({
-          error: "Warehouse is required and user's branch warehouse is not configured.",
-        });
+        return res.status(400).json({ error: "Warehouse is required and user's branch warehouse is not configured." });
       }
       effectiveWarehouseId = user.branch.warehouseId;
-      console.log(`📍 Using branch warehouse ID: ${effectiveWarehouseId} for user's branch: ${user.branch.name}`);
     }
 
-    if (!items || items.length === 0) {
-      console.error("❌ Validation failed: At least one item is required");
-      return res.status(400).json({ error: "At least one item is required" });
+    // ── Pre-fetch item types (needed for fabric validation) ──────────────
+    const itemIds = items.map(i => parseInt(i.itemId));
+    const dbItems = await prisma.item.findMany({
+      where: { id: { in: itemIds } },
+      select: { id: true, itemType: true },
+    });
+    const itemTypeMap = {};
+    dbItems.forEach(i => { itemTypeMap[i.id] = i.itemType; });
+
+    // ── Validate fabric rolls ───────────────────────────────────────────
+    try {
+      validateFabricRolls(items, itemTypeMap);
+    } catch (err) {
+      return res.status(err.status || 400).json({ error: err.message });
     }
 
-    console.log("✅ Validations passed, creating purchase...");
+    // ── Compute landed cost totals ──────────────────────────────────────
+    const totalLanded = landedCostEnabled
+      ? parseFloat(freightCost) + parseFloat(customsCost) + parseFloat(clearanceCost) + parseFloat(otherLandedCost)
+      : 0;
 
-    const purchase = await prisma.$transaction(async (prisma) => {
-      // 1. Create Purchase Record
-      const newPurchase = await prisma.purchase.create({
+    // ── Allocate landed cost per line ───────────────────────────────────
+    let lineAllocations;
+    try {
+      lineAllocations = allocateLandedCost({
+        items,
+        totalLanded,
+        method: landedCostEnabled ? landedCostAllocation : "NONE",
+      });
+    } catch (err) {
+      return res.status(err.status || 400).json({ error: err.message });
+    }
+
+    // ── Main transaction ────────────────────────────────────────────────
+    const purchase = await prisma.$transaction(async (tx) => {
+      // 1. Create Purchase record
+      const newPurchase = await tx.purchase.create({
         data: {
           supplierId: parseInt(supplierId),
           treasuryId: parseInt(treasuryId),
           warehouseId: parseInt(effectiveWarehouseId),
-          supplierInvoiceNo,
+          supplierInvoiceNo: supplierInvoiceNo || null,
           paymentMethod: paymentMethod || "CASH",
-          subtotal,
+          subtotal: parseFloat(subtotal),
           discountType: discountType || "PERCENTAGE",
-          discountValue,
-          discountAmount,
-          netTotal,
-          paidAmount,
-          remaining,
-          items: {
-            create: items.map((item) => ({
-              itemId: parseInt(item.itemId),
-              quantity: item.quantity,
-              purchasePrice: item.purchasePrice,
-              sellPrice: item.sellPrice,
-              total: item.total,
-            })),
-          },
-        },
-        include: {
-          supplier: true,
-          treasury: true,
-          warehouse: true,
-          items: {
-            include: {
-              item: true,
-            },
-          },
+          discountValue: parseFloat(discountValue) || 0,
+          discountAmount: parseFloat(discountAmount) || 0,
+          netTotal: parseFloat(netTotal),
+          paidAmount: parseFloat(paidAmount) || 0,
+          remaining: parseFloat(remaining) || 0,
+          // Phase 4
+          isInternational: Boolean(isInternational),
+          shippingCost: parseFloat(freightCost) || 0,
+          customsDuty: parseFloat(customsCost) || 0,
+          clearanceCost: parseFloat(clearanceCost) || 0,
+          otherLandingCosts: parseFloat(otherLandedCost) || 0,
+          landedCostEnabled: Boolean(landedCostEnabled),
+          landedCostAllocation: landedCostEnabled ? landedCostAllocation : "NONE",
+          paymentStatus:
+            (paymentMethod || "CASH") === "DEFERRED" ? "UNPAID" :
+            (paymentMethod || "CASH") === "MIXED" ? "PARTIALLY_PAID" : "PAID",
         },
       });
 
-      // 2. Update Inventory for each item
-      for (const item of items) {
-        await prisma.inventory.upsert({
-          where: {
-            itemId_warehouseId: {
-              itemId: parseInt(item.itemId),
-              warehouseId: parseInt(effectiveWarehouseId),
-            },
-          },
-          update: {
-            quantity: { increment: Number(item.quantity) },
-          },
-          create: {
+      // 2. Create PurchaseItems + inventory + fabric rolls
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const alloc = lineAllocations[i];
+        const isFabric = itemTypeMap[parseInt(item.itemId)] === "FABRIC";
+
+        await tx.purchaseItem.create({
+          data: {
+            purchaseId: newPurchase.id,
             itemId: parseInt(item.itemId),
-            warehouseId: parseInt(effectiveWarehouseId),
-            quantity: Number(item.quantity),
+            quantity: parseFloat(item.quantity),
+            purchasePrice: parseFloat(item.purchasePrice),
+            sellPrice: parseFloat(item.sellPrice) || 0,
+            total: parseFloat(item.total),
+            allocatedLandedCost: alloc.allocatedLandedCost,
+            finalUnitCost: alloc.finalUnitCost,
           },
         });
-      }
 
-      // 2.5 Update Item Selling Price & Cost Price
-      for (const item of items) {
+        // Update item cost/sell prices
         const updateData = {};
-        if (item.sellPrice && Number(item.sellPrice) > 0) {
-          updateData.price = Number(item.sellPrice);
-        }
-        if (item.purchasePrice && Number(item.purchasePrice) > 0) {
-          updateData.costPrice = Number(item.purchasePrice);
-        }
-
+        const finalCost = alloc.finalUnitCost > 0 ? alloc.finalUnitCost : parseFloat(item.purchasePrice);
+        if (finalCost > 0) updateData.costPrice = finalCost;
+        if (parseFloat(item.sellPrice) > 0) updateData.price = parseFloat(item.sellPrice);
         if (Object.keys(updateData).length > 0) {
-          await prisma.item.update({
+          await tx.item.update({
             where: { id: parseInt(item.itemId) },
             data: updateData,
           });
         }
+
+        if (isFabric) {
+          // 3a. Fabric line: generate rolls inside the same transaction
+          const rolls = item.rolls || [];
+          for (const rollInput of rolls) {
+            const rollNumber = await generateRollNumber(tx);
+            await tx.fabricRoll.create({
+              data: {
+                itemId: parseInt(item.itemId),
+                warehouseId: parseInt(effectiveWarehouseId),
+                rollNumber,
+                lengthMeters: parseFloat(rollInput.originalLength),
+                originalLength: parseFloat(rollInput.originalLength),
+                remainingLength: parseFloat(rollInput.originalLength),
+                status: "AVAILABLE",
+                unitCost: rollInput.unitCost != null ? parseFloat(rollInput.unitCost) : alloc.finalUnitCost,
+                barcode: rollInput.barcode || null,
+                notes: rollInput.notes || null,
+              },
+            });
+
+            // Upsert inventory for each roll
+            await tx.inventory.upsert({
+              where: {
+                itemId_warehouseId: {
+                  itemId: parseInt(item.itemId),
+                  warehouseId: parseInt(effectiveWarehouseId),
+                },
+              },
+              update: { quantity: { increment: parseFloat(rollInput.originalLength) } },
+              create: {
+                itemId: parseInt(item.itemId),
+                warehouseId: parseInt(effectiveWarehouseId),
+                quantity: parseFloat(rollInput.originalLength),
+              },
+            });
+          }
+        } else {
+          // 3b. Non-fabric line: plain inventory increment
+          await tx.inventory.upsert({
+            where: {
+              itemId_warehouseId: {
+                itemId: parseInt(item.itemId),
+                warehouseId: parseInt(effectiveWarehouseId),
+              },
+            },
+            update: { quantity: { increment: parseFloat(item.quantity) } },
+            create: {
+              itemId: parseInt(item.itemId),
+              warehouseId: parseInt(effectiveWarehouseId),
+              quantity: parseFloat(item.quantity),
+            },
+          });
+        }
       }
 
-      // 3. Handle Payment Methods and Treasury/Expense Logic
-      // CASH: Pay with cash now - deduct full amount, create full expense
-      // CREDIT: Pay with card now - deduct full amount, create expense as CARD
-      // DEFERRED: Pay later (آجل) - NO deduction, NO expense, add to supplier account
-      // MIXED: Partial payment now + partial later
+      // 4. Financial effects
+      const netTotalNum = parseFloat(netTotal);
+      const paidAmountNum = parseFloat(paidAmount) || 0;
+      const remainingNum = parseFloat(remaining) || 0;
+      const effectiveMethod = paymentMethod || "CASH";
 
-      if (paymentMethod === "CASH" || paymentMethod === "CREDIT") {
-        // Full payment now (cash or card)
-        // Check treasury balance first
-        const treasury = await prisma.treasury.findUnique({
-          where: { id: parseInt(treasuryId) },
-        });
-
+      if (effectiveMethod === "CASH" || effectiveMethod === "CREDIT") {
+        const treasury = await tx.treasury.findUnique({ where: { id: parseInt(treasuryId) } });
         if (!treasury) {
           const err = new Error("Treasury not found");
           err.status = 404;
           throw err;
         }
-
-        if (Number(treasury.balance) < Number(netTotal)) {
+        if (parseFloat(treasury.balance) < netTotalNum) {
           const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
           err.status = 400;
           throw err;
         }
-
-        // Deduct from treasury
-        await prisma.treasury.update({
+        await tx.treasury.update({
           where: { id: parseInt(treasuryId) },
-          data: {
-            balance: { decrement: Number(netTotal) },
-          },
+          data: { balance: { decrement: netTotalNum } },
         });
-
-        // Create expense (map CREDIT to CARD for expense record)
-        const expenseMethod = paymentMethod === "CASH" ? "CASH" : "CARD";
-        await prisma.expense.create({
+        await tx.expense.create({
           data: {
             description: `Purchase Invoice #${supplierInvoiceNo || newPurchase.id}`,
-            amount: Number(netTotal),
+            amount: netTotalNum,
             date: new Date(),
             type: "PURCHASE",
             treasuryId: parseInt(treasuryId),
             purchaseId: newPurchase.id,
-            paymentMethod: expenseMethod,
+            paymentMethod: effectiveMethod === "CREDIT" ? "CARD" : "CASH",
           },
         });
 
-        // Update purchase payment status to PAID
-        await prisma.purchase.update({
-          where: { id: newPurchase.id },
-          data: { paymentStatus: "PAID" },
-        });
-      } else if (paymentMethod === "DEFERRED") {
-        // Pay later (آجل) - NO treasury deduction, NO expense
-        // Add full amount to supplier account balance
-        await prisma.supplierAccount.upsert({
+      } else if (effectiveMethod === "DEFERRED") {
+        await tx.supplierAccount.upsert({
           where: { supplierId: parseInt(supplierId) },
-          update: {
-            balance: { increment: Number(netTotal) },
-          },
-          create: {
-            supplierId: parseInt(supplierId),
-            balance: Number(netTotal),
-          },
+          update: { balance: { increment: netTotalNum } },
+          create: { supplierId: parseInt(supplierId), balance: netTotalNum },
         });
 
-        // Update purchase payment status to UNPAID
-        await prisma.purchase.update({
-          where: { id: newPurchase.id },
-          data: { paymentStatus: "UNPAID" },
-        });
-      } else if (paymentMethod === "MIXED") {
-        // Partial payment (part now, part later)
-        if (Number(paidAmount) > 0) {
-          // Check treasury balance for paid amount
-          const treasury = await prisma.treasury.findUnique({
-            where: { id: parseInt(treasuryId) },
-          });
-
+      } else if (effectiveMethod === "MIXED") {
+        if (paidAmountNum > 0) {
+          const treasury = await tx.treasury.findUnique({ where: { id: parseInt(treasuryId) } });
           if (!treasury) {
             const err = new Error("Treasury not found");
             err.status = 404;
             throw err;
           }
-
-          if (Number(treasury.balance) < Number(paidAmount)) {
-            const err = new Error("رصيد الخزينة غير كافي (Insufficient treasury balance)");
+          if (parseFloat(treasury.balance) < paidAmountNum) {
+            const err = new Error("رصيد الخزينة غير كافي للدفع الجزئي");
             err.status = 400;
             throw err;
           }
-
-          // Deduct paid amount from treasury
-          await prisma.treasury.update({
+          await tx.treasury.update({
             where: { id: parseInt(treasuryId) },
-            data: {
-              balance: { decrement: Number(paidAmount) },
-            },
+            data: { balance: { decrement: paidAmountNum } },
           });
-
-          // Create partial expense
-          // Note: For mixed, we don't track if paid amount was cash or card
-          // Defaulting to CASH, but could add UI field for this later
-          await prisma.expense.create({
+          await tx.expense.create({
             data: {
               description: `Purchase Invoice #${supplierInvoiceNo || newPurchase.id} (Partial Payment)`,
-              amount: Number(paidAmount),
+              amount: paidAmountNum,
               date: new Date(),
               type: "PURCHASE",
               treasuryId: parseInt(treasuryId),
               purchaseId: newPurchase.id,
-              paymentMethod: "CASH", // Could be CASH or CARD
+              paymentMethod: "CASH",
             },
           });
         }
-
-        // Add remaining to supplier account
-        if (Number(remaining) > 0) {
-          await prisma.supplierAccount.upsert({
+        if (remainingNum > 0) {
+          await tx.supplierAccount.upsert({
             where: { supplierId: parseInt(supplierId) },
-            update: {
-              balance: { increment: Number(remaining) },
-            },
-            create: {
-              supplierId: parseInt(supplierId),
-              balance: Number(remaining),
-            },
+            update: { balance: { increment: remainingNum } },
+            create: { supplierId: parseInt(supplierId), balance: remainingNum },
           });
         }
-
-        // Update purchase payment status to PARTIALLY_PAID
-        await prisma.purchase.update({
-          where: { id: newPurchase.id },
-          data: { paymentStatus: "PARTIALLY_PAID" },
-        });
       }
 
-      return newPurchase;
+      // Return with all relations
+      return tx.purchase.findUnique({
+        where: { id: newPurchase.id },
+        include: {
+          supplier: true,
+          treasury: true,
+          warehouse: true,
+          items: { include: { item: true } },
+        },
+      });
     });
 
-    console.log("✅ Purchase created successfully:", purchase.id);
     res.status(201).json(purchase);
   } catch (error) {
     next(error);
