@@ -15,6 +15,7 @@ const SupplierForm = ({ initialData, onClose, onSave, data, showToast }) => {
     id: initialData?.id || nextId,
     name: initialData?.name || "",
     phone: initialData?.phone || "",
+    taxNumber: initialData?.taxNumber || "",
   });
   const [keepOpen, setKeepOpen] = useState(false);
 
@@ -50,6 +51,7 @@ const SupplierForm = ({ initialData, onClose, onSave, data, showToast }) => {
         id: parseInt(prev.id) + 1,
         name: "",
         phone: "",
+        taxNumber: "",
       }));
     }
   };
@@ -113,6 +115,24 @@ const SupplierForm = ({ initialData, onClose, onSave, data, showToast }) => {
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             call
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          الرقم الضريبي للمورد
+        </label>
+        <div className="relative">
+          <input
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+            name="taxNumber"
+            value={formData.taxNumber}
+            onChange={handleChange}
+            placeholder="اختياري"
+            type="text"
+          />
+          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            receipt_long
           </span>
         </div>
       </div>
