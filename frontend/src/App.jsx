@@ -60,6 +60,7 @@ import UserManualPage from "./pages/manual/UserManualPage";
 import DataImportPage from "./pages/import/DataImportPage";
 import CallCenterNewOrderPage from "./pages/call-center/CallCenterNewOrderPage";
 import CallCenterOrdersListPage from "./pages/call-center/CallCenterOrdersListPage";
+import CallCenterReportPage from "./pages/reports/CallCenterReportPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
@@ -284,6 +285,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="REPORTS">
                 <DetailedReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/call-center"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <CallCenterReportPage />
               </ProtectedRoute>
             }
           />

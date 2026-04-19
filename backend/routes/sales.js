@@ -72,6 +72,18 @@ router.get(
         }
       }
 
+      // Optional: filter by order channel (source)
+      const { source } = req.query;
+      if (source && source !== "all") {
+        // Join through Order to filter by channel
+        const matchingOrderSaleIds = await prisma.order.findMany({
+          where: { channel: source.toUpperCase() },
+          select: { saleId: true },
+        });
+        const saleIds = matchingOrderSaleIds.map((o) => o.saleId);
+        whereClause.id = { in: saleIds };
+      }
+
       const sales = await prisma.sale.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
@@ -85,6 +97,7 @@ router.get(
               item: true,
             },
           },
+          order: { select: { channel: true } },
         },
       });
       res.json(sales);

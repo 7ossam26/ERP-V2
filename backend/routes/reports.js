@@ -281,4 +281,96 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reports/call-center
+ * KPI report for call-center orders.
+ * Query Params: startDate, endDate, branchId (optional)
+ */
+router.get("/call-center", requirePermission("REPORTS"), async (req, res) => {
+  try {
+    const { startDate, endDate, branchId } = req.query;
+
+    const start = startDate ? new Date(startDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    const where = {
+      channel: "CALL_CENTER",
+      createdAt: { gte: start, lte: end },
+    };
+    if (branchId && branchId !== "all") {
+      where.branchId = parseInt(branchId);
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        branch: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true } },
+        sale: { select: { total: true } },
+      },
+    });
+
+    const total = orders.length;
+    const cancelled = orders.filter((o) => o.status === "CANCELLED").length;
+    const delivered = orders.filter((o) => o.status === "DELIVERED").length;
+
+    const cancellationRate = total > 0 ? (cancelled / total) * 100 : 0;
+
+    const totalRevenue = orders
+      .filter((o) => o.status === "DELIVERED")
+      .reduce((sum, o) => sum + parseFloat(o.sale?.total ?? 0), 0);
+
+    // Avg prep time: CREATED → READY (ms → minutes)
+    const ordersWithReadyAt = orders.filter((o) => o.readyAt);
+    const avgPrepMinutes =
+      ordersWithReadyAt.length > 0
+        ? ordersWithReadyAt.reduce(
+            (sum, o) =>
+              sum + (new Date(o.readyAt) - new Date(o.createdAt)) / 60000,
+            0,
+          ) / ordersWithReadyAt.length
+        : null;
+
+    // Orders per agent
+    const agentMap = {};
+    orders.forEach((o) => {
+      const name = o.createdBy?.name ?? "غير محدد";
+      if (!agentMap[name]) agentMap[name] = { name, total: 0, delivered: 0, cancelled: 0 };
+      agentMap[name].total++;
+      if (o.status === "DELIVERED") agentMap[name].delivered++;
+      if (o.status === "CANCELLED") agentMap[name].cancelled++;
+    });
+
+    // Orders per branch
+    const branchMap = {};
+    orders.forEach((o) => {
+      const name = o.branch?.name ?? "غير محدد";
+      if (!branchMap[name]) branchMap[name] = { name, total: 0, revenue: 0 };
+      branchMap[name].total++;
+      if (o.status === "DELIVERED") {
+        branchMap[name].revenue += parseFloat(o.sale?.total ?? 0);
+      }
+    });
+
+    res.json({
+      summary: {
+        total,
+        delivered,
+        cancelled,
+        cancellationRate: Math.round(cancellationRate * 10) / 10,
+        totalRevenue,
+        avgPrepMinutes: avgPrepMinutes !== null ? Math.round(avgPrepMinutes) : null,
+      },
+      byAgent: Object.values(agentMap),
+      byBranch: Object.values(branchMap),
+    });
+  } catch (error) {
+    console.error("❌ Error generating call-center report:", error);
+    res.status(500).json({ error: "Failed to generate report", details: error.message });
+  }
+});
+
 module.exports = router;

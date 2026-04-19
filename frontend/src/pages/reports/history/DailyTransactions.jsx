@@ -20,6 +20,7 @@ const DailyTransactions = () => {
   });
   const [selectedSale, setSelectedSale] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState("all"); // "all" | "POS" | "CALL_CENTER"
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -94,6 +95,23 @@ const DailyTransactions = () => {
       ),
     },
     {
+      header: "المصدر",
+      accessor: "source",
+      render: (item) => {
+        const channel = item.order?.channel ?? "POS";
+        const isCC = channel === "CALL_CENTER";
+        return (
+          <span className={`px-2 py-1 rounded text-xs font-bold ${
+            isCC
+              ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+              : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+          }`}>
+            {isCC ? "كول سنتر" : "POS"}
+          </span>
+        );
+      },
+    },
+    {
       header: "التوقيت",
       accessor: "createdAt",
       render: (item) => new Date(item.createdAt).toLocaleString("ar-EG"),
@@ -161,6 +179,13 @@ const DailyTransactions = () => {
         }
       }
 
+      // Apply source/channel filter
+      if (sourceFilter !== "all") {
+        data = data.filter(
+          (item) => (item.order?.channel ?? "POS") === sourceFilter
+        );
+      }
+
       if (data.length > 0) {
         // Only show toast if it's a specific filter search, not just initial load
         if (
@@ -185,10 +210,31 @@ const DailyTransactions = () => {
     delete: salesService.delete,
   };
 
+  const sourceChips = [
+    { label: "الكل", value: "all" },
+    { label: "POS", value: "POS" },
+    { label: "كول سنتر", value: "CALL_CENTER" },
+  ];
+
   return (
     <>
+      {/* Source filter chips */}
+      <div className="flex gap-2 px-4 pt-4" dir="rtl">
+        {sourceChips.map((chip) => (
+          <button
+            key={chip.value}
+            onClick={() => setSourceFilter(chip.value)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+              sourceFilter === chip.value
+                ? "bg-primary text-white border-primary"
+                : "bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 border-border-light dark:border-border-dark hover:border-primary hover:text-primary"
+            }`}>
+            {chip.label}
+          </button>
+        ))}
+      </div>
       <GenericPageManager
-        key={`${filters.branchId}-${JSON.stringify(filters)}`} // Force reload when filters change
+        key={`${filters.branchId}-${JSON.stringify(filters)}-${sourceFilter}`} // Force reload when filters change
         title="سجل المبيعات"
         subtitle="سجل المبيعات والفواتير"
         icon="receipt_long"
