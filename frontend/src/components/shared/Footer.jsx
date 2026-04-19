@@ -16,7 +16,7 @@ const Footer = () => {
             <span className="material-icons-round text-xs">open_in_new</span>
           </a>
           <p className="text-sm text-text-light/50 dark:text-text-dark/50">
-            © {new Date().getFullYear()} Elghonemy ERP System. All rights
+            © {new Date().getFullYear()} Ramex Store ERP. All rights
             reserved.
           </p>
         </div>

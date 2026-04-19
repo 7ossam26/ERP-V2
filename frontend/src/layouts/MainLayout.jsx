@@ -92,7 +92,7 @@ const MainLayout = ({ children }) => {
               className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2 hover:opacity-80 transition-opacity">
               <img
                 src="/assets/logo.png"
-                alt="Elghonemy Logo"
+                alt="Ramex Store Logo"
                 className="h-12 sm:h-16 w-auto object-contain"
               />
             </Link>

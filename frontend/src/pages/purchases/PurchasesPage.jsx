@@ -300,15 +300,29 @@ const PurchasesPage = () => {
       warehouseId: selectedWarehouseId,
       treasuryId: selectedTreasuryId,
       supplierInvoiceNo,
+      isInternational,
+      landedCostEnabled,
+      landedCostAllocation,
+      freightCost,
+      customsCost,
+      clearanceCost,
+      otherLandedCost,
     };
     const updated = [held, ...heldPurchases];
     setHeldPurchases(updated);
     localStorage.setItem("heldPurchases", JSON.stringify(updated));
     // Reset form
-    setItems([{ id: Date.now(), name: "", itemId: null, quantity: 1, purchasePrice: 0, sellPrice: 0, unit: "piece" }]);
+    setItems([{ id: Date.now(), name: "", itemId: null, quantity: 1, purchasePrice: 0, sellPrice: 0, unit: "piece", itemType: null, rolls: [] }]);
     setItemSearches({});
     setDiscountValue(0);
     setSupplierInvoiceNo("");
+    setIsInternational(false);
+    setLandedCostEnabled(false);
+    setLandedCostAllocation("NONE");
+    setFreightCost(0);
+    setCustomsCost(0);
+    setClearanceCost(0);
+    setOtherLandedCost(0);
     toast.success("تم تعليق فاتورة المشتريات بنجاح");
   };
 
@@ -323,6 +337,13 @@ const PurchasesPage = () => {
     setSelectedWarehouseId(held.warehouseId || selectedWarehouseId);
     setSelectedTreasuryId(held.treasuryId || selectedTreasuryId);
     setSupplierInvoiceNo(held.supplierInvoiceNo || "");
+    setIsInternational(held.isInternational || false);
+    setLandedCostEnabled(held.landedCostEnabled || false);
+    setLandedCostAllocation(held.landedCostAllocation || "NONE");
+    setFreightCost(held.freightCost || 0);
+    setCustomsCost(held.customsCost || 0);
+    setClearanceCost(held.clearanceCost || 0);
+    setOtherLandedCost(held.otherLandedCost || 0);
     // Restore search labels
     const searches = {};
     held.items.forEach((i) => { searches[i.id] = i.name; });

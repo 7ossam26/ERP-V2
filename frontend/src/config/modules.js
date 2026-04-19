@@ -236,6 +236,44 @@ export const MODULES = [
     path: "/delivery-settlement",
     category: "MANAGEMENT",
   },
+
+  // --- Ramex Store Modules ---
+  {
+    id: "fabric_rolls",
+    code: "FABRIC_ROLLS",
+    label: "لفات الأقمشة",
+    description: "تتبع لفات الأقمشة وإدارتها",
+    icon: "inventory_2",
+    path: "/fabric-rolls",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "creates_fabric_rolls",
+    code: "CREATES_FABRIC_ROLLS",
+    label: "إضافة لفات أقمشة",
+    description: "إنشاء وتعديل لفات الأقمشة",
+    icon: "add_circle",
+    path: "/fabric-rolls/new",
+    category: "CREATION",
+  },
+  {
+    id: "adjustments",
+    code: "ADJUSTMENTS",
+    label: "تسويات المخزون",
+    description: "تسويات وتعديلات الكميات بأسباب",
+    icon: "tune",
+    path: "/inventory-adjustments",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "counts",
+    code: "COUNTS",
+    label: "الجرد الفعلي",
+    description: "عمليات الجرد الدورية",
+    icon: "assignment",
+    path: "/inventory-counts",
+    category: "MANAGEMENT",
+  },
 ];
 
 export const getCreationModules = () =>

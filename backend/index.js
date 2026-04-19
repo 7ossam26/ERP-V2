@@ -249,9 +249,12 @@ app.use("/api/withdrawals", require("./routes/withdrawals"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/delivery-men", require("./routes/delivery.routes"));
 app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
-app.use("/api/bom",   require("./routes/bom"));
-app.use("/api/audit", require("./routes/audit"));
-app.use("/api/import", require("./routes/dataImport"));
+app.use("/api/bom",          require("./routes/bom"));
+app.use("/api/audit",        require("./routes/audit"));
+app.use("/api/import",       require("./routes/dataImport"));
+app.use("/api/fabric-rolls", require("./routes/fabricRolls"));
+app.use("/api/inventory-adjustments", require("./routes/inventoryAdjustments"));
+app.use("/api/inventory-counts", require("./routes/inventoryCounts"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);

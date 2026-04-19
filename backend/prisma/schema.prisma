@@ -152,7 +152,13 @@ enum AdjustmentReason {
   THEFT
   CORRECTION
   RETURN
+  COUNT_VARIANCE
   OTHER
+}
+
+enum AdjustmentDirection {
+  IN
+  OUT
 }
 
 enum CountStatus {
@@ -454,7 +460,7 @@ model Item {
   productionOrderItems ProductionOrderItem[]
   priceTiers           PriceTier[]
   fabricRolls          FabricRoll[]
-  adjustments          InventoryAdjustment[]
+  adjustmentItems      InventoryAdjustmentItem[]
   countItems           InventoryCountItem[]
 
   @@map("items")
@@ -1159,17 +1165,17 @@ model FabricRoll {
 }
 
 model FabricRollCut {
-  id           Int      @id @default(autoincrement())
-  fabricRollId Int      @map("fabric_roll_id")
-  lengthCut    Decimal  @map("length_cut") @db.Decimal(10, 4)
-  saleItemId   Int?     @map("sale_item_id")
-  adjustmentId Int?     @map("adjustment_id")
-  notes        String?  @db.Text
-  createdAt    DateTime @default(now()) @map("created_at")
+  id               Int      @id @default(autoincrement())
+  fabricRollId     Int      @map("fabric_roll_id")
+  lengthCut        Decimal  @map("length_cut") @db.Decimal(10, 4)
+  saleItemId       Int?     @map("sale_item_id")
+  adjustmentItemId Int?     @map("adjustment_item_id")
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  fabricRoll FabricRoll           @relation(fields: [fabricRollId], references: [id], onDelete: Cascade)
-  saleItem   SaleItem?            @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
-  adjustment InventoryAdjustment? @relation(fields: [adjustmentId], references: [id], onDelete: SetNull)
+  fabricRoll     FabricRoll              @relation(fields: [fabricRollId], references: [id], onDelete: Cascade)
+  saleItem       SaleItem?               @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
+  adjustmentItem InventoryAdjustmentItem? @relation(fields: [adjustmentItemId], references: [id], onDelete: SetNull)
 
   @@index([fabricRollId])
   @@map("fabric_roll_cuts")
@@ -1180,26 +1186,42 @@ model FabricRollCut {
 // ============================================
 
 model InventoryAdjustment {
-  id             Int              @id @default(autoincrement())
-  itemId         Int              @map("item_id")
-  warehouseId    Int              @map("warehouse_id")
-  quantityChange Decimal          @map("quantity_change") @db.Decimal(10, 6)
-  reasonCode     AdjustmentReason @map("reason_code")
-  notes          String?          @db.Text
-  userId         Int              @map("user_id")
-  branchId       Int              @map("branch_id")
-  createdAt      DateTime         @default(now()) @map("created_at")
+  id               Int                 @id @default(autoincrement())
+  adjustmentNumber String              @unique @map("adjustment_number") @db.VarChar(20)
+  warehouseId      Int                 @map("warehouse_id")
+  direction        AdjustmentDirection
+  reasonCode       AdjustmentReason    @map("reason_code")
+  reasonNote       String?             @map("reason_note") @db.Text
+  notes            String?             @db.Text
+  userId           Int                 @map("user_id")
+  branchId         Int                 @map("branch_id")
+  createdAt        DateTime            @default(now()) @map("created_at")
 
-  item           Item            @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  user           User            @relation("AdjustmentCreator", fields: [userId], references: [id], onDelete: Restrict)
-  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  fabricRollCuts FabricRollCut[]
+  warehouse      Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  user           User                     @relation("AdjustmentCreator", fields: [userId], references: [id], onDelete: Restrict)
+  branch         Branch                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  items          InventoryAdjustmentItem[]
+  inventoryCount InventoryCount?
 
-  @@index([itemId])
   @@index([warehouseId])
   @@index([branchId, createdAt])
   @@map("inventory_adjustments")
+}
+
+model InventoryAdjustmentItem {
+  id             Int     @id @default(autoincrement())
+  adjustmentId   Int     @map("adjustment_id")
+  itemId         Int     @map("item_id")
+  quantity       Decimal @db.Decimal(10, 6)
+  unitCostAtTime Decimal @default(0) @map("unit_cost_at_time") @db.Decimal(10, 2)
+
+  adjustment     InventoryAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  item           Item                @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  fabricRollCuts FabricRollCut[]
+
+  @@index([adjustmentId])
+  @@index([itemId])
+  @@map("inventory_adjustment_items")
 }
 
 // ============================================
@@ -1207,20 +1229,23 @@ model InventoryAdjustment {
 // ============================================
 
 model InventoryCount {
-  id          Int         @id @default(autoincrement())
-  warehouseId Int         @map("warehouse_id")
-  status      CountStatus @default(IN_PROGRESS)
-  userId      Int         @map("user_id")
-  branchId    Int         @map("branch_id")
-  countDate   DateTime    @default(now()) @map("count_date")
-  notes       String?     @db.Text
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  id           Int         @id @default(autoincrement())
+  countNumber  String      @unique @map("count_number") @db.VarChar(20)
+  warehouseId  Int         @map("warehouse_id")
+  status       CountStatus @default(IN_PROGRESS)
+  userId       Int         @map("user_id")
+  branchId     Int         @map("branch_id")
+  adjustmentId Int?        @unique @map("adjustment_id")
+  countDate    DateTime    @default(now()) @map("count_date")
+  notes        String?     @db.Text
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
-  warehouse Warehouse          @relation("CountWarehouse", fields: [warehouseId], references: [id], onDelete: Restrict)
-  user      User               @relation("CountCreator", fields: [userId], references: [id], onDelete: Restrict)
-  branch    Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  items     InventoryCountItem[]
+  warehouse  Warehouse            @relation("CountWarehouse", fields: [warehouseId], references: [id], onDelete: Restrict)
+  user       User                 @relation("CountCreator", fields: [userId], references: [id], onDelete: Restrict)
+  branch     Branch               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  adjustment InventoryAdjustment? @relation(fields: [adjustmentId], references: [id], onDelete: SetNull)
+  items      InventoryCountItem[]
 
   @@index([warehouseId])
   @@index([branchId, countDate])

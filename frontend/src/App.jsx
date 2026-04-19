@@ -55,6 +55,17 @@ import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
 import DeliverySettlementPage from "./pages/delivery-settlement/DeliverySettlementPage";
 import BOMManager from "./pages/bom/BOMManager";
 import ProductionHistory from "./pages/bom/ProductionHistory";
+import FabricRollsListPage from "./pages/fabric-rolls/FabricRollsListPage";
+import FabricRollFormPage from "./pages/fabric-rolls/FabricRollFormPage";
+import FabricRollDetailPage from "./pages/fabric-rolls/FabricRollDetailPage";
+import InventoryAdjustmentsListPage from "./pages/inventory-adjustments/InventoryAdjustmentsListPage";
+import InventoryAdjustmentFormPage from "./pages/inventory-adjustments/InventoryAdjustmentFormPage";
+import InventoryAdjustmentDetailPage from "./pages/inventory-adjustments/InventoryAdjustmentDetailPage";
+import InventoryCountListPage from "./pages/inventory-counts/InventoryCountListPage";
+import InventoryCountStartPage from "./pages/inventory-counts/InventoryCountStartPage";
+import InventoryCountSessionPage from "./pages/inventory-counts/InventoryCountSessionPage";
+import ReorderAlertsPage from "./pages/inventory/ReorderAlertsPage";
+import DeadStockPage from "./pages/inventory/DeadStockPage";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import UserManualPage from "./pages/manual/UserManualPage";
@@ -431,6 +442,120 @@ function App() {
               <ProtectedRoute
                 requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
                 <ProductionHistory />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fabric Rolls */}
+          <Route
+            path="/fabric-rolls"
+            element={
+              <ProtectedRoute requiredPermission="FABRIC_ROLLS">
+                <FabricRollsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fabric-rolls/new"
+            element={
+              <ProtectedRoute
+                requiredPermission={["FABRIC_ROLLS", "CREATES_FABRIC_ROLLS"]}>
+                <FabricRollFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fabric-rolls/:id"
+            element={
+              <ProtectedRoute requiredPermission="FABRIC_ROLLS">
+                <FabricRollDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fabric-rolls/:id/edit"
+            element={
+              <ProtectedRoute
+                requiredPermission={["FABRIC_ROLLS", "CREATES_FABRIC_ROLLS"]}>
+                <FabricRollFormPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Inventory Adjustments */}
+          <Route
+            path="/inventory-adjustments"
+            element={
+              <ProtectedRoute requiredPermission={["ADJUSTMENTS", "INVENTORY"]}>
+                <InventoryAdjustmentsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-adjustments/new"
+            element={
+              <ProtectedRoute requiredPermission="ADJUSTMENTS">
+                <InventoryAdjustmentFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-adjustments/:id"
+            element={
+              <ProtectedRoute requiredPermission={["ADJUSTMENTS", "INVENTORY"]}>
+                <InventoryAdjustmentDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Inventory Counts */}
+          <Route
+            path="/inventory-counts"
+            element={
+              <ProtectedRoute requiredPermission={["COUNTS", "INVENTORY_COUNT"]}>
+                <InventoryCountListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-counts/new"
+            element={
+              <ProtectedRoute requiredPermission="COUNTS">
+                <InventoryCountStartPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-counts/:id"
+            element={
+              <ProtectedRoute requiredPermission={["COUNTS", "INVENTORY_COUNT"]}>
+                <InventoryCountSessionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-counts/:id/session"
+            element={
+              <ProtectedRoute requiredPermission="COUNTS">
+                <InventoryCountSessionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Inventory Sub-pages */}
+          <Route
+            path="/inventory/alerts"
+            element={
+              <ProtectedRoute requiredPermission={["INVENTORY", "INVENTORY_COUNT"]}>
+                <ReorderAlertsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory/dead-stock"
+            element={
+              <ProtectedRoute requiredPermission={["INVENTORY", "INVENTORY_COUNT"]}>
+                <DeadStockPage />
               </ProtectedRoute>
             }
           />

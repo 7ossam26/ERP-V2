@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
   const apiUrl =
     env.VITE_API_URL ||
-    (isDev ? "http://localhost:3001" : "https://elghonemy.kiko-tech.com");
+    (isDev ? "http://localhost:3001" : "http://localhost:3001");
 
   console.log(`\n🔧 Vite Mode: ${mode.toUpperCase()}`);
   console.log(`🌐 API Target: ${apiUrl}\n`);

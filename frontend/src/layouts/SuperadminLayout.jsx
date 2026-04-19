@@ -27,7 +27,7 @@ const SuperadminLayout = () => {
         <div className="flex items-center gap-3">
           <img
             src="/assets/logo.png"
-            alt="Elghonemy Logo"
+            alt="Ramex Store Logo"
             className="h-10 sm:h-12 w-auto object-contain"
           />
         </div>

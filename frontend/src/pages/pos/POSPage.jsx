@@ -2236,7 +2236,7 @@ const POSPage = () => {
             style={{ maxWidth: "44mm", margin: "0 auto 3px auto", display: "block" }}
           />
           <h2 style={{ fontSize: "14px", fontWeight: "bold", margin: "2px 0" }}>
-            {companyName || currentUser?.branch?.name || "Elghonemy ERP"}
+            {companyName || currentUser?.branch?.name || "رامكس ستور"}
           </h2>
           <p style={{ fontSize: "10px", margin: "1px 0" }}>
             {lastSale?.date || new Date().toLocaleString("ar-EG")}
@@ -2356,7 +2356,7 @@ const POSPage = () => {
         {/* Footer */}
         <div style={{ textAlign: "center", fontSize: "10px", marginTop: "4px" }}>
           <p style={{ fontWeight: "bold", margin: "1px 0" }}>نأمل رؤيتكم مرة أخرى</p>
-          <p style={{ margin: "1px 0" }}>{companyName || "Elghonemy ERP"}</p>
+          <p style={{ margin: "1px 0" }}>{companyName || "رامكس ستور"}</p>
         </div>
 
       </div>
