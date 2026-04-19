@@ -7,6 +7,7 @@ const {
   requireAnyPermission,
   getUserBranchFilter,
 } = require("../middleware/auth");
+const { drainPendingForBranch } = require("../lib/orderService");
 
 // Require authentication for all shift operations
 // Require authentication for all shift operations
@@ -334,6 +335,20 @@ router.post("/start", async (req, res, next) => {
         status: "OPEN",
       },
     });
+
+    // Drain any call-center orders that were queued while no shift was open
+    // (Q16-B). Runs in its own transaction so a failure here can't roll back
+    // the successful shift-start.
+    try {
+      await prisma.$transaction(async (tx) => {
+        await drainPendingForBranch(tx, {
+          branchId: newShift.branchId,
+          userId: newShift.userId,
+        });
+      });
+    } catch (drainErr) {
+      console.error("[SHIFT] drainPendingForBranch failed:", drainErr.message);
+    }
 
     res.status(201).json(newShift);
   } catch (error) {

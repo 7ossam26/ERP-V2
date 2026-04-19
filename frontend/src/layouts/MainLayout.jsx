@@ -4,6 +4,7 @@ import AuthService from "../services/authService";
 import Modal from "../components/ui/Modal";
 import Footer from "../components/shared/Footer";
 import BranchSwitcher from "../components/BranchSwitcher";
+import NotificationBell from "../components/orders/NotificationBell";
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -100,6 +101,11 @@ const MainLayout = ({ children }) => {
             <div className="flex items-center gap-3">
               {/* Branch Switcher */}
               <BranchSwitcher />
+
+              {/* Realtime notifications bell */}
+              <div className="text-text-light dark:text-text-dark">
+                <NotificationBell />
+              </div>
 
               {/* Help / User Manual Button */}
               <Link

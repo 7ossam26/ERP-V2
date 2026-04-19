@@ -253,6 +253,13 @@ app.use("/api/import", require("./routes/dataImport"));
 app.use("/api/export", require("./routes/dataExport"));
 app.use("/api/initial-inventory", require("./routes/initialInventory"));
 app.use("/api/call-center", require("./routes/callCenter"));
+app.use("/api/events", require("./routes/events"));
+app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/orders", require("./routes/orders"));
+
+// Start the TTL cron for Notification rows (retention = 30 days per D8).
+const { startNotificationPurgeCron } = require("./lib/notificationPurge");
+startNotificationPurgeCron();
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);

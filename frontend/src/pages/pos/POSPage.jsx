@@ -29,6 +29,8 @@ import AuthService from "../../services/authService";
 import { useBranch } from "../../contexts/BranchContext";
 import { confirmAction } from "../../utils/toastUtils";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
+import IncomingOrderTray from "../../components/orders/IncomingOrderTray";
+import NotificationBell from "../../components/orders/NotificationBell";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -1479,6 +1481,12 @@ const POSPage = () => {
         deliveryMen={deliveryMen}
       />
 
+      {/* Call-center incoming-orders tray (Phase 2) */}
+      <IncomingOrderTray
+        branchId={activeBranchId || currentUser?.branch?.id}
+        deliveryMen={deliveryMen}
+      />
+
       {/* Header */}
       <div className="bg-primary dark:bg-primary text-white px-3 md:px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
         <div className="flex items-center gap-3 md:gap-6">
@@ -1516,6 +1524,7 @@ const POSPage = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <NotificationBell />
           {/* Refund & History Buttons */}
           <button
             onClick={() => setIsHistoryModalOpen(true)}
