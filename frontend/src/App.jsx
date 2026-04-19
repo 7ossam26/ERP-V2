@@ -58,6 +58,8 @@ import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import UserManualPage from "./pages/manual/UserManualPage";
 import DataImportPage from "./pages/import/DataImportPage";
+import CallCenterNewOrderPage from "./pages/call-center/CallCenterNewOrderPage";
+import CallCenterOrdersListPage from "./pages/call-center/CallCenterOrdersListPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
@@ -411,6 +413,22 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="DELIVERY_SETTLEMENT">
                 <DeliverySettlementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/call-center/new"
+            element={
+              <ProtectedRoute requiredPermission="CALL_CENTER">
+                <CallCenterNewOrderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/call-center/orders"
+            element={
+              <ProtectedRoute requiredPermission="CALL_CENTER">
+                <CallCenterOrdersListPage />
               </ProtectedRoute>
             }
           />

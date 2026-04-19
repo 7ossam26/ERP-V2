@@ -93,6 +93,8 @@ async function main() {
       "CREATES_PRODUCTION",
       "CREATES_PRODUCTION",
       "SHIFTS",
+      "INITIAL_INVENTORY",
+      "CALL_CENTER",
     ];
 
     for (const module of modules) {

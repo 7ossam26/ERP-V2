@@ -7,6 +7,7 @@ const {
   requireAnyPermission,
   getUserBranchFilter,
 } = require("../middleware/auth");
+const { createOrderInTx } = require("../lib/orderService");
 
 // Helper function to generate unique sale number
 const generateSaleNumber = async () => {
@@ -939,6 +940,30 @@ router.post(
               );
             }
           }
+        }
+
+        // Create matching Order row (workflow layer). POS sales are channel POS.
+        // Status mirrors the delivery state: non-delivery POS = DELIVERED immediately.
+        let orderStatus = "DELIVERED";
+        if (sale.deliveryStatus === "PENDING") orderStatus = "NEW";
+        else if (sale.deliveryStatus === "OUT_FOR_DELIVERY") orderStatus = "OUT_FOR_DELIVERY";
+        else if (sale.deliveryStatus === "DELIVERED") orderStatus = "DELIVERED";
+        else if (sale.deliveryStatus === "RETURNED" || sale.deliveryStatus === "CANCELED") orderStatus = "CANCELLED";
+
+        await createOrderInTx(tx, {
+          saleId: sale.id,
+          branchId: sale.branchId,
+          createdById: finalUserId || 1,
+          channel: "POS",
+          status: orderStatus,
+        });
+
+        // Stamp paidAt for POS payments that are settled at the counter (not in-flight COD).
+        if (orderStatus === "DELIVERED") {
+          await tx.sale.update({
+            where: { id: sale.id },
+            data: { paidAt: new Date() },
+          });
         }
 
         return sale;

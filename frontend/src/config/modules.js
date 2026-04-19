@@ -236,6 +236,15 @@ export const MODULES = [
     path: "/delivery-settlement",
     category: "MANAGEMENT",
   },
+  {
+    id: "call_center",
+    code: "CALL_CENTER",
+    label: "الكول سنتر",
+    description: "استقبال طلبات التوصيل وتوجيهها للفروع",
+    icon: "support_agent",
+    path: "/call-center/new",
+    category: "MANAGEMENT",
+  },
 ];
 
 export const getCreationModules = () =>

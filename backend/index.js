@@ -252,6 +252,7 @@ app.use("/api/audit", require("./routes/audit"));
 app.use("/api/import", require("./routes/dataImport"));
 app.use("/api/export", require("./routes/dataExport"));
 app.use("/api/initial-inventory", require("./routes/initialInventory"));
+app.use("/api/call-center", require("./routes/callCenter"));
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);
