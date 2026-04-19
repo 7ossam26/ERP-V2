@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
 import { getManagementModules, getCreationModules } from "../config/modules";
+import ReorderAlertsWidget from "../components/common/ReorderAlertsWidget";
 
 const MainDashboardCard = ({ icon, title, subtitle, onClick }) => (
   <div
@@ -68,6 +69,13 @@ const MainDashboard = () => {
         </h2>
         <div className="h-1.5 w-24 bg-primary mx-auto rounded-full opacity-80"></div>
       </div>
+
+      {/* Reorder Alerts Widget */}
+      {AuthService.hasAnyPermission(["INVENTORY", "INVENTORY_COUNT"]) && (
+        <div className="mb-6">
+          <ReorderAlertsWidget />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {cards.filter(card => {

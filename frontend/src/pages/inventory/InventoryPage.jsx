@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import GenericDataTable from "../../components/shared/GenericDataTable";
 
 import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
 
 const InventoryPage = () => {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState("الكل");
+  const [stockFilter, setStockFilter] = useState("all"); // all, below-reorder, zero
   const [branches, setBranches] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState("all");
@@ -61,11 +64,15 @@ const InventoryPage = () => {
   // But searching is client side for now
   const [searchQuery, setSearchQuery] = useState("");
 
-  const displayedItems = inventoryItems.filter(
-    (item) =>
+  const displayedItems = inventoryItems.filter((item) => {
+    const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.code && item.code.toString().includes(searchQuery)),
-  );
+      (item.code && item.code.toString().includes(searchQuery));
+    if (!matchesSearch) return false;
+    if (stockFilter === "below-reorder") return item.quantity <= item.reorderPoint;
+    if (stockFilter === "zero") return item.quantity <= 0;
+    return true;
+  });
 
   // Column Definitions for GenericDataTable
   const columns = [
@@ -328,6 +335,37 @@ const InventoryPage = () => {
               </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Quick Filter Chips + Links */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        {[
+          { key: "all", label: "الكل", icon: "list" },
+          { key: "below-reorder", label: "تحت حد الطلب", icon: "warning", color: "text-orange-600" },
+          { key: "zero", label: "نفذ المخزون", icon: "error", color: "text-red-600" },
+        ].map((chip) => (
+          <button key={chip.key} onClick={() => setStockFilter(chip.key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors ${
+              stockFilter === chip.key
+                ? "bg-primary text-white border-primary"
+                : "bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}>
+            <span className={`material-icons-round text-[16px] ${stockFilter !== chip.key ? (chip.color || "") : ""}`}>{chip.icon}</span>
+            {chip.label}
+          </button>
+        ))}
+        <div className="mr-auto flex gap-2">
+          <button onClick={() => navigate("/inventory/alerts")}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium text-orange-600 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 hover:bg-orange-100">
+            <span className="material-icons-round text-[16px]">notifications</span>
+            تنبيهات إعادة الطلب
+          </button>
+          <button onClick={() => navigate("/inventory/dead-stock")}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-100">
+            <span className="material-icons-round text-[16px]">inventory</span>
+            المخزون الراكد
+          </button>
         </div>
       </div>
 

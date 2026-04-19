@@ -20,4 +20,12 @@ export const inventoryService = {
 
     return api.get(`/inventory/stats?${queryParams.toString()}`);
   },
+
+  getReorderAlerts: () => api.get("/inventory/reorder-alerts"),
+
+  getDeadStock: (days = 90) => api.get(`/inventory/dead-stock?days=${days}`),
+
+  getReconcileFabric: () => api.get("/inventory/reconcile-fabric"),
+
+  applyReconcileFabric: () => api.post("/inventory/reconcile-fabric/apply"),
 };
