@@ -95,11 +95,12 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
     // Initialize refund items with 0 quantity
     const items = sale.items.map((i) => ({
       itemId: i.itemId,
-      name: i.item.name,
+      name: i.item?.name || "",
       quantity: 0,
       maxQty: parseFloat(i.quantity),
       unitPrice: parseFloat(i.unitPrice),
       total: 0,
+      itemType: i.item?.itemType || "GENERIC", // Phase 6: track type for fabric rejection
     }));
     setRefundItems(items);
   };
@@ -156,7 +157,8 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
       // TODO: Refresh dashboard/sales list if needed?
     } catch (error) {
       console.error("Refund failed:", error);
-      toast.error(error.message || "فشل عملية الاسترجاع");
+      const errMsg = error.response?.data?.error || error.message || "فشل عملية الاسترجاع";
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }
@@ -373,24 +375,39 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
                   {refundItems.map((item) => (
                     <tr
                       key={item.itemId}
-                      className={
-                        item.quantity > 0 ? "bg-red-50 dark:bg-red-900/10" : ""
-                      }>
-                      <td className="p-3 font-medium">{item.name}</td>
+                      className={`${
+                        item.itemType === "FABRIC"
+                          ? "bg-gray-100 dark:bg-gray-800/50 opacity-60"
+                          : item.quantity > 0
+                            ? "bg-red-50 dark:bg-red-900/10"
+                            : ""
+                      }`}>
+                      <td className="p-3 font-medium">
+                        {item.name}
+                        {item.itemType === "FABRIC" && (
+                          <div className="text-xs text-red-500 mt-0.5">
+                            لا يمكن استرجاع قماش مقطوع
+                          </div>
+                        )}
+                      </td>
                       <td className="p-3">{item.unitPrice.toFixed(2)}</td>
                       <td className="p-3">{item.maxQty}</td>
                       <td className="p-3">
-                        <input
-                          type="number"
-                          min="0"
-                          max={item.maxQty}
-                          step="0.01"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            handleQuantityChange(item.itemId, e.target.value)
-                          }
-                          className="w-20 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-center focus:ring-2 focus:ring-red-500 outline-none"
-                        />
+                        {item.itemType === "FABRIC" ? (
+                          <span className="text-xs text-gray-400">-</span>
+                        ) : (
+                          <input
+                            type="number"
+                            min="0"
+                            max={item.maxQty}
+                            step="0.01"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              handleQuantityChange(item.itemId, e.target.value)
+                            }
+                            className="w-20 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-center focus:ring-2 focus:ring-red-500 outline-none"
+                          />
+                        )}
                       </td>
                       <td className="p-3 font-bold text-red-600">
                         {item.total.toFixed(2)}

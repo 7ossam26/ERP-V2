@@ -783,6 +783,7 @@ model SystemConfiguration {
 
   // Financial Defaults
   taxRate Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
+  taxEnabledOnSales Boolean @default(true) @map("tax_enabled_on_sales")
   landedCostFeatureEnabled Boolean @default(false) @map("landed_cost_feature_enabled")
 
   // HR Defaults

@@ -47,6 +47,14 @@ export const salesService = {
     return await api.post(SALES_URL, saleData);
   },
 
+  async createPOS(saleData) {
+    return await api.post(`${SALES_URL}/pos`, saleData);
+  },
+
+  async getReceipt(saleId) {
+    return await api.get(`${SALES_URL}/${saleId}/receipt`);
+  },
+
   async update(id, updates) {
     return await api.put(`${SALES_URL}/${id}`, updates);
   },

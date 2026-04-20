@@ -7,6 +7,16 @@ const {
   requireAnyPermission,
   getUserBranchFilter,
 } = require("../middleware/auth");
+const {
+  loadAndLock,
+  validateSalePayload,
+  resolveLinePrices,
+  applyStockChanges,
+  createSaleAndItems,
+  backfillRollCutsSaleItemIds,
+  updateTreasury,
+  buildReceiptData,
+} = require("../services/posSaleService");
 
 // Helper function to generate unique sale number
 const generateSaleNumber = async () => {
@@ -956,6 +966,128 @@ router.post(
   },
 );
 
+// ── Phase 6: POS sale endpoint ──
+// No deferred/credit sales — all paid in full at POS.
+router.post(
+  "/pos",
+  authenticateToken,
+  requireAnyPermission(["SALES", "POS"]),
+  async (req, res, next) => {
+    try {
+      // STEP 1: Shift gate (outside transaction)
+      const user = req.user;
+      const openShift = await prisma.shift.findFirst({
+        where: { userId: user.id, status: "OPEN" },
+      });
+      if (!openShift) {
+        return res
+          .status(400)
+          .json({ error: "يجب فتح وردية قبل إجراء عمليات البيع" });
+      }
+
+      // Resolve user context from branch
+      const userWithBranch = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: { branch: true },
+      });
+      if (!userWithBranch?.branch) {
+        return res.status(400).json({ error: "المستخدم غير مرتبط بفرع" });
+      }
+
+      const userContext = {
+        id: user.id,
+        branchId: userWithBranch.branchId,
+        treasuryId: userWithBranch.branch.treasuryId,
+        warehouseId: userWithBranch.branch.warehouseId,
+      };
+
+      // Load system config for tax settings
+      const config = await prisma.systemConfiguration.findFirst();
+
+      const result = await prisma.$transaction(
+        async (tx) => {
+          // STEP 2: Load + Lock
+          const context = await loadAndLock(tx, req.body, userContext);
+
+          // STEP 3: Validate
+          validateSalePayload(req.body, context);
+
+          // STEP 4: Resolve prices
+          const resolvedLines = await resolveLinePrices(
+            tx,
+            req.body,
+            context
+          );
+
+          // STEP 5: Cut rolls + decrement inventory
+          const pendingRollCuts = await applyStockChanges(
+            tx,
+            resolvedLines,
+            context
+          );
+
+          // STEP 6: Create Sale + SaleItem + backfill cut refs
+          const { sale, auditDetails } = await createSaleAndItems(
+            tx,
+            resolvedLines,
+            req.body,
+            openShift,
+            userContext,
+            config
+          );
+          await backfillRollCutsSaleItemIds(
+            tx,
+            pendingRollCuts,
+            sale.items
+          );
+
+          // STEP 7: Treasury
+          await updateTreasury(
+            tx,
+            userContext.treasuryId,
+            req.body.paymentMethod,
+            sale.total
+          );
+
+          return { sale, auditDetails };
+        },
+        { timeout: 10000 }
+      );
+
+      // Attach audit details for middleware capture
+      res._auditDetails = result.auditDetails;
+      res.status(201).json(result.sale);
+    } catch (err) {
+      if (err.status) {
+        return res.status(err.status).json({ error: err.message });
+      }
+      next(err);
+    }
+  }
+);
+
+// ── Phase 6: Receipt data endpoint ──
+router.get(
+  "/:id/receipt",
+  authenticateToken,
+  requireAnyPermission(["SALES", "POS"]),
+  async (req, res, next) => {
+    try {
+      const saleId = parseInt(req.params.id);
+      if (isNaN(saleId)) {
+        return res.status(400).json({ error: "معرّف الفاتورة غير ص��لح" });
+      }
+      const receipt = await buildReceiptData(prisma, saleId);
+      if (!receipt) {
+        return res.status(404).json({ error: "الفاتورة غير موجودة" });
+      }
+      res.json(receipt);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // PATCH mark delivery as collected - Requires POS permission
 router.patch(
   "/:id/mark-delivered",
@@ -1304,6 +1436,16 @@ router.post(
             );
           }
 
+          // Phase 6: Reject fabric line refunds — cut rolls cannot be uncut
+          if (originalItem.item?.itemType === "FABRIC" && parseFloat(refundItem.quantity) > 0) {
+            throw Object.assign(
+              new Error(
+                `لا يمكن استرجاع قماش مقطوع — قم بتسجيل تسوية مخزون بدلاً من ذلك (${originalItem.item.name})`
+              ),
+              { status: 400 }
+            );
+          }
+
           refundSubtotal +=
             parseFloat(originalItem.unitPrice) *
             parseFloat(refundItem.quantity);
@@ -1487,16 +1629,57 @@ router.delete(
         // 1. Fetch Sale with Items
         const sale = await tx.sale.findUnique({
           where: { id: parseInt(req.params.id) },
-          include: { items: true },
+          include: {
+            items: {
+              include: {
+                item: true,
+                fabricRollCuts: true,
+              },
+            },
+          },
         });
 
         if (!sale) {
           throw new Error("Sale not found");
         }
 
-        // 2. Restock Items (Increment Inventory)
+        // 2a. Reverse fabric roll cuts before restocking
+        for (const saleItem of sale.items) {
+          if (saleItem.item?.itemType === "FABRIC" && saleItem.fabricRollCuts?.length > 0) {
+            for (const cut of saleItem.fabricRollCuts) {
+              const cutLen = parseFloat(cut.lengthCut);
+
+              // Restore roll remaining length
+              const roll = await tx.fabricRoll.findUnique({
+                where: { id: cut.fabricRollId },
+                select: { remainingLength: true, originalLength: true },
+              });
+
+              if (roll) {
+                const newRemaining = parseFloat(roll.remainingLength) + cutLen;
+                const isFullyRestored =
+                  Math.abs(newRemaining - parseFloat(roll.originalLength)) < 0.001;
+
+                await tx.fabricRoll.update({
+                  where: { id: cut.fabricRollId },
+                  data: {
+                    remainingLength: newRemaining,
+                    status: isFullyRestored ? "AVAILABLE" : "PARTIALLY_CUT",
+                  },
+                });
+              }
+
+              // Delete the cut record (cascade will handle via sale delete,
+              // but we do it explicitly since saleItemId is SET NULL on delete)
+              await tx.fabricRollCut.delete({ where: { id: cut.id } });
+            }
+          }
+        }
+
+        // 2b. Restock Items (Increment Inventory)
         if (sale.items && sale.items.length > 0) {
           for (const item of sale.items) {
+            if (!item.itemId) continue;
             // Find appropriate warehouse (Sale has warehouseId)
             const warehouseId = sale.warehouseId;
             if (warehouseId) {

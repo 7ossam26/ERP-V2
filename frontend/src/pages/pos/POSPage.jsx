@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
@@ -12,7 +12,11 @@ import PreparationQueueModal from "../../components/pos/PreparationQueueModal";
 import Modal from "../../components/ui/Modal";
 import RefundModal from "./RefundModal";
 import OrdersHistoryModal from "./OrdersHistoryModal";
-import { FaHistory, FaRedo } from "react-icons/fa";
+import TierOverrideModal from "./TierOverrideModal";
+import PriceOverrideModal from "./PriceOverrideModal";
+import ReceiptPrintTemplate from "./ReceiptPrintTemplate";
+import FabricRollPickerModal from "../../components/shared/FabricRollPickerModal";
+import { FaHistory, FaRedo, FaTags } from "react-icons/fa";
 import { ClientForm } from "../clients/ClientManager";
 import {
   clientService,
@@ -59,8 +63,32 @@ const POSPage = () => {
 
   // System Settings State
   const [taxRate, setTaxRate] = useState(0.14);
+  const [taxEnabledOnSales, setTaxEnabledOnSales] = useState(true);
   const [companyTaxNumber, setCompanyTaxNumber] = useState("");
   const [companyName, setCompanyName] = useState("");
+
+  // Phase 6 — Tier Override
+  const [tierOverride, setTierOverride] = useState(null);
+  const [tierOverrideReason, setTierOverrideReason] = useState(null);
+  const [isTierOverrideModalOpen, setIsTierOverrideModalOpen] = useState(false);
+
+  // Phase 6 — Fabric Roll Picker
+  const [fabricPickerOpen, setFabricPickerOpen] = useState(false);
+  const [fabricPickerItem, setFabricPickerItem] = useState(null);
+  const [pendingFabricProduct, setPendingFabricProduct] = useState(null);
+
+  // Phase 6 — Price Override
+  const [priceOverrideModalOpen, setPriceOverrideModalOpen] = useState(false);
+  const [priceOverrideTarget, setPriceOverrideTarget] = useState(null);
+
+  // Phase 6 — Receipt + Submit guard
+  const receiptRef = useRef(null);
+  const [receiptData, setReceiptData] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Phase 6 — Search refs
+  const searchInputRef = useRef(null);
+  const clientSearchRef = useRef(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -95,6 +123,42 @@ const POSPage = () => {
     const interval = setInterval(calculateTimeData, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Phase 6: Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't intercept if user is typing in an input/textarea
+      const tag = e.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+        // Only handle Escape in inputs
+        if (e.key === "Escape") {
+          e.target.blur();
+        }
+        return;
+      }
+
+      if (e.key === "F2") {
+        e.preventDefault();
+        clientSearchRef.current?.focus?.() || clientInputRef.current?.focus?.();
+      } else if (e.key === "F3") {
+        e.preventDefault();
+        searchInputRef.current?.focus?.();
+      } else if (e.key === "F4") {
+        e.preventDefault();
+        if (cartItems.length > 0) handleQuickPayment("cash");
+      } else if (e.key === "Escape") {
+        if (keypadMode !== "default") {
+          setKeypadMode("default");
+          setSelectedProductForQuantity(null);
+        } else if (cartItems.length > 0) {
+          removeFromCart(cartItems[cartItems.length - 1].id);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cartItems, keypadMode]);
 
   const checkActiveShift = async (user) => {
     try {
@@ -342,6 +406,9 @@ const POSPage = () => {
           if (settings.companyName) {
             setCompanyName(settings.companyName);
           }
+          if (settings.taxEnabledOnSales !== undefined) {
+            setTaxEnabledOnSales(settings.taxEnabledOnSales);
+          }
         }
       } catch (e) {
         console.error("Failed to load settings", e);
@@ -496,8 +563,15 @@ const POSPage = () => {
       activeCategory === "All" ||
       (product.categories && product.categories.includes(activeCategory));
 
-    const productName = product.name ? product.name.toLowerCase() : "";
-    const matchesSearch = productName.includes(searchTerm.toLowerCase());
+    // Phase 6: Enhanced search — name, barcode, color, style code
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      !term ||
+      (product.name || "").toLowerCase().includes(term) ||
+      (product.barcode || "").toLowerCase().includes(term) ||
+      (product.colorCode || "").toLowerCase().includes(term) ||
+      (product.styleCode || "").toLowerCase().includes(term) ||
+      (product.sku || "").toLowerCase().includes(term);
     return matchesCategory && matchesSearch;
   });
 
@@ -505,8 +579,21 @@ const POSPage = () => {
   const handleProductClick = (product) => {
     // Check stock availability (include auto-producible for BOM items)
     const totalAvailable = (product.quantity || 0) + (product.autoProducible || 0);
-    if (totalAvailable <= 0) {
+    if (totalAvailable <= 0 && product.itemType !== "FABRIC") {
       toast.error(`الكمية غير متوفرة! المتاح: ${product.quantity || 0}`);
+      return;
+    }
+
+    // Phase 6: Fabric items → open roll picker instead of quantity keypad
+    if (product.itemType === "FABRIC") {
+      const warehouseId = currentUser?.branch?.warehouseId || currentUser?.warehouseId;
+      setPendingFabricProduct(product);
+      setFabricPickerItem({
+        itemId: product.id,
+        warehouseId: warehouseId,
+        requestedLength: null,
+      });
+      setFabricPickerOpen(true);
       return;
     }
 
@@ -526,6 +613,90 @@ const POSPage = () => {
     if (window.innerWidth < 768) {
       setActiveMobileTab("cart");
     }
+  };
+
+  // Phase 6: Fabric roll picker callback
+  const handleFabricRollsPicked = (selection) => {
+    if (!pendingFabricProduct || !selection || selection.length === 0) return;
+    const totalLength = selection.reduce((s, r) => s + r.allocated, 0);
+    const product = pendingFabricProduct;
+    const price = product.sellPrice || product.price || product.purchasePrice || 0;
+
+    const rollAllocations = selection.map((s) => ({
+      rollId: s.rollId,
+      rollNumber: s.rollNumber,
+      length: s.allocated,
+    }));
+
+    // For fabric: replace existing entry (roll allocations are specific)
+    const existingIndex = cartItems.findIndex((ci) => ci.id === product.id);
+    if (existingIndex >= 0) {
+      const updated = [...cartItems];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        quantity: totalLength,
+        total: totalLength * price,
+        rollAllocations,
+      };
+      setCartItems(updated);
+    } else {
+      setCartItems([
+        ...cartItems,
+        {
+          id: product.id,
+          name: product.name,
+          price,
+          originalPrice: price,
+          quantity: totalLength,
+          total: totalLength * price,
+          unit: product.unit || "م",
+          itemType: "FABRIC",
+          rollAllocations,
+        },
+      ]);
+    }
+
+    setFabricPickerOpen(false);
+    setPendingFabricProduct(null);
+    toast.success(`تمت إضافة ${totalLength} متر من ${product.name}`);
+  };
+
+  // Phase 6: Tier override
+  const handleTierOverrideConfirm = (tier, reason) => {
+    setTierOverride(tier);
+    setTierOverrideReason(reason);
+    setIsTierOverrideModalOpen(false);
+    if (tier) {
+      toast.success(`تم تغيير مستوى التسعير إلى ${tier === "WHOLESALE" ? "جملة" : "تجزئة"}`);
+    } else {
+      toast.success("تم إزالة تغيير مستوى التسعير");
+    }
+  };
+
+  // Phase 6: Price override
+  const handleOpenPriceOverride = (cartItem) => {
+    setPriceOverrideTarget(cartItem);
+    setPriceOverrideModalOpen(true);
+  };
+
+  const handlePriceOverrideConfirm = (newPrice, reason) => {
+    if (!priceOverrideTarget) return;
+    setCartItems((prev) =>
+      prev.map((ci) =>
+        ci.id === priceOverrideTarget.id
+          ? {
+              ...ci,
+              price: newPrice,
+              total: newPrice * ci.quantity,
+              priceOverrideReason: reason,
+              priceOverridden: Math.abs(newPrice - (ci.originalPrice || ci.price)) > 0.01,
+            }
+          : ci
+      )
+    );
+    setPriceOverrideModalOpen(false);
+    setPriceOverrideTarget(null);
+    toast.success("تم تعديل السعر");
   };
 
   // Handle custom input submission
@@ -604,8 +775,10 @@ const POSPage = () => {
           {
             ...product, // product from inventory has updated fields
             price: price, // Ensure price is set
+            originalPrice: price, // Phase 6: Store original for override comparison
             quantity: quantity,
             total: price * quantity,
+            itemType: product.itemType || "GENERIC", // Phase 6: Track item type
           },
         ];
       }
@@ -627,6 +800,9 @@ const POSPage = () => {
     setIsWalkIn(false);
     setClientSearchTerm("");
     setDeliveryData(null);
+    // Phase 6: Reset tier override
+    setTierOverride(null);
+    setTierOverrideReason(null);
   };
 
   const handleItemClick = (id) => {
@@ -950,8 +1126,42 @@ const POSPage = () => {
     };
 
     try {
-      // Create sale via API
-      const createdSale = await salesService.create(saleData);
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+
+      let createdSale;
+
+      // Phase 6: Use POS endpoint for non-delivery sales
+      const isDeliveryOrder = !!activeDeliveryData;
+      if (!isDeliveryOrder) {
+        // Build Phase 6 POS payload
+        const posPayload = {
+          clientId: selectedClient ? selectedClient.id : null,
+          tierOverride: tierOverride || undefined,
+          tierOverrideReason: tierOverrideReason || undefined,
+          items: cartItems.map((ci) => ({
+            itemId: ci.id,
+            quantity: ci.quantity,
+            unitPrice: ci.priceOverridden ? ci.price : undefined,
+            priceOverrideReason: ci.priceOverrideReason || undefined,
+            rollAllocations:
+              ci.itemType === "FABRIC" && ci.rollAllocations
+                ? ci.rollAllocations.map((ra) => ({
+                    rollId: ra.rollId,
+                    length: ra.length,
+                  }))
+                : undefined,
+          })),
+          paymentMethod: normalizedPaymentMethod,
+          paidAmount: finalPaidAmount,
+          notes: saleData.notes || undefined,
+        };
+        createdSale = await salesService.createPOS(posPayload);
+      } else {
+        // Delivery orders use the legacy endpoint
+        createdSale = await salesService.create(saleData);
+      }
+
       console.log("✅ Sale created successfully:", createdSale);
 
       // Determine method name for display
@@ -980,17 +1190,50 @@ const POSPage = () => {
       // REFRESH INVENTORY
       await loadInventory();
 
-      // Save for last sale printing
+      // Phase 6: Build receipt data from response (for non-delivery sales)
+      if (!isDeliveryOrder) {
+        setReceiptData({
+          companyName: companyName || "رامكس ستور",
+          taxNumber: companyTaxNumber || "",
+          taxEnabledOnSales,
+          branchName: createdSale.branch?.name || currentUser?.branch?.name || "",
+          branchAddress: createdSale.branch?.address || "",
+          saleNumber: createdSale.saleNumber,
+          date: createdSale.createdAt,
+          cashierName: createdSale.user?.name || currentUser?.name || "",
+          clientName: createdSale.client?.name || "عميل عام",
+          clientTier: createdSale.client?.tier || "RETAIL",
+          items: (createdSale.items || []).map((si) => ({
+            name: si.item?.name || "",
+            quantity: si.quantity,
+            unitPrice: si.unitPrice,
+            total: si.total,
+            unit: si.item?.unit || "",
+            rollCuts: (si.fabricRollCuts || []).map((rc) => ({
+              rollNumber: rc.fabricRoll?.rollNumber || "",
+              length: rc.lengthCut,
+            })),
+          })),
+          subtotal: createdSale.subtotal,
+          taxRate: createdSale.taxRate,
+          taxAmount: createdSale.taxAmount,
+          total: createdSale.total,
+          paymentMethod: createdSale.paymentMethod,
+          paidAmount: createdSale.paidAmount,
+          changeAmount: createdSale.changeAmount,
+        });
+      }
+
+      // Save for last sale printing (legacy receipt)
       setLastSale({
         ...saleData,
         id: createdSale.id,
         saleNumber: createdSale.saleNumber,
-        items: cartItems, // Use cartItems for rich display names
+        items: cartItems,
         clientName: selectedClient?.name || "عميل نقدي",
         branchName: currentUser?.branch?.name || "الفرع الرئيسي",
         employeeName: currentUser?.name || currentUser?.username,
         date: new Date().toLocaleString("ar-EG"),
-        // Delivery information
         riderName: activeDeliveryData?.riderName,
         zoneName: activeDeliveryData?.zoneName,
         deliveryFee: activeDeliveryData?.zoneFee,
@@ -1004,15 +1247,19 @@ const POSPage = () => {
       clearCart();
       setSelectedClient(null);
       setSelectedDeliveryMan(null);
-      setDeliveryData(null); // Always clear delivery data after sale
+      setDeliveryData(null);
 
       // Auto-print after successful payment
       setTimeout(() => {
         window.print();
       }, 500);
+
+      setIsSubmitting(false);
     } catch (error) {
+      setIsSubmitting(false);
       console.error("❌ Error creating sale:", error);
-      toast.error(error.message || "حدث خطأ أثناء حفظ الفاتورة");
+      const errMsg = error.response?.data?.error || error.message || "حدث خطأ أثناء حفظ الفاتورة";
+      toast.error(errMsg);
     }
   };
 
@@ -1132,7 +1379,24 @@ const POSPage = () => {
     if (!cartToRetrieve) return;
 
     const proceedRetrieval = () => {
-      setCartItems(cartToRetrieve.items);
+      // Revalidate stock for held cart items before restoring
+      const revalidated = cartToRetrieve.items.map((item) => {
+        const currentProduct = products.find((p) => p.itemId === item.id);
+        if (currentProduct) {
+          const availableQty = currentProduct.quantity || 0;
+          if (item.quantity > availableQty) {
+            if (availableQty <= 0) {
+              toast.error(`"${item.name}" لم يعد متاحاً في المخزون — تمت إزالته`);
+              return null; // remove from cart
+            }
+            toast.warn(`"${item.name}" الكمية المتاحة ${availableQty} فقط — تم تعديل الكمية`);
+            return { ...item, quantity: availableQty };
+          }
+        }
+        return item;
+      }).filter(Boolean);
+
+      setCartItems(revalidated);
       // Restore full client data if saved (backwards-compat: fall back to search by name)
       if (cartToRetrieve.clientData) {
         setSelectedClient(cartToRetrieve.clientData);
@@ -1321,6 +1585,49 @@ const POSPage = () => {
         onRefundClick={openRefundForSale}
       />
 
+      {/* Phase 6: Tier Override Modal */}
+      <TierOverrideModal
+        isOpen={isTierOverrideModalOpen}
+        onClose={() => setIsTierOverrideModalOpen(false)}
+        currentTier={tierOverride || selectedClient?.tier || "RETAIL"}
+        onConfirm={handleTierOverrideConfirm}
+      />
+
+      {/* Phase 6: Fabric Roll Picker Modal */}
+      {fabricPickerOpen && fabricPickerItem && (
+        <FabricRollPickerModal
+          isOpen={fabricPickerOpen}
+          onClose={() => {
+            setFabricPickerOpen(false);
+            setPendingFabricProduct(null);
+          }}
+          itemId={fabricPickerItem.itemId}
+          warehouseId={fabricPickerItem.warehouseId}
+          requestedLength={fabricPickerItem.requestedLength}
+          onPick={handleFabricRollsPicked}
+        />
+      )}
+
+      {/* Phase 6: Price Override Modal */}
+      <PriceOverrideModal
+        isOpen={priceOverrideModalOpen}
+        onClose={() => {
+          setPriceOverrideModalOpen(false);
+          setPriceOverrideTarget(null);
+        }}
+        itemName={priceOverrideTarget?.name || ""}
+        currentPrice={priceOverrideTarget?.price || 0}
+        resolvedPrice={priceOverrideTarget?.originalPrice || priceOverrideTarget?.price || 0}
+        onConfirm={handlePriceOverrideConfirm}
+      />
+
+      {/* Phase 6: Receipt Print Template (hidden on screen, visible when printing) */}
+      {receiptData && (
+        <div className="hidden print:block">
+          <ReceiptPrintTemplate ref={receiptRef} data={receiptData} />
+        </div>
+      )}
+
       {/* Payment Confirmation Modal */}
       <Modal
         isOpen={isPaymentConfirmOpen}
@@ -1414,13 +1721,14 @@ const POSPage = () => {
             </button>
             <button
               onClick={handleConfirmPayment}
-              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+              disabled={isSubmitting}
+              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
                 pendingPaymentMethod === "cash"
                   ? "bg-green-500 hover:bg-green-600"
                   : "bg-[#4c096e] hover:bg-[#3a0654]"
               }`}>
               <span className="material-symbols-outlined">check_circle</span>
-              <span>تأكيد الدفع</span>
+              <span>{isSubmitting ? "جاري المعالجة..." : "تأكيد الدفع"}</span>
             </button>
           </div>
         </div>
@@ -1620,7 +1928,8 @@ const POSPage = () => {
               </span>
               <input
                 className="pr-10 pl-4 py-2 w-full md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
-                placeholder="بحث عن منتج..."
+                ref={searchInputRef}
+                placeholder="بحث بالاسم أو الباركود أو اللون..."
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -1855,6 +2164,36 @@ const POSPage = () => {
             </div>
           </div>
 
+          {/* Phase 6: Tier badge + override button */}
+          {selectedClient && selectedClient.id !== 1 && (
+            <div className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 dark:border-zinc-700 bg-gray-50/50 dark:bg-zinc-800/50">
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  (tierOverride || selectedClient.tier) === "WHOLESALE"
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                }`}
+              >
+                {(tierOverride || selectedClient.tier) === "WHOLESALE"
+                  ? "جملة"
+                  : "تجزئة"}
+                {tierOverride && " ↻"}
+              </span>
+              <button
+                onClick={() => setIsTierOverrideModalOpen(true)}
+                className="text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 underline flex items-center gap-1"
+              >
+                <FaTags className="text-[10px]" />
+                تغيير
+              </button>
+              {tierOverride && (
+                <span className="text-[10px] text-gray-400">
+                  ({tierOverrideReason})
+                </span>
+              )}
+            </div>
+          )}
+
           <div
             className={`${
               keypadMode === "default" ? "flex-1" : "h-[45%]"
@@ -1903,12 +2242,39 @@ const POSPage = () => {
                           {item.total.toFixed(2)} ج.م
                         </span>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {["kg", "kilo", "kilogram"].includes(item.unit?.toLowerCase())
-                          ? item.quantity.toFixed(3)
-                          : Math.round(item.quantity)
-                        } {getArabicUnit(item.unit) || "وحدة"} x{" "}
-                        {item.price.toFixed(2)} ج.م
+                      {/* Phase 6: Fabric roll info */}
+                      {item.itemType === "FABRIC" && item.rollAllocations && (
+                        <div className="text-[10px] text-purple-600 dark:text-purple-400 mb-0.5">
+                          {item.rollAllocations.length === 1
+                            ? `من لفة ${item.rollAllocations[0].rollNumber}`
+                            : `من ${item.rollAllocations.length} لفات`}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                        <span>
+                          {["kg", "kilo", "kilogram"].includes(item.unit?.toLowerCase())
+                            ? item.quantity.toFixed(3)
+                            : Math.round(item.quantity)
+                          } {getArabicUnit(item.unit) || "وحدة"} x{" "}
+                        </span>
+                        {/* Phase 6: Clickable price with override indicator */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenPriceOverride({
+                              ...item,
+                              originalPrice: item.originalPrice || item.price,
+                            });
+                          }}
+                          className={`hover:underline ${
+                            item.priceOverridden
+                              ? "text-amber-600 dark:text-amber-400 font-bold"
+                              : ""
+                          }`}
+                        >
+                          {item.price.toFixed(2)} ج.م
+                          {item.priceOverridden && " ✏"}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -2225,8 +2591,8 @@ const POSPage = () => {
           )}
         </div>
       </div>
-      {/* Thermal Receipt — Xprinter XP-Q80I (80mm). Hidden on screen, printed only. */}
-      <div id="thermal-receipt" className="hidden print:block">
+      {/* Thermal Receipt — Xprinter XP-Q80I (80mm). Hidden on screen, printed only. Phase 6 receipt takes priority when available. */}
+      <div id="thermal-receipt" className={`hidden ${!receiptData ? 'print:block' : ''}`}>
 
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "4px" }}>
