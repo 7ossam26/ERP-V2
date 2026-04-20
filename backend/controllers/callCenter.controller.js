@@ -192,6 +192,7 @@ exports.createOrder = async (req, res, next) => {
       notes,
       discountType,
       discountValue,
+      discountReason,
     } = req.body;
 
     if (!branchId || !clientId) {
@@ -257,7 +258,14 @@ exports.createOrder = async (req, res, next) => {
     let discType = null;
     let discValue = null;
     let discAmount = 0;
+    let discReason = null;
+    let discAppliedBy = null;
     if (discountValue != null && Number(discountValue) > 0) {
+      if (!(subtotal > 0)) {
+        return res
+          .status(400)
+          .json({ error: "Cannot apply discount when subtotal is zero" });
+      }
       const type = String(discountType || "").toUpperCase();
       if (!["PERCENTAGE", "VALUE"].includes(type)) {
         return res.status(400).json({
@@ -269,6 +277,11 @@ exports.createOrder = async (req, res, next) => {
       if (!Number.isFinite(val) || val < 0) {
         return res.status(400).json({ error: "Invalid discountValue" });
       }
+      if (!discountReason || !String(discountReason).trim()) {
+        return res
+          .status(400)
+          .json({ error: "discountReason is required when a discount is applied" });
+      }
       if (type === "PERCENTAGE") {
         if (val > 100) return res.status(400).json({ error: "Percentage discount cannot exceed 100" });
         discAmount = Math.min(subtotal, (subtotal * val) / 100);
@@ -277,7 +290,9 @@ exports.createOrder = async (req, res, next) => {
       }
       discType = type;
       discValue = val;
-      discAmount = Math.round(discAmount * 100) / 100;
+      discAmount = Math.round(discAmount); // round to nearest 1 EGP
+      discReason = String(discountReason).trim().slice(0, 32);
+      discAppliedBy = req.user && req.user.id ? req.user.id : null;
     }
 
     const deliveryFee = zone ? Number(zone.fee) : 0;
@@ -303,6 +318,8 @@ exports.createOrder = async (req, res, next) => {
           discountType: discType,
           discountValue: discValue,
           discountAmount: discAmount || null,
+          discountReason: discReason,
+          discountAppliedByUserId: discAppliedBy,
           taxRate: 0,
           taxAmount: 0,
           total,

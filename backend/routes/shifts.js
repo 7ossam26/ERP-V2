@@ -788,6 +788,8 @@ router.get(
       let takeawayCount = 0, takeawayTotal = 0;
       let deliveryCount = 0, deliveryTotal = 0;
       let returnCount = 0, returnTotal = 0;
+      let discountCount = 0, discountTotal = 0;
+      const discountByReasonMap = new Map();
       const itemsMap = new Map();
 
       // Map sales to simplified orders format
@@ -798,11 +800,24 @@ router.get(
         total: parseFloat(sale.total),
         paymentMethod: sale.paymentMethod,
         clientName: sale.client ? sale.client.name : "عميل نقدي",
+        discountAmount: sale.discountAmount != null ? parseFloat(sale.discountAmount) : 0,
+        discountReason: sale.discountReason || null,
       }));
 
       sales.forEach((sale) => {
         const saleTotal = parseFloat(sale.total);
         totalSales += saleTotal;
+
+        const discAmt = sale.discountAmount != null ? parseFloat(sale.discountAmount) : 0;
+        if (discAmt > 0) {
+          discountCount += 1;
+          discountTotal += discAmt;
+          const reason = sale.discountReason || "OTHER";
+          const bucket = discountByReasonMap.get(reason) || { count: 0, total: 0 };
+          bucket.count += 1;
+          bucket.total += discAmt;
+          discountByReasonMap.set(reason, bucket);
+        }
 
         const paymentMethod = sale.paymentMethod;
         if (paymentMethod === "CASH") {
@@ -986,6 +1001,17 @@ router.get(
         deposits: { count: depositCount, total: Math.round(depositTotal * 100) / 100 },
         expenseBreakdown: { count: cashExpenseCount, total: Math.round(cashExpenseTotal * 100) / 100 },
         drawerAmount,
+
+        // Discounts applied during this shift
+        discounts: {
+          count: discountCount,
+          total: Math.round(discountTotal * 100) / 100,
+          byReason: Array.from(discountByReasonMap.entries()).map(([code, v]) => ({
+            code,
+            count: v.count,
+            total: Math.round(v.total * 100) / 100,
+          })),
+        },
 
         // Expenses
         totalExpenses,

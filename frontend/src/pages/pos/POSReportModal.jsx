@@ -48,6 +48,16 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
 
   const expenses = reportData?.expenses || [];
   const deliveryDetails = reportData?.deliveryDetails || [];
+  const discounts = reportData?.discounts || { count: 0, total: 0, byReason: [] };
+
+  const REASON_LABELS = {
+    STAFF_DISCOUNT: "خصم موظف",
+    LOYAL_CUSTOMER: "عميل مميز",
+    DAMAGED_ITEM: "منتج تالف",
+    MANAGER_COMP: "مجاملة إدارة",
+    PROMO: "عرض ترويجي",
+    OTHER: "أخرى",
+  };
 
   const fmt = (v) => Number(v).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -107,6 +117,24 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
             <Row label="مرتجع :" count={returned.count} amount={returned.total} negative={returned.total > 0} />
             <Row label="صافي المبيعات :" amount={netSales} bold border />
           </div>
+
+          {/* Discounts Section */}
+          {discounts.count > 0 && (
+            <div className="mx-4 mb-3 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden print:border-gray-400 print:mx-0">
+              <div className="bg-rose-50 dark:bg-rose-900/10 px-4 py-2.5 font-bold text-rose-700 dark:text-rose-400 border-b border-gray-200 dark:border-zinc-700 text-sm flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">sell</span>
+                الخصومات ({discounts.count})
+              </div>
+              <Row label="إجمالي الخصومات :" count={discounts.count} amount={discounts.total} negative />
+              {(discounts.byReason || []).map((r) => (
+                <div key={r.code} className="flex items-center py-2 px-6 text-xs border-b border-gray-100 dark:border-zinc-800">
+                  <span className="flex-1 text-right text-gray-600 dark:text-gray-400">{REASON_LABELS[r.code] || r.code}</span>
+                  <span className="w-16 text-center font-mono text-gray-500">{r.count}</span>
+                  <span className="w-32 text-left font-mono font-bold text-rose-600 dark:text-rose-400">-{fmt(r.total)}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Cash Movements Section */}
           <div className="mx-4 mb-3 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden print:border-gray-400 print:mx-0">

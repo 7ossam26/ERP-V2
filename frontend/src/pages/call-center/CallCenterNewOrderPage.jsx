@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { callCenterService } from "../../services/callCenterService";
 import { deliveryZoneService } from "../../services/deliveryZoneService";
+import DiscountPanel, {
+  reasonLabel,
+  computeDiscountAmount,
+} from "../../components/pos/DiscountPanel";
 
 const CallCenterNewOrderPage = () => {
   const [branches, setBranches] = useState([]);
@@ -26,6 +30,7 @@ const CallCenterNewOrderPage = () => {
   const [categoryId, setCategoryId] = useState("all");
   const [discountType, setDiscountType] = useState("PERCENTAGE");
   const [discountInput, setDiscountInput] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
 
   // Load branches once
   useEffect(() => {
@@ -132,14 +137,7 @@ const CallCenterNewOrderPage = () => {
   const selectedZone = zones.find((z) => z.id === parseInt(zoneId));
   const deliveryFee = selectedZone ? Number(selectedZone.fee) : 0;
   const discountRaw = Number(discountInput) || 0;
-  const discountAmount = (() => {
-    if (discountRaw <= 0) return 0;
-    if (discountType === "PERCENTAGE") {
-      const pct = Math.min(100, discountRaw);
-      return Math.min(subtotal, (subtotal * pct) / 100);
-    }
-    return Math.min(subtotal, discountRaw);
-  })();
+  const discountAmount = computeDiscountAmount(subtotal, discountType, discountInput);
   const total = Math.max(0, subtotal - discountAmount) + deliveryFee;
 
   const pickClient = (c) => {
@@ -187,8 +185,14 @@ const CallCenterNewOrderPage = () => {
         notes,
       };
       if (discountRaw > 0) {
+        if (!discountReason) {
+          toast.error("يجب اختيار سبب الخصم");
+          setSubmitting(false);
+          return;
+        }
         payload.discountType = discountType;
         payload.discountValue = discountRaw;
+        payload.discountReason = discountReason;
       }
       const result = await callCenterService.createOrder(payload);
       toast.success(`تم إنشاء الطلب ${result.saleNumber}`);
@@ -204,6 +208,7 @@ const CallCenterNewOrderPage = () => {
       setNotes("");
       setDiscountInput("");
       setDiscountType("PERCENTAGE");
+      setDiscountReason("");
       // Refresh items to show updated stock
       const fresh = await callCenterService.listItems(branchId);
       setItems(fresh);
@@ -425,33 +430,28 @@ const CallCenterNewOrderPage = () => {
           )}
 
           <div className="border-t pt-2 space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500 whitespace-nowrap">الخصم:</label>
-              <select
-                className="border rounded p-1 text-xs bg-white dark:bg-gray-800"
-                value={discountType}
-                onChange={(e) => setDiscountType(e.target.value)}
-              >
-                <option value="PERCENTAGE">%</option>
-                <option value="VALUE">ج.م</option>
-              </select>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className="flex-1 border rounded p-1 text-sm"
-                value={discountInput}
-                onChange={(e) => setDiscountInput(e.target.value)}
-                placeholder="0"
-              />
-            </div>
+            <DiscountPanel
+              subtotal={subtotal}
+              discountType={discountType}
+              discountValue={discountInput}
+              discountReason={discountReason}
+              onChange={(next) => {
+                setDiscountType(next.discountType);
+                setDiscountInput(next.discountValue);
+                setDiscountReason(next.discountReason);
+              }}
+              compact
+            />
             <div className="flex justify-between">
               <span>المجموع:</span>
               <span>{subtotal.toFixed(2)}</span>
             </div>
             {discountAmount > 0 && (
               <div className="flex justify-between text-red-600">
-                <span>الخصم:</span>
+                <span>
+                  الخصم
+                  {discountReason ? ` (${reasonLabel(discountReason)})` : ""}:
+                </span>
                 <span>-{discountAmount.toFixed(2)}</span>
               </div>
             )}

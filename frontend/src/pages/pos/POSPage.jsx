@@ -31,6 +31,11 @@ import { confirmAction } from "../../utils/toastUtils";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 import IncomingOrderTray from "../../components/orders/IncomingOrderTray";
 import NotificationBell from "../../components/orders/NotificationBell";
+import DiscountPanel, {
+  DISCOUNT_REASONS,
+  reasonLabel,
+  computeDiscountAmount,
+} from "../../components/pos/DiscountPanel";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -65,6 +70,11 @@ const POSPage = () => {
   const [taxRate, setTaxRate] = useState(0.14);
   const [companyTaxNumber, setCompanyTaxNumber] = useState("");
   const [companyName, setCompanyName] = useState("");
+
+  // Discount state (order-level)
+  const [discountType, setDiscountType] = useState("PERCENTAGE");
+  const [discountValue, setDiscountValue] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
 
   useEffect(() => {
     if (currentUser) {
@@ -631,6 +641,9 @@ const POSPage = () => {
     setIsWalkIn(false);
     setClientSearchTerm("");
     setDeliveryData(null);
+    setDiscountType("PERCENTAGE");
+    setDiscountValue("");
+    setDiscountReason("");
   };
 
   const handleItemClick = (id) => {
@@ -655,11 +668,32 @@ const POSPage = () => {
   // Calculations
   const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
   // taxRate comes from state now
-  const tax = subtotal * taxRate;
+  const discountAmount = computeDiscountAmount(subtotal, discountType, discountValue);
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const tax = discountedSubtotal * taxRate;
   const deliveryFee = deliveryData?.zoneFee
     ? parseFloat(deliveryData.zoneFee)
     : 0;
-  const total = subtotal + tax + deliveryFee; // Total includes delivery fee if set
+  const total = Math.round(discountedSubtotal + tax + deliveryFee); // Total includes delivery fee if set
+
+  // Clear discount when cart empties; clamp VALUE if it now exceeds subtotal.
+  useEffect(() => {
+    if (!(subtotal > 0) && (discountValue !== "" || discountReason !== "")) {
+      setDiscountValue("");
+      setDiscountReason("");
+      setDiscountType("PERCENTAGE");
+      return;
+    }
+    if (
+      discountType === "VALUE" &&
+      Number(discountValue) > 0 &&
+      Number(discountValue) > subtotal
+    ) {
+      setDiscountValue(String(Math.round(subtotal)));
+      toast("تم تعديل الخصم ليتناسب مع الإجمالي", { icon: "ℹ️" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal]);
 
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [shiftReportData, setShiftReportData] = useState(null);
@@ -887,6 +921,12 @@ const POSPage = () => {
     const activeDeliveryData = deliveryDataOverride || deliveryData;
     console.log("🛒 Processing Sale with Delivery Data:", activeDeliveryData);
 
+    // Block if discount value entered but reason missing
+    if (Number(discountValue) > 0 && !discountReason) {
+      toast.error("يجب اختيار سبب الخصم");
+      return;
+    }
+
     // Determine payment amounts
     let finalPaidAmount, finalChangeAmount;
     if (paidAmount !== null && changeAmount !== null) {
@@ -941,6 +981,9 @@ const POSPage = () => {
         unitPrice: item.price,
         total: item.total,
       })),
+      discountType: discountAmount > 0 ? discountType : null,
+      discountValue: discountAmount > 0 ? Number(discountValue) : null,
+      discountReason: discountAmount > 0 ? discountReason : null,
     };
 
     try {
@@ -1984,6 +2027,19 @@ const POSPage = () => {
                 )}
 
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50">
+                  <div className="mb-2">
+                    <DiscountPanel
+                      subtotal={subtotal}
+                      discountType={discountType}
+                      discountValue={discountValue}
+                      discountReason={discountReason}
+                      onChange={(next) => {
+                        setDiscountType(next.discountType);
+                        setDiscountValue(next.discountValue);
+                        setDiscountReason(next.discountReason);
+                      }}
+                    />
+                  </div>
                   <div className="flex justify-between items-end mb-1">
                     <span className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white">
                       الإجمالي:
@@ -1992,7 +2048,17 @@ const POSPage = () => {
                       {total.toFixed(2)} ج.م
                     </span>
                   </div>
-                  <div className="flex justify-end text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex justify-end text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    المجموع الفرعي: {subtotal.toFixed(2)} ج.م
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-end text-xs text-rose-600 dark:text-rose-400 mt-1 font-medium">
+                      الخصم
+                      {discountReason ? ` (${reasonLabel(discountReason)})` : ""}
+                      : -{discountAmount.toFixed(2)} ج.م
+                    </div>
+                  )}
+                  <div className="flex justify-end text-xs text-gray-500 dark:text-gray-400 mt-1">
                     الضريبة ({(taxRate * 100).toFixed(0)}%): {tax.toFixed(2)}{" "}
                     ج.م
                   </div>
@@ -2002,9 +2068,6 @@ const POSPage = () => {
                       {parseFloat(deliveryData.zoneFee).toFixed(2)} ج.م
                     </div>
                   )}
-                  <div className="flex justify-end text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    المجموع الفرعي: {subtotal.toFixed(2)} ج.م
-                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-0 border-b border-gray-200 dark:border-zinc-700 text-sm">
                   <button
@@ -2343,6 +2406,28 @@ const POSPage = () => {
 
         {/* Sub-totals */}
         <div style={{ marginTop: "4px", fontSize: "10px" }}>
+          {(() => {
+            const printDiscountAmount =
+              cartItems.length > 0
+                ? discountAmount
+                : parseFloat(lastSale?.discountAmount || 0);
+            const printDiscountReason =
+              cartItems.length > 0 ? discountReason : lastSale?.discountReason;
+            if (printDiscountAmount > 0) {
+              return (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>
+                    خصم
+                    {printDiscountReason
+                      ? ` (${reasonLabel(printDiscountReason)})`
+                      : ""}
+                  </span>
+                  <span>-{printDiscountAmount.toFixed(2)} ج.م</span>
+                </div>
+              );
+            }
+            return null;
+          })()}
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>ضريبة</span>
             <span>{(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(2)} ج.م</span>

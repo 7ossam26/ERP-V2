@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { reasonLabel } from "../pos/DiscountPanel";
 
 // 80mm thermal-receipt template for call-center orders (D per design §7.3).
 // Uses window.print() via an inline <style> with @page {size: 80mm auto}.
@@ -94,6 +95,7 @@ const PrintTicket = ({ order, onDone }) => {
               {sale.discountType === "PERCENTAGE" && sale.discountValue != null
                 ? ` (${Number(sale.discountValue)}%)`
                 : ""}
+              {sale.discountReason ? ` — ${reasonLabel(sale.discountReason)}` : ""}
               :
             </span>
             <span>-{Number(sale.discountAmount).toFixed(2)}</span>

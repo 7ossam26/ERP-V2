@@ -132,6 +132,12 @@ const OrdersHistoryModal = ({ isOpen, onClose, shiftId, onRefundClick }) => {
                     <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       {order.clientName}
                     </div>
+                    {Number(order.discountAmount) > 0 && (
+                      <div className="text-xs text-rose-600 mt-1">
+                        خصم: -{Number(order.discountAmount).toFixed(2)} ج.م
+                        {order.discountReason ? ` (${order.discountReason})` : ""}
+                      </div>
+                    )}
                   </div>
                   <div className="text-left">
                     <div className="font-bold text-lg text-blue-600">

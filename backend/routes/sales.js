@@ -364,6 +364,9 @@ router.post(
         status,
         notes,
         items,
+        discountType,
+        discountValue,
+        discountReason,
       } = req.body;
 
       console.log("💰 Step 1: Validating required fields...");
@@ -530,6 +533,69 @@ router.post(
       }
       // ---------------------------
 
+      // ---------------------------
+      // Discount validation + server-side math
+      // ---------------------------
+      const subtotalNum = parseFloat(subtotal);
+      const taxRateNum =
+        taxRate !== undefined && taxRate !== null ? parseFloat(taxRate) : 0.14;
+      const deliveryFeeNum = deliveryFee ? parseFloat(deliveryFee) : 0;
+
+      let discType = null;
+      let discValue = null;
+      let discAmount = 0;
+      let discReason = null;
+      let discAppliedBy = null;
+
+      if (discountValue != null && Number(discountValue) > 0) {
+        if (!(subtotalNum > 0)) {
+          return res
+            .status(400)
+            .json({ error: "Cannot apply discount when subtotal is zero" });
+        }
+        const type = String(discountType || "").toUpperCase();
+        if (!["PERCENTAGE", "VALUE"].includes(type)) {
+          return res
+            .status(400)
+            .json({ error: "Invalid discountType", validTypes: ["PERCENTAGE", "VALUE"] });
+        }
+        const val = Number(discountValue);
+        if (!Number.isFinite(val) || val < 0) {
+          return res.status(400).json({ error: "Invalid discountValue" });
+        }
+        if (!discountReason || !String(discountReason).trim()) {
+          return res
+            .status(400)
+            .json({ error: "discountReason is required when a discount is applied" });
+        }
+        if (type === "PERCENTAGE") {
+          if (val > 100) {
+            return res
+              .status(400)
+              .json({ error: "Percentage discount cannot exceed 100" });
+          }
+          discAmount = Math.min(subtotalNum, (subtotalNum * val) / 100);
+        } else {
+          discAmount = Math.min(subtotalNum, val);
+        }
+        discAmount = Math.round(discAmount); // round to nearest 1 EGP
+        discType = type;
+        discValue = val;
+        discReason = String(discountReason).trim().slice(0, 32);
+        discAppliedBy = req.user && req.user.id ? req.user.id : null;
+      }
+
+      const discountedSubtotal = Math.max(0, subtotalNum - discAmount);
+      const recomputedTax = discountedSubtotal * taxRateNum;
+      const recomputedTaxAmount = Math.round(recomputedTax * 100) / 100;
+      const recomputedTotal = Math.round(
+        discountedSubtotal + recomputedTaxAmount + deliveryFeeNum
+      );
+
+      const finalTaxAmount =
+        discAmount > 0 ? recomputedTaxAmount : parseFloat(taxAmount);
+      const finalTotal = discAmount > 0 ? recomputedTotal : parseFloat(total);
+
       console.log("💰 Step 4: Generating sale number...");
       // Generate unique sale number
       const saleNumber = await generateSaleNumber();
@@ -557,10 +623,15 @@ router.post(
             deliveryFee: deliveryFee ? parseFloat(deliveryFee) : null,
             deliveryAddress: deliveryAddress || null,
             deliveryStatus: deliveryStatus || null,
-            subtotal: parseFloat(subtotal),
-            taxRate: taxRate !== undefined ? parseFloat(taxRate) : 0.14,
-            taxAmount: parseFloat(taxAmount),
-            total: parseFloat(total),
+            subtotal: subtotalNum,
+            discountType: discType,
+            discountValue: discValue,
+            discountAmount: discAmount > 0 ? discAmount : null,
+            discountReason: discReason,
+            discountAppliedByUserId: discAppliedBy,
+            taxRate: taxRateNum,
+            taxAmount: finalTaxAmount,
+            total: finalTotal,
             paymentMethod: (paymentMethod || "CASH").toUpperCase(),
             paidAmount: parseFloat(paidAmount),
             changeAmount: parseFloat(changeAmount) || 0,
@@ -1456,10 +1527,27 @@ router.post(
           }
         }
 
-        // Calculate tax and total
+        // Proportional discount refund: if the original sale had a discount,
+        // refund it proportionally based on the refunded subtotal share.
+        let refundDiscountAmount = 0;
+        const originalSubtotal = parseFloat(originalSale.subtotal);
+        const originalDiscount =
+          originalSale.discountAmount != null
+            ? parseFloat(originalSale.discountAmount)
+            : 0;
+        if (originalDiscount > 0 && originalSubtotal > 0) {
+          refundDiscountAmount =
+            Math.round((refundSubtotal * originalDiscount) / originalSubtotal);
+        }
+        const discountedRefundSubtotal = Math.max(
+          0,
+          refundSubtotal - refundDiscountAmount,
+        );
+
+        // Calculate tax and total on the post-discount refund amount
         const taxRate = parseFloat(originalSale.taxRate);
-        const taxAmount = refundSubtotal * taxRate;
-        const total = refundSubtotal + taxAmount;
+        const taxAmount = discountedRefundSubtotal * taxRate;
+        const total = discountedRefundSubtotal + taxAmount;
 
         // Generate refund sale number
         const now = new Date();
@@ -1484,8 +1572,12 @@ router.post(
             warehouseId: originalSale.warehouseId,
             shiftId: originalSale.shiftId,
             subtotal: -refundSubtotal, // Negative for refund
+            discountType: refundDiscountAmount > 0 ? originalSale.discountType : null,
+            discountValue: refundDiscountAmount > 0 ? -refundDiscountAmount : null,
+            discountAmount: refundDiscountAmount > 0 ? -refundDiscountAmount : null,
+            discountReason: refundDiscountAmount > 0 ? originalSale.discountReason : null,
             taxRate: taxRate,
-            taxAmount: -taxAmount, // Negative for refund
+            taxAmount: -taxAmount, // Negative for refund (post-discount)
             total: -total, // Negative for refund
             paymentMethod: originalSale.paymentMethod,
             paidAmount: -total, // Negative for refund

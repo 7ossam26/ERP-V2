@@ -175,10 +175,18 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
   if (!isOpen) return null;
 
   const totalRefund = calculateTotalRefund();
-  // Assuming tax rate is consistent, we might approximate tax refund
-  // Ideally backend handles exact math. We just show approximate here.
   const taxRate = saleData ? parseFloat(saleData.taxRate) : 0.14;
-  const totalWithTax = totalRefund * (1 + taxRate); // Approximate
+  const originalSubtotal = saleData ? parseFloat(saleData.subtotal) : 0;
+  const originalDiscount =
+    saleData && saleData.discountAmount != null
+      ? parseFloat(saleData.discountAmount)
+      : 0;
+  const proportionalDiscount =
+    originalDiscount > 0 && originalSubtotal > 0
+      ? Math.round((totalRefund * originalDiscount) / originalSubtotal)
+      : 0;
+  const discountedRefund = Math.max(0, totalRefund - proportionalDiscount);
+  const totalWithTax = discountedRefund * (1 + taxRate); // matches backend proportional math
 
   return createPortal(
     <div
@@ -420,6 +428,11 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
         {/* Footer */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl flex justify-between items-center">
           <div className="text-lg">
+            {proportionalDiscount > 0 && (
+              <div className="text-xs text-rose-600 mb-1">
+                خصم متناسب على المرتجع: -{proportionalDiscount.toFixed(2)} ج.م
+              </div>
+            )}
             <span className="text-gray-500 ml-2">
               إجمالي الاسترجاع (تقريبي مع الضريبة):
             </span>
