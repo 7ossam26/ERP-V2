@@ -23,6 +23,9 @@ const CallCenterNewOrderPage = () => {
   const [cart, setCart] = useState([]); // [{ itemId, name, price, quantity, stock, unit }]
   const [itemSearch, setItemSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [categoryId, setCategoryId] = useState("all");
+  const [discountType, setDiscountType] = useState("PERCENTAGE");
+  const [discountInput, setDiscountInput] = useState("");
 
   // Load branches once
   useEffect(() => {
@@ -67,11 +70,27 @@ const CallCenterNewOrderPage = () => {
     return () => clearTimeout(t);
   }, [phone]);
 
+  const categories = useMemo(() => {
+    const map = new Map();
+    items.forEach((it) => {
+      (it.categories || []).forEach((c) => {
+        if (c && !map.has(c.id)) map.set(c.id, c);
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "ar"));
+  }, [items]);
+
   const filteredItems = useMemo(() => {
-    if (!itemSearch) return items;
     const q = itemSearch.trim().toLowerCase();
-    return items.filter((i) => i.name.toLowerCase().includes(q));
-  }, [items, itemSearch]);
+    return items.filter((i) => {
+      if (q && !i.name.toLowerCase().includes(q)) return false;
+      if (categoryId !== "all") {
+        const catIds = (i.categories || []).map((c) => c.id);
+        if (!catIds.includes(parseInt(categoryId))) return false;
+      }
+      return true;
+    });
+  }, [items, itemSearch, categoryId]);
 
   const addToCart = (item) => {
     if (item.stock <= 0) {
@@ -112,7 +131,16 @@ const CallCenterNewOrderPage = () => {
   const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
   const selectedZone = zones.find((z) => z.id === parseInt(zoneId));
   const deliveryFee = selectedZone ? Number(selectedZone.fee) : 0;
-  const total = subtotal + deliveryFee;
+  const discountRaw = Number(discountInput) || 0;
+  const discountAmount = (() => {
+    if (discountRaw <= 0) return 0;
+    if (discountType === "PERCENTAGE") {
+      const pct = Math.min(100, discountRaw);
+      return Math.min(subtotal, (subtotal * pct) / 100);
+    }
+    return Math.min(subtotal, discountRaw);
+  })();
+  const total = Math.max(0, subtotal - discountAmount) + deliveryFee;
 
   const pickClient = (c) => {
     setSelectedClient(c);
@@ -158,6 +186,10 @@ const CallCenterNewOrderPage = () => {
         deliveryAddress,
         notes,
       };
+      if (discountRaw > 0) {
+        payload.discountType = discountType;
+        payload.discountValue = discountRaw;
+      }
       const result = await callCenterService.createOrder(payload);
       toast.success(`تم إنشاء الطلب ${result.saleNumber}`);
 
@@ -170,6 +202,8 @@ const CallCenterNewOrderPage = () => {
       setDeliveryAddress("");
       setZoneId("");
       setNotes("");
+      setDiscountInput("");
+      setDiscountType("PERCENTAGE");
       // Refresh items to show updated stock
       const fresh = await callCenterService.listItems(branchId);
       setItems(fresh);
@@ -300,6 +334,35 @@ const CallCenterNewOrderPage = () => {
               onChange={(e) => setItemSearch(e.target.value)}
             />
           </div>
+          {categories.length > 0 && (
+            <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => setCategoryId("all")}
+                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap border ${
+                  categoryId === "all"
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white dark:bg-gray-800 hover:border-primary"
+                }`}
+              >
+                الكل
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCategoryId(String(c.id))}
+                  className={`px-3 py-1 rounded-full text-xs whitespace-nowrap border ${
+                    categoryId === String(c.id)
+                      ? "bg-primary text-white border-primary"
+                      : "bg-white dark:bg-gray-800 hover:border-primary"
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="max-h-[500px] overflow-auto">
             {loadingItems && <div className="p-4 text-center text-gray-500">جارٍ التحميل...</div>}
             {!loadingItems && filteredItems.length === 0 && (
@@ -361,11 +424,37 @@ const CallCenterNewOrderPage = () => {
             </div>
           )}
 
-          <div className="border-t pt-2 space-y-1 text-sm">
+          <div className="border-t pt-2 space-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 whitespace-nowrap">الخصم:</label>
+              <select
+                className="border rounded p-1 text-xs bg-white dark:bg-gray-800"
+                value={discountType}
+                onChange={(e) => setDiscountType(e.target.value)}
+              >
+                <option value="PERCENTAGE">%</option>
+                <option value="VALUE">ج.م</option>
+              </select>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className="flex-1 border rounded p-1 text-sm"
+                value={discountInput}
+                onChange={(e) => setDiscountInput(e.target.value)}
+                placeholder="0"
+              />
+            </div>
             <div className="flex justify-between">
               <span>المجموع:</span>
               <span>{subtotal.toFixed(2)}</span>
             </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-red-600">
+                <span>الخصم:</span>
+                <span>-{discountAmount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>رسوم التوصيل:</span>
               <span>{deliveryFee.toFixed(2)}</span>

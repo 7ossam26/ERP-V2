@@ -118,6 +118,11 @@ const CallCenterOrdersListPage = () => {
                     <span className={`px-2 py-1 rounded text-xs ${STATUS_COLORS[o.status]}`}>
                       {STATUS_LABELS[o.status]}
                     </span>
+                    {o.claimedBy?.name && o.status !== "CANCELLED" && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        تم الاستلام بواسطة {o.claimedBy.name}
+                      </div>
+                    )}
                     {o.status === "CANCELLED" && (
                       <div className="text-xs text-gray-500 mt-1">
                         {o.cancelledBy?.name ? `بواسطة ${o.cancelledBy.name} — ` : ""}

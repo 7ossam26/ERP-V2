@@ -87,6 +87,18 @@ const PrintTicket = ({ order, onDone }) => {
           <span>المجموع:</span>
           <span>{Number(sale.subtotal || 0).toFixed(2)}</span>
         </div>
+        {Number(sale.discountAmount || 0) > 0 && (
+          <div className="text-xs flex justify-between">
+            <span>
+              الخصم
+              {sale.discountType === "PERCENTAGE" && sale.discountValue != null
+                ? ` (${Number(sale.discountValue)}%)`
+                : ""}
+              :
+            </span>
+            <span>-{Number(sale.discountAmount).toFixed(2)}</span>
+          </div>
+        )}
         {sale.deliveryFee != null && (
           <div className="text-xs flex justify-between">
             <span>رسوم التوصيل:</span>

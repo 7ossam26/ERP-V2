@@ -624,6 +624,9 @@ model Sale {
   deliveryAddress String?           @map("delivery_address") @db.Text
   deliveryStatus  DeliveryStatus?   @map("delivery_status")
   subtotal        Decimal           @db.Decimal(10, 2)
+  discountType    DiscountType?     @map("discount_type")
+  discountValue   Decimal?          @map("discount_value") @db.Decimal(10, 2)
+  discountAmount  Decimal?          @map("discount_amount") @db.Decimal(10, 2)
   taxRate         Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
   taxAmount       Decimal           @map("tax_amount") @db.Decimal(10, 2)
   total           Decimal           @db.Decimal(10, 2)

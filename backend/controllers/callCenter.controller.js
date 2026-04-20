@@ -190,6 +190,8 @@ exports.createOrder = async (req, res, next) => {
       deliveryZoneId,
       deliveryAddress,
       notes,
+      discountType,
+      discountValue,
     } = req.body;
 
     if (!branchId || !clientId) {
@@ -251,8 +253,35 @@ exports.createOrder = async (req, res, next) => {
       saleItems.push({ itemId, quantity: qty, unitPrice, total });
     }
 
+    // Discount (optional). Validate and cap at subtotal.
+    let discType = null;
+    let discValue = null;
+    let discAmount = 0;
+    if (discountValue != null && Number(discountValue) > 0) {
+      const type = String(discountType || "").toUpperCase();
+      if (!["PERCENTAGE", "VALUE"].includes(type)) {
+        return res.status(400).json({
+          error: "Invalid discountType",
+          validTypes: ["PERCENTAGE", "VALUE"],
+        });
+      }
+      const val = Number(discountValue);
+      if (!Number.isFinite(val) || val < 0) {
+        return res.status(400).json({ error: "Invalid discountValue" });
+      }
+      if (type === "PERCENTAGE") {
+        if (val > 100) return res.status(400).json({ error: "Percentage discount cannot exceed 100" });
+        discAmount = Math.min(subtotal, (subtotal * val) / 100);
+      } else {
+        discAmount = Math.min(subtotal, val);
+      }
+      discType = type;
+      discValue = val;
+      discAmount = Math.round(discAmount * 100) / 100;
+    }
+
     const deliveryFee = zone ? Number(zone.fee) : 0;
-    const total = subtotal + deliveryFee;
+    const total = subtotal - discAmount + deliveryFee;
     const saleNumber = await generateSaleNumber();
 
     const result = await prisma.$transaction(async (tx) => {
@@ -271,6 +300,9 @@ exports.createOrder = async (req, res, next) => {
           deliveryAddress: deliveryAddress || client.address || null,
           deliveryStatus: "PENDING",
           subtotal,
+          discountType: discType,
+          discountValue: discValue,
+          discountAmount: discAmount || null,
           taxRate: 0,
           taxAmount: 0,
           total,

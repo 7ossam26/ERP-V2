@@ -185,6 +185,11 @@ const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
                     <span>{new Date(o.createdAt).toLocaleTimeString("ar-EG")}</span>
                     <span>{Number(o.sale?.total || 0).toFixed(2)}</span>
                   </div>
+                  {o.claimedBy?.name && (
+                    <div className="text-xs text-blue-600 mt-0.5">
+                      بواسطة: {o.claimedBy.name}
+                    </div>
+                  )}
                 </button>
               ))
             )}
@@ -200,7 +205,14 @@ const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
         {detail && (
           <div className="space-y-3" dir="rtl">
             <div className="flex items-center justify-between">
-              <OrderStatusBadge status={detail.status} />
+              <div className="flex items-center gap-2">
+                <OrderStatusBadge status={detail.status} />
+                {detail.claimedBy?.name && (
+                  <span className="text-xs text-blue-600">
+                    بواسطة {detail.claimedBy.name}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => setPrinting(detail)}
                 className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
