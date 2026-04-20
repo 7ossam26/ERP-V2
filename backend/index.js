@@ -256,6 +256,7 @@ app.use("/api/call-center", require("./routes/callCenter"));
 app.use("/api/events", require("./routes/events"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/orders", require("./routes/orders"));
+app.use("/api/bulk", require("./routes/bulk"));
 
 // Start the TTL cron for Notification rows (retention = 30 days per D8).
 const { startNotificationPurgeCron } = require("./lib/notificationPurge");

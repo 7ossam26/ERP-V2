@@ -61,6 +61,11 @@ import DataImportPage from "./pages/import/DataImportPage";
 import CallCenterNewOrderPage from "./pages/call-center/CallCenterNewOrderPage";
 import CallCenterOrdersListPage from "./pages/call-center/CallCenterOrdersListPage";
 import CallCenterReportPage from "./pages/reports/CallCenterReportPage";
+import BulkCustomersListPage from "./pages/bulk/BulkCustomersListPage";
+import BulkCustomerDetailPage from "./pages/bulk/BulkCustomerDetailPage";
+import BulkPOSPage from "./pages/bulk/BulkPOSPage";
+import BulkOrdersListPage from "./pages/bulk/BulkOrdersListPage";
+import BulkOrderDetailPage from "./pages/bulk/BulkOrderDetailPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
@@ -440,6 +445,46 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="CALL_CENTER">
                 <CallCenterOrdersListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bulk/customers"
+            element={
+              <ProtectedRoute requiredPermission={["BULK_POS", "BULK_CUSTOMERS"]}>
+                <BulkCustomersListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bulk/customers/:id"
+            element={
+              <ProtectedRoute requiredPermission={["BULK_POS", "BULK_CUSTOMERS"]}>
+                <BulkCustomerDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bulk/pos"
+            element={
+              <ProtectedRoute requiredPermission="BULK_POS">
+                <BulkPOSPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bulk/orders"
+            element={
+              <ProtectedRoute requiredPermission="BULK_POS">
+                <BulkOrdersListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bulk/orders/:id"
+            element={
+              <ProtectedRoute requiredPermission="BULK_POS">
+                <BulkOrderDetailPage />
               </ProtectedRoute>
             }
           />

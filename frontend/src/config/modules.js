@@ -245,6 +245,24 @@ export const MODULES = [
     path: "/call-center/new",
     category: "MANAGEMENT",
   },
+  {
+    id: "bulk_pos",
+    code: "BULK_POS",
+    label: "البيع بالجملة",
+    description: "فواتير العملاء والعقود",
+    icon: "store",
+    path: "/bulk/pos",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "bulk_customers",
+    code: "BULK_CUSTOMERS",
+    label: "عملاء الجملة",
+    description: "الشركات والعقود والأسعار",
+    icon: "business",
+    path: "/bulk/customers",
+    category: "MANAGEMENT",
+  },
 ];
 
 export const getCreationModules = () =>

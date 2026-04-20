@@ -95,6 +95,11 @@ async function main() {
       "SHIFTS",
       "INITIAL_INVENTORY",
       "CALL_CENTER",
+      "BULK_POS",
+      "BULK_CUSTOMERS",
+      "BULK_PRICING",
+      "BULK_CREDIT",
+      "BULK_REPORTS",
     ];
 
     for (const module of modules) {
