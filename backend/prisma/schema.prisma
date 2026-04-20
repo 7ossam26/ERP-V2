@@ -54,6 +54,9 @@ model User {
   createdBulkContractPrices   BulkContractPrice[]        @relation("BulkContractPriceCreator")
   createdBulkOrders           BulkOrder[]                @relation("BulkOrderCreator")
   cancelledBulkOrders         BulkOrder[]                @relation("BulkOrderCanceller")
+  createdBulkPayments         BulkPayment[]              @relation("BulkPaymentCreator")
+  voidedBulkPayments          BulkPayment[]              @relation("BulkPaymentVoider")
+  createdBulkRefunds          BulkRefund[]               @relation("BulkRefundCreator")
 
   @@map("users")
 }
@@ -296,6 +299,9 @@ model Treasury {
   supplierPayments SupplierPayment[]
   deposits         Deposit[]
   withdrawals      Withdrawal[]
+
+  bulkPayments BulkPayment[] @relation("BulkPaymentTreasury")
+  bulkRefunds  BulkRefund[]  @relation("BulkRefundTreasury")
 
   // Config Relations
   systemConfigAsMain SystemConfiguration[] @relation("ConfigMainTreasury")
@@ -1190,6 +1196,18 @@ enum BulkDocumentType {
   CREDIT_NOTE
 }
 
+enum BulkPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  CREDIT
+}
+
+enum BulkRefundMethod {
+  CASH_REFUND
+  CREDIT_NOTE
+}
+
 model BulkCustomer {
   id                   Int       @id @default(autoincrement())
   companyName          String    @map("company_name") @db.VarChar(200)
@@ -1210,6 +1228,7 @@ model BulkCustomer {
   contacts       BulkCustomerContact[]
   contractPrices BulkContractPrice[]
   orders         BulkOrder[]
+  payments       BulkPayment[]
 
   @@index([companyName])
   @@index([primaryContactPhone])
@@ -1283,6 +1302,8 @@ model BulkOrder {
   cancelledBy User?           @relation("BulkOrderCanceller", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
   items       BulkOrderItem[]
   documents   BulkDocument[]
+  payments    BulkPayment[]
+  refunds     BulkRefund[]
 
   @@index([customerId, status])
   @@index([status, createdAt])
@@ -1326,4 +1347,54 @@ model BulkNumberSequence {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("bulk_number_sequences")
+}
+
+model BulkPayment {
+  id              Int               @id @default(autoincrement())
+  orderId         Int               @map("order_id")
+  customerId      Int               @map("customer_id")
+  treasuryId      Int?              @map("treasury_id")
+  method          BulkPaymentMethod
+  amount          Decimal           @db.Decimal(12, 2)
+  receivedAt      DateTime          @default(now()) @map("received_at")
+  createdByUserId Int               @map("created_by_user_id")
+
+  bankReference   String?           @map("bank_reference") @db.VarChar(120)
+  chequeNumber    String?           @map("cheque_number") @db.VarChar(60)
+  chequeDueDate   DateTime?         @map("cheque_due_date")
+
+  voidedAt        DateTime?         @map("voided_at")
+  voidedByUserId  Int?              @map("voided_by_user_id")
+  voidReason      String?           @map("void_reason") @db.Text
+
+  notes           String?           @db.Text
+
+  order           BulkOrder         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customer        BulkCustomer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  treasury        Treasury?         @relation("BulkPaymentTreasury", fields: [treasuryId], references: [id], onDelete: Restrict)
+  createdBy       User              @relation("BulkPaymentCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  voidedBy        User?             @relation("BulkPaymentVoider", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([customerId, receivedAt])
+  @@map("bulk_payments")
+}
+
+model BulkRefund {
+  id               Int              @id @default(autoincrement())
+  orderId          Int              @map("order_id")
+  method           BulkRefundMethod
+  amount           Decimal          @db.Decimal(12, 2)
+  reason           String?          @db.Text
+  treasuryId       Int?             @map("treasury_id")
+  creditNoteNumber String?          @unique @map("credit_note_number")
+  createdByUserId  Int              @map("created_by_user_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  order            BulkOrder        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  treasury         Treasury?        @relation("BulkRefundTreasury", fields: [treasuryId], references: [id], onDelete: Restrict)
+  createdBy        User             @relation("BulkRefundCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("bulk_refunds")
 }

@@ -31,6 +31,13 @@ export const bulkService = {
   createOrder: (data) => api.post("/bulk/orders", data),
   confirmOrder: (id, body) => api.post(`/bulk/orders/${id}/confirm`, body || {}),
   cancelOrder: (id, reason) => api.post(`/bulk/orders/${id}/cancel`, { reason }),
+  returnOrder: (id, data) => api.post(`/bulk/orders/${id}/return`, data),
+
+  // Payments
+  listOrderPayments: (orderId) => api.get(`/bulk/orders/${orderId}/payments`),
+  createPayment: (orderId, data) => api.post(`/bulk/orders/${orderId}/payments`, data),
+  voidPayment: (paymentId, reason) => api.post(`/bulk/payments/${paymentId}/void`, { reason }),
+  listCustomerPayments: (customerId) => api.get(`/bulk/customers/${customerId}/payments`),
 };
 
 export default bulkService;

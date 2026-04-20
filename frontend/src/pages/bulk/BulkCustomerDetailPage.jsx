@@ -4,10 +4,12 @@ import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { itemService } from "../../services/itemService";
 import { formatEGP } from "../../utils/bulkMoney";
+import BulkCreditBadge from "../../components/bulk/BulkCreditBadge";
 
 const TABS = [
   { key: "profile", label: "البيانات" },
   { key: "prices", label: "أسعار العقد" },
+  { key: "ar", label: "الحساب" },
 ];
 
 export default function BulkCustomerDetailPage() {
@@ -49,12 +51,15 @@ export default function BulkCustomerDetailPage() {
             {customer.taxNumber ? `رقم ضريبي ${customer.taxNumber}` : "بدون رقم ضريبي"}
           </div>
         </div>
-        <Link
-          to={`/bulk/pos?customerId=${customer.id}`}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-        >
-          فاتورة جديدة
-        </Link>
+        <div className="flex items-center gap-2">
+          <BulkCreditBadge customer={customer} />
+          <Link
+            to={`/bulk/pos?customerId=${customer.id}`}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+          >
+            فاتورة جديدة
+          </Link>
+        </div>
       </div>
 
       <div className="border-b mb-4 flex gap-4">
@@ -75,6 +80,7 @@ export default function BulkCustomerDetailPage() {
 
       {tab === "profile" && <ProfileTab customer={customer} onSaved={load} />}
       {tab === "prices" && <PricesTab customerId={customer.id} />}
+      {tab === "ar" && <ARTab customerId={customer.id} />}
     </div>
   );
 }
@@ -316,6 +322,141 @@ function PricesTab({ customerId }) {
             })}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function ARTab({ customerId }) {
+  const [payments, setPayments] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const METHOD_LABELS = {
+    CASH: "نقدي",
+    BANK_TRANSFER: "تحويل بنكي",
+    CHEQUE: "شيك",
+    CREDIT: "آجل",
+  };
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const [p, o] = await Promise.all([
+          bulkService.listCustomerPayments(customerId),
+          bulkService.listOrders({ customerId }),
+        ]);
+        setPayments(p);
+        setOrders(o);
+      } catch (err) {
+        toast.error(err?.data?.error || "تعذر تحميل الحساب");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [customerId]);
+
+  const totalOrders = orders
+    .filter((o) => !["CANCELLED", "RETURNED"].includes(o.status))
+    .reduce((s, o) => s + Number(o.total), 0);
+  const totalPaid = payments
+    .filter((p) => !p.voidedAt)
+    .reduce((s, p) => s + Number(p.amount), 0);
+  const openBalance = Math.max(0, totalOrders - totalPaid);
+
+  if (loading) return <div className="p-6 text-center">جارٍ التحميل...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white dark:bg-gray-800 border rounded-lg p-3 text-center">
+          <div className="text-xs text-gray-500">إجمالي الطلبات</div>
+          <div className="text-lg font-bold">{formatEGP(totalOrders)}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border rounded-lg p-3 text-center">
+          <div className="text-xs text-gray-500">إجمالي المدفوع</div>
+          <div className="text-lg font-bold text-green-700">{formatEGP(totalPaid)}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border rounded-lg p-3 text-center">
+          <div className="text-xs text-gray-500">الرصيد المفتوح</div>
+          <div className={`text-lg font-bold ${openBalance > 0 ? "text-red-700" : "text-gray-700"}`}>
+            {formatEGP(openBalance)}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 border rounded-lg p-4">
+        <h3 className="font-bold mb-2 text-sm">سجل الدفعات</h3>
+        {payments.length === 0 ? (
+          <div className="text-sm text-gray-500">لا يوجد دفعات مسجلة.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="text-right p-2">التاريخ</th>
+                <th className="text-right p-2">الطلب</th>
+                <th className="text-right p-2">الطريقة</th>
+                <th className="text-right p-2">المبلغ</th>
+                <th className="text-right p-2">الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p) => (
+                <tr key={p.id} className={`border-t ${p.voidedAt ? "opacity-50" : ""}`}>
+                  <td className="p-2 ltr-numbers">{new Date(p.receivedAt).toLocaleDateString("ar-EG")}</td>
+                  <td className="p-2">
+                    <Link to={`/bulk/orders/${p.order?.id}`} className="text-blue-600 hover:underline">
+                      {p.order?.orderNumber || `#${p.order?.id}`}
+                    </Link>
+                  </td>
+                  <td className="p-2">{METHOD_LABELS[p.method] || p.method}</td>
+                  <td className="p-2 font-medium">{formatEGP(p.amount)}</td>
+                  <td className="p-2">
+                    {p.voidedAt
+                      ? <span className="text-red-600 text-xs">ملغاة</span>
+                      : <span className="text-green-700 text-xs">مسجلة</span>
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 border rounded-lg p-4">
+        <h3 className="font-bold mb-2 text-sm">الطلبات المعلقة</h3>
+        {orders.filter((o) => ["CONFIRMED", "PARTIALLY_PAID"].includes(o.status)).length === 0 ? (
+          <div className="text-sm text-gray-500">لا يوجد طلبات معلقة.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="text-right p-2">رقم الطلب</th>
+                <th className="text-right p-2">التاريخ</th>
+                <th className="text-right p-2">الإجمالي</th>
+                <th className="text-right p-2">المتبقي</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders
+                .filter((o) => ["CONFIRMED", "PARTIALLY_PAID"].includes(o.status))
+                .map((o) => (
+                  <tr key={o.id} className="border-t">
+                    <td className="p-2">
+                      <Link to={`/bulk/orders/${o.id}`} className="text-blue-600 hover:underline">
+                        {o.orderNumber || `#${o.id}`}
+                      </Link>
+                    </td>
+                    <td className="p-2 ltr-numbers">{new Date(o.createdAt).toLocaleDateString("ar-EG")}</td>
+                    <td className="p-2">{formatEGP(o.total)}</td>
+                    <td className="p-2 font-bold text-red-700">{formatEGP(o.balanceDue)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

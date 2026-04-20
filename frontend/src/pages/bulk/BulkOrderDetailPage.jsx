@@ -4,6 +4,8 @@ import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { formatEGP, formatNumber } from "../../utils/bulkMoney";
 import BulkSalesReceipt from "../../components/bulk/BulkSalesReceipt";
+import BulkPaymentModal from "../../components/bulk/BulkPaymentModal";
+import BulkReturnModal from "../../components/bulk/BulkReturnModal";
 
 const STATUS_LABELS = {
   DRAFT: "مسودة",
@@ -15,12 +17,21 @@ const STATUS_LABELS = {
   RETURNED: "مرتجع",
 };
 
+const METHOD_LABELS = {
+  CASH: "نقدي",
+  BANK_TRANSFER: "تحويل بنكي",
+  CHEQUE: "شيك",
+  CREDIT: "آجل",
+};
+
 export default function BulkOrderDetailPage() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -52,7 +63,28 @@ export default function BulkOrderDetailPage() {
       const detail = err?.data?.details
         ? err.data.details.map((d) => `${d.itemName} (طلب ${d.requested}, متاح ${d.available})`).join(", ")
         : "";
-      toast.error(`${err?.data?.error || "تعذر التأكيد"}${detail ? `: ${detail}` : ""}`);
+      const creditMsg = err?.data?.error === "CREDIT_LIMIT_EXCEEDED"
+        ? ` (مفتوح: ${formatEGP(err.data?.open)}, حد: ${formatEGP(err.data?.limit)})`
+        : "";
+      toast.error(`${err?.data?.error || "تعذر التأكيد"}${detail ? `: ${detail}` : ""}${creditMsg}`);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const onConfirmCredit = async () => {
+    if (!order) return;
+    if (!window.confirm("تأكيد الطلب كآجل كامل؟ سيظل رصيد المتبقي مفتوحًا.")) return;
+    setWorking(true);
+    try {
+      const updated = await bulkService.confirmOrder(order.id, { paidAmount: 0 });
+      toast.success(`تم التأكيد ${updated.orderNumber || ""}`);
+      setOrder(updated);
+    } catch (err) {
+      const creditMsg = err?.data?.error === "CREDIT_LIMIT_EXCEEDED"
+        ? ` (مفتوح: ${formatEGP(err.data?.open)}, حد: ${formatEGP(err.data?.limit)})`
+        : "";
+      toast.error(`${err?.data?.error || "تعذر التأكيد"}${creditMsg}`);
     } finally {
       setWorking(false);
     }
@@ -74,20 +106,64 @@ export default function BulkOrderDetailPage() {
     }
   };
 
+  const onVoidPayment = async (paymentId) => {
+    const reason = window.prompt("سبب الإلغاء:");
+    if (!reason || !reason.trim()) return;
+    try {
+      const result = await bulkService.voidPayment(paymentId, reason.trim());
+      toast.success("تم إلغاء الدفعة");
+      setOrder((prev) => ({
+        ...prev,
+        paidAmount: result.order.paidAmount,
+        balanceDue: result.order.balanceDue,
+        status: result.order.status,
+        payments: (prev.payments || []).map((p) =>
+          p.id === paymentId ? { ...p, voidedAt: new Date().toISOString(), voidReason: reason } : p
+        ),
+      }));
+    } catch (err) {
+      toast.error(err?.data?.error || "تعذر الإلغاء");
+    }
+  };
+
   if (loading) return <div className="p-6 text-center">جارٍ التحميل...</div>;
   if (!order) return <div className="p-6 text-center">الطلب غير موجود.</div>;
 
   const canConfirm = order.status === "DRAFT" || order.status === "QUOTED";
   const canCancel = order.status === "DRAFT" || order.status === "QUOTED";
+  const canPay = order.status === "CONFIRMED" || order.status === "PARTIALLY_PAID";
+  const canReturn = ["CONFIRMED", "PARTIALLY_PAID", "PAID"].includes(order.status);
   const receipt = order.documents?.find((d) => d.type === "SALES_RECEIPT");
+  const taxInvoice = order.documents?.find((d) => d.type === "TAX_INVOICE");
+  const printDoc = taxInvoice || receipt;
 
   return (
     <div className="p-4 sm:p-6" dir="rtl">
       {printing && (
         <BulkSalesReceipt order={order} onDone={() => setPrinting(false)} />
       )}
+      {showPayModal && (
+        <BulkPaymentModal
+          order={order}
+          onSuccess={(result) => {
+            setShowPayModal(false);
+            load();
+          }}
+          onClose={() => setShowPayModal(false)}
+        />
+      )}
+      {showReturnModal && (
+        <BulkReturnModal
+          order={order}
+          onSuccess={(updated) => {
+            setShowReturnModal(false);
+            setOrder(updated);
+          }}
+          onClose={() => setShowReturnModal(false)}
+        />
+      )}
 
-      <div className="flex items-center justify-between mb-4 no-print">
+      <div className="flex items-center justify-between mb-4 no-print flex-wrap gap-2">
         <div>
           <Link to="/bulk/orders" className="text-blue-600 hover:underline text-sm">
             ← الرجوع للقائمة
@@ -100,7 +176,7 @@ export default function BulkOrderDetailPage() {
             {new Date(order.createdAt).toLocaleString("ar-EG")}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canCancel && (
             <button
               disabled={working}
@@ -111,20 +187,45 @@ export default function BulkOrderDetailPage() {
             </button>
           )}
           {canConfirm && (
-            <button
-              disabled={working}
-              onClick={onConfirmCash}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md disabled:opacity-60"
-            >
-              {working ? "..." : "تأكيد نقدي"}
-            </button>
+            <>
+              <button
+                disabled={working}
+                onClick={onConfirmCredit}
+                className="border border-amber-400 text-amber-700 hover:bg-amber-50 px-3 py-2 rounded-md disabled:opacity-60"
+              >
+                {working ? "..." : "تأكيد آجل"}
+              </button>
+              <button
+                disabled={working}
+                onClick={onConfirmCash}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md disabled:opacity-60"
+              >
+                {working ? "..." : "تأكيد نقدي"}
+              </button>
+            </>
           )}
-          {receipt && (
+          {canPay && (
             <button
-              onClick={() => setPrinting(true)}
+              onClick={() => setShowPayModal(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
             >
-              طباعة الإيصال
+              سجّل دفعة
+            </button>
+          )}
+          {canReturn && (
+            <button
+              onClick={() => setShowReturnModal(true)}
+              className="border border-orange-400 text-orange-700 hover:bg-orange-50 px-3 py-2 rounded-md"
+            >
+              إرجاع
+            </button>
+          )}
+          {printDoc && (
+            <button
+              onClick={() => setPrinting(true)}
+              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
+            >
+              طباعة
             </button>
           )}
         </div>
@@ -175,6 +276,51 @@ export default function BulkOrderDetailPage() {
           <Row label="المتبقي" value={formatEGP(order.balanceDue)} bold />
         </div>
       </div>
+
+      {/* Payments list */}
+      {order.payments?.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 mb-4 no-print">
+          <h3 className="font-bold mb-2">الدفعات</h3>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="text-right p-2">التاريخ</th>
+                <th className="text-right p-2">الطريقة</th>
+                <th className="text-right p-2">المبلغ</th>
+                <th className="text-right p-2">الخزينة</th>
+                <th className="text-right p-2">الحالة</th>
+                <th className="p-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.payments.map((p) => (
+                <tr key={p.id} className={`border-t ${p.voidedAt ? "opacity-50 line-through" : ""}`}>
+                  <td className="p-2 ltr-numbers">{new Date(p.receivedAt).toLocaleDateString("ar-EG")}</td>
+                  <td className="p-2">{METHOD_LABELS[p.method] || p.method}</td>
+                  <td className="p-2 font-medium">{formatEGP(p.amount)}</td>
+                  <td className="p-2">{p.treasury?.name || "—"}</td>
+                  <td className="p-2">
+                    {p.voidedAt
+                      ? <span className="text-red-600 text-xs">ملغاة</span>
+                      : <span className="text-green-700 text-xs">مسجلة</span>
+                    }
+                  </td>
+                  <td className="p-2">
+                    {!p.voidedAt && (
+                      <button
+                        onClick={() => onVoidPayment(p.id)}
+                        className="text-red-600 hover:underline text-xs"
+                      >
+                        إلغاء
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {order.documents?.length > 0 && (
         <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 no-print">

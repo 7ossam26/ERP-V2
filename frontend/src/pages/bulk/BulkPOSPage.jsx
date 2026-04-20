@@ -5,6 +5,8 @@ import { bulkService } from "../../services/bulkService";
 import { itemService } from "../../services/itemService";
 import { warehouseService } from "../../services/warehouseService";
 import { formatEGP, splitInclusive } from "../../utils/bulkMoney";
+import BulkPaymentModal from "../../components/bulk/BulkPaymentModal";
+import BulkCreditBadge from "../../components/bulk/BulkCreditBadge";
 
 const TAX_RATE = 0.14;
 
@@ -23,6 +25,7 @@ export default function BulkPOSPage() {
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState(null); // order awaiting payment
 
   useEffect(() => {
     (async () => {
@@ -99,49 +102,24 @@ export default function BulkPOSPage() {
   );
   const totals = splitInclusive(subtotalInclusive, TAX_RATE);
 
-  const canConfirm = customerId && warehouseId && cart.length > 0 && !submitting;
+  const canSubmit = customerId && warehouseId && cart.length > 0 && !submitting;
 
-  const confirmCash = async () => {
-    if (!canConfirm) return;
-    setSubmitting(true);
-    try {
-      const created = await bulkService.createOrder({
-        customerId,
-        warehouseId,
-        items: cart.map((l) => ({
-          itemId: l.itemId,
-          quantity: Number(l.quantity),
-          unitPrice: Number(l.unitPrice),
-        })),
-      });
-      const confirmed = await bulkService.confirmOrder(created.id, {
-        paidAmount: totals.total,
-      });
-      toast.success(`تم تأكيد الطلب ${confirmed.orderNumber}`);
-      navigate(`/bulk/orders/${confirmed.id}`);
-    } catch (err) {
-      const detail = err?.data?.details
-        ? err.data.details.map((d) => `${d.itemName} (طلب ${d.requested}, متاح ${d.available})`).join(", ")
-        : "";
-      toast.error(`${err?.data?.error || "تعذر تأكيد الطلب"}${detail ? `: ${detail}` : ""}`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const buildOrderPayload = (status = "DRAFT") => ({
+    customerId,
+    warehouseId,
+    status,
+    items: cart.map((l) => ({
+      itemId: l.itemId,
+      quantity: Number(l.quantity),
+      unitPrice: Number(l.unitPrice),
+    })),
+  });
 
   const saveDraft = async () => {
-    if (!customerId || !warehouseId || cart.length === 0) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const created = await bulkService.createOrder({
-        customerId,
-        warehouseId,
-        items: cart.map((l) => ({
-          itemId: l.itemId,
-          quantity: Number(l.quantity),
-          unitPrice: Number(l.unitPrice),
-        })),
-      });
+      const created = await bulkService.createOrder(buildOrderPayload("DRAFT"));
       toast.success("تم حفظ الطلب كمسودة");
       navigate(`/bulk/orders/${created.id}`);
     } catch (err) {
@@ -151,8 +129,56 @@ export default function BulkPOSPage() {
     }
   };
 
+  const saveQuote = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      const created = await bulkService.createOrder(buildOrderPayload("QUOTED"));
+      toast.success("تم الحفظ كعرض سعر");
+      navigate(`/bulk/orders/${created.id}`);
+    } catch (err) {
+      toast.error(err?.data?.error || "تعذر الحفظ");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openConfirmModal = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      // Create draft first, then confirm it, then open payment modal
+      const created = await bulkService.createOrder(buildOrderPayload("DRAFT"));
+      const confirmed = await bulkService.confirmOrder(created.id, { paidAmount: 0 });
+      setPendingOrder(confirmed);
+    } catch (err) {
+      const detail = err?.data?.details
+        ? err.data.details.map((d) => `${d.itemName} (طلب ${d.requested}, متاح ${d.available})`).join(", ")
+        : "";
+      const creditMsg = err?.data?.error === "CREDIT_LIMIT_EXCEEDED"
+        ? ` — مفتوح: ${formatEGP(err.data?.open)}, حد: ${formatEGP(err.data?.limit)}`
+        : "";
+      toast.error(`${err?.data?.error || "تعذر التأكيد"}${detail ? `: ${detail}` : ""}${creditMsg}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-3 gap-3" dir="rtl">
+      {pendingOrder && (
+        <BulkPaymentModal
+          order={pendingOrder}
+          onSuccess={() => {
+            toast.success(`تم تأكيد الطلب ${pendingOrder.orderNumber}`);
+            navigate(`/bulk/orders/${pendingOrder.id}`);
+          }}
+          onClose={() => {
+            // Payment skipped — navigate to order detail so user can pay later
+            navigate(`/bulk/orders/${pendingOrder.id}`);
+          }}
+        />
+      )}
       {/* Catalog (left, takes 2/3 on desktop) */}
       <div className="lg:col-span-2 bg-white dark:bg-gray-800 border rounded-lg p-3">
         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -185,9 +211,9 @@ export default function BulkPOSPage() {
           />
         </div>
 
-        {customer && customer.creditLimit != null && (
-          <div className="mb-2 text-xs text-amber-700 dark:text-amber-300">
-            حد الائتمان للعميل: {formatEGP(customer.creditLimit)}
+        {customer && (
+          <div className="mb-2">
+            <BulkCreditBadge customer={customer} />
           </div>
         )}
 
@@ -264,20 +290,27 @@ export default function BulkPOSPage() {
           <Row label="الإجمالي شامل الضريبة" value={formatEGP(totals.total)} bold />
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           <button
-            disabled={!customerId || !warehouseId || cart.length === 0 || submitting}
+            disabled={!canSubmit}
             onClick={saveDraft}
-            className="border rounded-md p-2 disabled:opacity-50"
+            className="border rounded-md p-2 disabled:opacity-50 text-sm"
           >
-            حفظ كمسودة
+            مسودة
           </button>
           <button
-            disabled={!canConfirm}
-            onClick={confirmCash}
-            className="bg-green-600 hover:bg-green-700 text-white rounded-md p-2 disabled:opacity-50"
+            disabled={!canSubmit}
+            onClick={saveQuote}
+            className="border border-amber-400 text-amber-700 hover:bg-amber-50 rounded-md p-2 disabled:opacity-50 text-sm"
           >
-            {submitting ? "..." : "تأكيد نقدي"}
+            عرض سعر
+          </button>
+          <button
+            disabled={!canSubmit}
+            onClick={openConfirmModal}
+            className="bg-green-600 hover:bg-green-700 text-white rounded-md p-2 disabled:opacity-50 text-sm"
+          >
+            {submitting ? "..." : "تأكيد"}
           </button>
         </div>
       </div>

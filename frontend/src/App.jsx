@@ -66,6 +66,7 @@ import BulkCustomerDetailPage from "./pages/bulk/BulkCustomerDetailPage";
 import BulkPOSPage from "./pages/bulk/BulkPOSPage";
 import BulkOrdersListPage from "./pages/bulk/BulkOrdersListPage";
 import BulkOrderDetailPage from "./pages/bulk/BulkOrderDetailPage";
+import BulkCollectionsPage from "./pages/bulk/BulkCollectionsPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
@@ -485,6 +486,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="BULK_POS">
                 <BulkOrderDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bulk/collections"
+            element={
+              <ProtectedRoute requiredPermission="BULK_POS">
+                <BulkCollectionsPage />
               </ProtectedRoute>
             }
           />

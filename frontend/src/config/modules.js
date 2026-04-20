@@ -263,6 +263,15 @@ export const MODULES = [
     path: "/bulk/customers",
     category: "MANAGEMENT",
   },
+  {
+    id: "bulk_collections",
+    code: "BULK_POS",
+    label: "تحصيلات الجملة",
+    description: "الطلبات المعلقة والدفعات",
+    icon: "payments",
+    path: "/bulk/collections",
+    category: "MANAGEMENT",
+  },
 ];
 
 export const getCreationModules = () =>

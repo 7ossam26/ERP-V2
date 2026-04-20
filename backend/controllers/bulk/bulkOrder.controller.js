@@ -5,6 +5,7 @@ const {
   assertStockAvailable,
   applyBulkOrderStockMovement,
 } = require("../../services/bulkStock.service");
+const { assertCreditLimitOk } = require("../../services/bulkCredit.service");
 
 const DEFAULT_TAX_RATE = 0.14;
 
@@ -76,6 +77,11 @@ const orderInclude = {
     orderBy: { id: "asc" },
   },
   documents: { orderBy: { id: "asc" } },
+  payments: {
+    include: { treasury: { select: { id: true, name: true } } },
+    orderBy: { receivedAt: "asc" },
+  },
+  refunds: { orderBy: { createdAt: "asc" } },
 };
 
 // GET /api/bulk/orders?status=&customerId=&from=&to=
@@ -213,6 +219,12 @@ exports.confirm = async (req, res, next) => {
         throw err;
       }
       const balanceDue = round2(orderTotal - paidAmount);
+
+      // Credit check: if any portion is deferred (balance remains), verify limit
+      if (balanceDue > 0) {
+        await assertCreditLimitOk(tx, order.customer, orderTotal, order.id);
+      }
+
       let newStatus;
       if (paidAmount === 0) newStatus = "CONFIRMED";
       else if (balanceDue === 0) newStatus = "PAID";
@@ -223,16 +235,20 @@ exports.confirm = async (req, res, next) => {
       const orderNumber = await allocateNumber(tx, "ORDER");
       const now = new Date();
 
-      // Phase 1: only sales receipts. Tax invoices arrive in Phase 2.
-      const documentNumber = await allocateNumber(tx, "SALES_RECEIPT");
+      // Issue TAX_INVOICE when customer has a tax number, else SALES_RECEIPT
+      const hasTax = !!order.customer.taxNumber;
+      const docType = hasTax ? "TAX_INVOICE" : "SALES_RECEIPT";
+      const docSeqKey = hasTax ? "TAX_INVOICE" : "SALES_RECEIPT";
+      const documentNumber = await allocateNumber(tx, docSeqKey);
       await tx.bulkDocument.create({
         data: {
           orderId: order.id,
-          type: "SALES_RECEIPT",
+          type: docType,
           documentNumber,
           issuedByUserId: req.user.id,
           snapshot: {
             orderNumber,
+            docType,
             customer: {
               id: order.customer.id,
               companyName: order.customer.companyName,
