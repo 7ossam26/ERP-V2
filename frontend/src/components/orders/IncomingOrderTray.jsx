@@ -9,8 +9,10 @@ import toast from "react-hot-toast";
 import Modal from "../ui/Modal";
 import OrderStatusBadge from "./OrderStatusBadge";
 import PrintTicket from "./PrintTicket";
+import CancelOrderDialog, { reasonLabel } from "./CancelOrderDialog";
 import orderService from "../../services/orderService";
 import { useRealtimeNotifications } from "../../contexts/RealtimeNotificationsContext";
+import eventStream from "../../services/eventStreamService";
 
 const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
   const [open, setOpen] = useState(false);
@@ -20,7 +22,9 @@ const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
   const [detail, setDetail] = useState(null);
   const [printing, setPrinting] = useState(null);
   const [deliveryManId, setDeliveryManId] = useState("");
-  const { notifications, dismissForOrder } = useRealtimeNotifications();
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const { dismissForOrder } = useRealtimeNotifications();
 
   const refresh = useCallback(async () => {
     if (!branchId) return;
@@ -40,12 +44,22 @@ const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
     refresh();
   }, [refresh]);
 
-  // Any realtime notification refreshes the authoritative queue.
-  const lastNotifId = notifications[0]?.id || 0;
+  // Subscribe directly to the SSE stream so status changes from other cashiers
+  // refresh the tray even when they don't bump the notifications list (the
+  // ORDER_STATUS_CHANGED rows are filtered out of the bell history).
   useEffect(() => {
     if (!branchId) return;
-    if (lastNotifId) refresh();
-  }, [lastNotifId, branchId, refresh]);
+    const off = eventStream.subscribe((event) => {
+      if (event?.payload?.branchId !== branchId) return;
+      if (
+        event.type === "NEW_CALL_CENTER_ORDER" ||
+        event.type === "ORDER_STATUS_CHANGED"
+      ) {
+        refresh();
+      }
+    });
+    return off;
+  }, [branchId, refresh]);
 
   const newCount = useMemo(
     () => queue.filter((o) => o.status === "NEW").length,
@@ -94,6 +108,16 @@ const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
     transition("OUT_FOR_DELIVERY", { deliveryManId: parseInt(deliveryManId) });
   };
   const handleDeliver = () => transition("DELIVERED");
+  const handleCancelConfirm = async ({ reason, note }) => {
+    if (!detail) return;
+    setCancelSubmitting(true);
+    try {
+      await transition("CANCELLED", { reason, note });
+      setCancelOpen(false);
+    } finally {
+      setCancelSubmitting(false);
+    }
+  };
 
   if (!branchId) return null;
 
@@ -206,6 +230,13 @@ const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
                 <span className="text-gray-500">الفرع: </span>
                 <span>{detail.branch?.name || "-"}</span>
               </div>
+              {detail.status === "CANCELLED" && (
+                <div className="col-span-2 text-red-600">
+                  أُلغيت بواسطة {detail.cancelledBy?.name || "-"} —{" "}
+                  {reasonLabel(detail.cancellationReason)}
+                  {detail.cancellationNote ? ` (${detail.cancellationNote})` : ""}
+                </div>
+              )}
             </div>
             <div className="border-t pt-2">
               <table className="w-full text-sm">
@@ -235,11 +266,18 @@ const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
             {/* Actions gated by current status */}
             <div className="pt-2 border-t flex flex-wrap gap-2 justify-end">
               {detail.status === "NEW" && (
-                <button
-                  onClick={handleStart}
-                  className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700">
-                  بدء التجهيز
-                </button>
+                <>
+                  <button
+                    onClick={() => setCancelOpen(true)}
+                    className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+                    إلغاء
+                  </button>
+                  <button
+                    onClick={handleStart}
+                    className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700">
+                    بدء التجهيز
+                  </button>
+                </>
               )}
               {detail.status === "PREPARING" && (
                 <button
@@ -284,6 +322,13 @@ const IncomingOrderTray = ({ branchId, deliveryMen = [] }) => {
       {printing && (
         <PrintTicket order={printing} onDone={() => setPrinting(null)} />
       )}
+
+      <CancelOrderDialog
+        isOpen={cancelOpen}
+        onClose={() => (cancelSubmitting ? null : setCancelOpen(false))}
+        onConfirm={handleCancelConfirm}
+        submitting={cancelSubmitting}
+      />
     </>
   );
 };

@@ -17,8 +17,8 @@ export const callCenterService = {
     if (branchId) qs.set("branchId", branchId);
     return api.get(`/call-center/orders?${qs.toString()}`);
   },
-  cancelOrder: (id, reason) =>
-    api.post(`/call-center/orders/${id}/cancel`, { reason }),
+  cancelOrder: (id, reason, note) =>
+    api.post(`/call-center/orders/${id}/cancel`, { reason, note }),
 };
 
 export default callCenterService;

@@ -355,6 +355,17 @@ router.get("/call-center", requirePermission("REPORTS"), async (req, res) => {
       }
     });
 
+    // Cancellations grouped by reason (null-safe — rows pre-migration have no reason)
+    const reasonMap = {};
+    orders.forEach((o) => {
+      if (o.status !== "CANCELLED") return;
+      const reason = o.cancellationReason || "UNSPECIFIED";
+      reasonMap[reason] = (reasonMap[reason] || 0) + 1;
+    });
+    const cancellationsByReason = Object.entries(reasonMap)
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count);
+
     res.json({
       summary: {
         total,
@@ -366,6 +377,7 @@ router.get("/call-center", requirePermission("REPORTS"), async (req, res) => {
       },
       byAgent: Object.values(agentMap),
       byBranch: Object.values(branchMap),
+      cancellationsByReason,
     });
   } catch (error) {
     console.error("❌ Error generating call-center report:", error);

@@ -143,8 +143,54 @@ async function drainPendingForBranch(tx, { branchId, userId }) {
   return published;
 }
 
+/**
+ * Broadcast a status change to every open-shift cashier at the branch plus the
+ * original creator. Persists a Notification row per recipient (C4) so SSE
+ * Last-Event-ID replay can deliver missed transitions after reconnect; the
+ * bell/list endpoints filter these out by default so they act as refresh hints
+ * rather than visible bell entries. Call AFTER the transaction commits.
+ */
+async function broadcastStatusChange(prismaClient, { order, sale }) {
+  const openShifts = await prismaClient.shift.findMany({
+    where: { branchId: order.branchId, status: "OPEN" },
+    select: { userId: true },
+  });
+  const recipientIds = new Set(openShifts.map((s) => s.userId));
+  if (order.createdById) recipientIds.add(order.createdById);
+  if (recipientIds.size === 0) return;
+
+  const payload = {
+    orderId: order.id,
+    saleId: sale?.id ?? order.saleId,
+    saleNumber: sale?.saleNumber,
+    status: order.status,
+    branchId: order.branchId,
+    updatedAt: order.updatedAt,
+  };
+
+  for (const userId of recipientIds) {
+    const row = await prismaClient.notification.create({
+      data: {
+        userId,
+        branchId: order.branchId,
+        type: "ORDER_STATUS_CHANGED",
+        payload,
+        // Mark read on creation — these are refresh hints, not bell entries.
+        readAt: new Date(),
+      },
+    });
+    bus.publish(bus.topics.userNotifications(userId), {
+      id: row.id,
+      type: row.type,
+      payload: row.payload,
+      createdAt: row.createdAt,
+    });
+  }
+}
+
 module.exports = {
   createOrderInTx,
   publishNewOrderNotifications,
   drainPendingForBranch,
+  broadcastStatusChange,
 };

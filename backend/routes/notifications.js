@@ -25,7 +25,14 @@ router.get("/", async (req, res, next) => {
 
     const where = { userId };
     if (unreadOnly) where.readAt = null;
-    if (req.query.type) where.type = req.query.type;
+    if (req.query.type) {
+      where.type = req.query.type;
+    } else {
+      // ORDER_STATUS_CHANGED rows are persisted for SSE replay only — they
+      // shouldn't appear in the bell history. Callers that want them must
+      // ask for that type explicitly.
+      where.type = { not: "ORDER_STATUS_CHANGED" };
+    }
 
     const [data, total, unreadCount] = await Promise.all([
       prisma.notification.findMany({

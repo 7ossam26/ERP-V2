@@ -184,6 +184,7 @@ async function calculateSystemExpectedCash(shiftId) {
     include: {
       sales: {
         where: { status: "COMPLETED" },
+        include: { order: { select: { status: true } } },
       },
       expenses: true,
     },
@@ -194,16 +195,31 @@ async function calculateSystemExpectedCash(shiftId) {
   // Start with opening cash
   let startCash = parseFloat(shift.startCash) || 0;
   let expected = startCash;
-  let cashSales = 0;
+  let posCash = 0;
+  let codDeliveredThisShift = 0;
+  let codPendingExcluded = 0;
   let cashExpenses = 0;
 
-  // Add cash sales only (card sales don't go in drawer)
-  // Use sale.total (net invoice amount = cash that stays in drawer after change)
+  // Add cash sales only (card sales don't go in drawer).
+  // S6: for sales linked to an Order (delivery flow), only count cash that's
+  // actually in the drawer — i.e. Order.status === DELIVERED. Sales already
+  // filter to this shift via the Shift.sales relation, so a row reaching us
+  // with shiftId=current implicitly satisfies the "this shift" half of the
+  // rule. In-flight COD stays attributed here but is excluded from expected.
   shift.sales.forEach((sale) => {
-    if (sale.paymentMethod === "CASH") {
-      const amount = parseFloat(sale.total) || 0;
-      cashSales += amount;
+    if (sale.paymentMethod !== "CASH") return;
+    const amount = parseFloat(sale.total) || 0;
+    if (!sale.order) {
+      // Walk-in POS cash — money in the drawer at sale time.
+      posCash += amount;
       expected += amount;
+      return;
+    }
+    if (sale.order.status === "DELIVERED") {
+      codDeliveredThisShift += amount;
+      expected += amount;
+    } else {
+      codPendingExcluded += amount;
     }
   });
 
@@ -216,12 +232,16 @@ async function calculateSystemExpectedCash(shiftId) {
     }
   });
 
-  // Round to 2 decimal places to avoid floating point issues
+  const round = (n) => Math.round(n * 100) / 100;
+  const cashSales = round(posCash + codDeliveredThisShift);
   return {
-    expected: Math.round(expected * 100) / 100,
-    cashSales: Math.round(cashSales * 100) / 100,
-    cashExpenses: Math.round(cashExpenses * 100) / 100,
-    startCash: Math.round(startCash * 100) / 100,
+    expected: round(expected),
+    cashSales,
+    posCash: round(posCash),
+    codDeliveredThisShift: round(codDeliveredThisShift),
+    codPendingExcluded: round(codPendingExcluded),
+    cashExpenses: round(cashExpenses),
+    startCash: round(startCash),
   };
 }
 
@@ -399,6 +419,9 @@ router.post("/end", async (req, res, next) => {
     const {
       expected: systemExpectedCash,
       cashSales,
+      posCash,
+      codDeliveredThisShift,
+      codPendingExcluded,
       cashExpenses,
       startCash,
     } = await calculateSystemExpectedCash(parseInt(shiftId));
@@ -459,6 +482,9 @@ router.post("/end", async (req, res, next) => {
       calculationBreakdown: {
         startCash,
         cashSales,
+        posCash,
+        codDeliveredThisShift,
+        codPendingExcluded,
         cashExpenses,
         systemExpectedCash,
       },
@@ -725,6 +751,7 @@ router.get(
         include: {
           client: { select: { name: true } }, // Include Client Name
           deliveryMan: { select: { name: true } }, // Include Delivery Man Name
+          order: { select: { status: true } }, // S6: gate COD cash on DELIVERED
           items: {
             include: {
               item: {
@@ -755,6 +782,9 @@ router.get(
       let totalSales = 0;
       let cashSales = 0;
       let cardSales = 0;
+      let posCashReport = 0;
+      let codDeliveredReport = 0;
+      let codPendingReport = 0;
       let takeawayCount = 0, takeawayTotal = 0;
       let deliveryCount = 0, deliveryTotal = 0;
       let returnCount = 0, returnTotal = 0;
@@ -776,7 +806,16 @@ router.get(
 
         const paymentMethod = sale.paymentMethod;
         if (paymentMethod === "CASH") {
-          cashSales += saleTotal;
+          if (!sale.order) {
+            posCashReport += saleTotal;
+            cashSales += saleTotal;
+          } else if (sale.order.status === "DELIVERED") {
+            codDeliveredReport += saleTotal;
+            cashSales += saleTotal;
+          } else {
+            // In-flight COD: attributed to this shift but not yet in the drawer.
+            codPendingReport += saleTotal;
+          }
         } else {
           cardSales += saleTotal;
         }
@@ -928,6 +967,11 @@ router.get(
         totalSales,
         cashReceived: cashSales,
         cardPayments: cardSales,
+        cashBreakdown: {
+          posCash: Math.round(posCashReport * 100) / 100,
+          codDeliveredThisShift: Math.round(codDeliveredReport * 100) / 100,
+          codPendingExcluded: Math.round(codPendingReport * 100) / 100,
+        },
         salesDetails: salesDetails,
         deliveryDetails: deliveryDetails,
         orders: orders,

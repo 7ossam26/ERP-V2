@@ -7,7 +7,7 @@ const {
   requireAnyPermission,
   getUserBranchFilter,
 } = require("../middleware/auth");
-const { createOrderInTx } = require("../lib/orderService");
+const { createOrderInTx, broadcastStatusChange } = require("../lib/orderService");
 
 // Helper function to generate unique sale number
 const generateSaleNumber = async () => {
@@ -1019,14 +1019,23 @@ router.patch(
         return res.status(400).json({ error: "This is not a delivery order" });
       }
 
-      // Execute transaction: Update delivery status + Update treasury
+      // Execute transaction: mark delivered, stamp paidAt for settled payments,
+      // and sync the linked Order row so the workflow layer stays in lockstep
+      // with the sale (C1, C2).
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Update delivery status to DELIVERED
+        const now = new Date();
+        const saleData = { deliveryStatus: "DELIVERED" };
+        // COD is collected at delivery; stamp paidAt if not already set.
+        if (
+          !sale.paidAt &&
+          (sale.paymentMethod === "CASH" || sale.paymentMethod === "CARD")
+        ) {
+          saleData.paidAt = now;
+        }
+
         const updatedSale = await tx.sale.update({
           where: { id: saleId },
-          data: {
-            deliveryStatus: "DELIVERED",
-          },
+          data: saleData,
           include: {
             client: true,
             deliveryMan: true,
@@ -1034,10 +1043,22 @@ router.patch(
           },
         });
 
-        return updatedSale;
+        // Keep the Order workflow row in sync (if one exists — older sales may not have).
+        const updatedOrder = await tx.order.updateMany({
+          where: { saleId },
+          data: { status: "DELIVERED", deliveredAt: now },
+        });
+
+        return { updatedSale, orderTouched: updatedOrder.count > 0 };
       });
 
-      res.json(result);
+      // Publish status-change so other tabs reconcile live.
+      if (result.orderTouched) {
+        const order = await prisma.order.findUnique({ where: { saleId } });
+        if (order) await broadcastStatusChange(prisma, { order, sale: result.updatedSale });
+      }
+
+      res.json(result.updatedSale);
     } catch (error) {
       next(error);
     }
@@ -1073,7 +1094,16 @@ router.patch(
         });
       }
 
+      // Attribute the dispatch to the cashier's currently-open shift so shift
+      // close-out accounting can tell "COD out with driver right now" apart
+      // from walk-in cash already in the drawer.
+      const shift = await prisma.shift.findFirst({
+        where: { userId: req.user.id, branchId: sale.branchId, status: "OPEN" },
+        select: { id: true },
+      });
+
       const result = await prisma.$transaction(async (tx) => {
+        const now = new Date();
         // Calculate driver share from zone
         let driverShare = 0;
         if (sale.deliveryZone?.driverShare) {
@@ -1083,18 +1113,27 @@ router.patch(
         const netDebt = totalCashHeld - driverShare;
 
         // Assign driver and dispatch
+        const saleData = {
+          deliveryManId: parseInt(deliveryManId),
+          deliveryStatus: "OUT_FOR_DELIVERY",
+          deliveryDriverShare: driverShare || null,
+        };
+        if (shift && !sale.shiftId) saleData.shiftId = shift.id;
+
         const updated = await tx.sale.update({
           where: { id: saleId },
-          data: {
-            deliveryManId: parseInt(deliveryManId),
-            deliveryStatus: "OUT_FOR_DELIVERY",
-            deliveryDriverShare: driverShare || null,
-          },
+          data: saleData,
           include: {
             client: true,
             deliveryMan: true,
             deliveryZone: true,
           },
+        });
+
+        // Keep the Order workflow row in sync (C1).
+        const orderTouched = await tx.order.updateMany({
+          where: { saleId },
+          data: { status: "OUT_FOR_DELIVERY", dispatchedAt: now },
         });
 
         // Update driver wallet
@@ -1113,10 +1152,15 @@ router.patch(
           },
         });
 
-        return updated;
+        return { updated, orderTouched: orderTouched.count > 0 };
       });
 
-      res.json(result);
+      if (result.orderTouched) {
+        const order = await prisma.order.findUnique({ where: { saleId } });
+        if (order) await broadcastStatusChange(prisma, { order, sale: result.updated });
+      }
+
+      res.json(result.updated);
     } catch (error) {
       next(error);
     }

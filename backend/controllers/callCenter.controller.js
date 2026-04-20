@@ -285,20 +285,24 @@ exports.createOrder = async (req, res, next) => {
       });
 
       // 2. Stock deduction (Q12-A) — mirrors POS behavior at the branch's warehouse.
+      // Single conditional write: decrement ONLY if current quantity is still
+      // sufficient. Two concurrent agents claiming the last unit will see one
+      // succeed and one get OUT_OF_STOCK, instead of the classic read-then-write
+      // race where both "pass" the check and oversell (C3).
       for (const si of saleItems) {
-        const inv = await tx.inventory.findUnique({
-          where: { itemId_warehouseId: { itemId: si.itemId, warehouseId: branch.warehouseId } },
+        const res = await tx.inventory.updateMany({
+          where: {
+            itemId: si.itemId,
+            warehouseId: branch.warehouseId,
+            quantity: { gte: si.quantity },
+          },
+          data: { quantity: { decrement: si.quantity } },
         });
-        const available = inv ? Number(inv.quantity) : 0;
-        if (available < si.quantity) {
+        if (res.count === 0) {
           const err = new Error(`OUT_OF_STOCK:${si.itemId}`);
           err.status = 400;
           throw err;
         }
-        await tx.inventory.update({
-          where: { itemId_warehouseId: { itemId: si.itemId, warehouseId: branch.warehouseId } },
-          data: { quantity: { decrement: si.quantity } },
-        });
       }
 
       // 3. Order row — status NEW, channel CALL_CENTER.
@@ -353,6 +357,7 @@ exports.listOrders = async (req, res, next) => {
           branch: { select: { id: true, name: true } },
           createdBy: { select: { id: true, name: true } },
           claimedBy: { select: { id: true, name: true } },
+          cancelledBy: { select: { id: true, name: true } },
           sale: {
             include: {
               client: { select: { id: true, name: true, phoneNumber: true } },
@@ -380,10 +385,27 @@ exports.listOrders = async (req, res, next) => {
 // -------------------------------------------------------------------------
 // POST /api/call-center/orders/:id/cancel — cancel while status = NEW (Q11-D)
 // -------------------------------------------------------------------------
+const CANCELLATION_REASONS = [
+  "CUSTOMER_REQUEST",
+  "OUT_OF_STOCK",
+  "WRONG_ADDRESS",
+  "NO_ANSWER",
+  "DUPLICATE",
+  "OTHER",
+];
+
 exports.cancelOrder = async (req, res, next) => {
   try {
     const orderId = parseInt(req.params.id);
-    const reason = (req.body && req.body.reason) || null;
+    const reason = req.body?.reason ? String(req.body.reason).toUpperCase() : null;
+    const note = req.body?.note ? String(req.body.note).trim() : null;
+
+    if (!reason || !CANCELLATION_REASONS.includes(reason)) {
+      return res.status(400).json({
+        error: "Invalid cancellation reason",
+        validReasons: CANCELLATION_REASONS,
+      });
+    }
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -424,7 +446,10 @@ exports.cancelOrder = async (req, res, next) => {
         data: {
           status: "CANCELLED",
           cancelledAt: new Date(),
-          cancelReason: reason,
+          cancelledById: req.user.id,
+          cancellationReason: reason,
+          cancellationNote: note,
+          cancelReason: note || reason,
         },
       });
       await tx.sale.update({

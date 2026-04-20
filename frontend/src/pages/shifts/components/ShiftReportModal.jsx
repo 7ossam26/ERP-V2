@@ -198,6 +198,34 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                   {report.cashReceived.toLocaleString()}
                 </span>
               </div>
+              {report.cashBreakdown && (
+                <div className="ps-4 pb-2 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+                  <div className="flex justify-between">
+                    <span>• كاشير (POS)</span>
+                    <span className="font-mono">
+                      {Number(report.cashBreakdown.posCash || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>• توصيل مُسلَّم في هذه الوردية</span>
+                    <span className="font-mono">
+                      {Number(
+                        report.cashBreakdown.codDeliveredThisShift || 0,
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+                  {Number(report.cashBreakdown.codPendingExcluded || 0) > 0 && (
+                    <div className="flex justify-between text-amber-600">
+                      <span>• توصيل مع الطيارين (غير مشمول)</span>
+                      <span className="font-mono">
+                        {Number(
+                          report.cashBreakdown.codPendingExcluded,
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-red-600">
                 <span>- المصروفات (كاش)</span>
                 <span className="font-mono font-bold">

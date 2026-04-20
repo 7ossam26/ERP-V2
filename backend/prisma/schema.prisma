@@ -45,6 +45,7 @@ model User {
   initialInventoryEntries     InitialInventory[]
   createdOrders               Order[]                    @relation("OrderCreatedBy")
   claimedOrders               Order[]                    @relation("OrderClaimedBy")
+  cancelledOrders             Order[]                    @relation("OrderCancelledBy")
   notifications               Notification[]
 
   @@map("users")
@@ -1083,6 +1084,15 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum OrderCancellationReason {
+  CUSTOMER_REQUEST
+  OUT_OF_STOCK
+  WRONG_ADDRESS
+  NO_ANSWER
+  DUPLICATE
+  OTHER
+}
+
 model Order {
   id           Int          @id @default(autoincrement())
   saleId       Int          @unique @map("sale_id")
@@ -1095,15 +1105,19 @@ model Order {
   readyAt      DateTime?    @map("ready_at")
   dispatchedAt DateTime?    @map("dispatched_at")
   deliveredAt  DateTime?    @map("delivered_at")
-  cancelledAt  DateTime?    @map("cancelled_at")
-  cancelReason String?      @map("cancel_reason") @db.Text
+  cancelledAt        DateTime?                @map("cancelled_at")
+  cancelReason       String?                  @map("cancel_reason") @db.Text
+  cancellationReason OrderCancellationReason? @map("cancellation_reason")
+  cancellationNote   String?                  @map("cancellation_note") @db.Text
+  cancelledById      Int?                     @map("cancelled_by_id")
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  sale      Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  branch    Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  createdBy User   @relation("OrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  claimedBy User?  @relation("OrderClaimedBy", fields: [claimedById], references: [id], onDelete: SetNull)
+  sale        Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  branch      Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  createdBy   User   @relation("OrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  claimedBy   User?  @relation("OrderClaimedBy", fields: [claimedById], references: [id], onDelete: SetNull)
+  cancelledBy User?  @relation("OrderCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
 
   @@index([channel, status, branchId])
   @@index([createdById, createdAt])

@@ -4,6 +4,7 @@ import { reportService } from "../../services/reportService";
 import { branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import BranchFilterHelper from "../../utils/BranchFilterHelper";
+import { reasonLabel } from "../../components/orders/CancelOrderDialog";
 import toast from "react-hot-toast";
 
 const getLocalToday = () => {
@@ -207,6 +208,48 @@ const CallCenterReportPage = () => {
                   ) : (
                     <tr>
                       <td colSpan="5" className="px-6 py-10 text-center text-gray-400">لا توجد بيانات للفترة المحددة</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Cancellations by Reason */}
+          <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8 overflow-hidden">
+            <div className="p-5 border-b border-border-light dark:border-border-dark bg-gray-50/50 dark:bg-[#3E332F]/50 flex items-center gap-2">
+              <span className="material-icons-round text-red-500">cancel</span>
+              <h3 className="text-lg font-bold text-red-600 dark:text-red-400">أسباب الإلغاء</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-right">
+                <thead className="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+                  <tr>
+                    <th className="px-6 py-3">السبب</th>
+                    <th className="px-6 py-3">عدد الطلبات</th>
+                    <th className="px-6 py-3">النسبة من الإلغاءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                  {data?.cancellationsByReason?.length > 0 ? (
+                    data.cancellationsByReason.map((row, i) => (
+                      <tr key={i} className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors">
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                          {row.reason === "UNSPECIFIED" ? "غير محدد" : reasonLabel(row.reason)}
+                        </td>
+                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{row.count}</td>
+                        <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                          {summary?.cancelled > 0
+                            ? `${Math.round((row.count / summary.cancelled) * 100)}%`
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3" className="px-6 py-10 text-center text-gray-400">
+                        لا توجد طلبات ملغية للفترة المحددة
+                      </td>
                     </tr>
                   )}
                 </tbody>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { callCenterService } from "../../services/callCenterService";
+import CancelOrderDialog, { reasonLabel } from "../../components/orders/CancelOrderDialog";
 
 const STATUS_LABELS = {
   NEW: "جديد",
@@ -26,6 +27,8 @@ const CallCenterOrdersListPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [cancelId, setCancelId] = useState(null);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -46,15 +49,18 @@ const CallCenterOrdersListPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, page]);
 
-  const handleCancel = async (id) => {
-    const reason = window.prompt("سبب الإلغاء (اختياري)");
-    if (reason === null) return;
+  const handleConfirmCancel = async ({ reason, note }) => {
+    if (!cancelId) return;
+    setCancelSubmitting(true);
     try {
-      await callCenterService.cancelOrder(id, reason);
+      await callCenterService.cancelOrder(cancelId, reason, note);
       toast.success("تم إلغاء الطلب");
+      setCancelId(null);
       load();
     } catch (err) {
       toast.error(err?.data?.error || "تعذر الإلغاء");
+    } finally {
+      setCancelSubmitting(false);
     }
   };
 
@@ -112,12 +118,18 @@ const CallCenterOrdersListPage = () => {
                     <span className={`px-2 py-1 rounded text-xs ${STATUS_COLORS[o.status]}`}>
                       {STATUS_LABELS[o.status]}
                     </span>
+                    {o.status === "CANCELLED" && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {o.cancelledBy?.name ? `بواسطة ${o.cancelledBy.name} — ` : ""}
+                        {reasonLabel(o.cancellationReason)}
+                      </div>
+                    )}
                   </td>
                   <td className="p-2">
                     {o.status === "NEW" && (
                       <button
                         className="text-red-500 hover:underline text-xs"
-                        onClick={() => handleCancel(o.id)}
+                        onClick={() => setCancelId(o.id)}
                       >
                         إلغاء
                       </button>
@@ -151,6 +163,13 @@ const CallCenterOrdersListPage = () => {
           </button>
         </div>
       )}
+
+      <CancelOrderDialog
+        isOpen={cancelId !== null}
+        onClose={() => (cancelSubmitting ? null : setCancelId(null))}
+        onConfirm={handleConfirmCancel}
+        submitting={cancelSubmitting}
+      />
     </div>
   );
 };

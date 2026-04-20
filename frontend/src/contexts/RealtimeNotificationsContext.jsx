@@ -64,7 +64,10 @@ export const RealtimeNotificationsProvider = ({ children }) => {
     const offStatus = eventStream.onStatus(setConnectionStatus);
 
     const off = eventStream.subscribe((event) => {
-      // ORDER_STATUS_CHANGED is transient — just nudge a refresh.
+      // ORDER_STATUS_CHANGED is a refresh hint — nudge history, but do NOT
+      // increment unreadCount and do NOT prepend into the visible list
+      // (bell stays focused on NEW_CALL_CENTER_ORDER). The row is already
+      // marked-read server-side so history fetch won't raise unread.
       if (event.type === "ORDER_STATUS_CHANGED") {
         refresh();
         return;

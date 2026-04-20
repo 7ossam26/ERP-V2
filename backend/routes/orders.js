@@ -8,7 +8,7 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
 const { authenticateToken, requireAnyPermission } = require("../middleware/auth");
-const bus = require("../lib/eventBus");
+const { broadcastStatusChange } = require("../lib/orderService");
 
 router.use(authenticateToken);
 
@@ -30,35 +30,6 @@ const TRANSITIONS = {
 
 function canTransition(from, to) {
   return (TRANSITIONS[from] || []).includes(to);
-}
-
-// Broadcast a status change to every open-shift cashier at the branch plus the
-// original agent who created the order. Used after successful transitions.
-async function broadcastStatusChange(tx, { order, sale }) {
-  const openShifts = await tx.shift.findMany({
-    where: { branchId: order.branchId, status: "OPEN" },
-    select: { userId: true },
-  });
-  const recipientIds = new Set(openShifts.map((s) => s.userId));
-  if (order.createdById) recipientIds.add(order.createdById);
-
-  const payload = {
-    orderId: order.id,
-    saleId: sale?.id ?? order.saleId,
-    saleNumber: sale?.saleNumber,
-    status: order.status,
-    branchId: order.branchId,
-    updatedAt: order.updatedAt,
-  };
-
-  for (const userId of recipientIds) {
-    bus.publish(bus.topics.userNotifications(userId), {
-      id: null, // transient — not persisted; acts as a live refresh hint
-      type: "ORDER_STATUS_CHANGED",
-      payload,
-      createdAt: new Date(),
-    });
-  }
 }
 
 // -----------------------------------------------------------
@@ -111,6 +82,7 @@ router.get("/:id", cashierOrAgent, async (req, res, next) => {
         branch: true,
         createdBy: { select: { id: true, name: true } },
         claimedBy: { select: { id: true, name: true } },
+        cancelledBy: { select: { id: true, name: true } },
         sale: {
           include: {
             client: true,
@@ -201,8 +173,27 @@ router.patch("/:id/status", cashierOrAgent, async (req, res, next) => {
       saleUpdates.deliveryStatus = "DELIVERED";
     }
     if (nextStatus === "CANCELLED") {
+      const reason = req.body?.reason ? String(req.body.reason).toUpperCase() : null;
+      const note = req.body?.note ? String(req.body.note).trim() : null;
+      const VALID = [
+        "CUSTOMER_REQUEST",
+        "OUT_OF_STOCK",
+        "WRONG_ADDRESS",
+        "NO_ANSWER",
+        "DUPLICATE",
+        "OTHER",
+      ];
+      if (!reason || !VALID.includes(reason)) {
+        return res.status(400).json({
+          error: "Invalid cancellation reason",
+          validReasons: VALID,
+        });
+      }
       orderUpdates.cancelledAt = now;
-      orderUpdates.cancelReason = req.body?.reason || null;
+      orderUpdates.cancelledById = userId;
+      orderUpdates.cancellationReason = reason;
+      orderUpdates.cancellationNote = note;
+      orderUpdates.cancelReason = note || reason;
       saleUpdates.status = "CANCELLED";
     }
 
