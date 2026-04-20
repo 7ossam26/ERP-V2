@@ -117,6 +117,7 @@ enum Module {
   ADJUSTMENTS
   COUNTS
   OWNER_DASHBOARD
+  INITIAL_INVENTORY
 }
 
 // ============================================
@@ -585,6 +586,7 @@ model PurchaseItem {
   item     Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@id([purchaseId, itemId])
+  @@index([itemId, purchaseId])
   @@map("purchase_items")
 }
 
@@ -716,6 +718,7 @@ model Sale {
   deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
   items        SaleItem[]
 
+  @@index([createdAt, branchId])
   @@map("sales")
 }
 
@@ -734,6 +737,7 @@ model SaleItem {
   bom            BOM?            @relation(fields: [bomId], references: [id], onDelete: Restrict)
   fabricRollCuts FabricRollCut[]
 
+  @@index([itemId, saleId])
   @@map("sale_items")
 }
 

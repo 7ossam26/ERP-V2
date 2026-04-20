@@ -237,6 +237,25 @@ export const MODULES = [
     category: "MANAGEMENT",
   },
 
+  {
+    id: "owner_dashboard",
+    code: "OWNER_DASHBOARD",
+    label: "لوحة المالك",
+    description: "ملخص مالي شامل للمالك",
+    icon: "dashboard",
+    path: "/dashboard/owner",
+    category: "MANAGEMENT",
+  },
+  {
+    id: "initial_inventory",
+    code: "INITIAL_INVENTORY",
+    label: "استيراد البيانات",
+    description: "استيراد بيانات جماعية من Excel",
+    icon: "upload",
+    path: "/import",
+    category: "MANAGEMENT",
+  },
+
   // --- Ramex Store Modules ---
   {
     id: "fabric_rolls",

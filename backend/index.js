@@ -251,7 +251,8 @@ app.use("/api/delivery-men", require("./routes/delivery.routes"));
 app.use("/api/delivery-zones", require("./routes/deliveryZone.routes"));
 app.use("/api/bom",          require("./routes/bom"));
 app.use("/api/audit",        require("./routes/audit"));
-app.use("/api/import",       require("./routes/dataImport"));
+app.use("/api/imports",      require("./routes/dataImport"));
+app.use("/api/import",       require("./routes/dataImport")); // legacy alias
 app.use("/api/fabric-rolls", require("./routes/fabricRolls"));
 app.use("/api/inventory-adjustments", require("./routes/inventoryAdjustments"));
 app.use("/api/inventory-counts", require("./routes/inventoryCounts"));

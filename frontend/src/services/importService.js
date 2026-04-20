@@ -4,8 +4,8 @@ function getToken() {
   return localStorage.getItem("token");
 }
 
-async function downloadTemplate(entity) {
-  const res = await fetch(`${API_BASE}/import/template/${entity}`, {
+async function downloadTemplate(type) {
+  const res = await fetch(`${API_BASE}/imports/templates/${type}`, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   if (!res.ok) throw new Error("فشل تحميل القالب");
@@ -13,15 +13,16 @@ async function downloadTemplate(entity) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `template_${entity}.xlsx`;
+  a.download = `template_${type}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-async function importFile(entity, file) {
+async function importFile(type, file, dryRun = false) {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${API_BASE}/import/${entity}`, {
+  const url = `${API_BASE}/imports/${type}${dryRun ? "?dryRun=true" : ""}`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { Authorization: `Bearer ${getToken()}` },
     body: form,
@@ -32,7 +33,7 @@ async function importFile(entity, file) {
 }
 
 async function getBranches() {
-  const res = await fetch(`${API_BASE}/import/branches`, {
+  const res = await fetch(`${API_BASE}/imports/branches`, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   if (!res.ok) throw new Error("فشل تحميل الفروع");

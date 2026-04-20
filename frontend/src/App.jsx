@@ -70,6 +70,18 @@ import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import UserManualPage from "./pages/manual/UserManualPage";
 import DataImportPage from "./pages/import/DataImportPage";
+import ImportHomePage from "./pages/import/ImportHomePage";
+import ImportWizardPage from "./pages/import/ImportWizardPage";
+import OwnerDashboard from "./pages/reports/OwnerDashboard";
+import ReportsIndexPage from "./pages/reports/ReportsIndexPage";
+import DailySalesReport from "./pages/reports/DailySalesReport";
+import SalesByDimensionReport from "./pages/reports/SalesByDimensionReport";
+import MarginBySKUReport from "./pages/reports/MarginBySKUReport";
+import TopMoversReport from "./pages/reports/TopMoversReport";
+import DeadStockReport from "./pages/reports/DeadStockReport";
+import FabricRemainingMetersReport from "./pages/reports/FabricRemainingMetersReport";
+import FabricRollsByAgeReport from "./pages/reports/FabricRollsByAgeReport";
+import ShiftReconciliationReport from "./pages/reports/ShiftReconciliationReport";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
@@ -139,6 +151,30 @@ function App() {
           <Route path="/dashboard" element={<MainDashboard />} />
           <Route path="/creates" element={<CreatesDashboard />} />
           <Route path="/data-import" element={<DataImportPage />} />
+          <Route
+            path="/import"
+            element={
+              <ProtectedRoute requiredPermission="INITIAL_INVENTORY">
+                <ImportHomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/import/:type"
+            element={
+              <ProtectedRoute requiredPermission="INITIAL_INVENTORY">
+                <ImportWizardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/owner"
+            element={
+              <ProtectedRoute requiredPermission="OWNER_DASHBOARD">
+                <OwnerDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Modules under Creates */}
           <Route
@@ -276,7 +312,7 @@ function App() {
             path="/reports"
             element={
               <ProtectedRoute requiredPermission="REPORTS">
-                <ReportsPage />
+                <ReportsIndexPage />
               </ProtectedRoute>
             }
           />
@@ -293,6 +329,78 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="REPORTS">
                 <DetailedReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/analytics"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <ReportsIndexPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/sales/daily"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <DailySalesReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/sales/by-dimension"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <SalesByDimensionReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/margin-by-sku"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <MarginBySKUReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/top-movers"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <TopMoversReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/dead-stock"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <DeadStockReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/fabric/remaining-meters"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <FabricRemainingMetersReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/fabric/rolls-by-age"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <FabricRollsByAgeReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/shift-reconciliation"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <ShiftReconciliationReport />
               </ProtectedRoute>
             }
           />
