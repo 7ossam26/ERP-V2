@@ -272,6 +272,15 @@ export const MODULES = [
     path: "/bulk/collections",
     category: "MANAGEMENT",
   },
+  {
+    id: "bulk_reports",
+    code: "BULK_POS",
+    label: "تقارير الجملة",
+    description: "المبيعات وتقادم الذمم وكشف الحساب",
+    icon: "analytics",
+    path: "/bulk/reports",
+    category: "MANAGEMENT",
+  },
 ];
 
 export const getCreationModules = () =>

@@ -38,6 +38,11 @@ export const bulkService = {
   createPayment: (orderId, data) => api.post(`/bulk/orders/${orderId}/payments`, data),
   voidPayment: (paymentId, reason) => api.post(`/bulk/payments/${paymentId}/void`, { reason }),
   listCustomerPayments: (customerId) => api.get(`/bulk/customers/${customerId}/payments`),
+
+  // Reports
+  reportSalesByCustomer: (params) => api.get(`/bulk/reports/sales-by-customer${qs(params)}`),
+  reportArAging: (params) => api.get(`/bulk/reports/ar-aging${qs(params)}`),
+  reportStatement: (params) => api.get(`/bulk/reports/statement${qs(params)}`),
 };
 
 export default bulkService;
