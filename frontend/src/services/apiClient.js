@@ -87,11 +87,13 @@ export const apiClient = async (endpoint, options = {}) => {
       throw error;
     }
 
-    // Handle network errors (offline, server down)
+    // Handle network errors (offline, server down) — preserve the underlying
+    // browser/runtime message so debugging doesn't have to start from "unknown".
+    const detail = error?.message ? ` (${error.message})` : "";
     throw new APIError(
-      "Unable to connect to the server. Please check your internet connection.",
+      `Unable to connect to the server. Please check your internet connection.${detail}`,
       0,
-      null,
+      { cause: error?.message || String(error) },
     );
   }
 };

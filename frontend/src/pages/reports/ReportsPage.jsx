@@ -4,7 +4,7 @@ import AuthService from "../../services/authService";
 
 const ReportsPage = () => {
   const currentUser = AuthService.getCurrentUser();
-  const hasCallCenter = currentUser?.permissions?.includes("CALL_CENTER") ||
+  const hasCallCenter = currentUser?.permissions?.CALL_CENTER === true ||
     currentUser?.role === "superadmin";
 
   return (

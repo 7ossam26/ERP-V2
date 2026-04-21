@@ -1,11 +1,14 @@
 // services/eventStreamService.js
 // Thin wrapper around the native EventSource for our /api/events/stream SSE
 // endpoint. Handles:
-//   - auth-via-query (EventSource can't send Authorization headers)
+//   - stream-ticket auth (POST /api/events/ticket → single-use, 30s TTL token
+//     used in ?ticket= so the long-lived JWT never travels in the URL)
 //   - Last-Event-ID replay on reconnect (persisted in localStorage)
 //   - exponential backoff reconnect (1s -> 30s cap)
 //   - multiple subscribers via a tiny pub/sub
 // Expose a singleton; the React hook consumes it.
+
+import { api } from "./apiClient";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const STORAGE_KEY = "sse:lastEventId";
@@ -44,7 +47,7 @@ class EventStream {
     this._setStatus("closed");
   }
 
-  _connect() {
+  async _connect() {
     if (this.stopped) return;
     const token = localStorage.getItem("token");
     if (!token) {
@@ -53,12 +56,27 @@ class EventStream {
       return;
     }
 
+    this._setStatus("connecting");
+
+    let ticket;
+    try {
+      const res = await api.post("/events/ticket");
+      ticket = res?.ticket;
+    } catch (err) {
+      console.error("[SSE] ticket request failed:", err?.message || err);
+      this._scheduleReconnect();
+      return;
+    }
+    if (!ticket || this.stopped) {
+      if (!this.stopped) this._scheduleReconnect();
+      return;
+    }
+
     const lastEventId = localStorage.getItem(STORAGE_KEY) || "";
-    const qs = new URLSearchParams({ token });
+    const qs = new URLSearchParams({ ticket });
     if (lastEventId) qs.set("lastEventId", lastEventId);
     const url = `${API_BASE_URL}/events/stream?${qs.toString()}`;
 
-    this._setStatus("connecting");
     try {
       this.source = new EventSource(url);
     } catch (err) {

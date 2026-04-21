@@ -174,43 +174,6 @@ router.get(
   },
 );
 
-// GET sale by ID - Requires SALES or POS permission
-router.get(
-  "/:id",
-  authenticateToken,
-  requireAnyPermission(["SALES", "POS"]),
-  async (req, res, next) => {
-    // If id is "search", skip to the search route defined below
-    if (req.params.id === "search") return next("route");
-    try {
-      const sale = await prisma.sale.findUnique({
-        where: { id: parseInt(req.params.id) },
-        include: {
-          client: true,
-          employee: true,
-          branch: true,
-          treasury: true,
-          items: {
-            include: {
-              item: true,
-            },
-          },
-        },
-      });
-      if (!sale) {
-        return res.status(404).json({
-          error: "Sale not found",
-          resolution:
-            "The sale may have been deleted. Please refresh the page and try again.",
-        });
-      }
-      res.json(sale);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
 // GET refunds for a shift - Requires SALES or POS permission
 router.get(
   "/refunds",
@@ -328,6 +291,41 @@ router.get(
         });
       }
 
+      res.json(sale);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// GET sale by ID - Requires SALES or POS permission
+router.get(
+  "/:id",
+  authenticateToken,
+  requireAnyPermission(["SALES", "POS"]),
+  async (req, res, next) => {
+    try {
+      const sale = await prisma.sale.findUnique({
+        where: { id: parseInt(req.params.id, 10) },
+        include: {
+          client: true,
+          employee: true,
+          branch: true,
+          treasury: true,
+          items: {
+            include: {
+              item: true,
+            },
+          },
+        },
+      });
+      if (!sale) {
+        return res.status(404).json({
+          error: "Sale not found",
+          resolution:
+            "The sale may have been deleted. Please refresh the page and try again.",
+        });
+      }
       res.json(sale);
     } catch (error) {
       next(error);

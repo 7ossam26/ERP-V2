@@ -5,36 +5,53 @@
 // On reconnect, the client sends `Last-Event-ID` and we replay any notification
 // rows newer than that id, so no events are lost across dropouts/deploys.
 //
-// Auth note: EventSource can't attach Authorization headers, so we accept the
-// token via ?token=<jwt> query param. The token is verified with the same secret
-// used everywhere else and no cookies / persistent state are involved.
+// Auth: EventSource can't attach custom headers, so the long-lived JWT must not
+// travel in the URL (it leaks through proxy logs, browser history, Referer).
+// Instead the client first calls POST /api/events/ticket with its normal Bearer
+// token, gets a single-use short-lived ticket, and uses that in ?ticket= when
+// opening the stream. Tickets are consumed on first use.
 
 const express = require("express");
 const router = express.Router();
-const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const { authenticateToken } = require("../middleware/auth");
 const prisma = require("../config/database");
 const bus = require("../lib/eventBus");
 
 const HEARTBEAT_MS = 25_000; // below most proxy idle timeouts (usually 30-60s)
+const TICKET_TTL_MS = 30_000;
 
-function authFromQuery(req, res, next) {
-  const token = req.query.token;
-  if (!token) {
-    return res.status(401).json({ error: "Missing token" });
-  }
-  try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "fallback_secret_key_change_me",
-    );
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(401).json({ error: "Invalid or expired token" });
+const ticketStore = new Map(); // ticket -> { userId, expiresAt }
+
+function purgeExpiredTickets(now = Date.now()) {
+  for (const [t, entry] of ticketStore) {
+    if (entry.expiresAt <= now) ticketStore.delete(t);
   }
 }
 
-router.get("/stream", authFromQuery, async (req, res) => {
+router.post("/ticket", authenticateToken, (req, res) => {
+  purgeExpiredTickets();
+  const ticket = crypto.randomBytes(24).toString("base64url");
+  const expiresAt = Date.now() + TICKET_TTL_MS;
+  ticketStore.set(ticket, { userId: req.user.id, expiresAt });
+  res.json({ ticket, expiresAt });
+});
+
+function authFromTicket(req, res, next) {
+  const ticket = req.query.ticket;
+  if (!ticket) {
+    return res.status(401).json({ error: "Missing stream ticket" });
+  }
+  const entry = ticketStore.get(ticket);
+  ticketStore.delete(ticket); // single-use
+  if (!entry || entry.expiresAt <= Date.now()) {
+    return res.status(401).json({ error: "Invalid or expired stream ticket" });
+  }
+  req.user = { id: entry.userId };
+  next();
+}
+
+router.get("/stream", authFromTicket, async (req, res) => {
   const userId = req.user.id;
 
   // SSE headers
