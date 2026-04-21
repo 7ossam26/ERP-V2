@@ -9,6 +9,9 @@ export const treasuryService = {
   // Get treasury by ID
   getById: (id) => api.get(`${BASE_URL}/${id}`),
 
+  // Get global balances (Main, Visa, Instapay)
+  getGlobalBalances: () => api.get(`${BASE_URL}/global-balances`),
+
   // Create new treasury
   create: (data) => api.post(BASE_URL, data),
 

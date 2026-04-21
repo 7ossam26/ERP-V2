@@ -17,8 +17,12 @@ export const branchService = {
     }
   },
 
-  async getBalances() {
-    return await api.get(`${BRANCHES_URL}/balances`);
+  async getBalances({ from, to } = {}) {
+    const params = new URLSearchParams();
+    if (from) params.append("from", from);
+    if (to) params.append("to", to);
+    const qs = params.toString();
+    return await api.get(`${BRANCHES_URL}/balances${qs ? `?${qs}` : ""}`);
   },
 
   async getById(id) {

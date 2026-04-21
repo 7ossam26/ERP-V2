@@ -1,255 +1,250 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import toast from "react-hot-toast";
 import {
   branchService,
-  settingsService,
   treasuryService,
 } from "../../services/domainServices";
 import { useBranch } from "../../contexts/BranchContext";
+import DateFilterBar, {
+  computePresetRange,
+} from "../../components/branches/DateFilterBar";
+import TreasuryHeaderCards from "../../components/branches/TreasuryHeaderCards";
+
+const fmt = (n) =>
+  Number(n || 0).toLocaleString("ar-EG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const BranchesSalesPage = () => {
   const { activeBranchId } = useBranch();
+
+  const initialRange = computePresetRange("today");
+  const [filter, setFilter] = useState({ preset: "today", ...initialRange });
+
   const [branches, setBranches] = useState([]);
   const [mainTreasury, setMainTreasury] = useState(null);
   const [visaTreasury, setVisaTreasury] = useState(null);
-  const [percentageChange, setPercentageChange] = useState(0);
+  const [instapayTreasury, setInstapayTreasury] = useState(null);
   const [branchesTotalBalance, setBranchesTotalBalance] = useState(0);
+  const [percentageChange, setPercentageChange] = useState(0);
   const [isPositive, setIsPositive] = useState(true);
+  const [loadingRows, setLoadingRows] = useState(true);
+  const [loadingHeader, setLoadingHeader] = useState(true);
+
+  const fetchHeader = useCallback(async () => {
+    setLoadingHeader(true);
+    try {
+      const [globals, summary] = await Promise.all([
+        treasuryService.getGlobalBalances(),
+        branchService.getSummary(),
+      ]);
+      setMainTreasury(globals?.mainTreasury || null);
+      setVisaTreasury(globals?.visaTreasury || null);
+      setInstapayTreasury(globals?.instapayTreasury || null);
+      const pct = parseFloat(summary.percentageChange);
+      setPercentageChange(Math.abs(pct || 0));
+      setIsPositive((pct || 0) >= 0);
+      setBranchesTotalBalance(Number(summary.totalBalance || 0));
+    } catch (error) {
+      console.error("Failed to fetch header data", error);
+      toast.error("فشل تحميل أرصدة الخزائن العامة");
+    } finally {
+      setLoadingHeader(false);
+    }
+  }, []);
+
+  const fetchRows = useCallback(async (from, to) => {
+    setLoadingRows(true);
+    try {
+      const rows = await branchService.getBalances({ from, to });
+      setBranches(rows || []);
+    } catch (error) {
+      console.error("Failed to fetch branch balances", error);
+      toast.error("فشل تحميل أرصدة الفروع");
+    } finally {
+      setLoadingRows(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch System Configuration
-        const settings = await settingsService.get();
+    fetchHeader();
+  }, [fetchHeader, activeBranchId]);
 
-        // Fetch Main Treasury if configured
-        if (settings.mainTreasuryId) {
-          const mainTreasuryData = await treasuryService.getById(
-            settings.mainTreasuryId,
-          );
-          setMainTreasury(mainTreasuryData);
-        }
+  useEffect(() => {
+    fetchRows(filter.from, filter.to);
+  }, [fetchRows, filter.from, filter.to, activeBranchId]);
 
-        // Fetch Visa Treasury if configured (phase 6 will add Instapay card + date filter)
-        if (settings.visaTreasuryId) {
-          const visaTreasuryData = await treasuryService.getById(
-            settings.visaTreasuryId,
-          );
-          setVisaTreasury(visaTreasuryData);
-        }
+  const refreshAll = () => {
+    fetchHeader();
+    fetchRows(filter.from, filter.to);
+  };
 
-        // Fetch Branch Balances (includes cash + instapay)
-        const balancesData = await branchService.getBalances();
-        setBranches(balancesData);
-
-        // Fetch Financial Summary for percentage change and total balance
-        const summaryData = await branchService.getSummary();
-        const pct = parseFloat(summaryData.percentageChange);
-        setPercentageChange(Math.abs(pct));
-        setIsPositive(pct >= 0);
-        setBranchesTotalBalance(Number(summaryData.totalBalance || 0));
-      } catch (error) {
-        console.error("Failed to fetch branch data", error);
-      }
-    };
-    fetchData();
-  }, [activeBranchId]);
+  const totals = branches.reduce(
+    (acc, b) => ({
+      cash: acc.cash + Number(b.cashBalance || 0),
+      visa: acc.visa + Number(b.visa || b.visaToday || 0),
+      instapay: acc.instapay + Number(b.instapay || b.instapayToday || 0),
+      total: acc.total + Number(b.total || 0),
+    }),
+    { cash: 0, visa: 0, instapay: 0, total: 0 },
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">
-      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-4 md:p-8">
-        <div className="max-w-[1200px] mx-auto flex flex-col gap-8">
-          {/* Header Section */}
+        <div className="max-w-[1280px] mx-auto flex flex-col gap-6">
+          {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
-              <h1 className="text-text-light dark:text-text-dark text-3xl font-black leading-tight tracking-tight">
-                أرصدة الفروع
+              <h1 className="text-3xl font-black leading-tight tracking-tight">
+                أرصدة الفروع والخزائن
               </h1>
-              <p className="text-primary/80 dark:text-accent/80 text-sm md:text-base font-normal">
-                نظرة عامة على السيولة النقدية في جميع الفروع والخزينة الرئيسية
+              <p className="text-primary/80 dark:text-accent/80 text-sm md:text-base">
+                نظرة عامة على النقدية والمدفوعات الرقمية في جميع الفروع
               </p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => window.location.reload()}
-                className="flex items-center gap-2 h-10 px-4 bg-primary text-white hover:bg-primary-hover rounded-lg text-sm font-bold shadow-md shadow-primary/20 transition-all">
-                <span className="material-symbols-outlined text-[18px]">
-                  sync
-                </span>
-                <span>تحديث البيانات</span>
-              </button>
-            </div>
+            <button
+              onClick={refreshAll}
+              disabled={loadingRows || loadingHeader}
+              className="flex items-center gap-2 h-10 px-4 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-bold shadow-md shadow-primary/20 transition-all disabled:opacity-50">
+              <span
+                className={`material-symbols-outlined text-[18px] ${
+                  loadingRows || loadingHeader ? "animate-spin" : ""
+                }`}>
+                sync
+              </span>
+              تحديث البيانات
+            </button>
           </div>
 
-          {/* Main Treasury Card */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4A3428] to-[#6F4E37] text-white p-6 md:p-10 shadow-lg">
-            <div
-              className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
-              style={{
-                backgroundImage:
-                  "radial-gradient(#d7ccc8 1px, transparent 1px)",
-                backgroundSize: "20px 20px",
-              }}></div>
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2 text-accent bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
-                  <span className="material-symbols-outlined text-[18px]">
-                    lock
-                  </span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-                    {mainTreasury?.name || "الخزينة الرئيسية"} + الفروع
-                  </span>
-                </div>
-                <div>
-                  <p className="text-white/60 text-sm mb-1">
-                    الرصيد الإجمالي الحالي
-                  </p>
-                  <h2 className="text-5xl md:text-6xl font-black tracking-tight text-white">
-                    {(
-                      (mainTreasury ? Number(mainTreasury.balance) : 0) +
-                      branchesTotalBalance
-                    ).toLocaleString()}{" "}
-                    جنيه مصري
-                  </h2>
-                </div>
-              </div>
-              <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
-                <div
-                  className={`flex items-center gap-2 ${
-                    isPositive
-                      ? "text-green-400 bg-green-400/10 border-green-400/20"
-                      : "text-red-400 bg-red-400/10 border-red-400/20"
-                  } px-3 py-1.5 rounded-lg border`}>
-                  <span className="material-symbols-outlined text-[18px]">
-                    {isPositive ? "trending_up" : "trending_down"}
-                  </span>
-                  <span className="text-sm font-bold font-['Inter']">
-                    {isPositive ? "+" : "-"}
-                    {percentageChange}%
-                  </span>
-                  <span
-                    className={`text-xs ${
-                      isPositive ? "text-green-400/80" : "text-red-400/80"
-                    }`}>
-                    مقارنة بالأمس
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Header cards */}
+          <TreasuryHeaderCards
+            mainTreasury={mainTreasury}
+            visaTreasury={visaTreasury}
+            instapayTreasury={instapayTreasury}
+            branchesTotalBalance={branchesTotalBalance}
+            percentageChange={percentageChange}
+            isPositive={isPositive}
+          />
 
-          {/* Visa Treasury Card (Instapay card + date filter come in phase 6) */}
-          {visaTreasury && (
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#4c096e] text-white p-6 md:p-8 shadow-lg">
-              <div
-                className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(#93c5fd 1px, transparent 1px)",
-                  backgroundSize: "20px 20px",
-                }}></div>
-              <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-accent bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
-                    <span className="material-symbols-outlined text-[18px]">
-                      account_balance
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-                      خزينة فيزا
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-white/60 text-sm mb-1">
-                      الرصيد المتراكم من مدفوعات الفيزا
-                    </p>
-                    <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white">
-                      {Number(visaTreasury.balance).toLocaleString()} جنيه مصري
-                    </h2>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Date filter */}
+          <DateFilterBar value={filter} onChange={setFilter} />
 
-          {/* Branches Section */}
-          <div className="flex flex-col gap-4">
+          {/* Branch rows */}
+          <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-text-light dark:text-text-dark flex items-center gap-2">
+              <h3 className="text-lg font-bold flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">
                   store
                 </span>
-                أرصدة الفروع
+                تفصيل الفروع
               </h3>
-              <div className="h-[1px] flex-1 bg-border-light dark:bg-border-dark mx-4"></div>
+              <div className="h-[1px] flex-1 bg-border-light dark:bg-border-dark mx-4" />
               <span className="text-sm text-primary/70 dark:text-accent">
-                {branches.length} فروع نشطة
+                {branches.length} فرع
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {branches.map((branch) => (
-                <div
-                  key={branch.id}
-                  className="group bg-surface-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark p-5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 flex flex-col gap-4">
-                  {/* Branch Header */}
-                  <div className="flex gap-3 items-center border-b border-border-light dark:border-border-dark pb-3">
-                    <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                      <span className="material-symbols-outlined text-xl">
-                        storefront
-                      </span>
-                    </div>
-                    <h4 className="font-bold text-lg text-text-light dark:text-text-dark">
-                      {branch.name}
-                    </h4>
-                  </div>
-                  {/* Balances */}
-                  <div className="flex flex-col gap-3">
-                    {/* Cash Balance */}
-                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/10 rounded-xl px-4 py-3 border border-green-100 dark:border-green-900/30">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-lg">
-                          payments
-                        </span>
-                        <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                          النقدية
-                        </span>
-                      </div>
-                      <span className="text-xl font-black text-green-700 dark:text-green-300">
-                        {(branch.cashBalance || 0).toLocaleString()} <span className="text-xs font-bold">ج.م</span>
-                      </span>
-                    </div>
-                    {/* Visa Balance */}
-                    <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/10 rounded-xl px-4 py-3 border border-blue-100 dark:border-blue-900/30">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">
-                          credit_card
-                        </span>
-                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                          فيزا اليوم
-                        </span>
-                      </div>
-                      <span className="text-xl font-black text-blue-700 dark:text-blue-300">
-                        {(branch.visaToday || 0).toLocaleString()} <span className="text-xs font-bold">ج.م</span>
-                      </span>
-                    </div>
-                    {/* InstaPay Balance */}
-                    <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/10 rounded-xl px-4 py-3 border border-purple-100 dark:border-purple-900/30">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-lg">
-                          phone_iphone
-                        </span>
-                        <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                          انستا باي اليوم
-                        </span>
-                      </div>
-                      <span className="text-xl font-black text-purple-700 dark:text-purple-300">
-                        {(branch.instapayToday || 0).toLocaleString()} <span className="text-xs font-bold">ج.م</span>
-                      </span>
-                    </div>
-                  </div>
+            {loadingRows ? (
+              <div className="flex justify-center items-center py-16">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+              </div>
+            ) : branches.length === 0 ? (
+              <div className="text-center py-16 text-gray-400 bg-surface-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark">
+                <span className="material-symbols-outlined text-5xl mb-3 block">
+                  business
+                </span>
+                لا توجد فروع متاحة
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-2xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-card-dark shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-background-light dark:bg-background-dark/60 text-text-secondary dark:text-gray-400">
+                      <tr>
+                        <th className="text-right font-bold px-5 py-3">الفرع</th>
+                        <th className="text-right font-bold px-5 py-3 text-green-700 dark:text-green-400">
+                          نقدي
+                        </th>
+                        <th className="text-right font-bold px-5 py-3 text-blue-700 dark:text-blue-400">
+                          فيزا
+                        </th>
+                        <th className="text-right font-bold px-5 py-3 text-purple-700 dark:text-purple-400">
+                          انستاباي
+                        </th>
+                        <th className="text-right font-bold px-5 py-3">
+                          الإجمالي
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {branches.map((b) => {
+                        const visa = Number(b.visa ?? b.visaToday ?? 0);
+                        const instapay = Number(
+                          b.instapay ?? b.instapayToday ?? 0,
+                        );
+                        const cash = Number(b.cashBalance || 0);
+                        const total = Number(b.total ?? cash + visa + instapay);
+                        return (
+                          <tr
+                            key={b.id}
+                            className="border-t border-border-light dark:border-border-dark hover:bg-background-light/60 dark:hover:bg-background-dark/40 transition-colors">
+                            <td className="px-5 py-3 font-bold text-text-light dark:text-text-dark">
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-primary text-[20px]">
+                                  storefront
+                                </span>
+                                {b.name}
+                              </div>
+                            </td>
+                            <td className="px-5 py-3 font-bold text-green-700 dark:text-green-300 dir-ltr text-right">
+                              {fmt(cash)}{" "}
+                              <span className="text-xs font-medium">ج.م</span>
+                            </td>
+                            <td className="px-5 py-3 font-bold text-blue-700 dark:text-blue-300 dir-ltr text-right">
+                              {fmt(visa)}{" "}
+                              <span className="text-xs font-medium">ج.م</span>
+                            </td>
+                            <td className="px-5 py-3 font-bold text-purple-700 dark:text-purple-300 dir-ltr text-right">
+                              {fmt(instapay)}{" "}
+                              <span className="text-xs font-medium">ج.م</span>
+                            </td>
+                            <td className="px-5 py-3 font-black text-text-light dark:text-text-dark dir-ltr text-right">
+                              {fmt(total)}{" "}
+                              <span className="text-xs font-medium">ج.م</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-background-light dark:bg-background-dark/60 font-black">
+                      <tr className="border-t-2 border-border-light dark:border-border-dark">
+                        <td className="px-5 py-3 text-text-light dark:text-text-dark">
+                          الإجمالي الكلي
+                        </td>
+                        <td className="px-5 py-3 text-green-700 dark:text-green-300 dir-ltr text-right">
+                          {fmt(totals.cash)}{" "}
+                          <span className="text-xs font-medium">ج.م</span>
+                        </td>
+                        <td className="px-5 py-3 text-blue-700 dark:text-blue-300 dir-ltr text-right">
+                          {fmt(totals.visa)}{" "}
+                          <span className="text-xs font-medium">ج.م</span>
+                        </td>
+                        <td className="px-5 py-3 text-purple-700 dark:text-purple-300 dir-ltr text-right">
+                          {fmt(totals.instapay)}{" "}
+                          <span className="text-xs font-medium">ج.م</span>
+                        </td>
+                        <td className="px-5 py-3 text-text-light dark:text-text-dark dir-ltr text-right">
+                          {fmt(totals.total)}{" "}
+                          <span className="text-xs font-medium">ج.م</span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
