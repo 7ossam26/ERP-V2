@@ -82,12 +82,12 @@ import DeadStockReport from "./pages/reports/DeadStockReport";
 import FabricRemainingMetersReport from "./pages/reports/FabricRemainingMetersReport";
 import FabricRollsByAgeReport from "./pages/reports/FabricRollsByAgeReport";
 import ShiftReconciliationReport from "./pages/reports/ShiftReconciliationReport";
+import AuditLogPage from "./pages/audit/AuditLogPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
 import { BranchProvider } from "./contexts/BranchContext";
 import { seedData } from "./services/seedData";
-import toast from "react-hot-toast";
 
 
 function App() {
@@ -401,6 +401,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="REPORTS">
                 <ShiftReconciliationReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/audit"
+            element={
+              <ProtectedRoute requiredPermission="AUDIT">
+                <AuditLogPage />
               </ProtectedRoute>
             }
           />

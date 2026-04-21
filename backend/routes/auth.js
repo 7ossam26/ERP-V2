@@ -5,6 +5,11 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { writeAudit } = require("../utils/auditLogger");
 const rateLimit = require("express-rate-limit");
+const {
+  getOrCreateSystemConfiguration,
+  describePasswordPolicy,
+  validatePasswordAgainstPolicy,
+} = require("../lib/systemConfiguration");
 
 const { body, validationResult } = require("express-validator");
 
@@ -15,7 +20,7 @@ if (!process.env.JWT_SECRET) {
   );
 }
 const JWT_SECRET = process.env.JWT_SECRET;
-const ACCESS_TOKEN_EXPIRY = "7d"; // Extended to 7 days
+const ACCESS_TOKEN_EXPIRY = process.env.JWT_EXPIRES_IN || "12h";
 // Refresh tokens removed
 
 // Rate limiter for login endpoint (prevents brute force attacks)
@@ -86,8 +91,6 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      console.log(`❌ Invalid password for user: ${user.username}`);
-
       // Track failed login attempts
       const attempts = (failedLoginAttempts.get(username) || 0) + 1;
       failedLoginAttempts.set(username, attempts);
@@ -100,10 +103,6 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
         });
 
         failedLoginAttempts.delete(username); // Reset counter
-        console.log(
-          `🔒 Account deactivated due to ${MAX_FAILED_ATTEMPTS} failed login attempts: ${username}`,
-        );
-
         writeAudit({ action: "ACCOUNT_LOCKED", targetEntity: "auth", targetId: String(user.id), userId: user.id, branchId: user.branchId ?? null, newValues: { reason: "max_failed_attempts", username }, oldValues: null, ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null }).catch(() => {});
         return res.status(403).json({
           error:
@@ -226,6 +225,8 @@ router.get("/me", authenticateToken, async (req, res, next) => {
 router.post("/change-password", authenticateToken, async (req, res, next) => {
   try {
     const { oldPassword, newPassword, confirmPassword } = req.body;
+    const config = await getOrCreateSystemConfiguration();
+    const passwordPolicy = describePasswordPolicy(config);
 
     if (!oldPassword || !newPassword || !confirmPassword) {
       return res.status(400).json({ error: "جميع الحقول مطلوبة" });
@@ -233,8 +234,12 @@ router.post("/change-password", authenticateToken, async (req, res, next) => {
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ error: "كلمة المرور الجديدة وتأكيدها غير متطابقتين" });
     }
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+    const passwordError = validatePasswordAgainstPolicy(
+      newPassword,
+      passwordPolicy,
+    );
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
     }
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });

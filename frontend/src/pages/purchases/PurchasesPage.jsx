@@ -53,6 +53,8 @@ const PurchasesPage = () => {
   const [clearanceCost, setClearanceCost] = useState(0);
   const [otherLandedCost, setOtherLandedCost] = useState(0);
   const [landedCostFeatureEnabled, setLandedCostFeatureEnabled] = useState(false);
+  const [taxEnabledOnPurchases, setTaxEnabledOnPurchases] = useState(false);
+  const [purchaseTaxRate, setPurchaseTaxRate] = useState(14);
 
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [allItems, setAllItems] = useState([]);
@@ -144,6 +146,8 @@ const PurchasesPage = () => {
             // Fallback if no main warehouse configured
             setSelectedWarehouseId(fetchedWarehouses[0].id);
           }
+          setTaxEnabledOnPurchases(Boolean(settings?.taxEnabledOnPurchases));
+          setPurchaseTaxRate(Number(settings?.taxRate) || 14);
           if (settings?.landedCostFeatureEnabled) {
             setLandedCostFeatureEnabled(true);
           }
@@ -176,6 +180,8 @@ const PurchasesPage = () => {
   const [totals, setTotals] = useState({
     subtotal: 0,
     discountAmount: 0,
+    netBeforeTax: 0,
+    taxAmount: 0,
     net: 0,
     totalSell: 0,
     profit: 0,
@@ -184,7 +190,7 @@ const PurchasesPage = () => {
 
   useEffect(() => {
     calculateTotals();
-  }, [items, discountType, discountValue, paidAmount]);
+  }, [items, discountType, discountValue, paidAmount, taxEnabledOnPurchases, purchaseTaxRate]);
 
   const calculateTotals = () => {
     const subtotal = items.reduce(
@@ -205,13 +211,19 @@ const PurchasesPage = () => {
       discountAmount = Number(discountValue);
     }
 
-    const net = Math.max(0, subtotal - discountAmount);
-    const profit = totalSell - net; // Profit = Total Sell - Total After Discount
+    const netBeforeTax = Math.max(0, subtotal - discountAmount);
+    const taxAmount = taxEnabledOnPurchases
+      ? netBeforeTax * ((Number(purchaseTaxRate) || 0) / 100)
+      : 0;
+    const net = Math.max(0, netBeforeTax + taxAmount);
+    const profit = totalSell - net;
     const remaining = Math.max(0, net - Number(paidAmount));
 
     setTotals({
       subtotal,
       discountAmount,
+      netBeforeTax,
+      taxAmount,
       net,
       totalSell,
       profit,
@@ -497,7 +509,6 @@ const PurchasesPage = () => {
         })),
       };
 
-      console.log("Sending purchase data:", purchaseData);
       const newPurchase = await purchaseService.create(purchaseData);
       toast.success("تم حفظ فاتورة المشتريات بنجاح");
 
@@ -1200,7 +1211,7 @@ const PurchasesPage = () => {
                         type="number"
                       />
                       <span className="absolute left-3 top-3 text-primary/50 text-sm font-bold pointer-events-none">
-                        {discountType === "percent" ? "%" : "EGP"}
+                        {discountType === "percent" ? "%" : "ج.م"}
                       </span>
                     </div>
                   </div>
@@ -1227,7 +1238,22 @@ const PurchasesPage = () => {
                       className="w-2/3 bg-background-light dark:bg-background-dark/50 border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg block p-2.5 font-bold"
                       readOnly
                       type="text"
-                      value={totals.net.toFixed(2)}
+                      value={totals.netBeforeTax.toFixed(2)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between border-b border-dashed border-border-light dark:border-border-dark pb-2">
+                    <label className="text-sm font-medium text-text-muted dark:text-accent w-1/3">
+                      الضريبة
+                    </label>
+                    <input
+                      className="w-2/3 bg-background-light dark:bg-background-dark/50 border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg block p-2.5 font-bold"
+                      readOnly
+                      type="text"
+                      value={
+                        taxEnabledOnPurchases
+                          ? `${totals.taxAmount.toFixed(2)} (${purchaseTaxRate}%)`
+                          : "غير مفعلة"
+                      }
                     />
                   </div>
                 </div>
@@ -1281,7 +1307,7 @@ const PurchasesPage = () => {
                 </h3>
                 {selectedTreasuryId && (
                   <div className="text-xs text-text-muted dark:text-accent">
-                    رصيد: {selectedTreasuryBalance.toFixed(2)} EGP
+                    الرصيد: {selectedTreasuryBalance.toFixed(2)} ج.م
                   </div>
                 )}
               </div>

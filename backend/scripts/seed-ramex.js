@@ -40,7 +40,7 @@ const ALL_MODULES = [
   "CREATES_TREASURIES", "CREATES_BRANCHES", "DEPOSITS", "CREATES_DEPOSITS",
   "WITHDRAWALS", "CREATES_WITHDRAWALS", "DELIVERY_MEN", "CREATES_DELIVERY_MEN",
   "DELIVERY_ZONES", "CREATES_DELIVERY_ZONES", "CREATES_PRODUCTION", "PRODUCTION",
-  "FABRIC_ROLLS", "ADJUSTMENTS", "COUNTS", "OWNER_DASHBOARD",
+  "FABRIC_ROLLS", "ADJUSTMENTS", "COUNTS", "OWNER_DASHBOARD", "AUDIT",
 ];
 
 const ROLES = [
@@ -87,7 +87,7 @@ const ROLES = [
       "DEPOSITS", "CREATES_DEPOSITS",
       "WITHDRAWALS", "CREATES_WITHDRAWALS",
       "SUPPLIER_ACCOUNTS", "SALES", "PURCHASES",
-      "INVENTORY", "ITEMS", "CASH_TRANSFER", "TRANSFER_MANAGEMENT",
+      "INVENTORY", "ITEMS", "CASH_TRANSFER", "TRANSFER_MANAGEMENT", "AUDIT",
     ],
   },
 ];
@@ -350,14 +350,55 @@ async function main() {
     const cfgRows = await query("SELECT id FROM system_configuration LIMIT 1");
     if (cfgRows.length === 0) {
       await query(
-        `INSERT INTO system_configuration (id, company_name, tax_number, updated_at)
-         VALUES (1, 'رامكس ستور', '', NOW())`
+        `INSERT INTO system_configuration (
+           id,
+           company_name,
+           company_name_english,
+           tax_number,
+           address,
+           phone_number,
+           logo_url,
+           theme_key,
+           tax_enabled_on_purchases,
+           tax_enabled_on_expenses,
+           session_timeout_minutes,
+           password_min_length,
+           password_require_uppercase,
+           password_require_lowercase,
+           password_require_number,
+           password_require_special_char,
+           updated_at
+         )
+         VALUES (
+           1,
+           'رامكس ستور',
+           'Ramex Store',
+           '',
+           '',
+           '',
+           '',
+           'ramex-store',
+           false,
+           false,
+           720,
+           8,
+           true,
+           true,
+           true,
+           true,
+           NOW()
+         )`
       );
       console.log("  ✅ Created SystemConfiguration");
     } else {
       // Ensure company name is set correctly
       await query(
-        `UPDATE system_configuration SET company_name = 'رامكس ستور', updated_at = NOW() WHERE id = 1`
+        `UPDATE system_configuration
+         SET company_name = 'رامكس ستور',
+             company_name_english = 'Ramex Store',
+             theme_key = 'ramex-store',
+             updated_at = NOW()
+         WHERE id = 1`
       );
       console.log("  ✅ SystemConfiguration exists (updated company name)");
     }

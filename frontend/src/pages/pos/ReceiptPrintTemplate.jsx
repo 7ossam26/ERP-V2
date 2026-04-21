@@ -5,7 +5,11 @@ const ReceiptPrintTemplate = React.forwardRef(({ data }, ref) => {
 
   const {
     companyName,
+    companyNameEnglish,
     taxNumber,
+    address,
+    phone,
+    logoUrl,
     taxEnabledOnSales,
     branchName,
     branchAddress,
@@ -47,7 +51,7 @@ const ReceiptPrintTemplate = React.forwardRef(({ data }, ref) => {
   const S = {
     wrapper: {
       width: "80mm",
-      fontFamily: "Arial, Tahoma, sans-serif",
+      fontFamily: '"Cairo", Tahoma, sans-serif',
       fontSize: "12px",
       lineHeight: "1.5",
       padding: "4mm",
@@ -66,9 +70,23 @@ const ReceiptPrintTemplate = React.forwardRef(({ data }, ref) => {
     <div ref={ref} style={S.wrapper}>
       {/* Header */}
       <div style={{ ...S.center, marginBottom: "4mm" }}>
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt={companyName}
+            style={{ maxWidth: "34mm", maxHeight: "18mm", margin: "0 auto 3mm auto" }}
+          />
+        ) : null}
         <div style={{ fontSize: "16px", ...S.bold }}>{companyName}</div>
+        {companyNameEnglish ? (
+          <div style={{ fontSize: "10px", letterSpacing: "0.08em" }}>
+            {companyNameEnglish}
+          </div>
+        ) : null}
         <div style={{ fontSize: "11px" }}>{branchName}</div>
         {branchAddress && <div style={S.small}>{branchAddress}</div>}
+        {address && <div style={S.small}>{address}</div>}
+        {phone && <div style={S.small}>الهاتف: {phone}</div>}
         {taxNumber && <div style={S.small}>الرقم الضريبي: {taxNumber}</div>}
       </div>
 

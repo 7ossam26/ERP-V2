@@ -1,142 +1,258 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import apiClient from "../services/apiClient";
 import AuthService from "../services/authService";
-import { toast } from "react-hot-toast";
 import Footer from "../components/shared/Footer";
+import { useSystemSettings } from "../contexts/SystemSettingsContext";
+
+const FALLBACK_PASSWORD_POLICY = {
+  minLength: 8,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumber: true,
+  requireSpecialChar: true,
+};
+
+const buildPolicyHints = (policy) => {
+  const hints = [`${policy.minLength} أحرف على الأقل`];
+
+  if (policy.requireUppercase) {
+    hints.push("حرف إنجليزي كبير واحد على الأقل");
+  }
+  if (policy.requireLowercase) {
+    hints.push("حرف إنجليزي صغير واحد على الأقل");
+  }
+  if (policy.requireNumber) {
+    hints.push("رقم واحد على الأقل");
+  }
+  if (policy.requireSpecialChar) {
+    hints.push("رمز خاص واحد على الأقل");
+  }
+
+  return hints;
+};
 
 const ChangePasswordPage = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
+  const { settings } = useSystemSettings();
+  const [form, setForm] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
 
-  const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const passwordPolicy = useMemo(
+    () => ({
+      ...FALLBACK_PASSWORD_POLICY,
+      ...(settings?.passwordPolicy || {}),
+    }),
+    [settings?.passwordPolicy],
+  );
+  const passwordHints = useMemo(
+    () => buildPolicyHints(passwordPolicy),
+    [passwordPolicy],
+  );
+  const companyLogo = settings?.logoUrl || "/assets/logo.png";
+  const companyName = settings?.companyName || "رامكس ستور";
+  const companyNameEnglish = settings?.companyNameEnglish || "Ramex Store";
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const validatePassword = (password) => {
+    if (password.length < passwordPolicy.minLength) {
+      return `كلمة المرور يجب أن تكون ${passwordPolicy.minLength} أحرف على الأقل`;
+    }
+    if (passwordPolicy.requireUppercase && !/[A-Z]/.test(password)) {
+      return "كلمة المرور يجب أن تحتوي على حرف إنجليزي كبير واحد على الأقل";
+    }
+    if (passwordPolicy.requireLowercase && !/[a-z]/.test(password)) {
+      return "كلمة المرور يجب أن تحتوي على حرف إنجليزي صغير واحد على الأقل";
+    }
+    if (passwordPolicy.requireNumber && !/\d/.test(password)) {
+      return "كلمة المرور يجب أن تحتوي على رقم واحد على الأقل";
+    }
+    if (passwordPolicy.requireSpecialChar && !/[^A-Za-z0-9]/.test(password)) {
+      return "كلمة المرور يجب أن تحتوي على رمز خاص واحد على الأقل";
+    }
+
+    return null;
+  };
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
     if (form.newPassword !== form.confirmPassword) {
-      toast.error("كلمة المرور الجديدة وتأكيدها غير متطابقتين");
+      toast.error("كلمة المرور الجديدة وتأكيدها غير متطابقين");
       return;
     }
-    if (form.newPassword.length < 8) {
-      toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
+
+    const passwordError = validatePassword(form.newPassword);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
+
     setIsLoading(true);
     try {
       await apiClient.post("/auth/change-password", form);
       toast.success("تم تغيير كلمة المرور بنجاح");
 
-      // Clear mustChangePassword flag from local storage user object
       const user = AuthService.getCurrentUser();
       if (user) {
-        localStorage.setItem("user", JSON.stringify({ ...user, mustChangePassword: false }));
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ ...user, mustChangePassword: false }),
+        );
       }
 
       navigate("/dashboard", { replace: true });
     } catch (error) {
-      const msg = error?.response?.data?.error || error?.message || "فشل تغيير كلمة المرور";
-      toast.error(msg);
+      const message =
+        error?.response?.data?.error ||
+        error?.message ||
+        "فشل تغيير كلمة المرور";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark font-display antialiased transition-colors duration-200 flex flex-col min-h-screen" dir="rtl">
-      <div className="flex-grow flex items-center justify-center p-4">
-        <div className="w-full max-w-lg mx-auto bg-surface-light dark:bg-surface-dark rounded-xl shadow-lg overflow-hidden">
-          <div className="flex flex-col p-8 sm:p-10 gap-8">
-            <header className="flex items-center justify-center">
-              <img src="/assets/logo.png" alt="Ramex Store" className="h-16 w-auto object-contain" />
+    <div
+      className="flex min-h-screen flex-col bg-background-light font-display text-text-light antialiased transition-colors duration-200"
+      dir="rtl">
+      <div className="flex flex-1 items-center justify-center p-4">
+        <div className="mx-auto w-full max-w-xl overflow-hidden rounded-[28px] border border-border-light bg-surface-light shadow-xl">
+          <div className="flex flex-col gap-8 p-8 sm:p-10">
+            <header className="flex flex-col items-center gap-4 text-center">
+              <img
+                src={companyLogo}
+                alt={companyName}
+                className="h-16 w-auto max-w-[180px] object-contain"
+              />
+              <div>
+                <h1 className="text-2xl font-extrabold text-text-light">
+                  تغيير كلمة المرور
+                </h1>
+                <p className="mt-2 text-sm text-text-light/70">
+                  يجب تحديث كلمة المرور قبل متابعة استخدام النظام.
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-text-light/45">
+                  {companyNameEnglish}
+                </p>
+              </div>
             </header>
 
-            <div>
-              <h1 className="text-gray-900 dark:text-gray-100 text-2xl font-bold mb-1">
-                تغيير كلمة المرور
-              </h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                يجب تغيير كلمة المرور قبل متابعة استخدام النظام
-              </p>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Old Password */}
               <div className="space-y-2">
-                <label className="block text-gray-900 dark:text-gray-100 text-sm font-medium">
+                <label
+                  htmlFor="oldPassword"
+                  className="block text-sm font-medium text-text-light">
                   كلمة المرور الحالية
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                    <span className="material-icons-round text-gray-400 text-xl">lock</span>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                    <span className="material-icons-round text-xl text-text-light/45">
+                      lock
+                    </span>
                   </div>
                   <input
+                    id="oldPassword"
                     name="oldPassword"
                     type={showOld ? "text" : "password"}
                     value={form.oldPassword}
                     onChange={handleChange}
                     required
                     disabled={isLoading}
-                    placeholder="كلمة المرور الحالية"
-                    className="w-full pr-12 pl-12 h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                    placeholder="أدخل كلمة المرور الحالية"
+                    className="h-12 w-full rounded-2xl border border-border-light bg-background-light pl-12 pr-12 text-text-light placeholder:text-text-light/45 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowOld((v) => !v)}
-                    className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400 hover:text-gray-600">
-                    <span className="material-icons-round text-xl">{showOld ? "visibility_off" : "visibility"}</span>
+                    onClick={() => setShowOld((current) => !current)}
+                    className="absolute inset-y-0 left-0 flex items-center pl-4 text-text-light/45 transition-colors hover:text-text-light"
+                    aria-label={showOld ? "إخفاء كلمة المرور الحالية" : "إظهار كلمة المرور الحالية"}>
+                    <span className="material-icons-round text-xl">
+                      {showOld ? "visibility_off" : "visibility"}
+                    </span>
                   </button>
                 </div>
               </div>
 
-              {/* New Password */}
               <div className="space-y-2">
-                <label className="block text-gray-900 dark:text-gray-100 text-sm font-medium">
+                <label
+                  htmlFor="newPassword"
+                  className="block text-sm font-medium text-text-light">
                   كلمة المرور الجديدة
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                    <span className="material-icons-round text-gray-400 text-xl">lock_open</span>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                    <span className="material-icons-round text-xl text-text-light/45">
+                      lock_open
+                    </span>
                   </div>
                   <input
+                    id="newPassword"
                     name="newPassword"
                     type={showNew ? "text" : "password"}
                     value={form.newPassword}
                     onChange={handleChange}
                     required
                     disabled={isLoading}
-                    placeholder="8 أحرف على الأقل"
-                    className="w-full pr-12 pl-12 h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                    placeholder={`أدخل كلمة مرور جديدة (${passwordPolicy.minLength}+ أحرف)`}
+                    className="h-12 w-full rounded-2xl border border-border-light bg-background-light pl-12 pr-12 text-text-light placeholder:text-text-light/45 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowNew((v) => !v)}
-                    className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400 hover:text-gray-600">
-                    <span className="material-icons-round text-xl">{showNew ? "visibility_off" : "visibility"}</span>
+                    onClick={() => setShowNew((current) => !current)}
+                    className="absolute inset-y-0 left-0 flex items-center pl-4 text-text-light/45 transition-colors hover:text-text-light"
+                    aria-label={showNew ? "إخفاء كلمة المرور الجديدة" : "إظهار كلمة المرور الجديدة"}>
+                    <span className="material-icons-round text-xl">
+                      {showNew ? "visibility_off" : "visibility"}
+                    </span>
                   </button>
+                </div>
+                <div className="rounded-2xl border border-border-light bg-background-light px-4 py-3">
+                  <p className="text-xs font-bold text-text-light/75">
+                    متطلبات كلمة المرور
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs text-text-light/65">
+                    {passwordHints.map((hint) => (
+                      <li key={hint}>• {hint}</li>
+                    ))}
+                  </ul>
                 </div>
               </div>
 
-              {/* Confirm Password */}
               <div className="space-y-2">
-                <label className="block text-gray-900 dark:text-gray-100 text-sm font-medium">
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-text-light">
                   تأكيد كلمة المرور الجديدة
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                    <span className="material-icons-round text-gray-400 text-xl">lock_open</span>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                    <span className="material-icons-round text-xl text-text-light/45">
+                      task_alt
+                    </span>
                   </div>
                   <input
+                    id="confirmPassword"
                     name="confirmPassword"
                     type="password"
                     value={form.confirmPassword}
                     onChange={handleChange}
                     required
                     disabled={isLoading}
-                    placeholder="أعد كتابة كلمة المرور الجديدة"
-                    className="w-full pr-12 pl-4 h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                    placeholder="أعد إدخال كلمة المرور الجديدة"
+                    className="h-12 w-full rounded-2xl border border-border-light bg-background-light pl-4 pr-12 text-text-light placeholder:text-text-light/45 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
@@ -144,13 +260,15 @@ const ChangePasswordPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-base shadow-lg shadow-primary/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed">
+                className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 transition-all duration-200 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70">
                 {isLoading ? (
                   <span className="material-icons-round animate-spin">refresh</span>
                 ) : (
                   <>
-                    <span>تغيير كلمة المرور</span>
-                    <span className="material-icons-round text-xl">check_circle</span>
+                    <span className="font-bold">تغيير كلمة المرور</span>
+                    <span className="material-icons-round text-xl">
+                      check_circle
+                    </span>
                   </>
                 )}
               </button>

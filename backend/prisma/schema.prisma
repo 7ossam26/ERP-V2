@@ -118,6 +118,7 @@ enum Module {
   COUNTS
   OWNER_DASHBOARD
   INITIAL_INVENTORY
+  AUDIT
 }
 
 // ============================================
@@ -776,9 +777,14 @@ enum TransferStatus {
 // ============================================
 
 model SystemConfiguration {
-  id          Int    @id @default(1)
-  companyName String @default("رامكس ستور") @map("company_name")
-  taxNumber   String @default("") @map("tax_number")
+  id                 Int    @id @default(1)
+  companyName        String @default("رامكس ستور") @map("company_name")
+  companyNameEnglish String @default("Ramex Store") @map("company_name_english")
+  taxNumber          String @default("") @map("tax_number")
+  address            String @default("") @db.Text
+  phone              String @default("") @map("phone_number")
+  logoUrl            String @default("") @map("logo_url")
+  themeKey           String @default("ramex-store") @map("theme_key")
 
   // Operational Defaults
   mainWarehouseId Int? @map("main_warehouse_id")
@@ -786,8 +792,10 @@ model SystemConfiguration {
   bankTreasuryId  Int? @map("bank_treasury_id")
 
   // Financial Defaults
-  taxRate Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
-  taxEnabledOnSales Boolean @default(true) @map("tax_enabled_on_sales")
+  taxRate                 Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
+  taxEnabledOnSales       Boolean @default(true) @map("tax_enabled_on_sales")
+  taxEnabledOnPurchases   Boolean @default(false) @map("tax_enabled_on_purchases")
+  taxEnabledOnExpenses    Boolean @default(false) @map("tax_enabled_on_expenses")
   landedCostFeatureEnabled Boolean @default(false) @map("landed_cost_feature_enabled")
 
   // HR Defaults
@@ -801,6 +809,14 @@ model SystemConfiguration {
   morningShiftEnd   String @default("17:00") @map("morning_shift_end")
   eveningShiftStart String @default("17:00") @map("evening_shift_start")
   eveningShiftEnd   String @default("01:00") @map("evening_shift_end")
+
+  // Security Defaults
+  sessionTimeoutMinutes      Int     @default(720) @map("session_timeout_minutes")
+  passwordMinLength          Int     @default(8) @map("password_min_length")
+  passwordRequireUppercase   Boolean @default(true) @map("password_require_uppercase")
+  passwordRequireLowercase   Boolean @default(true) @map("password_require_lowercase")
+  passwordRequireNumber      Boolean @default(true) @map("password_require_number")
+  passwordRequireSpecialChar Boolean @default(true) @map("password_require_special_char")
 
   updatedAt DateTime @updatedAt @map("updated_at")
 

@@ -1,226 +1,251 @@
-import React, { useState, useEffect } from "react";
-import { treasuryService } from "../../services/domainServices";
-import AuthService from "../../services/authService";
+import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { treasuryService } from "../../services/domainServices";
+import { useSystemSettings } from "../../contexts/SystemSettingsContext";
 
 const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
-    const [formData, setFormData] = useState({
-        date: new Date().toISOString().split("T")[0],
-        description: "",
-        amount: "",
-        treasuryId: "",
-        paymentMethod: "CASH",
-    });
-    const [treasuries, setTreasuries] = useState([]);
+  const { settings } = useSystemSettings();
+  const [treasuries, setTreasuries] = useState([]);
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split("T")[0],
+    description: "",
+    amount: "",
+    treasuryId: "",
+    paymentMethod: "CASH",
+  });
 
-    useEffect(() => {
-        if (expenseToEdit) {
-            setFormData({
-                date: new Date(expenseToEdit.date).toISOString().split("T")[0],
-                description: expenseToEdit.description,
-                amount: expenseToEdit.amount,
-                treasuryId: expenseToEdit.treasuryId,
-                paymentMethod: expenseToEdit.paymentMethod,
-            });
+  const taxEnabled = Boolean(settings.taxEnabledOnExpenses) && !expenseToEdit;
+  const taxRate = Number(settings.taxRate) || 0;
+  const baseAmount = Number(formData.amount || 0);
+  const taxAmount = taxEnabled ? baseAmount * (taxRate / 100) : 0;
+  const finalAmount = baseAmount + taxAmount;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchTreasuries = async () => {
+      try {
+        const data = await treasuryService.getAll();
+        if (!cancelled) {
+          setTreasuries(data);
+          setFormData((current) => ({
+            ...current,
+            treasuryId:
+              expenseToEdit?.treasuryId || current.treasuryId || data[0]?.id || "",
+          }));
         }
-    }, [expenseToEdit]);
-
-    useEffect(() => {
-        const fetchTreasuries = async () => {
-            try {
-                const data = await treasuryService.getAll();
-                setTreasuries(data);
-
-                // If not editing, default to user branch or first treasury
-                if (!expenseToEdit) {
-                    const user = AuthService.getCurrentUser();
-                    if (user && user.branchId && data.length > 0) {
-                        // Default logic here...
-                        // For simplicity just pick first if no strict match logic implemented yet
-                        setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
-                    } else if (data.length > 0) {
-                        setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
-                    }
-                }
-            } catch (error) {
-                console.error("Failed to fetch treasuries", error);
-            }
-        };
-        fetchTreasuries();
-    }, [expenseToEdit]); // Re-run if edit mode changes? No, just once. But dependent on expenseToEdit for default logic. 
-    // Actually simpler: fetch treasuries once. Set default only if !expenseToEdit.
-
-
-    useEffect(() => {
-        const fetchTreasuries = async () => {
-            try {
-                const data = await treasuryService.getAll();
-                setTreasuries(data);
-
-                // Default to user's branch treasury if available
-                const user = AuthService.getCurrentUser();
-                if (user && user.branchId) {
-                    // Assuming we can find the treasury for the branch, or if branch object has treasuryId
-                    // Usually backend returns simple user object.
-                    // If we can't find exact match, we might need to rely on manual selection or advanced logic.
-                    // For now, let's try to find a treasury that matches user's branch logic if possible, 
-                    // or just select the first one if strict mapping isn't available.
-                    // Actually, let's just default to the first one if no specific logic.
-                    if (data.length > 0) {
-                        // If we knew which treasury belongs to the branch, we would select it. 
-                        // For now, default to the first one to ensure a valid selection
-                        setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
-                    }
-                } else if (data.length > 0) {
-                    setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
-                }
-            } catch (error) {
-                console.error("Failed to fetch treasuries", error);
-            }
-        };
-        fetchTreasuries();
-    }, []);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+      } catch (error) {
+        if (!cancelled) {
+          toast.error("فشل تحميل الخزائن");
+        }
+      }
     };
 
-    const handleSubmit = () => {
-        if (!formData.description.trim()) {
-            toast.error("يرجى إدخال وصف المصروف");
-            return;
-        }
-        if (!formData.amount || parseFloat(formData.amount) <= 0) {
-            toast.error("يرجى إدخال مبلغ صحيح أكبر من صفر");
-            return;
-        }
-        if (!formData.treasuryId) {
-            toast.error("يرجى اختيار الخزينة");
-            return;
-        }
-        if (expenseToEdit) {
-            onUpdate(expenseToEdit.id, formData);
-        } else {
-            onAdd(formData);
-        }
-        onClose();
+    fetchTreasuries();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [expenseToEdit]);
+
+  useEffect(() => {
+    if (expenseToEdit) {
+      setFormData({
+        date: new Date(expenseToEdit.date).toISOString().split("T")[0],
+        description: expenseToEdit.description,
+        amount: expenseToEdit.amount,
+        treasuryId: expenseToEdit.treasuryId,
+        paymentMethod: expenseToEdit.paymentMethod,
+      });
+    }
+  }, [expenseToEdit]);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (!formData.description.trim()) {
+      toast.error("يرجى إدخال وصف المصروف");
+      return;
+    }
+
+    if (!formData.amount || Number(formData.amount) <= 0) {
+      toast.error("يرجى إدخال مبلغ صحيح أكبر من صفر");
+      return;
+    }
+
+    if (!formData.treasuryId) {
+      toast.error("يرجى اختيار الخزينة");
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      amount: taxEnabled ? finalAmount.toFixed(2) : formData.amount,
+      baseAmount: formData.amount,
+      taxAmount: taxEnabled ? taxAmount.toFixed(2) : "0.00",
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-light/40 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="bg-surface-light w-full max-w-lg rounded-xl shadow-2xl border border-border-light flex flex-col max-h-[90vh] animate-slide-up">
-                <div className="flex items-center justify-between p-5 border-b border-border-light bg-surface-light rounded-t-xl">
-                    <h2 className="text-xl font-bold text-text-light flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">
-                            {expenseToEdit ? "edit" : "add_circle"}
-                        </span>
-                        {expenseToEdit ? "تعديل المصروف" : "إضافة مصروف جديد"}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-text-light/50 hover:text-red-500 transition-colors rounded-lg p-1 hover:bg-red-50">
-                        <span className="material-symbols-outlined">close</span>
-                    </button>
-                </div>
-                <div className="p-6 space-y-5 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-text-light block">
-                                الخزينة
-                            </label>
-                            <select
-                                name="treasuryId"
-                                value={formData.treasuryId}
-                                onChange={handleChange}
-                                className="w-full bg-background-light border border-border-light rounded-lg px-4 py-2.5 text-text-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer">
-                                {treasuries.map((t) => (
-                                    <option key={t.id} value={t.id}>
-                                        {t.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-text-light block">
-                                طريقة الدفع
-                            </label>
-                            <select
-                                name="paymentMethod"
-                                value={formData.paymentMethod}
-                                onChange={handleChange}
-                                className="w-full bg-background-light border border-border-light rounded-lg px-4 py-2.5 text-text-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer">
-                                <option value="CASH">نقدي</option>
-                                <option value="CARD">بطاقة بنكية</option>
-                            </select>
-                        </div>
-                    </div>
+    if (expenseToEdit) {
+      onUpdate(expenseToEdit.id, payload);
+    } else {
+      onAdd(payload);
+    }
 
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-text-light block">
-                            التاريخ
-                        </label>
-                        <div className="relative">
-                            <input
-                                name="date"
-                                value={formData.date}
-                                onChange={handleChange}
-                                className="w-full bg-background-light border border-border-light rounded-lg px-4 py-2.5 text-text-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-numbers transition-all cursor-pointer"
-                                type="date"
-                            />
-                        </div>
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-text-light block">
-                            الوصف
-                        </label>
-                        <input
-                            name="description"
-                            value={formData.description}
-                            onChange={handleChange}
-                            className="w-full bg-background-light border border-border-light rounded-lg px-4 py-2.5 text-text-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-text-light/40"
-                            placeholder="مثال: شراء حبوب بن، فاتورة كهرباء..."
-                            type="text"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-text-light block">
-                            المبلغ
-                        </label>
-                        <div className="relative">
-                            <input
-                                name="amount"
-                                value={formData.amount}
-                                onChange={handleChange}
-                                className="w-full bg-background-light border border-border-light rounded-lg pr-4 pl-12 py-2.5 text-text-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-numbers transition-all text-left"
-                                placeholder="0.00"
-                                style={{ direction: "ltr" }}
-                                type="number"
-                            />
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-light/50 text-sm font-bold">
-                                ج.م
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div className="p-5 border-t border-border-light bg-background-light/30 flex justify-end gap-3 rounded-b-xl">
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2.5 rounded-lg border border-border-light bg-surface-light text-text-light hover:bg-accent/10 font-bold transition-colors">
-                        إلغاء
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        className="px-6 py-2.5 rounded-lg bg-primary text-text-dark hover:bg-primary-hover shadow-md hover:shadow-lg font-bold transition-all flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[20px]">
-                            {expenseToEdit ? "save" : "check"}
-                        </span>
-                        <span>{expenseToEdit ? "حفظ التعديلات" : "إضافة"}</span>
-                    </button>
-                </div>
-            </div>
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-light/35 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[28px] border border-border-light bg-surface-light shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border-light px-5 py-4">
+          <h2 className="flex items-center gap-2 text-xl font-bold text-text-light">
+            <span className="material-symbols-outlined text-primary">
+              {expenseToEdit ? "edit" : "add_circle"}
+            </span>
+            {expenseToEdit ? "تعديل المصروف" : "إضافة مصروف جديد"}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-1 text-text-light/55 transition-colors hover:bg-red-50 hover:text-red-500">
+            <span className="material-symbols-outlined">close</span>
+          </button>
         </div>
-    );
+
+        <div className="space-y-5 overflow-y-auto p-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold text-text-light">
+                الخزينة
+              </label>
+              <select
+                name="treasuryId"
+                value={formData.treasuryId}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-border-light bg-background-light px-4 py-2.5 text-text-light outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20">
+                {treasuries.map((treasury) => (
+                  <option key={treasury.id} value={treasury.id}>
+                    {treasury.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold text-text-light">
+                طريقة الدفع
+              </label>
+              <select
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-border-light bg-background-light px-4 py-2.5 text-text-light outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20">
+                <option value="CASH">نقدي</option>
+                <option value="CARD">بطاقة بنكية</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-text-light">
+              التاريخ
+            </label>
+            <input
+              name="date"
+              type="date"
+              value={formData.date}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-border-light bg-background-light px-4 py-2.5 text-text-light outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-text-light">
+              الوصف
+            </label>
+            <input
+              name="description"
+              type="text"
+              value={formData.description}
+              onChange={handleChange}
+              placeholder="مثال: فاتورة كهرباء أو خدمات صيانة"
+              className="w-full rounded-xl border border-border-light bg-background-light px-4 py-2.5 text-text-light outline-none transition-all placeholder:text-text-light/40 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-text-light">
+              {taxEnabled ? "المبلغ قبل الضريبة" : "المبلغ"}
+            </label>
+            <div className="relative">
+              <input
+                name="amount"
+                type="number"
+                value={formData.amount}
+                onChange={handleChange}
+                placeholder="0.00"
+                className="w-full rounded-xl border border-border-light bg-background-light px-4 py-2.5 pl-12 text-left text-text-light outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                style={{ direction: "ltr" }}
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-text-light/50">
+                ج.م
+              </span>
+            </div>
+          </div>
+
+          {taxEnabled ? (
+            <div className="rounded-[22px] border border-border-light bg-background-light px-4 py-4">
+              <div className="mb-3 text-sm font-bold text-text-light">
+                ملخص الضريبة
+              </div>
+              <div className="space-y-2 text-sm text-text-light/75">
+                <div className="flex items-center justify-between">
+                  <span>المبلغ الأساسي</span>
+                  <span className="font-bold text-text-light">
+                    {baseAmount.toFixed(2)} ج.م
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>الضريبة ({taxRate}%)</span>
+                  <span className="font-bold text-text-light">
+                    {taxAmount.toFixed(2)} ج.م
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-border-light pt-2 text-base font-bold text-primary">
+                  <span>الإجمالي النهائي</span>
+                  <span>{finalAmount.toFixed(2)} ج.م</span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-border-light bg-background-light/40 px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-border-light bg-surface-light px-5 py-2.5 font-bold text-text-light transition-colors hover:bg-accent/15">
+            إلغاء
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-white transition-colors hover:bg-primary-hover">
+            <span className="material-symbols-outlined text-[20px]">
+              {expenseToEdit ? "save" : "check"}
+            </span>
+            <span>{expenseToEdit ? "حفظ التعديلات" : "إضافة"}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default AddExpenseModal;

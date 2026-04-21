@@ -14,6 +14,7 @@ const AuthService = {
       if (token && user) {
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(user));
+        window.dispatchEvent(new Event("auth-changed"));
       }
 
       return response;
@@ -32,6 +33,7 @@ const AuthService = {
     } finally {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth-changed"));
       window.location.href = "/";
     }
   },
@@ -127,6 +129,7 @@ const AuthService = {
 
         // Preserve the token, update the user object
         localStorage.setItem("user", JSON.stringify(userData));
+        window.dispatchEvent(new Event("auth-changed"));
         return userData;
       }
     } catch (error) {

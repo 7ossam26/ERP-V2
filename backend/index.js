@@ -41,47 +41,50 @@ if (fs.existsSync(envBackendLocal)) {
 }
 
 const isProduction = process.env.NODE_ENV === "production";
-const RAMEX_PROD_HOST = process.env.RAMEX_PROD_HOST || "ramex.example.com"; // Set real domain in Phase 8
+const RAMEX_PROD_HOST =
+  process.env.RAMEX_PROD_HOST || process.env.FRONTEND_URL || "http://localhost:5173";
+const ENABLE_SETUP_ROUTES =
+  !isProduction || process.env.ENABLE_SETUP_ROUTES === "true";
+const ENABLE_FILE_LOGS = process.env.ENABLE_FILE_LOGS === "true";
 console.log(`>>> [BOOT] RAMEX_PROD_HOST: ${RAMEX_PROD_HOST}`);
 console.log(
   `>>> [ENV] Final NODE_ENV: ${process.env.NODE_ENV} (isProduction: ${isProduction})`,
 );
 // ---------------------------------------
 
-// --- DEBUGGING: Write logs to a file ---
-const LOG_FILE = path.join(__dirname, "deployment.log");
-function logToFile(message) {
-  const timestamp = new Date().toISOString();
-  const logLine = `[${timestamp}] ${message}\n`;
-  try {
-    fs.appendFileSync(LOG_FILE, logLine);
-  } catch (err) {
-    // Ignore file write errors to avoid infinite loops
+if (ENABLE_FILE_LOGS) {
+  const LOG_FILE = path.join(__dirname, "deployment.log");
+  function logToFile(message) {
+    const timestamp = new Date().toISOString();
+    const logLine = `[${timestamp}] ${message}\n`;
+    try {
+      fs.appendFileSync(LOG_FILE, logLine);
+    } catch (err) {
+      // Ignore file write errors to avoid infinite loops
+    }
   }
+
+  const originalLog = console.log;
+  const originalError = console.error;
+
+  console.log = function (...args) {
+    const msg = args
+      .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
+      .join(" ");
+    logToFile(`INFO: ${msg}`);
+    originalLog.apply(console, args);
+  };
+
+  console.error = function (...args) {
+    const msg = args
+      .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
+      .join(" ");
+    logToFile(`ERROR: ${msg}`);
+    originalError.apply(console, args);
+  };
+
+  console.log(`>>> [BOOT] Logging to file: ${LOG_FILE}`);
 }
-
-// Override console methods to trace everything
-const originalLog = console.log;
-const originalError = console.error;
-
-console.log = function (...args) {
-  const msg = args
-    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
-    .join(" ");
-  logToFile(`INFO: ${msg}`);
-  originalLog.apply(console, args);
-};
-
-console.error = function (...args) {
-  const msg = args
-    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
-    .join(" ");
-  logToFile(`ERROR: ${msg}`);
-  originalError.apply(console, args);
-};
-
-console.log(`>>> [BOOT] Logging to file: ${LOG_FILE}`);
-// ---------------------------------------
 
 const app = express();
 // Enable proxy trust for Hostinger Load Balancer (fixes rate limit error)
@@ -269,6 +272,10 @@ const seedMain = require("./scripts/seed-production.js");
 
 // --- DANGEROUS: Complete Database Reset & Re-seed ---
 app.get("/api/dangerous-reset-db", async (req, res) => {
+  if (!ENABLE_SETUP_ROUTES) {
+    return res.status(404).json({ error: "Endpoint not available" });
+  }
+
   console.log(">>> [RESET] Request received to WIPE database...");
 
   // 1. Security Check
@@ -359,6 +366,10 @@ app.get("/api/dangerous-reset-db", async (req, res) => {
 
 // --- 1. TABLES SETUP ENDPOINT ---
 app.get("/api/setup-tables", async (req, res) => {
+  if (!ENABLE_SETUP_ROUTES) {
+    return res.status(404).json({ error: "Endpoint not available" });
+  }
+
   console.log(">>> [SETUP] Starting Table Creation (Direct MySQL Mode)...");
 
   // Use mysql2 directly to bypass Prisma engine panics on large schema execution
@@ -416,6 +427,10 @@ app.get("/api/setup-tables", async (req, res) => {
 // --- 2. SEED ENDPOINT ---
 // --- 2. SEED ENDPOINT ---
 app.get("/api/setup-seed", async (req, res) => {
+  if (!ENABLE_SETUP_ROUTES) {
+    return res.status(404).json({ error: "Endpoint not available" });
+  }
+
   console.log(">>> [SETUP] Starting Seeding (via mysql2)...");
   try {
     // We skip the prisma.role.count() check because we are intentionally creating tables via mysql2
@@ -433,6 +448,7 @@ app.get("/api/setup-seed", async (req, res) => {
 // Serve Static Frontend Files (Production)
 const CLIENT_DIST_PATH_PROD = path.join(__dirname, "client_dist");
 const CLIENT_DIST_PATH_LOCAL = path.join(__dirname, "../frontend/dist");
+const UPLOADS_PATH = path.join(__dirname, "uploads");
 
 let CLIENT_DIST_PATH = CLIENT_DIST_PATH_LOCAL; // Default fallback
 
@@ -445,6 +461,10 @@ if (fs.existsSync(CLIENT_DIST_PATH_PROD)) {
 }
 
 console.log(`>>> [STATIC] Checking for frontend build at: ${CLIENT_DIST_PATH}`);
+
+if (fs.existsSync(UPLOADS_PATH)) {
+  app.use("/uploads", express.static(UPLOADS_PATH));
+}
 
 if (fs.existsSync(CLIENT_DIST_PATH)) {
   console.log("📂 [STATIC] Serving static frontend files.");

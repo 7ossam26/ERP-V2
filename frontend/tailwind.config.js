@@ -5,21 +5,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#6F4E37",
-        "primary-hover": "#5D4037",
-        "primary-dark": "#5D4037", // Added for compatibility
-        "background-light": "#F5F5F0",
-        "background-dark": "#1F1B18",
-        "surface-light": "#FFFFFF",
-        "surface-dark": "#2C2522",
-        "card-light": "#FFFFFF", // Added for compatibility
-        "card-dark": "#27272a", // Added for compatibility (Zinc 800)
-        "text-light": "#3E2723",
-        "text-dark": "#EFEBE9",
-        accent: "#D7CCC8",
-        "accent-dark": "#4a4a4e", // Added for compatibility
-        "border-light": "#E7E5E4",
-        "border-dark": "#44403C",
+        primary: "rgb(var(--theme-primary) / <alpha-value>)",
+        "primary-hover": "rgb(var(--theme-primary-hover) / <alpha-value>)",
+        "primary-dark": "rgb(var(--theme-primary-dark) / <alpha-value>)",
+        "background-light": "rgb(var(--theme-background-light) / <alpha-value>)",
+        "background-dark": "rgb(var(--theme-background-dark) / <alpha-value>)",
+        "surface-light": "rgb(var(--theme-surface-light) / <alpha-value>)",
+        "surface-dark": "rgb(var(--theme-surface-dark) / <alpha-value>)",
+        "card-light": "rgb(var(--theme-card-light) / <alpha-value>)",
+        "card-dark": "rgb(var(--theme-card-dark) / <alpha-value>)",
+        "text-light": "rgb(var(--theme-text-light) / <alpha-value>)",
+        "text-dark": "rgb(var(--theme-text-dark) / <alpha-value>)",
+        accent: "rgb(var(--theme-accent) / <alpha-value>)",
+        "accent-dark": "rgb(var(--theme-accent-dark) / <alpha-value>)",
+        "border-light": "rgb(var(--theme-border-light) / <alpha-value>)",
+        "border-dark": "rgb(var(--theme-border-dark) / <alpha-value>)",
       },
       fontFamily: {
         display: ["Cairo", "sans-serif"],

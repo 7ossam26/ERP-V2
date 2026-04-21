@@ -537,7 +537,11 @@ async function buildReceiptData(prismaClient, saleId) {
 
   return {
     companyName: config?.companyName || "رامكس ستور",
+    companyNameEnglish: config?.companyNameEnglish || "Ramex Store",
     taxNumber: config?.taxNumber || "",
+    address: config?.address || "",
+    phone: config?.phone || "",
+    logoUrl: config?.logoUrl || "",
     taxEnabledOnSales: config?.taxEnabledOnSales !== false,
     branchName: sale.branch?.name || "",
     branchAddress: sale.branch?.address || "",

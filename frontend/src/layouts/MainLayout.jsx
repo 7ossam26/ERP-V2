@@ -4,12 +4,16 @@ import AuthService from "../services/authService";
 import Modal from "../components/ui/Modal";
 import Footer from "../components/shared/Footer";
 import BranchSwitcher from "../components/BranchSwitcher";
+import { useSystemSettings } from "../contexts/SystemSettingsContext";
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const { settings } = useSystemSettings();
+  const canAccessSettings = AuthService.hasPermission("SETTINGS");
+  const canAccessAudit = AuthService.hasPermission("AUDIT");
 
   // Use state for user to trigger re-renders when profile refreshes
   const [user, setUser] = useState(AuthService.getCurrentUser());
@@ -91,8 +95,8 @@ const MainLayout = ({ children }) => {
               to="/dashboard"
               className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2 hover:opacity-80 transition-opacity">
               <img
-                src="/assets/logo.png"
-                alt="Ramex Store Logo"
+                src={settings.logoUrl || "/assets/logo.png"}
+                alt={settings.companyName || "Ramex Store"}
                 className="h-12 sm:h-16 w-auto object-contain"
               />
             </Link>
@@ -132,6 +136,31 @@ const MainLayout = ({ children }) => {
                 {/* Dropdown Menu */}
                 {isUserDropdownOpen && (
                   <div className="absolute left-0 mt-2 w-44 sm:w-48 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg py-2 z-50">
+                    {canAccessSettings && (
+                      <Link
+                        to="/settings"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 text-text-light dark:text-text-dark transition-colors hover:bg-primary/10 dark:hover:bg-primary/20 min-h-touch">
+                        <span className="material-icons-round text-lg">
+                          settings
+                        </span>
+                        <span className="text-sm">الإعدادات</span>
+                      </Link>
+                    )}
+                    {canAccessAudit && (
+                      <Link
+                        to="/audit"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 text-text-light dark:text-text-dark transition-colors hover:bg-primary/10 dark:hover:bg-primary/20 min-h-touch">
+                        <span className="material-icons-round text-lg">
+                          history
+                        </span>
+                        <span className="text-sm">سجل المراجعة</span>
+                      </Link>
+                    )}
+                    {(canAccessSettings || canAccessAudit) && (
+                      <div className="my-1 border-t border-border-light dark:border-border-dark" />
+                    )}
                     {/* Swapped: Logout Button (was Home Page) */}
                     <button
                       onClick={() => {

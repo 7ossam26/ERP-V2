@@ -6,12 +6,49 @@
 @config "../tailwind.config.js";
 
 @layer base {
+  :root {
+    --theme-primary: 122 84 57;
+    --theme-primary-hover: 94 63 43;
+    --theme-primary-dark: 67 44 31;
+    --theme-background-light: 246 241 235;
+    --theme-background-dark: 34 28 24;
+    --theme-surface-light: 255 252 248;
+    --theme-surface-dark: 50 42 36;
+    --theme-card-light: 255 255 255;
+    --theme-card-dark: 45 39 35;
+    --theme-text-light: 44 32 26;
+    --theme-text-dark: 244 236 229;
+    --theme-accent: 219 205 192;
+    --theme-accent-dark: 106 92 82;
+    --theme-border-light: 225 214 205;
+    --theme-border-dark: 96 81 72;
+  }
+
   html {
     scroll-behavior: smooth;
   }
 
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
   body {
-    @apply font-body transition-colors duration-300 min-h-screen flex flex-col;
+    @apply font-body transition-colors duration-300 min-h-screen flex flex-col bg-background-light text-text-light;
+  }
+
+  * {
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  :focus-visible {
+    outline: 3px solid rgb(var(--theme-primary) / 0.28);
+    outline-offset: 2px;
   }
 }
 
