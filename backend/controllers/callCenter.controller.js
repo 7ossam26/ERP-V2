@@ -1,6 +1,6 @@
 // controllers/callCenter.controller.js
 const prisma = require("../config/database");
-const { createOrderInTx, publishNewOrderNotifications } = require("../lib/orderService");
+const { createOrderInTx, publishNewOrderNotifications, broadcastStatusChange } = require("../lib/orderService");
 
 // -------------------------------------------------------------------------
 // helpers
@@ -520,6 +520,102 @@ exports.cancelOrder = async (req, res, next) => {
     });
 
     res.json({ orderId, status: "CANCELLED" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// -------------------------------------------------------------------------
+// PATCH /api/call-center/orders/:id/status — advance order through lifecycle
+// body: { status: 'PREPARING' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' }
+//
+// Each transition is a single conditional UPDATE (affectedRows check) so two
+// cashiers racing to claim the same NEW order get one 200 and one 409.
+// Caller must hold an open shift at the order's branch (D9 authz rule).
+// -------------------------------------------------------------------------
+const VALID_TRANSITIONS = {
+  NEW: "PREPARING",
+  PREPARING: "READY",
+  READY: "OUT_FOR_DELIVERY",
+  OUT_FOR_DELIVERY: "DELIVERED",
+};
+
+exports.updateOrderStatus = async (req, res, next) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { status: requestedStatus } = req.body;
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, branchId: true, channel: true, saleId: true },
+    });
+
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (order.channel !== "CALL_CENTER") {
+      return res.status(400).json({ error: "Not a call-center order" });
+    }
+
+    const allowedNext = VALID_TRANSITIONS[order.status];
+    if (!allowedNext || requestedStatus !== allowedNext) {
+      return res.status(400).json({
+        error: "INVALID_TRANSITION",
+        from: order.status,
+        allowed: allowedNext || null,
+      });
+    }
+
+    // Authz: caller must have an open shift at this branch (D9).
+    const openShift = await prisma.shift.findFirst({
+      where: { userId: req.user.id, branchId: order.branchId, status: "OPEN" },
+      select: { id: true },
+    });
+    if (!openShift) {
+      return res.status(403).json({
+        error: "SHIFT_REQUIRED",
+        message: "You must have an open shift at this branch to update order status",
+      });
+    }
+
+    const now = new Date();
+    const updateData = { status: requestedStatus };
+    if (requestedStatus === "PREPARING") {
+      updateData.claimedById = req.user.id;
+      updateData.claimedAt = now;
+    } else if (requestedStatus === "READY") {
+      updateData.readyAt = now;
+    } else if (requestedStatus === "OUT_FOR_DELIVERY") {
+      updateData.dispatchedAt = now;
+    } else if (requestedStatus === "DELIVERED") {
+      updateData.deliveredAt = now;
+    }
+
+    // Atomic claim: only updates if status still matches the expected FROM state.
+    const result = await prisma.order.updateMany({
+      where: { id: orderId, status: order.status },
+      data: updateData,
+    });
+
+    if (result.count === 0) {
+      return res.status(409).json({
+        error: "ALREADY_CLAIMED",
+        message: "Order status was changed by another user",
+      });
+    }
+
+    // Broadcast the change to all open-shift cashiers + the creator (fire-and-forget).
+    prisma.order
+      .findUnique({
+        where: { id: orderId },
+        include: { sale: { select: { id: true, saleNumber: true } } },
+      })
+      .then((updated) =>
+        broadcastStatusChange(prisma, { order: updated, sale: updated.sale })
+      )
+      .catch((err) =>
+        console.error("[CC] broadcastStatusChange failed:", err.message)
+      );
+
+    res.json({ orderId, status: requestedStatus });
   } catch (err) {
     next(err);
   }

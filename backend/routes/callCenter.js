@@ -14,6 +14,7 @@ router.post("/clients", ctrl.createClient);
 
 router.post("/orders", ctrl.createOrder);
 router.get("/orders", ctrl.listOrders);
+router.patch("/orders/:id/status", ctrl.updateOrderStatus);
 router.post("/orders/:id/cancel", ctrl.cancelOrder);
 
 module.exports = router;

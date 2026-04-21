@@ -18,15 +18,23 @@ import notificationService from "../services/notificationService";
 
 const RealtimeNotificationsContext = createContext(null);
 
-// Small helper: localStorage-backed flag for the alerts-enabled user gate.
-const ALERTS_KEY = "alertsEnabled";
+// Per-user key so the preference survives logout/login without spilling
+// between accounts on the same machine.
+const getAlertsKey = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user?.id ? `alertsEnabled_${user.id}` : "alertsEnabled";
+  } catch {
+    return "alertsEnabled";
+  }
+};
 
 export const RealtimeNotificationsProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState("closed");
   const [alertsEnabled, setAlertsEnabled] = useState(
-    () => localStorage.getItem(ALERTS_KEY) === "true",
+    () => localStorage.getItem(getAlertsKey()) === "true",
   );
   const soundRef = useRef(null);
 
@@ -136,7 +144,7 @@ export const RealtimeNotificationsProvider = ({ children }) => {
    * survives tab reloads.
    */
   const enableAlerts = useCallback(async () => {
-    localStorage.setItem(ALERTS_KEY, "true");
+    localStorage.setItem(getAlertsKey(), "true");
     setAlertsEnabled(true);
     // Unlock the audio element (gesture-bound).
     const audio = soundRef.current;
@@ -158,7 +166,7 @@ export const RealtimeNotificationsProvider = ({ children }) => {
   }, []);
 
   const disableAlerts = useCallback(() => {
-    localStorage.setItem(ALERTS_KEY, "false");
+    localStorage.setItem(getAlertsKey(), "false");
     setAlertsEnabled(false);
   }, []);
 

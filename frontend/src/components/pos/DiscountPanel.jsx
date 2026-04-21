@@ -1,29 +1,33 @@
 import React from "react";
+import { roundMoney } from "../../utils/money";
 
-export const DISCOUNT_REASONS = [
-  { code: "STAFF_DISCOUNT", label: "خصم موظف" },
-  { code: "LOYAL_CUSTOMER", label: "عميل مميز" },
-  { code: "DAMAGED_ITEM", label: "منتج تالف" },
-  { code: "MANAGER_COMP", label: "مجاملة إدارة" },
-  { code: "PROMO", label: "عرض ترويجي" },
-  { code: "OTHER", label: "أخرى" },
+export const DEFAULT_DISCOUNT_REASONS = [
+  { code: "STAFF_DISCOUNT", label: "خصم موظف", customerLabel: "خصم موظف" },
+  { code: "LOYAL_CUSTOMER", label: "عميل مميز", customerLabel: "خصم عميل مميز" },
+  { code: "DAMAGED_ITEM", label: "منتج تالف", customerLabel: "خصم منتج تالف" },
+  { code: "MANAGER_COMP", label: "مجاملة إدارة", customerLabel: "خصم إداري" },
+  { code: "PROMO", label: "عرض ترويجي", customerLabel: "عرض ترويجي" },
+  { code: "OTHER", label: "أخرى", customerLabel: "خصم" },
 ];
 
-export const reasonLabel = (code) => {
-  const r = DISCOUNT_REASONS.find((x) => x.code === code);
+// Keep old name as alias so existing imports don't break
+export const DISCOUNT_REASONS = DEFAULT_DISCOUNT_REASONS;
+
+export const reasonLabel = (code, reasons = DEFAULT_DISCOUNT_REASONS) => {
+  const r = reasons.find((x) => x.code === code);
   return r ? r.label : code || "";
 };
 
-// Pure math helper — rounds to nearest 1 EGP, matches backend.
+// Pure math helper — rounds to nearest 1 EGP, matches backend/utils/money.js.
 export const computeDiscountAmount = (subtotal, type, value) => {
   const s = Number(subtotal) || 0;
   const v = Number(value) || 0;
   if (s <= 0 || v <= 0) return 0;
   if (type === "PERCENTAGE") {
     const pct = Math.min(100, v);
-    return Math.round(Math.min(s, (s * pct) / 100));
+    return roundMoney(Math.min(s, (s * pct) / 100));
   }
-  return Math.round(Math.min(s, v));
+  return roundMoney(Math.min(s, v));
 };
 
 const DiscountPanel = ({
@@ -35,6 +39,7 @@ const DiscountPanel = ({
   disabled = false,
   className = "",
   compact = false,
+  reasons = DEFAULT_DISCOUNT_REASONS,
 }) => {
   const update = (patch) => {
     if (!onChange) return;
@@ -116,7 +121,7 @@ const DiscountPanel = ({
             disabled={isDisabled}
           >
             <option value="">— اختر السبب —</option>
-            {DISCOUNT_REASONS.map((r) => (
+            {reasons.map((r) => (
               <option key={r.code} value={r.code}>
                 {r.label}
               </option>

@@ -81,4 +81,8 @@ export const salesService = {
       deliveryManId,
     });
   },
+
+  async getDiscountReasons() {
+    return await api.get(`${SALES_URL}/discount-reasons`);
+  },
 };

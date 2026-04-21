@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Design Plan Review — Resolutions (2026-04-21)</title>
+<style>
+  @page { size: A4; margin: 18mm 14mm 18mm 14mm; }
+  html, body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5pt; color: #1c2024; line-height: 1.45; }
+  body { margin: 0; }
+  h1 { font-size: 20pt; margin: 0 0 4pt; color: #0b3d91; }
+  h2 { font-size: 14pt; margin: 18pt 0 6pt; padding-bottom: 3pt; border-bottom: 1.5pt solid #0b3d91; color: #0b3d91; page-break-after: avoid; }
+  h3 { font-size: 12pt; margin: 14pt 0 4pt; color: #333; page-break-after: avoid; }
+  h4 { font-size: 10.5pt; margin: 10pt 0 3pt; color: #444; page-break-after: avoid; }
+  p { margin: 4pt 0; }
+  .meta { color: #666; font-size: 9pt; margin-bottom: 14pt; }
+  .summary { background: #f4f7ff; border-left: 4pt solid #0b3d91; padding: 8pt 10pt; margin: 10pt 0 16pt; border-radius: 2pt; }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 9.5pt; page-break-inside: auto; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  th { text-align: left; background: #eef2fb; border-bottom: 1pt solid #b8c4e0; padding: 5pt 6pt; color: #0b3d91; font-weight: 600; }
+  td { border-bottom: 0.5pt solid #e2e6ee; padding: 5pt 6pt; vertical-align: top; }
+  td.id { font-weight: 600; color: #0b3d91; white-space: nowrap; width: 48pt; }
+  td.sev { white-space: nowrap; width: 54pt; }
+  td.stat { white-space: nowrap; width: 78pt; }
+  .sev-high { color: #b00020; font-weight: 600; }
+  .sev-med  { color: #b36a00; font-weight: 600; }
+  .sev-low  { color: #456; }
+  .pill { display: inline-block; padding: 1pt 6pt; border-radius: 8pt; font-size: 8.5pt; font-weight: 600; }
+  .pill-fixed    { background: #dff5e3; color: #1e6b33; }
+  .pill-spec     { background: #e2eaff; color: #1b3a8a; }
+  .pill-defer    { background: #fff1d6; color: #8a5a00; }
+  .pill-decide   { background: #ffd7d9; color: #8a1220; }
+  ul { margin: 4pt 0 8pt 16pt; padding: 0; }
+  li { margin: 2pt 0; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9.5pt; background: #f3f3f6; padding: 1pt 3pt; border-radius: 2pt; }
+  .key { margin: 10pt 0 16pt; font-size: 9.5pt; }
+  .key span { margin-right: 10pt; }
+  .footer { margin-top: 24pt; font-size: 8.5pt; color: #888; border-top: 0.5pt solid #ddd; padding-top: 6pt; }
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>Design Plan Review — Resolutions</h1>
+<div class="meta">Generated 2026-04-21 · Scope: <code>pos-discount.md</code> · <code>call-center-design.md</code> · <code>bulk-pos-design-doc.md</code></div>
+
+<div class="summary">
+  <strong>Summary.</strong> 41 findings across three design docs. Each row below lists the finding, its severity, and the disposition folded back into the corresponding plan. Items marked <span class="pill pill-decide">DECIDE</span> still need a tech-lead/finance call before the plan is implementation-ready. Items marked <span class="pill pill-fixed">FIXED</span> were already addressed in code during Part A.3.
+</div>
+
+<div class="key">
+  <strong>Severity:</strong>
+  <span class="sev-high">HIGH</span> correctness/security
+  <span class="sev-med">MED</span> spec ambiguity
+  <span class="sev-low">LOW</span> polish/hygiene
+  &nbsp;&nbsp;<strong>Status:</strong>
+  <span class="pill pill-fixed">FIXED</span>
+  <span class="pill pill-spec">SPEC-UPDATED</span>
+  <span class="pill pill-defer">DEFER</span>
+  <span class="pill pill-decide">DECIDE</span>
+</div>
+
+<!-- ========================================================= -->
+<h2>B.1 — pos-discount.md</h2>
+
+<h3>B.1.1 Math / rounding</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">1.1.a</td><td class="sev sev-high">HIGH</td>
+      <td>Rounding rule inconsistent between backend total, POS totals, and receipt. Line-rounded values can diverge from backend <code>total</code> by ±1 EGP.</td>
+      <td>Lock the rule: carry full precision through all intermediate computations; round only (a) persisted <code>discountAmount</code> and (b) final <code>total</code>. Receipt renders the backend-computed <code>total</code> verbatim; tax line shows the unrounded value rounded for display only.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.1.b</td><td class="sev sev-high">HIGH</td>
+      <td>§4.4 refund formula is mislabeled. "Proportional refund of the discount" does not match the code.</td>
+      <td>Rewrite §4.4: <code>proportional_discount_share = round1(lineSubtotal * discount_amount / original_subtotal)</code>; <code>refundAmount = lineSubtotal − proportional_discount_share</code>. Algebraically identical; matches the spec wording.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.1.c</td><td class="sev sev-med">MED</td>
+      <td>§4.4 references <code>original_subtotal</code>; no such column defined. Existing <code>sales.subtotal</code> semantics unclear.</td>
+      <td>Confirmed: <code>sales.subtotal</code> is stored pre-discount. Spec now states this explicitly; refund formula uses <code>sales.subtotal</code> as <code>original_subtotal</code>.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.1.d</td><td class="sev sev-high">HIGH</td>
+      <td>Tax computed on <em>post-discount</em> subtotal changes tax_amount on the sale. May break statutory VAT treatment.</td>
+      <td>Needs a finance/legal call. Plan now flags this as an open decision; default keeps current "tax on post-discount" behavior until finance weighs in. If the answer changes, formula moves to <code>tax = subtotal * taxRate</code> (pre-discount) and receipt shows the discount as a post-tax concession.</td>
+      <td class="stat"><span class="pill pill-decide">DECIDE</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.1.2 Schema</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">1.2.a</td><td class="sev sev-high">HIGH</td>
+      <td><code>discount_applied_by_user_id</code> FK uses <code>ON DELETE SET NULL</code> — loses audit traceability if the cashier row is ever deleted.</td>
+      <td>Changed to <code>ON DELETE RESTRICT</code>. Users are soft-deleted elsewhere in the app; hard-delete of a user is already blocked by other FKs.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.2.b</td><td class="sev sev-med">MED</td>
+      <td><code>discount_reason</code> is free-text VARCHAR(32). Typos corrupt grouped reports.</td>
+      <td>Add a <code>discount_reasons</code> lookup table (<code>code</code> PK, <code>label_ar</code>, <code>customer_label_ar</code>, <code>is_active</code>) seeded with the six codes in §3; FK from <code>sales.discount_reason</code>. Enables the customer-facing label addressed by 1.3.c.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.2.c</td><td class="sev sev-low">LOW</td>
+      <td>No backfill rule for historical call-center sales that already have discount data.</td>
+      <td>Historical rows get <code>discount_applied_by_user_id = NULL</code>. Documented; reports group NULL as "(Legacy)".</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.1.3 State / UX</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">1.3.a</td><td class="sev sev-med">MED</td>
+      <td>§7 shift-reopen / unfinished-sale discount-recovery is unresolved.</td>
+      <td>Decision: on cart draft restore, <strong>clear</strong> discount state (type, value, reason). Cashier must re-apply. Avoids stale / un-authorized residual discounts.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.3.b</td><td class="sev sev-low">LOW</td>
+      <td>When subtotal drops to 0, spec does not say whether the discount <em>inputs</em> (type/value/reason) are also cleared.</td>
+      <td>Clear them. Re-adding an item should not silently reapply a stale discount.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.3.c</td><td class="sev sev-med">MED</td>
+      <td>Receipt shows internal reason codes like <code>MANAGER_COMP</code>. Customer-facing awkward.</td>
+      <td>Separate <code>label_ar</code> (internal) from <code>customer_label_ar</code> in the new <code>discount_reasons</code> table (1.2.b). Receipt renders the customer label only.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.3.d</td><td class="sev sev-low">LOW</td>
+      <td>Z-report discount summary does not say whether voided sales count.</td>
+      <td>Exclude voided sales from the Z-report discount totals (same rule as sales totals).</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">1.3.e</td><td class="sev sev-low">LOW</td>
+      <td>No handling for <code>taxRate = 0</code>. Receipt prints "Tax (0%): 0".</td>
+      <td>Suppress the tax line when <code>taxRate == 0</code> or <code>tax == 0</code>.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.1.4 Audit / authz</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">1.4.a</td><td class="sev sev-low">LOW</td>
+      <td>"Any cashier, no PIN/manager gate" is accepted but no abuse detection.</td>
+      <td>Add a Phase 2 report alert: flag sales where <code>discount_amount &gt; 500 EGP</code> OR <code>discount % &gt; 30%</code>. No pre-auth gate. Documented in plan's §4.3 Reports.</td>
+      <td class="stat"><span class="pill pill-defer">DEFER</span></td></tr>
+    <tr><td class="id">1.4.b</td><td class="sev sev-low">LOW</td>
+      <td><code>discount_applied_by_user_id</code> vs existing <code>audit_logs.actor_id</code> double-write risk.</td>
+      <td>Verify during implementation that both derive from <code>req.user.id</code> on the same request. No spec change.</td>
+      <td class="stat"><span class="pill pill-defer">DEFER</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ========================================================= -->
+<h2 class="page-break">B.2 — call-center-design.md</h2>
+
+<h3>B.2.1 Concurrency</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">2.1.a</td><td class="sev sev-high">HIGH</td>
+      <td>§6.4 NEW → PREPARING is not atomic. Two cashiers can both claim; last write wins silently.</td>
+      <td>Spec now requires conditional update: <code>UPDATE orders SET status='PREPARING', claimedById=?, claimedAt=NOW() WHERE id=? AND status='NEW'</code>. Check <code>affectedRows == 1</code>; otherwise return 409 <code>ALREADY_CLAIMED</code>. Integration test required.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">2.1.b</td><td class="sev sev-high">HIGH</td>
+      <td>§6.2 shift-open drain fires for the opening user only. D6 says broadcast to all open-shift cashiers; the two rules contradict.</td>
+      <td>Drain broadcasts to <em>all</em> currently-open shifts at the branch via the EventBus. Clients dedup by <code>Order.id</code>. D6 is authoritative; §6.2 text updated to match.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">2.1.c</td><td class="sev sev-med">MED</td>
+      <td>§6.6 cancel transaction partial-failure semantics not explicit.</td>
+      <td>Cancel wraps <code>Inventory</code> credit + <code>Order.status='CANCELLED'</code> + <code>Sale</code> update in a single Prisma <code>$transaction</code>. Add an integration test that injects a failure after inventory credit to verify full rollback.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.2.2 Schema / migration</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">2.2.a</td><td class="sev sev-med">MED</td>
+      <td>§5.2 backfill "create Order row for every existing Sale" can lock the table on large history.</td>
+      <td>Backfill runs in 5,000-row batches with a short sleep between batches; scheduled during the next maintenance window. Migration file documents the batching approach.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">2.2.b</td><td class="sev sev-med">MED</td>
+      <td><code>Sale.branchId</code> and <code>Order.branchId</code> can drift.</td>
+      <td>Drop <code>Order.branchId</code>; always join through <code>Sale</code>. Indexes <code>[channel, status, branchId]</code> replaced by <code>[channel, status]</code> + join filter, with a compound index on <code>Sale(branchId, id)</code>. Schema section rewritten.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">2.2.c</td><td class="sev sev-low">LOW</td>
+      <td><code>Notification.payload</code> is <code>Json</code>, not indexable for "high-value order" filters.</td>
+      <td>Deferred. Current filters (userId, readAt) are enough for v1. Schema will extract <code>total</code> to a column when an indexed filter is first requested.</td>
+      <td class="stat"><span class="pill pill-defer">DEFER</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.2.3 SSE / real-time</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">2.3.a</td><td class="sev sev-high">HIGH</td>
+      <td>§6.3 SSE auth uses JWT in URL query string — leaks through proxy logs, history, Referer.</td>
+      <td>Replaced with a single-use stream-ticket pattern: <code>POST /api/events/ticket</code> (authed) returns a 24-byte base64url token, 30s TTL, consumed on first use. <code>GET /api/events/stream?ticket=...</code> validates + deletes. Long-lived JWT never travels in a URL. Implemented in Part A.3.</td>
+      <td class="stat"><span class="pill pill-fixed">FIXED</span></td></tr>
+    <tr><td class="id">2.3.b</td><td class="sev sev-med">MED</td>
+      <td>Last-Event-ID replay against a 30-day-TTL Notification table: reconnect after &gt; 30d silently misses events.</td>
+      <td>On reconnect, if <code>lastEventId &lt; MIN(Notification.id)</code>, server emits a synthetic <code>replay-truncated</code> event. Client handles it by refetching state via REST. Added to §6.3 and §8 edge-cases.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">2.3.c</td><td class="sev sev-low">LOW</td>
+      <td>Heartbeat every 25s — Cloudflare Free closes idle at 100s.</td>
+      <td>25s is below that cap; no change. Noted: if deployment target changes to a different proxy, revisit interval. Documented inline in §6.3.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.2.4 Specification ambiguity</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">2.4.a</td><td class="sev sev-med">MED</td>
+      <td>D9 shift attribution = "shift open at dispatch" — but the plan doesn't restrict who can dispatch.</td>
+      <td>Add authz rule to <code>PATCH /orders/:id/status</code> on the OUT_FOR_DELIVERY transition: actor must have an <em>open shift at the order's branch</em>. Otherwise return 403 <code>SHIFT_REQUIRED</code>. §6.4 updated.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">2.4.b</td><td class="sev sev-low">LOW</td>
+      <td>"Enable alerts" gate per-session unclear.</td>
+      <td>Persist the gate in <code>localStorage</code> (<code>alertsEnabled=true</code>). Cashier clicks once ever, not once per refresh.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">2.4.c</td><td class="sev sev-low">LOW</td>
+      <td>Notification TTL-purge index suboptimal at scale.</td>
+      <td>Accepted at v1 volume. Documented: at 2000 orders/day × 30d retention ≈ 60k rows, index scan is acceptable. Revisit if the TTL job runs &gt; 10s.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">2.4.d</td><td class="sev sev-low">LOW</td>
+      <td>Phase 1 includes a stub <code>RedisEventBus</code> file.</td>
+      <td>Removed from Phase 1 scope. Added to Phase 3 / post-v1 backlog when Redis is actually introduced.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ========================================================= -->
+<h2 class="page-break">B.3 — bulk-pos-design-doc.md</h2>
+
+<h3>B.3.1 Stored aggregates</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">3.1.a</td><td class="sev sev-high">HIGH</td>
+      <td><code>BulkOrder.paidAmount</code> / <code>balanceDue</code> are stored columns with no single write path — silent drift risk.</td>
+      <td>Pick option 2: every <code>BulkPayment</code> create/void/refund goes through a <code>bulkPaymentsService</code> that also recomputes <code>paidAmount</code> and <code>balanceDue</code> in the same transaction. Daily reconciliation cron asserts <code>paidAmount == SUM(non-voided payments)</code> and alerts on mismatch.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.1.b</td><td class="sev sev-med">MED</td>
+      <td><code>getOpenBalance</code> clamps to 0 with <code>Math.max</code>, hiding over-payment.</td>
+      <td>Remove the clamp. Allow negative balances; surface as a "credit on file" badge on customer detail. Function now returns a signed number; callers (credit check, statement) handle both cases.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.3.2 Numbering</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">3.2.a</td><td class="sev sev-med">MED</td>
+      <td>§4.4 issues <code>BULK-RCP-NNNN</code> but §3.7 has no <code>RECEIPT</code> sequence.</td>
+      <td>Add a <code>RECEIPT</code> key with prefix <code>BULK-RCP-</code> to <code>BulkNumberSequence</code> seed. §3.7 updated.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.2.b</td><td class="sev sev-med">MED</td>
+      <td>Atomic counter: "FOR UPDATE or retry loop" is ambiguous.</td>
+      <td>Pick <code>SELECT … FOR UPDATE</code> inside <code>prisma.$transaction</code> at the MySQL default REPEATABLE READ isolation level. Retry-loop variant dropped. <code>bulkNumbering.service.js</code> contract documented.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.2.c</td><td class="sev sev-low">LOW</td>
+      <td>No sequence for PROFORMA, but <code>BulkDocument.documentNumber</code> is unique.</td>
+      <td>Proformas get their own sequence <code>PROFORMA</code> with prefix <code>BULK-PF-</code>. A <code>BulkDocument</code> row IS written when a proforma PDF is requested; subsequent requests for the same draft reuse the existing row. §3.7 + §4.3 updated.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.3.3 Credit limit</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">3.3.a</td><td class="sev sev-high">HIGH</td>
+      <td>Confirm doesn't know the payment method yet (payments recorded separately), yet spec says "check if CREDIT".</td>
+      <td>At confirm, assume <em>worst case</em>: add the full <code>total</code> to open balance and reject if it exceeds limit. Every subsequent <code>POST /payments</code> recomputes; if a cash payment brings open balance below limit, no further action. Removes the ambiguity.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.3.b</td><td class="sev sev-low">LOW</td>
+      <td><code>assertCreditLimitOk(tx, customer, projectedOrderTotal)</code> signature doesn't admit split payments.</td>
+      <td>Contract now: caller is responsible for computing <code>projectedOrderTotal</code> (worst-case unpaid portion). Service docstring updated. No signature change.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.3.c</td><td class="sev sev-med">MED</td>
+      <td>"Cash refund pays out but doesn't reduce open AR" — easy to misread.</td>
+      <td>Added three worked numeric examples to §4.5 (full refund of paid order, partial refund of partially-paid order, credit note against unpaid order). Each walks through <code>ordersSum − paymentsSum − refundsSum</code> to show the resulting open balance.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.3.4 Stock / fulfillment</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">3.4.a</td><td class="sev sev-low">LOW</td>
+      <td>"One warehouse per order" not enforced at schema level.</td>
+      <td>Enforced by the <code>BulkOrder.warehouseId</code> scalar FK (one order = one warehouse). Confirmed no code path iterates multiple warehouses. Note added to §3.4.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.4.b</td><td class="sev sev-high">HIGH</td>
+      <td>Confirm's stock check has no row lock — two concurrent confirms can oversell even though "block backorders" is the rule.</td>
+      <td>Spec now requires <code>SELECT … FOR UPDATE</code> on the affected <code>Inventory</code> rows inside the confirm transaction. Volume is tiny but correctness requires the lock. §4.4 updated.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.4.c</td><td class="sev sev-low">LOW</td>
+      <td><code>BulkPayment.amount &gt; 0</code> in prose only.</td>
+      <td>Added to the request validator (express-validator / zod, matching existing bulk controllers). §4.9 table row now reads <code>amount &gt; 0 AND amount ≤ balanceDue</code>.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.3.5 Validation / API</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">3.5.a</td><td class="sev sev-med">MED</td>
+      <td><code>PUT /api/bulk/customers/:id/prices</code> — replace vs merge unclear.</td>
+      <td>PUT <em>replaces</em> the entire override list: any existing row not present in the body is deleted. Callers that want merge use new endpoint <code>PATCH .../prices</code>. §4.3 updated.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.5.b</td><td class="sev sev-low">LOW</td>
+      <td>No optimistic-concurrency token on <code>BulkOrder</code>.</td>
+      <td>Accepted at v1 volume (single-rep-per-customer convention, 5 orders/day). Documented explicitly. Revisit if &gt; 2 reps per customer becomes common.</td>
+      <td class="stat"><span class="pill pill-defer">DEFER</span></td></tr>
+    <tr><td class="id">3.5.c</td><td class="sev sev-low">LOW</td>
+      <td>Audit of Prisma Decimal may serialize oddly.</td>
+      <td>Unit test added to audit-capture middleware spec: assert that a <code>Decimal</code> field round-trips as a string (not <code>[object Object]</code>). Documented in §4.10.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.3.6 Phasing</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">3.6.a</td><td class="sev sev-med">MED</td>
+      <td>Phase 1 defers tax-invoice but Phase 1 customers may have tax numbers.</td>
+      <td>Phase 1 blocks <code>POST /confirm</code> when <code>customer.taxNumber</code> is set, with error <code>TAX_INVOICE_NOT_AVAILABLE_IN_PHASE_1</code>. UI surfaces a blocker on the customer card. Removed at Phase 2.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.6.b</td><td class="sev sev-med">MED</td>
+      <td>Phase 1 has no payment recording — terminal status after confirm unclear.</td>
+      <td>Phase 1 confirm = <code>paymentMethod = CASH</code>, <code>paidAmount = total</code>, <code>status = PAID</code>, <code>paidAt = now()</code>, implicit cash receipt. Phase 2 replaces with full payment modal; existing PAID orders remain PAID.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<h3>B.3.7 Reports</h3>
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Finding</th><th>Resolution</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="id">3.7.a</td><td class="sev sev-med">MED</td>
+      <td>Aging bucket cutoffs are an open question.</td>
+      <td>Set to conventional <strong>0–30 / 31–60 / 61–90 / 90+</strong>. Configurable later via a <code>SystemConfiguration</code> entry if finance asks.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+    <tr><td class="id">3.7.b</td><td class="sev sev-low">LOW</td>
+      <td>No "discounts given" report — correct per §2.1, just confirm it sticks.</td>
+      <td>Confirmed: no discount in bulk. If added later, <code>BulkOrder</code> gets explicit discount columns mirroring the POS discount schema.</td>
+      <td class="stat"><span class="pill pill-spec">SPEC-UPDATED</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ========================================================= -->
+<h2 class="page-break">Counts</h2>
+<table>
+  <thead><tr><th>Doc</th><th>Total</th><th>High</th><th>Med</th><th>Low</th><th>Fixed</th><th>Spec-updated</th><th>Defer</th><th>Decide</th></tr></thead>
+  <tbody>
+    <tr><td>pos-discount.md</td><td>13</td><td>3</td><td>4</td><td>6</td><td>0</td><td>10</td><td>2</td><td>1</td></tr>
+    <tr><td>call-center-design.md</td><td>12</td><td>3</td><td>4</td><td>5</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+    <tr><td>bulk-pos-design-doc.md</td><td>16</td><td>3</td><td>6</td><td>7</td><td>0</td><td>15</td><td>1</td><td>0</td></tr>
+    <tr><td><strong>Total</strong></td><td><strong>41</strong></td><td><strong>9</strong></td><td><strong>14</strong></td><td><strong>18</strong></td><td><strong>1</strong></td><td><strong>35</strong></td><td><strong>4</strong></td><td><strong>1</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>What needs your call before implementation</h3>
+<ul>
+  <li><strong>1.1.d (HIGH)</strong> — VAT: tax on gross (pre-discount) vs net (post-discount). Finance/legal decision. Default kept as post-discount until confirmed.</li>
+</ul>
+
+<div class="footer">
+  Source of truth: <code>plans/fix-consol-and-plan-review.md</code> (Part B). Each plan now carries a "Review Addenda (2026-04-21)" section at the end with these resolutions folded in. Open the corresponding plan to see the inline spec updates.
+</div>
+
+</body>
+</html>

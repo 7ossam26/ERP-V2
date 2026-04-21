@@ -32,7 +32,7 @@ import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 import IncomingOrderTray from "../../components/orders/IncomingOrderTray";
 import NotificationBell from "../../components/orders/NotificationBell";
 import DiscountPanel, {
-  DISCOUNT_REASONS,
+  DEFAULT_DISCOUNT_REASONS,
   reasonLabel,
   computeDiscountAmount,
 } from "../../components/pos/DiscountPanel";
@@ -70,6 +70,9 @@ const POSPage = () => {
   const [taxRate, setTaxRate] = useState(0.14);
   const [companyTaxNumber, setCompanyTaxNumber] = useState("");
   const [companyName, setCompanyName] = useState("");
+
+  // Discount reasons loaded from API (falls back to hardcoded list on error)
+  const [discountReasons, setDiscountReasons] = useState(DEFAULT_DISCOUNT_REASONS);
 
   // Discount state (order-level)
   const [discountType, setDiscountType] = useState("PERCENTAGE");
@@ -359,6 +362,18 @@ const POSPage = () => {
         }
       } catch (e) {
         console.error("Failed to load settings", e);
+      }
+
+      // Fetch discount reasons from DB (falls back to hardcoded list on error)
+      try {
+        const { data } = await salesService.getDiscountReasons();
+        if (Array.isArray(data) && data.length > 0) {
+          setDiscountReasons(
+            data.map((r) => ({ code: r.code, label: r.labelAr, customerLabel: r.customerLabelAr })),
+          );
+        }
+      } catch (e) {
+        console.error("Failed to load discount reasons", e);
       }
 
       // Fetch Settings to know which warehouse to check
@@ -2033,6 +2048,7 @@ const POSPage = () => {
                       discountType={discountType}
                       discountValue={discountValue}
                       discountReason={discountReason}
+                      reasons={discountReasons}
                       onChange={(next) => {
                         setDiscountType(next.discountType);
                         setDiscountValue(next.discountValue);
@@ -2054,14 +2070,16 @@ const POSPage = () => {
                   {discountAmount > 0 && (
                     <div className="flex justify-end text-xs text-rose-600 dark:text-rose-400 mt-1 font-medium">
                       الخصم
-                      {discountReason ? ` (${reasonLabel(discountReason)})` : ""}
+                      {discountReason ? ` (${reasonLabel(discountReason, discountReasons)})` : ""}
                       : -{discountAmount.toFixed(2)} ج.م
                     </div>
                   )}
-                  <div className="flex justify-end text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    الضريبة ({(taxRate * 100).toFixed(0)}%): {tax.toFixed(2)}{" "}
-                    ج.م
-                  </div>
+                  {taxRate > 0 && (
+                    <div className="flex justify-end text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      الضريبة ({(taxRate * 100).toFixed(0)}%): {tax.toFixed(2)}{" "}
+                      ج.م
+                    </div>
+                  )}
                   {deliveryData && (
                     <div className="flex justify-end text-xs text-orange-600 dark:text-orange-400 mt-1 font-medium">
                       رسوم التوصيل ({deliveryData.zoneName}):{" "}
@@ -2419,7 +2437,7 @@ const POSPage = () => {
                   <span>
                     خصم
                     {printDiscountReason
-                      ? ` (${reasonLabel(printDiscountReason)})`
+                      ? ` (${reasonLabel(printDiscountReason, discountReasons)})`
                       : ""}
                   </span>
                   <span>-{printDiscountAmount.toFixed(2)} ج.م</span>

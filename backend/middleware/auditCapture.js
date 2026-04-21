@@ -129,6 +129,26 @@ function extractTargetId(path, responseData, requestBody) {
   return null;
 }
 
+/**
+ * Recursively convert Prisma Decimal objects (from decimal.js) to plain JS
+ * numbers so JSON.stringify produces a number token, not a quoted string.
+ * Other values pass through unchanged.
+ */
+function serializeForAudit(value) {
+  if (value === null || value === undefined) return value;
+  // Prisma Decimal instances have a toNumber() method and a non-zero d array.
+  if (typeof value === "object" && typeof value.toNumber === "function") {
+    return value.toNumber();
+  }
+  if (Array.isArray(value)) return value.map(serializeForAudit);
+  if (typeof value === "object" && !(value instanceof Date)) {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = serializeForAudit(v);
+    return out;
+  }
+  return value;
+}
+
 function getIp(req) {
   return (
     req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
@@ -186,8 +206,9 @@ async function auditCapture(req, res, next) {
 
       // newValues = request body sent (null for DELETE since record is gone)
       const newValues = (method === "DELETE") ? null : (req.body ?? null);
-      // oldValues = DB state before the mutation
-      const oldValues = beforeState ?? null;
+      // oldValues = DB state before mutation; Decimal fields converted to numbers
+      // so stored JSON compares correctly to current values without type coercion.
+      const oldValues = beforeState ? serializeForAudit(beforeState) : null;
 
       writeAudit({
         action,
@@ -212,3 +233,5 @@ async function auditCapture(req, res, next) {
 }
 
 module.exports = auditCapture;
+module.exports.extractAction = extractAction;
+module.exports.serializeForAudit = serializeForAudit;

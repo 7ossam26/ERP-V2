@@ -28,7 +28,7 @@ async function getOpenBalanceTx(tx, customerId, excludeOrderId = null) {
 
   const ordersSum = orders.reduce((s, o) => s + Number(o.total), 0);
   const paymentsSum = payments.reduce((s, p) => s + Number(p.amount), 0);
-  return Math.max(0, ordersSum - paymentsSum);
+  return ordersSum - paymentsSum;
 }
 
 /**
@@ -48,17 +48,23 @@ async function getOpenBalance(prisma, customerId) {
   ]);
   const ordersSum = orders.reduce((s, o) => s + Number(o.total), 0);
   const paymentsSum = payments.reduce((s, p) => s + Number(p.amount), 0);
-  return Math.max(0, ordersSum - paymentsSum);
+  return ordersSum - paymentsSum;
 }
 
 /**
  * Throw 409 CREDIT_LIMIT_EXCEEDED if adding projectedOrderTotal would breach the
  * customer's credit limit. No-op when creditLimit is null (unlimited).
  *
+ * Caller responsibility: always pass the FULL order total as projectedOrderTotal,
+ * regardless of how much has already been paid. At confirm time we don't yet know
+ * the final payment split, so we assume the worst case (full amount added to AR).
+ * Subsequent payment recordings reduce the live balance, but this gate must be
+ * conservative at the moment of confirm.
+ *
  * @param {object} tx Prisma transaction client
  * @param {{ id: number, creditLimit: any }} customer
- * @param {number} projectedOrderTotal  the new order's total (tax-inclusive)
- * @param {number|null} excludeOrderId  exclude this order id from AR sum
+ * @param {number} projectedOrderTotal  full order total (tax-inclusive, worst case)
+ * @param {number|null} excludeOrderId  exclude this order id from AR sum (re-confirm)
  */
 async function assertCreditLimitOk(tx, customer, projectedOrderTotal, excludeOrderId = null) {
   if (customer.creditLimit == null) return;

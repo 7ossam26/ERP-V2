@@ -659,6 +659,7 @@ model Sale {
   discountValue           Decimal?          @map("discount_value") @db.Decimal(10, 2)
   discountAmount          Decimal?          @map("discount_amount") @db.Decimal(10, 2)
   discountReason          String?           @map("discount_reason") @db.VarChar(32)
+  isVoided                Boolean           @default(false) @map("is_voided")
   discountAppliedByUserId Int?              @map("discount_applied_by_user_id")
   taxRate                 Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
   taxAmount               Decimal           @map("tax_amount") @db.Decimal(10, 2)
@@ -676,8 +677,9 @@ model Sale {
   client            Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
   employee          Employee?     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   user              User?         @relation("SaleCreator", fields: [userId], references: [id], onDelete: Restrict)
-  discountAppliedBy User?         @relation("SaleDiscountApplier", fields: [discountAppliedByUserId], references: [id], onDelete: SetNull)
-  branch            Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  discountAppliedBy   User?           @relation("SaleDiscountApplier", fields: [discountAppliedByUserId], references: [id], onDelete: SetNull)
+  discountReasonRef   DiscountReason? @relation(fields: [discountReason], references: [code])
+  branch              Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
   treasury          Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   warehouse         Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   shift             Shift?        @relation(fields: [shiftId], references: [id], onDelete: Restrict)
@@ -687,6 +689,16 @@ model Sale {
   order             Order?
 
   @@map("sales")
+}
+
+model DiscountReason {
+  code            String   @id @db.VarChar(32)
+  labelAr         String   @map("label_ar") @db.VarChar(128)
+  customerLabelAr String   @map("customer_label_ar") @db.VarChar(128)
+  isActive        Boolean  @default(true) @map("is_active")
+  sales           Sale[]
+
+  @@map("discount_reasons")
 }
 
 model SaleItem {

@@ -1,11 +1,12 @@
 // controllers/bulk/bulkOrder.controller.js
 const prisma = require("../../config/database");
 const { allocateNumber } = require("../../services/bulkNumbering.service");
-const {
-  assertStockAvailable,
-  applyBulkOrderStockMovement,
-} = require("../../services/bulkStock.service");
+const { applyBulkOrderStockMovement } = require("../../services/bulkStock.service");
 const { assertCreditLimitOk } = require("../../services/bulkCredit.service");
+const { recomputeOrderBalance } = require("../../services/bulkPayments.service");
+
+// Flip to 2 when Phase 2 (real payment selection) is ready.
+const CURRENT_PHASE = 1;
 
 const DEFAULT_TAX_RATE = 0.14;
 
@@ -203,52 +204,37 @@ exports.confirm = async (req, res, next) => {
         throw err;
       }
 
-      await assertStockAvailable(tx, order);
+      // Phase 1 gate: tax invoices are deferred to Phase 2.
+      if (CURRENT_PHASE < 2 && order.customer.taxNumber) {
+        const err = new Error("TAX_INVOICE_NOT_AVAILABLE_IN_PHASE_1");
+        err.status = 400;
+        err.data = { error: "TAX_INVOICE_NOT_AVAILABLE_IN_PHASE_1",
+          message: "Orders for tax-registered customers require Phase 2 to issue a tax invoice" };
+        throw err;
+      }
 
       const orderTotal = Number(order.total);
-      const paidAmount =
-        req.body?.paidAmount !== undefined ? Number(req.body.paidAmount) : orderTotal;
-      if (!Number.isFinite(paidAmount) || paidAmount < 0) {
-        const err = new Error("paidAmount must be a non-negative number");
-        err.status = 400;
-        throw err;
-      }
-      if (paidAmount > orderTotal) {
-        const err = new Error("paidAmount cannot exceed total");
-        err.status = 400;
-        throw err;
-      }
-      const balanceDue = round2(orderTotal - paidAmount);
+      const now = new Date();
 
-      // Credit check: if any portion is deferred (balance remains), verify limit
-      if (balanceDue > 0) {
-        await assertCreditLimitOk(tx, order.customer, orderTotal, order.id);
-      }
+      // Credit check: always assume worst case (full order total added to AR) so
+      // a customer at their limit can't slip through by promising partial cash.
+      await assertCreditLimitOk(tx, order.customer, orderTotal, order.id);
 
-      let newStatus;
-      if (paidAmount === 0) newStatus = "CONFIRMED";
-      else if (balanceDue === 0) newStatus = "PAID";
-      else newStatus = "PARTIALLY_PAID";
-
+      // Atomic stock deduction (throws INSUFFICIENT_STOCK if any line short).
       await applyBulkOrderStockMovement(tx, order, "DEBIT");
 
       const orderNumber = await allocateNumber(tx, "ORDER");
-      const now = new Date();
+      const documentNumber = await allocateNumber(tx, "SALES_RECEIPT");
 
-      // Issue TAX_INVOICE when customer has a tax number, else SALES_RECEIPT
-      const hasTax = !!order.customer.taxNumber;
-      const docType = hasTax ? "TAX_INVOICE" : "SALES_RECEIPT";
-      const docSeqKey = hasTax ? "TAX_INVOICE" : "SALES_RECEIPT";
-      const documentNumber = await allocateNumber(tx, docSeqKey);
       await tx.bulkDocument.create({
         data: {
           orderId: order.id,
-          type: docType,
+          type: "SALES_RECEIPT",
           documentNumber,
           issuedByUserId: req.user.id,
           snapshot: {
             orderNumber,
-            docType,
+            docType: "SALES_RECEIPT",
             customer: {
               id: order.customer.id,
               companyName: order.customer.companyName,
@@ -258,12 +244,36 @@ exports.confirm = async (req, res, next) => {
             netAmount: Number(order.netAmount),
             taxAmount: Number(order.taxAmount),
             total: orderTotal,
-            paidAmount,
-            balanceDue,
             issuedAt: now.toISOString(),
           },
         },
       });
+
+      // Phase 1: confirm = immediate full cash payment (synthetic BulkPayment).
+      // Phase 2 will replace this with a real payment-selection step.
+      if (CURRENT_PHASE < 2) {
+        await tx.bulkPayment.create({
+          data: {
+            orderId: order.id,
+            customerId: order.customerId,
+            treasuryId: null, // no treasury selection in Phase 1
+            method: "CASH",
+            amount: orderTotal,
+            createdByUserId: req.user.id,
+            notes: "Phase-1 implicit settlement",
+          },
+        });
+      }
+
+      // Determine final status from paidAmount (Phase 1 always PAID).
+      const paidAmount = CURRENT_PHASE < 2 ? orderTotal : round2(
+        req.body?.paidAmount !== undefined ? Number(req.body.paidAmount) : orderTotal,
+      );
+      const balanceDue = round2(orderTotal - paidAmount);
+      let newStatus;
+      if (paidAmount === 0) newStatus = "CONFIRMED";
+      else if (balanceDue <= 0) newStatus = "PAID";
+      else newStatus = "PARTIALLY_PAID";
 
       const updated = await tx.bulkOrder.update({
         where: { id: order.id },
@@ -273,7 +283,7 @@ exports.confirm = async (req, res, next) => {
           confirmedAt: now,
           paidAmount,
           balanceDue,
-          paidAt: balanceDue === 0 ? now : null,
+          paidAt: balanceDue <= 0 ? now : null,
         },
         include: orderInclude,
       });

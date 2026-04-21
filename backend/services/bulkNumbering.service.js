@@ -3,14 +3,14 @@
 // tax invoices, credit notes). Uses MySQL row-level locking via SELECT ... FOR
 // UPDATE so concurrent confirm transactions cannot collide on the same number.
 
-const VALID_KEYS = new Set(["ORDER", "SALES_RECEIPT", "TAX_INVOICE", "CREDIT_NOTE"]);
+const VALID_KEYS = new Set(["ORDER", "SALES_RECEIPT", "TAX_INVOICE", "CREDIT_NOTE", "PROFORMA"]);
 
 /**
  * Allocate the next number in a sequence inside an existing Prisma transaction.
  * Returns a formatted string like "BULK-0007".
  *
  * @param {object} tx Prisma transaction client
- * @param {'ORDER'|'SALES_RECEIPT'|'TAX_INVOICE'|'CREDIT_NOTE'} key
+ * @param {'ORDER'|'SALES_RECEIPT'|'TAX_INVOICE'|'CREDIT_NOTE'|'PROFORMA'} key
  * @param {{ pad?: number }} [opts] zero-pad width (default 4)
  * @returns {Promise<string>}
  */

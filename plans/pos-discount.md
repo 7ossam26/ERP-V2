@@ -59,7 +59,7 @@ ALTER TABLE `sales`
   ADD COLUMN `discount_applied_by_user_id` INT NULL,
   ADD CONSTRAINT `sales_discount_applied_by_fk`
     FOREIGN KEY (`discount_applied_by_user_id`) REFERENCES `users`(`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE;
+    ON DELETE RESTRICT ON UPDATE CASCADE;
 ```
 
 Update `prisma/schema.prisma` Sale model accordingly. Call-center controller backfills these too for parity.
@@ -94,13 +94,16 @@ Extend the POS report aggregation used by `POSReportModal.jsx` to return per-shi
 
 ### 4.4 Refund endpoint
 
-In the refund controller (backing `RefundModal.jsx`), when computing refund amount for a discounted sale:
+In the refund controller (backing `RefundModal.jsx`), when computing refund amount for a discounted sale, compute the proportional share of the order-level discount that applies to the returned line, then subtract it from the line price:
 
 ```
-refundAmount = round1(lineSubtotal * (1 - discount_amount / original_subtotal))
+// sales.subtotal is stored pre-discount (see §4.2)
+original_subtotal          = sale.subtotal
+proportional_discount_share = round1(lineSubtotal * discount_amount / original_subtotal)
+refundAmount               = lineSubtotal - proportional_discount_share
 ```
 
-Store the proportional discount share on the refund record for audit.
+Algebraically identical to the "share of the post-discount price" form, but phrased to match Decision §2 #14 ("proportional refund of the discount") so implementers aren't second-guessing the wording. Store `proportional_discount_share` on the refund record for audit.
 
 ## 5. Frontend Changes
 
@@ -244,3 +247,58 @@ Frontend (manual smoke on dev server):
 - `frontend/src/pages/pos/RefundModal.jsx`
 - `frontend/src/pages/call-center/CallCenterNewOrderPage.jsx` *(refactor to shared panel)*
 - `frontend/src/utils/money.js` *(add `round1` if missing)*
+
+---
+
+## 11. Review Addenda (2026-04-21)
+
+Folded in from [fix-consol-and-plan-review.md §B.1](fix-consol-and-plan-review.md). Each item updates the corresponding section above; entries flagged **DECIDE** still need a tech-lead call before implementation starts.
+
+### 11.1 Rounding rule — unified (finding 1.1.a)
+
+Carry full precision through every intermediate computation. Round **only** at two moments:
+1. When persisting `discountAmount` (nearest 1 EGP).
+2. When computing the final `total` (nearest 1 EGP).
+
+The backend returns both the persisted values and the final `total` to the client. The POS cart and the receipt render the backend-computed `total` verbatim — they do not re-round line totals. Tax line on the receipt is rounded for display only but reflects the same pre-rounded value the backend used when computing `total`. This guarantees backend `total ≡ receipt total` to the cent.
+
+### 11.2 Refund formula — rewritten in §4.4 (finding 1.1.b–c)
+
+See §4.4 above. `original_subtotal` is `sales.subtotal`, which is stored pre-discount (verified against migration `20260420081752_add_sale_discount_fields`). The `refundAmount = lineSubtotal − proportional_discount_share` form replaces the prior ambiguous wording.
+
+### 11.3 Tax-on-post-discount — **DECIDE** (finding 1.1.d)
+
+Current plan: `tax = discountedSubtotal * taxRate`. This reduces the taxable base, which is standard in many jurisdictions but not all. Blocking question: does Egyptian VAT treat an unconditional discount as reducing the taxable base, or as a post-tax concession? Pending a finance/legal answer, the plan keeps `tax = discountedSubtotal * taxRate`. If the answer flips, change to `tax = subtotal * taxRate` and render the discount as a post-tax line on the receipt.
+
+### 11.4 Schema tightenings (finding 1.2)
+
+- §4.1 FK changed from `ON DELETE SET NULL` to `ON DELETE RESTRICT` (see migration snippet above).
+- Replace free-text `discount_reason` with an FK to a new lookup table **`discount_reasons`**:
+  ```sql
+  CREATE TABLE discount_reasons (
+    code               VARCHAR(32) PRIMARY KEY,
+    label_ar           VARCHAR(80) NOT NULL,
+    customer_label_ar  VARCHAR(80) NOT NULL,
+    is_active          TINYINT(1) NOT NULL DEFAULT 1
+  );
+  ```
+  Seed the six codes from §3. `customer_label_ar` is what prints on the receipt (solves 1.3.c — customer never sees `MANAGER_COMP`). `sales.discount_reason` becomes a FK, not free-text.
+- Historical call-center rows backfilled with `discount_applied_by_user_id = NULL`. Reports group NULL as "(Legacy)".
+
+### 11.5 Cart/state rules (finding 1.3.a–b, 1.3.e)
+
+- **Draft restore on shift reopen:** clear discount type, value, and reason. Cashier must re-apply. (Rationale: avoids stale discounts surviving an unattended cart.)
+- **Subtotal drops to 0:** clear discount inputs as well (not only the computed amount).
+- **`taxRate == 0` or `tax == 0`:** suppress the tax line on the receipt.
+
+### 11.6 Z-report rule (finding 1.3.d)
+
+The shift Z-report discount totals **exclude voided sales**, matching the existing rule for sales totals.
+
+### 11.7 Abuse-detection report — **DEFER** (finding 1.4.a)
+
+No pre-auth gate. Post-facto report in Phase 2: flag sales where `discount_amount > 500 EGP` OR `discount % > 30%`. Not blocking.
+
+### 11.8 Audit double-write (finding 1.4.b)
+
+Both `sales.discount_applied_by_user_id` and `audit_logs.actor_id` derive from `req.user.id` on the same request — verify with a unit test during implementation. No spec change.

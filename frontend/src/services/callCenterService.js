@@ -17,6 +17,8 @@ export const callCenterService = {
     if (branchId) qs.set("branchId", branchId);
     return api.get(`/call-center/orders?${qs.toString()}`);
   },
+  updateOrderStatus: (id, status) =>
+    api.patch(`/call-center/orders/${id}/status`, { status }),
   cancelOrder: (id, reason, note) =>
     api.post(`/call-center/orders/${id}/cancel`, { reason, note }),
 };

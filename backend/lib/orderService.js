@@ -11,7 +11,9 @@ const bus = require("./eventBus");
  * @param {object} tx Prisma transaction client
  * @param {object} args
  * @param {number} args.saleId
- * @param {number} args.branchId
+ * @param {number} args.branchId  Denormalized from Sale.branchId. MUST equal
+ *   the parent Sale's branchId — enforced here at the single write-path. Never
+ *   update this field after creation; to find a branch, join through Sale.
  * @param {number} args.createdById   User id of the actor (cashier for POS, agent for call-center)
  * @param {'POS'|'CALL_CENTER'|'WHATSAPP'|'WEB'|'AGGREGATOR'} args.channel
  * @param {'NEW'|'PREPARING'|'READY'|'OUT_FOR_DELIVERY'|'DELIVERED'|'CANCELLED'} [args.status='NEW']
@@ -98,8 +100,19 @@ async function publishNewOrderNotifications(tx, { order, sale, client }) {
 /**
  * On shift open, fire notifications for any still-NEW orders at that branch
  * that were created while no shift was open (Q16-B queue).
+ *
+ * Broadcasts to EVERY user who has an open shift at this branch (not just the
+ * opener) so that cashiers who were already on duty also see the queued orders.
+ * Client-side dedup by notification id prevents double-display.
  */
-async function drainPendingForBranch(tx, { branchId, userId }) {
+async function drainPendingForBranch(tx, { branchId }) {
+  const openShifts = await tx.shift.findMany({
+    where: { branchId, status: "OPEN" },
+    select: { userId: true },
+  });
+
+  if (openShifts.length === 0) return [];
+
   const pending = await tx.order.findMany({
     where: {
       branchId,
@@ -111,34 +124,35 @@ async function drainPendingForBranch(tx, { branchId, userId }) {
     },
   });
 
+  if (pending.length === 0) return [];
+
   const published = [];
   for (const order of pending) {
-    const row = await tx.notification.create({
-      data: {
-        userId,
-        branchId,
-        type: "NEW_CALL_CENTER_ORDER",
-        payload: {
-          orderId: order.id,
-          saleId: order.sale.id,
-          saleNumber: order.sale.saleNumber,
-          clientName: order.sale.client?.name || null,
-          clientPhone: order.sale.client?.phoneNumber || null,
-          total: Number(order.sale.total),
-          itemsCount: order.sale.items.length,
-          branchId: order.branchId,
-          createdAt: order.createdAt,
-          replay: true,
-        },
-      },
-    });
-    bus.publish(bus.topics.userNotifications(userId), {
-      id: row.id,
-      type: row.type,
-      payload: row.payload,
-      createdAt: row.createdAt,
-    });
-    published.push(row);
+    const payload = {
+      orderId: order.id,
+      saleId: order.sale.id,
+      saleNumber: order.sale.saleNumber,
+      clientName: order.sale.client?.name || null,
+      clientPhone: order.sale.client?.phoneNumber || null,
+      total: Number(order.sale.total),
+      itemsCount: order.sale.items.length,
+      branchId,
+      createdAt: order.createdAt,
+      replay: true,
+    };
+
+    for (const shift of openShifts) {
+      const row = await tx.notification.create({
+        data: { userId: shift.userId, branchId, type: "NEW_CALL_CENTER_ORDER", payload },
+      });
+      bus.publish(bus.topics.userNotifications(shift.userId), {
+        id: row.id,
+        type: row.type,
+        payload: row.payload,
+        createdAt: row.createdAt,
+      });
+      published.push(row);
+    }
   }
   return published;
 }

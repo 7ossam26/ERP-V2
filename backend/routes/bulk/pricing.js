@@ -10,7 +10,8 @@ const WRITE_PERMS = ["BULK_PRICING"];
 router.use(authenticateToken);
 
 router.get("/customers/:id/prices", requireAnyPermission(READ_PERMS), ctrl.list);
-router.put("/customers/:id/prices", requireAnyPermission(WRITE_PERMS), ctrl.bulkUpsert);
+router.put("/customers/:id/prices", requireAnyPermission(WRITE_PERMS), ctrl.bulkReplace);
+router.patch("/customers/:id/prices", requireAnyPermission(WRITE_PERMS), ctrl.bulkMerge);
 router.delete("/customers/:id/prices/:priceId", requireAnyPermission(WRITE_PERMS), ctrl.remove);
 
 module.exports = router;

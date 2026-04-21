@@ -774,3 +774,110 @@ Defaults I'll assume if you don't answer: (1) match existing, (2) `SystemConfigu
 ## 11. Sign-off & next action
 
 If this doc is good, reply **"go Phase 1"** and I'll start with the Prisma migration + `BulkCustomer`/`BulkContractPrice` backend + frontend customers page (the first vertical slice). I'll keep phases in separate PRs per your rollout decision.
+
+---
+
+## 12. Review Addenda (2026-04-21)
+
+Folded in from [fix-consol-and-plan-review.md §B.3](fix-consol-and-plan-review.md). Each entry adjusts the corresponding section above.
+
+### 12.1 Paid/balance rollups — single write path + reconciliation (finding 3.1.a)
+
+`BulkOrder.paidAmount` and `balanceDue` remain stored columns for fast listing, but **every** write to `BulkPayment` (create / void) and `BulkRefund` (create) goes through a new `bulkPayments.service.js` whose signature forces the recompute in the same transaction:
+
+```js
+await bulkPayments.recordPayment(tx, { orderId, ... });
+// internally: insert BulkPayment → recompute order.paidAmount = SUM(non-voided payments)
+//             → order.balanceDue = order.total - order.paidAmount
+//             → order.status ∈ {CONFIRMED, PARTIALLY_PAID, PAID}
+```
+
+A daily cron `bulkReconcile.job.js` asserts `paidAmount == SUM(non-voided BulkPayment.amount)` per order and alerts on mismatch.
+
+### 12.2 Over-payment visible as "credit on file" (finding 3.1.b)
+
+§4.5 `getOpenBalance` drops the `Math.max(0, ...)` clamp — the signed value passes through. Customer detail renders a "Credit on file: X EGP" pill when the balance is negative; AR aging excludes negative balances from ageing buckets but includes them in the customer row total.
+
+### 12.3 Numbering — new sequences (finding 3.2.a, 3.2.c)
+
+§3.7 seed now includes:
+
+| key | prefix | used by |
+|---|---|---|
+| `ORDER` | `BULK-` | confirmed order number (all customers) |
+| `TAX_INVOICE` | `BULK-TAX-` | tax-invoice document |
+| `SALES_RECEIPT` | `BULK-RCP-` | sales-receipt document |
+| `CREDIT_NOTE` | `BULK-CN-` | credit-note document |
+| `PROFORMA` | `BULK-PF-` | proforma (DRAFT/QUOTED PDF) |
+
+A `BulkDocument` row IS written the first time a proforma PDF is requested; subsequent requests for the same draft reuse the existing row (idempotent on `(orderId, type)`).
+
+### 12.4 Numbering — isolation (finding 3.2.b)
+
+`bulkNumbering.service.js` uses **`SELECT … FOR UPDATE`** inside `prisma.$transaction` at MySQL's default REPEATABLE READ isolation. Retry-loop variant dropped. Unit test spawns 10 concurrent allocations and asserts zero duplicates.
+
+### 12.5 Credit limit — worst-case at confirm (finding 3.3.a)
+
+§4.4 updated: at confirm, the credit check assumes the full order `total` is unpaid (worst case) and rejects if `currentOpenBalance + total > customer.creditLimit`. Payments recorded afterwards recompute; a cash payment brings open balance down but does not retroactively "unreject" the earlier confirm.
+
+### 12.6 `assertCreditLimitOk` contract (finding 3.3.b)
+
+Signature unchanged. Docstring updated: the caller computes `projectedOrderTotal` (for mixed payments: sum of not-yet-paid portions) and passes it in. Service does not split by method.
+
+### 12.7 Refund scenarios — worked examples (finding 3.3.c)
+
+§4.5 adds three concrete numeric examples that walk through `ordersSum − paymentsSum − refundsSum`:
+
+1. **Full cash refund of a fully-paid 10,000 EGP order:** open balance goes from 0 to 0. Treasury pays out 10,000. Customer's net deposits unchanged.
+2. **Partial cash refund (2,000 EGP) of a partially-paid order (total 10k, paid 6k, balance 4k):** order's `paidAmount` drops to 4,000; `balanceDue` rises to 6,000. Treasury pays out 2,000. Customer is returned cash they'd overpaid relative to goods retained.
+3. **Credit note (3,000 EGP) against an unpaid order (total 10k, paid 0, balance 10k):** order's `balanceDue` drops to 7,000; no treasury movement. Customer owes 3k less.
+
+These three cover the ambiguity the review flagged.
+
+### 12.8 Stock lock at confirm (finding 3.4.b)
+
+§4.4 now specifies: inside the confirm transaction, acquire a row lock on the affected `Inventory` rows via `SELECT ... FOR UPDATE` **before** the stock check. Two concurrent confirms against the same SKU serialize; the loser sees `INSUFFICIENT_STOCK` instead of overselling. Required by the "block backorders" decision (§2.1); volume is tiny but correctness is not negotiable.
+
+### 12.9 Validator tightening (finding 3.4.c)
+
+§4.9 `POST /payments` row now reads **`amount > 0 AND amount ≤ balanceDue`**. Both checks enforced in the request validator before hitting the service layer.
+
+### 12.10 `PUT /prices` semantics (finding 3.5.a)
+
+§4.3 updated:
+
+| Method | Path | Semantics |
+|---|---|---|
+| `PUT`   | `/api/bulk/customers/:id/prices` | **Replace** — body is the full list; rows not present are deleted. |
+| `PATCH` | `/api/bulk/customers/:id/prices` | **Merge** — body is a partial list; unmentioned rows are left alone. |
+
+### 12.11 Optimistic concurrency — **DEFER** (finding 3.5.b)
+
+Accepted for v1 (5 orders/day, single-rep-per-customer convention). Documented here; revisit if two reps editing the same draft becomes a real scenario.
+
+### 12.12 Decimal-in-audit serialization (finding 3.5.c)
+
+Unit test added to `auditCapture` middleware spec: create a `BulkOrder` (has Decimal columns), mutate it, assert the audit row's old/new JSON contains the Decimal as a **string** (not `[object Object]`). Documented in §4.10.
+
+### 12.13 Phase 1 — tax-numbered customers blocked (finding 3.6.a)
+
+Phase 1 `POST /orders/:id/confirm` rejects with **400 `TAX_INVOICE_NOT_AVAILABLE_IN_PHASE_1`** when `customer.taxNumber` is set. UI shows a blocker banner on the customer card: "Tax invoices available in Phase 2 — confirm disabled." Removed at Phase 2 when the tax-invoice PDF ships.
+
+### 12.14 Phase 1 — terminal status after confirm (finding 3.6.b)
+
+Phase 1 confirm is hardcoded cash-paid:
+- `paymentMethod = CASH` (implicit; no modal).
+- `paidAmount = total`.
+- `status = PAID`.
+- `paidAt = now()`.
+- Sales-receipt PDF issued.
+
+Phase 2 replaces the implicit path with the full payment modal. Phase 1 PAID orders remain PAID.
+
+### 12.15 Aging buckets (finding 3.7.a)
+
+Conventional cutoffs: **0–30 / 31–60 / 61–90 / 90+ days**, bucketed by `BulkPayment.receivedAt` for paid portions and `BulkOrder.confirmedAt` for open balance. Configurable later via `SystemConfiguration` if finance asks.
+
+### 12.16 No discounts report (finding 3.7.b)
+
+Confirmed: v1 has no bulk discounts. If discounts are introduced later, `BulkOrder` gets explicit columns mirroring the POS discount schema (and a discount report is added at that time).

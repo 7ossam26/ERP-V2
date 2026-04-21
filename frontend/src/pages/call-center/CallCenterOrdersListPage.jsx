@@ -29,6 +29,7 @@ const CallCenterOrdersListPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [cancelId, setCancelId] = useState(null);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -48,6 +49,42 @@ const CallCenterOrdersListPage = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, page]);
+
+  const ADVANCE_LABEL = {
+    NEW: "ابدأ التجهيز",
+    PREPARING: "جاهز",
+    READY: "خرج للتوصيل",
+    OUT_FOR_DELIVERY: "تم التسليم",
+  };
+  const ADVANCE_NEXT = {
+    NEW: "PREPARING",
+    PREPARING: "READY",
+    READY: "OUT_FOR_DELIVERY",
+    OUT_FOR_DELIVERY: "DELIVERED",
+  };
+
+  const handleAdvanceStatus = async (orderId, currentStatus) => {
+    const nextStatus = ADVANCE_NEXT[currentStatus];
+    if (!nextStatus) return;
+    setStatusUpdating(orderId);
+    try {
+      await callCenterService.updateOrderStatus(orderId, nextStatus);
+      toast.success("تم تحديث الحالة");
+      load();
+    } catch (err) {
+      const code = err?.data?.error;
+      if (code === "ALREADY_CLAIMED") {
+        toast.error("تم تغيير حالة الطلب بواسطة موظف آخر");
+      } else if (code === "SHIFT_REQUIRED") {
+        toast.error("يجب فتح وردية في هذا الفرع أولاً");
+      } else {
+        toast.error(err?.data?.message || "تعذر تحديث الحالة");
+      }
+      load();
+    } finally {
+      setStatusUpdating(null);
+    }
+  };
 
   const handleConfirmCancel = async ({ reason, note }) => {
     if (!cancelId) return;
@@ -130,10 +167,20 @@ const CallCenterOrdersListPage = () => {
                       </div>
                     )}
                   </td>
-                  <td className="p-2">
+                  <td className="p-2 flex flex-col gap-1">
+                    {ADVANCE_LABEL[o.status] && (
+                      <button
+                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs disabled:opacity-50"
+                        disabled={statusUpdating === o.id}
+                        onClick={() => handleAdvanceStatus(o.id, o.status)}
+                      >
+                        {statusUpdating === o.id ? "..." : ADVANCE_LABEL[o.status]}
+                      </button>
+                    )}
                     {o.status === "NEW" && (
                       <button
                         className="text-red-500 hover:underline text-xs"
+                        disabled={statusUpdating === o.id}
                         onClick={() => setCancelId(o.id)}
                       >
                         إلغاء

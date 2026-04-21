@@ -77,11 +77,26 @@ router.get("/stream", authFromTicket, async (req, res) => {
   const lastId = parseInt(lastEventIdHeader);
   if (Number.isFinite(lastId) && lastId > 0) {
     try {
-      const missed = await prisma.notification.findMany({
-        where: { userId, id: { gt: lastId } },
-        orderBy: { id: "asc" },
-        take: 200,
-      });
+      const [missed, lastKnown] = await Promise.all([
+        prisma.notification.findMany({
+          where: { userId, id: { gt: lastId } },
+          orderBy: { id: "asc" },
+          take: 200,
+        }),
+        // Check if the client's last-seen notification still exists in the DB.
+        // If it doesn't, the history was TTL-purged and the client must refetch.
+        prisma.notification.findFirst({
+          where: { userId, id: { lte: lastId } },
+          orderBy: { id: "desc" },
+          select: { id: true },
+        }),
+      ]);
+
+      // No record at-or-before lastId means the notification was purged (30-day TTL).
+      if (!lastKnown) {
+        res.write(`event: replay-truncated\ndata: {}\n\n`);
+      }
+
       for (const n of missed) {
         send({
           id: n.id,

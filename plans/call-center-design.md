@@ -236,7 +236,8 @@ notifications Notification[]
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/events/stream` | Long-lived SSE connection. Auth via token. Supports `Last-Event-ID` header for replay of missed events from the `Notification` table. Each event is a JSON object with `id`, `type`, `payload`. Heartbeat every 25s to keep proxies from closing the connection. |
+| `POST` | `/api/events/ticket` | Authed (normal Bearer token). Issues a single-use 24-byte base64url ticket, 30s TTL, stored in memory. Consumed on first use. Keeps the long-lived JWT out of URLs. |
+| `GET`  | `/api/events/stream` | Long-lived SSE connection. Auth via `?ticket=<opaque>`. Supports `Last-Event-ID` header (and `?lastEventId=N` query for `EventSource` compatibility) for replay of missed events from the `Notification` table. Each event is a JSON object with `id`, `type`, `payload`. Heartbeat every 25s to keep proxies from closing the connection. If `lastEventId < MIN(Notification.id)` (i.e. the client was offline past the 30d TTL), the server emits a synthetic `replay-truncated` event so the client refetches state via REST instead of silently believing it is caught up. |
 
 **`routes/notifications.js` (REST — history + ack)**
 
@@ -448,6 +449,72 @@ Any transition is audit-logged via existing `auditCapture` middleware.
 3. **Sound file:** generic `ding.mp3` — approved (assistant's choice).
 
 All design items locked. Ready to start Phase 1 on user's signal.
+
+---
+
+## 12. Review Addenda (2026-04-21)
+
+Folded in from [fix-consol-and-plan-review.md §B.2](fix-consol-and-plan-review.md). Each entry adjusts the corresponding section above.
+
+### 12.1 Atomic NEW → PREPARING claim (finding 2.1.a)
+
+§6.4 `PATCH /orders/:id/status` on the NEW → PREPARING transition must execute as a conditional update, not check-then-write:
+
+```sql
+UPDATE orders
+  SET status='PREPARING', claimed_by_id=?, claimed_at=NOW()
+  WHERE id=? AND status='NEW';
+```
+
+Inspect affected rows; if `!= 1`, return **409 `ALREADY_CLAIMED`**. The losing cashier's tray then refreshes to show the order in its new state. Integration test required.
+
+### 12.2 Shift-drain broadcasts to all open shifts (finding 2.1.b)
+
+§6.2 supersedes: when a cashier opens a shift at a branch, the drain publishes a `NEW_CALL_CENTER_ORDER` event **to every currently-open shift at that branch**, not only the opening user's shift. This matches Decision D6 (broadcast-to-all). Clients dedup by `Order.id` on arrival.
+
+### 12.3 Cancel transaction is fully wrapped (finding 2.1.c)
+
+§6.6 is explicit: `Inventory` credit + `Order.status = 'CANCELLED'` + `Sale` updates run inside a single `prisma.$transaction`. Integration test required that injects a failure after the inventory credit and asserts all writes rolled back.
+
+### 12.4 Backfill runs in batches (finding 2.2.a)
+
+§5.2 backfill — create `Order` row for every existing `Sale` — runs in **5,000-row chunks** with a short sleep between batches, scheduled during the next maintenance window. Migration file documents the chunked approach.
+
+### 12.5 Drop `Order.branchId` (finding 2.2.b)
+
+§5.2 schema updated: remove `branchId` from the `Order` model. Always join through `Sale` for branch context. Drop index `[channel, status, branchId]`; replace with `[channel, status]` plus the existing `Sale(branchId, id)` index. One source of truth — no drift possible between `Sale.branchId` and `Order.branchId`.
+
+### 12.6 SSE auth = stream-ticket pattern (finding 2.3.a — **FIXED**)
+
+§6.3 replaces JWT-in-URL with `POST /events/ticket` + `GET /events/stream?ticket=...`. See §6.3 above for the updated endpoint table. The long-lived JWT never travels in a URL (no proxy log / history / Referer leak). **Implemented in Part A.3 (backend `routes/events.js`, frontend `eventStreamService.js`).**
+
+### 12.7 Replay-truncated signal (finding 2.3.b)
+
+Already folded into the §6.3 endpoint description. Edge-cases table (§8) now contains:
+
+| Case | Handling |
+|---|---|
+| Client reconnects with a `lastEventId` older than the `Notification` TTL horizon | Server emits `replay-truncated`; client refetches state via REST (`GET /orders/queue`, `GET /notifications?unreadOnly=true`) and resumes from the new max event id. |
+
+### 12.8 Heartbeat interval (finding 2.3.c)
+
+25s stays. Below Cloudflare Free's 100s idle cap. If the deployment target ever changes to a proxy with a tighter idle timeout, revisit the constant.
+
+### 12.9 Dispatch authz rule (finding 2.4.a)
+
+§6.4 adds: on the `OUT_FOR_DELIVERY` transition, the acting user must have an **open shift at the order's branch**. Otherwise return **403 `SHIFT_REQUIRED`**. Keeps D9's cash-attribution invariant tight — nobody without a shift can dispatch cash that has to land somewhere.
+
+### 12.10 "Enable alerts" persistence (finding 2.4.b)
+
+§7.5 updated: gate state persists in `localStorage` under `alertsEnabled=true`. One click per cashier per browser install, not per refresh.
+
+### 12.11 Notification TTL index cost (finding 2.4.c)
+
+Accepted at v1 volume: ~60k rows retained (2000 orders/day × 30d). The existing `[createdAt]` index supports the purge without degrading. Revisit only if the nightly purge job ever exceeds 10s.
+
+### 12.12 Phase 1 — drop `RedisEventBus` stub (finding 2.4.d)
+
+Phase 1 no longer ships a stub `RedisEventBus` file. The adapter is added when Redis is actually wired (post-v1 scaling trigger — currently no concrete trigger date).
 
 ---
 

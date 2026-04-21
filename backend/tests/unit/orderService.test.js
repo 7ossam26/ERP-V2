@@ -16,6 +16,7 @@ const bus = require("../../lib/eventBus");
 const {
   createOrderInTx,
   publishNewOrderNotifications,
+  drainPendingForBranch,
 } = require("../../lib/orderService");
 
 beforeEach(() => {
@@ -173,5 +174,76 @@ describe("publishNewOrderNotifications", () => {
     expect(rows).toEqual([]);
     expect(tx.notification.create).not.toHaveBeenCalled();
     expect(bus.publish).not.toHaveBeenCalled();
+  });
+});
+
+describe("drainPendingForBranch", () => {
+  function buildDrainTx({ openShiftUserIds, pendingOrders }) {
+    let notifId = 200;
+    return {
+      shift: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue(openShiftUserIds.map((userId) => ({ userId }))),
+      },
+      order: {
+        findMany: jest.fn().mockResolvedValue(pendingOrders),
+      },
+      notification: {
+        create: jest.fn().mockImplementation(async ({ data }) => ({
+          id: ++notifId,
+          createdAt: new Date("2026-04-22T08:00:00Z"),
+          ...data,
+        })),
+      },
+    };
+  }
+
+  const pendingOrder = {
+    id: 10,
+    branchId: 3,
+    createdAt: new Date("2026-04-22T07:00:00Z"),
+    sale: {
+      id: 5,
+      saleNumber: "S-002",
+      total: 200,
+      items: [{ id: 1 }],
+      client: { name: "Sara", phoneNumber: "0111" },
+    },
+  };
+
+  test("broadcasts each pending order to ALL open-shift users", async () => {
+    const tx = buildDrainTx({ openShiftUserIds: [11, 22], pendingOrders: [pendingOrder] });
+
+    const rows = await drainPendingForBranch(tx, { branchId: 3 });
+
+    // 1 order × 2 open shifts = 2 notifications
+    expect(tx.notification.create).toHaveBeenCalledTimes(2);
+    expect(rows).toHaveLength(2);
+    expect(bus.publish).toHaveBeenCalledTimes(2);
+
+    const notifiedUserIds = tx.notification.create.mock.calls.map(
+      (c) => c[0].data.userId,
+    );
+    expect(notifiedUserIds).toEqual([11, 22]);
+  });
+
+  test("returns empty and skips notifications when no open shifts", async () => {
+    const tx = buildDrainTx({ openShiftUserIds: [], pendingOrders: [pendingOrder] });
+
+    const rows = await drainPendingForBranch(tx, { branchId: 3 });
+
+    expect(rows).toEqual([]);
+    expect(tx.notification.create).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
+  });
+
+  test("returns empty when no pending orders exist", async () => {
+    const tx = buildDrainTx({ openShiftUserIds: [11], pendingOrders: [] });
+
+    const rows = await drainPendingForBranch(tx, { branchId: 3 });
+
+    expect(rows).toEqual([]);
+    expect(tx.notification.create).not.toHaveBeenCalled();
   });
 });

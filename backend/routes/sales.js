@@ -8,6 +8,7 @@ const {
   getUserBranchFilter,
 } = require("../middleware/auth");
 const { createOrderInTx, broadcastStatusChange } = require("../lib/orderService");
+const { roundMoney } = require("../utils/money");
 
 // Helper function to generate unique sale number
 const generateSaleNumber = async () => {
@@ -52,6 +53,20 @@ const generateSaleNumber = async () => {
     return `SALE-${Date.now()}`;
   }
 };
+
+// GET /api/sales/discount-reasons — active discount reason codes for POS UI
+router.get("/discount-reasons", authenticateToken, async (req, res, next) => {
+  try {
+    const reasons = await prisma.discountReason.findMany({
+      where: { isActive: true },
+      orderBy: { code: "asc" },
+      select: { code: true, labelAr: true, customerLabelAr: true },
+    });
+    res.json(reasons);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET all sales - Requires SALES permission
 router.get(
@@ -576,7 +591,7 @@ router.post(
         } else {
           discAmount = Math.min(subtotalNum, val);
         }
-        discAmount = Math.round(discAmount); // round to nearest 1 EGP
+        discAmount = roundMoney(discAmount);
         discType = type;
         discValue = val;
         discReason = String(discountReason).trim().slice(0, 32);
@@ -584,9 +599,8 @@ router.post(
       }
 
       const discountedSubtotal = Math.max(0, subtotalNum - discAmount);
-      const recomputedTax = discountedSubtotal * taxRateNum;
-      const recomputedTaxAmount = Math.round(recomputedTax * 100) / 100;
-      const recomputedTotal = Math.round(
+      const recomputedTaxAmount = roundMoney(discountedSubtotal * taxRateNum);
+      const recomputedTotal = roundMoney(
         discountedSubtotal + recomputedTaxAmount + deliveryFeeNum
       );
 
@@ -1582,7 +1596,7 @@ router.post(
             : 0;
         if (originalDiscount > 0 && originalSubtotal > 0) {
           refundDiscountAmount =
-            Math.round((refundSubtotal * originalDiscount) / originalSubtotal);
+            roundMoney((refundSubtotal * originalDiscount) / originalSubtotal);
         }
         const discountedRefundSubtotal = Math.max(
           0,

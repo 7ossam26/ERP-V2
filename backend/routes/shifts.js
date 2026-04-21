@@ -373,10 +373,7 @@ router.post("/start", async (req, res, next) => {
     // the successful shift-start.
     try {
       await prisma.$transaction(async (tx) => {
-        await drainPendingForBranch(tx, {
-          branchId: newShift.branchId,
-          userId: newShift.userId,
-        });
+        await drainPendingForBranch(tx, { branchId: newShift.branchId });
       });
     } catch (drainErr) {
       console.error("[SHIFT] drainPendingForBranch failed:", drainErr.message);
@@ -760,11 +757,12 @@ router.get(
         });
       }
 
-      // Aggregate Sales Data
+      // Aggregate Sales Data (exclude voided sales from all totals)
       const sales = await prisma.sale.findMany({
         where: {
           shiftId: shiftId,
           status: "COMPLETED",
+          isVoided: false,
         },
         include: {
           client: { select: { name: true } }, // Include Client Name
