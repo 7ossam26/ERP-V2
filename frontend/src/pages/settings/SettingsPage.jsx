@@ -14,7 +14,8 @@ const SettingsPage = () => {
     taxNumber: "",
     mainWarehouseId: "",
     mainTreasuryId: "",
-    bankTreasuryId: "",
+    visaTreasuryId: "",
+    instapayTreasuryId: "",
     taxRate: 14,
     salaryStartDay: 1,
     salaryEndDay: 30,
@@ -51,7 +52,8 @@ const SettingsPage = () => {
         taxNumber: settings.taxNumber || "",
         mainWarehouseId: settings.mainWarehouseId || "",
         mainTreasuryId: settings.mainTreasuryId || "",
-        bankTreasuryId: settings.bankTreasuryId || "",
+        visaTreasuryId: settings.visaTreasuryId || "",
+        instapayTreasuryId: settings.instapayTreasuryId || "",
         taxRate: settings.taxRate || 14,
         salaryStartDay: settings.salaryStartDay || 1,
         salaryEndDay: settings.salaryEndDay || 30,
@@ -201,11 +203,11 @@ const SettingsPage = () => {
             </div>
             <div>
               <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
-                خزينة البنك (الحساب البنكي)
+                خزينة فيزا
               </label>
               <select
-                name="bankTreasuryId"
-                value={formData.bankTreasuryId}
+                name="visaTreasuryId"
+                value={formData.visaTreasuryId}
                 onChange={handleChange}
                 className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50">
                 <option value="">اختر الخزينة...</option>
@@ -216,7 +218,27 @@ const SettingsPage = () => {
                 ))}
               </select>
               <p className="text-xs text-text-secondary dark:text-gray-500 mt-1">
-                حدد الخزينة التي تمثل الحساب البنكي للشركة
+                الخزينة العالمية لاستلام مدفوعات الفيزا من جميع الفروع
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
+                خزينة انستاباي
+              </label>
+              <select
+                name="instapayTreasuryId"
+                value={formData.instapayTreasuryId}
+                onChange={handleChange}
+                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                <option value="">اختر الخزينة...</option>
+                {treasuries.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-text-secondary dark:text-gray-500 mt-1">
+                الخزينة العالمية لاستلام مدفوعات انستاباي من جميع الفروع
               </p>
             </div>
           </div>

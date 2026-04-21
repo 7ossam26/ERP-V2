@@ -35,8 +35,11 @@ const BranchBalancesPage = () => {
   const totalCash = balances.reduce((s, b) => s + b.cashBalance, 0);
   const totalInstapay = balances.reduce((s, b) => s + b.instapayToday, 0);
   const totalVisa = balances.reduce((s, b) => s + b.visaToday, 0);
-  // bankAccountBalance is the same for all rows (global bank treasury) — take from first row
-  const bankAccountBalance = balances.length > 0 ? balances[0].bankAccountBalance : 0;
+  // Global treasury balances are the same for every row — take from first
+  const visaTreasuryBalance =
+    balances.length > 0 ? balances[0].visaTreasuryBalance || 0 : 0;
+  const instapayTreasuryBalance =
+    balances.length > 0 ? balances[0].instapayTreasuryBalance || 0 : 0;
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto" dir="rtl">
@@ -111,23 +114,39 @@ const BranchBalancesPage = () => {
             </div>
           </div>
 
-          {/* Bank account accumulated balance */}
-          <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl p-5 mb-6 text-white shadow-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-xl">
-                  <span className="material-symbols-outlined text-2xl">
-                    account_balance
-                  </span>
+          {/* Global Visa + Instapay treasury balances */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-5 text-white shadow-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-xl">
+                    <span className="material-symbols-outlined text-2xl">
+                      credit_card
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm opacity-80 font-medium">خزينة فيزا</p>
+                    <p className="text-xs opacity-60 mt-0.5">الرصيد المتراكم · جميع الفروع</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm opacity-80 font-medium">حساب البنك (الرصيد المتراكم)</p>
-                  <p className="text-xs opacity-60 mt-0.5">فيزا + انستاباي · جميع الفروع</p>
-                </div>
+                <p className="text-3xl font-bold">{fmt(visaTreasuryBalance)} ج.م</p>
               </div>
-              <p className="text-3xl font-bold">
-                {fmt(bankAccountBalance)} ج.م
-              </p>
+            </div>
+            <div className="bg-gradient-to-r from-purple-600 to-purple-500 rounded-2xl p-5 text-white shadow-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-xl">
+                    <span className="material-symbols-outlined text-2xl">
+                      account_balance_wallet
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm opacity-80 font-medium">خزينة انستاباي</p>
+                    <p className="text-xs opacity-60 mt-0.5">الرصيد المتراكم · جميع الفروع</p>
+                  </div>
+                </div>
+                <p className="text-3xl font-bold">{fmt(instapayTreasuryBalance)} ج.م</p>
+              </div>
             </div>
           </div>
         </>

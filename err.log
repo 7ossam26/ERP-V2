@@ -1,0 +1,85 @@
+2026-04-21T09:34:58.898Z\nGET /api/settings\nPrismaClientValidationError: 
+Invalid `prisma.systemConfiguration.findFirst()` invocation in
+D:\ERP-V2\backend\routes\settings.js:12:51
+
+   9 // GET System Configuration
+  10 router.get("/", async (req, res, next) => {
+  11   try {
+→ 12     let config = await prisma.systemConfiguration.findFirst({
+           where: {
+             id: 1
+           },
+           include: {
+             mainWarehouse: true,
+             mainTreasury: true,
+             visaTreasury: true,
+             ~~~~~~~~~~~~
+             instapayTreasury: true,
+         ?   bankTreasury?: true
+           }
+         })
+
+Unknown field `visaTreasury` for include statement on model `SystemConfiguration`. Available options are marked with ?.
+    at Ua (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:80:1375)
+    at Vg.handleRequestError (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6960)
+    at Vg.handleAndLogRequestError (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6624)
+    at Vg.request (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6308)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async a (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:191:9642)
+    at async D:\ERP-V2\backend\routes\settings.js:12:18\n\n2026-04-21T09:34:58.933Z\nGET /api/settings\nPrismaClientValidationError: 
+Invalid `prisma.systemConfiguration.findFirst()` invocation in
+D:\ERP-V2\backend\routes\settings.js:12:51
+
+   9 // GET System Configuration
+  10 router.get("/", async (req, res, next) => {
+  11   try {
+→ 12     let config = await prisma.systemConfiguration.findFirst({
+           where: {
+             id: 1
+           },
+           include: {
+             mainWarehouse: true,
+             mainTreasury: true,
+             visaTreasury: true,
+             ~~~~~~~~~~~~
+             instapayTreasury: true,
+         ?   bankTreasury?: true
+           }
+         })
+
+Unknown field `visaTreasury` for include statement on model `SystemConfiguration`. Available options are marked with ?.
+    at Ua (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:80:1375)
+    at Vg.handleRequestError (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6960)
+    at Vg.handleAndLogRequestError (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6624)
+    at Vg.request (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6308)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async a (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:191:9642)
+    at async D:\ERP-V2\backend\routes\settings.js:12:18\n\n2026-04-21T09:35:06.824Z\nGET /api/settings\nPrismaClientValidationError: 
+Invalid `prisma.systemConfiguration.findFirst()` invocation in
+D:\ERP-V2\backend\routes\settings.js:12:51
+
+   9 // GET System Configuration
+  10 router.get("/", async (req, res, next) => {
+  11   try {
+→ 12     let config = await prisma.systemConfiguration.findFirst({
+           where: {
+             id: 1
+           },
+           include: {
+             mainWarehouse: true,
+             mainTreasury: true,
+             visaTreasury: true,
+             ~~~~~~~~~~~~
+             instapayTreasury: true,
+         ?   bankTreasury?: true
+           }
+         })
+
+Unknown field `visaTreasury` for include statement on model `SystemConfiguration`. Available options are marked with ?.
+    at Ua (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:80:1375)
+    at Vg.handleRequestError (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6960)
+    at Vg.handleAndLogRequestError (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6624)
+    at Vg.request (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:182:6308)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async a (D:\ERP-V2\backend\node_modules\@prisma\client\runtime\binary.js:191:9642)
+    at async D:\ERP-V2\backend\routes\settings.js:12:18\n\n

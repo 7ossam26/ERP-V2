@@ -8,18 +8,18 @@ const prisma = new PrismaClient({
 async function main() {
     try {
         const config = await prisma.systemConfiguration.findFirst({
-            select: { id: true, bankTreasuryId: true }
+            select: { id: true, visaTreasuryId: true }
         });
         console.log("Config:", config);
-        if (!config || !config.bankTreasuryId) {
-            console.log("Fixing bankTreasuryId...");
+        if (!config || !config.visaTreasuryId) {
+            console.log("Fixing visaTreasuryId...");
             const treasury = await prisma.treasury.findFirst();
             if (treasury) {
                 await prisma.systemConfiguration.update({
                     where: { id: config ? config.id : 1 },
-                    data: { bankTreasuryId: treasury.id }
+                    data: { visaTreasuryId: treasury.id }
                 });
-                console.log("Assigned bankTreasuryId to", treasury.id);
+                console.log("Assigned visaTreasuryId to", treasury.id);
             }
         }
     } finally {

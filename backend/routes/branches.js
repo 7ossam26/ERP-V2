@@ -190,17 +190,25 @@ router.get("/balances", async (req, res, next) => {
       _sum: { total: true },
     });
 
-    // Get bank account (bank treasury) running balance from system config
+    // Get Visa + Instapay treasury running balances from system config
     const sysConfig = await prisma.systemConfiguration.findFirst({
-      select: { bankTreasuryId: true },
+      select: { visaTreasuryId: true, instapayTreasuryId: true },
     });
-    let bankAccountBalance = 0;
-    if (sysConfig?.bankTreasuryId) {
-      const bankTreasury = await prisma.treasury.findUnique({
-        where: { id: sysConfig.bankTreasuryId },
+    let visaTreasuryBalance = 0;
+    let instapayTreasuryBalance = 0;
+    if (sysConfig?.visaTreasuryId) {
+      const t = await prisma.treasury.findUnique({
+        where: { id: sysConfig.visaTreasuryId },
         select: { balance: true },
       });
-      bankAccountBalance = Number(bankTreasury?.balance || 0);
+      visaTreasuryBalance = Number(t?.balance || 0);
+    }
+    if (sysConfig?.instapayTreasuryId) {
+      const t = await prisma.treasury.findUnique({
+        where: { id: sysConfig.instapayTreasuryId },
+        select: { balance: true },
+      });
+      instapayTreasuryBalance = Number(t?.balance || 0);
     }
 
     const instapayMap = {};
@@ -221,7 +229,8 @@ router.get("/balances", async (req, res, next) => {
       treasuryName: branch.treasury?.name || "الخزينة",
       instapayToday: instapayMap[branch.id] || 0,
       visaToday: visaMap[branch.id] || 0,
-      bankAccountBalance,
+      visaTreasuryBalance,
+      instapayTreasuryBalance,
     }));
 
     res.json(result);

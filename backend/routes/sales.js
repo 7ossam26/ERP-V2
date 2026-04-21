@@ -746,30 +746,35 @@ router.post(
             data: { balance: { increment: parseFloat(total) } },
           });
           console.log("✅ Branch Treasury balance updated.");
-        } else if (method === "INSTAPAY" || method === "CARD" || method === "VISA") {
-          console.log(`💳 Payment is ${method}. Checking for Bank Treasury...`);
+        } else if (method === "VISA" || method === "INSTAPAY") {
+          console.log(`💳 Payment is ${method}. Routing to global treasury...`);
 
-          // Fetch System Configuration for Bank Treasury ID
           const config = await tx.systemConfiguration.findFirst({
-            select: { bankTreasuryId: true },
+            select: { visaTreasuryId: true, instapayTreasuryId: true },
           });
 
-          if (config && config.bankTreasuryId) {
-            console.log(`   Found Bank Treasury ID: ${config.bankTreasuryId}`);
+          const destTreasuryId =
+            method === "VISA"
+              ? config?.visaTreasuryId
+              : config?.instapayTreasuryId;
 
-            await tx.treasury.update({
-              where: { id: config.bankTreasuryId },
-              data: { balance: { increment: parseFloat(total) } },
-            });
-            console.log("✅ Bank Treasury balance updated.");
-          } else {
-            console.error("❌ Bank Treasury NOT configured!");
-            const cardErr = new Error(
-              "إعدادات النظام غير مكتملة: لا يوجد خزينة بنك مرتبطة لاستلام مدفوعات الفيزا. يرجى مراجعة المسؤول.",
+          if (!destTreasuryId) {
+            console.error(`❌ ${method} treasury NOT configured!`);
+            const err = new Error(
+              method === "VISA"
+                ? "إعدادات النظام غير مكتملة: لا يوجد خزينة فيزا مرتبطة لاستلام المدفوعات. يرجى مراجعة المسؤول."
+                : "إعدادات النظام غير مكتملة: لا يوجد خزينة انستاباي مرتبطة لاستلام المدفوعات. يرجى مراجعة المسؤول.",
             );
-            cardErr.status = 422;
-            throw cardErr;
+            err.status = 422;
+            throw err;
           }
+
+          console.log(`   Found ${method} Treasury ID: ${destTreasuryId}`);
+          await tx.treasury.update({
+            where: { id: destTreasuryId },
+            data: { balance: { increment: parseFloat(total) } },
+          });
+          console.log(`✅ ${method} Treasury balance updated.`);
         } else {
           console.log(`ℹ️ Payment is ${paymentMethod}. Balances NOT updated.`);
         }
@@ -1099,7 +1104,9 @@ router.patch(
         // COD is collected at delivery; stamp paidAt if not already set.
         if (
           !sale.paidAt &&
-          (sale.paymentMethod === "CASH" || sale.paymentMethod === "CARD")
+          (sale.paymentMethod === "CASH" ||
+            sale.paymentMethod === "VISA" ||
+            sale.paymentMethod === "INSTAPAY")
         ) {
           saleData.paidAt = now;
         }
@@ -1625,13 +1632,17 @@ router.post(
             where: { id: originalSale.treasuryId },
             data: { balance: { decrement: total } },
           });
-        } else if (method === "CARD" || method === "VISA") {
+        } else if (method === "VISA" || method === "INSTAPAY") {
           const config = await tx.systemConfiguration.findFirst({
-            select: { bankTreasuryId: true },
+            select: { visaTreasuryId: true, instapayTreasuryId: true },
           });
-          if (config && config.bankTreasuryId) {
+          const destTreasuryId =
+            method === "VISA"
+              ? config?.visaTreasuryId
+              : config?.instapayTreasuryId;
+          if (destTreasuryId) {
             await tx.treasury.update({
-              where: { id: config.bankTreasuryId },
+              where: { id: destTreasuryId },
               data: { balance: { decrement: total } },
             });
           }
@@ -1703,14 +1714,17 @@ router.delete(
               where: { id: sale.treasuryId },
               data: { balance: { decrement: Number(sale.paidAmount) } },
             });
-          } else if (method === "CARD" || method === "VISA") {
-            // Find Bank Treasury
+          } else if (method === "VISA" || method === "INSTAPAY") {
             const config = await tx.systemConfiguration.findFirst({
-              select: { bankTreasuryId: true },
+              select: { visaTreasuryId: true, instapayTreasuryId: true },
             });
-            if (config && config.bankTreasuryId) {
+            const destTreasuryId =
+              method === "VISA"
+                ? config?.visaTreasuryId
+                : config?.instapayTreasuryId;
+            if (destTreasuryId) {
               await tx.treasury.update({
-                where: { id: config.bankTreasuryId },
+                where: { id: destTreasuryId },
                 data: { balance: { decrement: Number(sale.paidAmount) } },
               });
             }

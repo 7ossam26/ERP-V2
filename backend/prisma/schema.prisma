@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "binary"
 }
 
@@ -25,43 +25,41 @@ model User {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
-  role                Role                  @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  branch              Branch?               @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  accessibleBranches  Branch[]              @relation("AccessibleBranches")
-  sales               Sale[]                @relation("SaleCreator")
-  appliedDiscounts    Sale[]                @relation("SaleDiscountApplier")
-  auditLogs           AuditLog[]
-  stockTransfers      StockTransfer[]
-  createdTransfers    CashTransfer[]        @relation("TransferCreator")
-  acceptedTransfers   CashTransfer[]        @relation("TransferAccepter")
-  createdTransactions EmployeeTransaction[] @relation("TransactionCreator")
-  createdPayrolls     Payroll[]             @relation("PayrollCreator")
-  shifts              Shift[]
-  reviewedShifts      Shift[]               @relation("ShiftReviewer")
-  deposits            Deposit[]             @relation("DepositCreator")
-  withdrawals         Withdrawal[]          @relation("WithdrawalCreator")
+  role                        Role                     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  branch                      Branch?                  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  accessibleBranches          Branch[]                 @relation("AccessibleBranches")
+  sales                       Sale[]                   @relation("SaleCreator")
+  appliedDiscounts            Sale[]                   @relation("SaleDiscountApplier")
+  auditLogs                   AuditLog[]
+  stockTransfers              StockTransfer[]
+  createdTransfers            CashTransfer[]           @relation("TransferCreator")
+  acceptedTransfers           CashTransfer[]           @relation("TransferAccepter")
+  createdTransactions         EmployeeTransaction[]    @relation("TransactionCreator")
+  createdPayrolls             Payroll[]                @relation("PayrollCreator")
+  shifts                      Shift[]
+  reviewedShifts              Shift[]                  @relation("ShiftReviewer")
+  deposits                    Deposit[]                @relation("DepositCreator")
+  withdrawals                 Withdrawal[]             @relation("WithdrawalCreator")
   createdDeliveryTransactions DeliveryManTransaction[]
-  createdProductionOrders     ProductionOrder[]          @relation("ProductionOrderCreator")
-  cancelledProductionOrders   ProductionOrder[]          @relation("ProductionOrderCanceller")
+  createdProductionOrders     ProductionOrder[]        @relation("ProductionOrderCreator")
+  cancelledProductionOrders   ProductionOrder[]        @relation("ProductionOrderCanceller")
   initialInventoryEntries     InitialInventory[]
-  createdOrders               Order[]                    @relation("OrderCreatedBy")
-  claimedOrders               Order[]                    @relation("OrderClaimedBy")
-  cancelledOrders             Order[]                    @relation("OrderCancelledBy")
+  createdOrders               Order[]                  @relation("OrderCreatedBy")
+  claimedOrders               Order[]                  @relation("OrderClaimedBy")
+  cancelledOrders             Order[]                  @relation("OrderCancelledBy")
   notifications               Notification[]
 
   // Bulk POS back-relations
-  createdBulkCustomers        BulkCustomer[]             @relation("BulkCustomerCreator")
-  createdBulkContractPrices   BulkContractPrice[]        @relation("BulkContractPriceCreator")
-  createdBulkOrders           BulkOrder[]                @relation("BulkOrderCreator")
-  cancelledBulkOrders         BulkOrder[]                @relation("BulkOrderCanceller")
-  createdBulkPayments         BulkPayment[]              @relation("BulkPaymentCreator")
-  voidedBulkPayments          BulkPayment[]              @relation("BulkPaymentVoider")
-  createdBulkRefunds          BulkRefund[]               @relation("BulkRefundCreator")
+  createdBulkCustomers      BulkCustomer[]      @relation("BulkCustomerCreator")
+  createdBulkContractPrices BulkContractPrice[] @relation("BulkContractPriceCreator")
+  createdBulkOrders         BulkOrder[]         @relation("BulkOrderCreator")
+  cancelledBulkOrders       BulkOrder[]         @relation("BulkOrderCanceller")
+  createdBulkPayments       BulkPayment[]       @relation("BulkPaymentCreator")
+  voidedBulkPayments        BulkPayment[]       @relation("BulkPaymentVoider")
+  createdBulkRefunds        BulkRefund[]        @relation("BulkRefundCreator")
 
   @@map("users")
 }
-
-
 
 model Role {
   id          Int      @id @default(autoincrement())
@@ -282,12 +280,13 @@ model Warehouse {
 // ============================================
 
 model Treasury {
-  id        Int      @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   name      String
-  balance   Decimal  @default(0) @db.Decimal(10, 2)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  isActive  Boolean  @default(true) @map("is_active")
+  balance   Decimal       @default(0) @db.Decimal(10, 2)
+  scope     TreasuryScope @default(BRANCH_CASH)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  isActive  Boolean       @default(true) @map("is_active")
 
   // Relations
   branch           Branch?
@@ -304,10 +303,18 @@ model Treasury {
   bulkRefunds  BulkRefund[]  @relation("BulkRefundTreasury")
 
   // Config Relations
-  systemConfigAsMain SystemConfiguration[] @relation("ConfigMainTreasury")
-  systemConfigAsBank SystemConfiguration[] @relation("ConfigBankTreasury")
+  systemConfigAsMain     SystemConfiguration[] @relation("ConfigMainTreasury")
+  systemConfigAsVisa     SystemConfiguration[] @relation("ConfigVisaTreasury")
+  systemConfigAsInstapay SystemConfiguration[] @relation("ConfigInstapayTreasury")
 
   @@map("treasuries")
+}
+
+enum TreasuryScope {
+  BRANCH_CASH
+  GLOBAL_VISA
+  GLOBAL_INSTAPAY
+  MAIN
 }
 
 // ============================================
@@ -315,28 +322,28 @@ model Treasury {
 // ============================================
 
 model Branch {
-  id            Int      @id @default(autoincrement())
-  name          String
-  address       String
-  warehouseId   Int      @unique @map("warehouse_id")
-  treasuryId    Int      @unique @map("treasury_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  isActive      Boolean  @default(true) @map("is_active")
+  id          Int      @id @default(autoincrement())
+  name        String
+  address     String
+  warehouseId Int      @unique @map("warehouse_id")
+  treasuryId  Int      @unique @map("treasury_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  isActive    Boolean  @default(true) @map("is_active")
 
   // Relations
-  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  treasury      Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  employees     Employee[]
-  users         User[] // Main branch users (employees, branch managers)
-  accessibleUsers User[] @relation("AccessibleBranches") // Users who have access to this branch (e.g. Area Managers)
-  sales         Sale[]
-  shifts        Shift[]
-  DeliveryMan   DeliveryMan[]
-  deliveryZones DeliveryZone[]
-  auditLogs     AuditLog[]
-  orders        Order[]
-  notifications Notification[]
+  warehouse       Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  treasury        Treasury       @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  employees       Employee[]
+  users           User[] // Main branch users (employees, branch managers)
+  accessibleUsers User[]         @relation("AccessibleBranches") // Users who have access to this branch (e.g. Area Managers)
+  sales           Sale[]
+  shifts          Shift[]
+  DeliveryMan     DeliveryMan[]
+  deliveryZones   DeliveryZone[]
+  auditLogs       AuditLog[]
+  orders          Order[]
+  notifications   Notification[]
 
   @@map("branches")
 }
@@ -409,14 +416,14 @@ model Item {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  suppliers            ItemSupplier[]
-  categories           ItemCategory[]
-  purchaseItems        PurchaseItem[]
-  purchaseReturnItems  PurchaseReturnItem[]
-  saleItems            SaleItem[]
-  inventory            Inventory[]
-  stockTransferItems   StockTransferItem[]
-  bomOutputs              BOM[]                  @relation("BOMOutput")
+  suppliers               ItemSupplier[]
+  categories              ItemCategory[]
+  purchaseItems           PurchaseItem[]
+  purchaseReturnItems     PurchaseReturnItem[]
+  saleItems               SaleItem[]
+  inventory               Inventory[]
+  stockTransferItems      StockTransferItem[]
+  bomOutputs              BOM[]                 @relation("BOMOutput")
   bomItems                BOMItem[]
   productionOrderItems    ProductionOrderItem[]
   initialInventoryEntries InitialInventory[]
@@ -541,12 +548,12 @@ model PurchaseItem {
 }
 
 model PurchaseReturn {
-  id           Int                  @id @default(autoincrement())
-  purchaseId   Int                  @map("purchase_id")
-  returnNumber String               @unique @map("return_number")
-  notes        String?              @db.VarChar(500)
-  totalAmount  Decimal              @map("total_amount") @db.Decimal(10, 2)
-  createdAt    DateTime             @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  purchaseId   Int      @map("purchase_id")
+  returnNumber String   @unique @map("return_number")
+  notes        String?  @db.VarChar(500)
+  totalAmount  Decimal  @map("total_amount") @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
 
   purchase Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
   items    PurchaseReturnItem[]
@@ -555,12 +562,12 @@ model PurchaseReturn {
 }
 
 model PurchaseReturnItem {
-  id               Int            @id @default(autoincrement())
-  purchaseReturnId Int            @map("purchase_return_id")
-  itemId           Int            @map("item_id")
-  quantity         Decimal        @db.Decimal(10, 4)
-  purchasePrice    Decimal        @map("purchase_price") @db.Decimal(10, 2)
-  total            Decimal        @db.Decimal(10, 2)
+  id               Int     @id @default(autoincrement())
+  purchaseReturnId Int     @map("purchase_return_id")
+  itemId           Int     @map("item_id")
+  quantity         Decimal @db.Decimal(10, 4)
+  purchasePrice    Decimal @map("purchase_price") @db.Decimal(10, 2)
+  total            Decimal @db.Decimal(10, 2)
 
   purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
   item           Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
@@ -613,7 +620,6 @@ enum SalePaymentMethod {
   CASH
   INSTAPAY
   VISA
-  CARD
 }
 
 enum SaleStatus {
@@ -631,52 +637,52 @@ enum DeliveryStatus {
 }
 
 model Sale {
-  id              Int               @id @default(autoincrement())
-  saleNumber      String            @unique @map("sale_number")
-  clientId        Int               @map("client_id")
-  employeeId      Int?              @map("employee_id")
-  userId          Int?              @map("user_id")
-  branchId        Int               @map("branch_id")
-  treasuryId      Int               @map("treasury_id")
-  warehouseId     Int?              @map("warehouse_id")
-  shiftId         Int?              @map("shift_id")
-  deliveryManId   Int?              @map("delivery_man_id")
-  deliveryZoneId  Int?              @map("delivery_zone_id")
-  deliveryFee     Decimal?          @map("delivery_fee") @db.Decimal(10, 2)
-  deliveryDriverShare Decimal?      @map("delivery_driver_share") @db.Decimal(10, 2)
-  deliveryAddress String?           @map("delivery_address") @db.Text
-  deliveryStatus  DeliveryStatus?   @map("delivery_status")
-  subtotal        Decimal           @db.Decimal(10, 2)
-  discountType    DiscountType?     @map("discount_type")
-  discountValue   Decimal?          @map("discount_value") @db.Decimal(10, 2)
-  discountAmount  Decimal?          @map("discount_amount") @db.Decimal(10, 2)
-  discountReason  String?           @map("discount_reason") @db.VarChar(32)
-  discountAppliedByUserId Int?      @map("discount_applied_by_user_id")
-  taxRate         Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
-  taxAmount       Decimal           @map("tax_amount") @db.Decimal(10, 2)
-  total           Decimal           @db.Decimal(10, 2)
-  paymentMethod   SalePaymentMethod @default(CASH) @map("payment_method")
-  paidAmount      Decimal           @map("paid_amount") @db.Decimal(10, 2)
-  changeAmount    Decimal           @default(0) @map("change_amount") @db.Decimal(10, 2)
-  status          SaleStatus        @default(COMPLETED)
-  notes           String?           @db.Text
-  paidAt          DateTime?         @map("paid_at")
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
+  id                      Int               @id @default(autoincrement())
+  saleNumber              String            @unique @map("sale_number")
+  clientId                Int               @map("client_id")
+  employeeId              Int?              @map("employee_id")
+  userId                  Int?              @map("user_id")
+  branchId                Int               @map("branch_id")
+  treasuryId              Int               @map("treasury_id")
+  warehouseId             Int?              @map("warehouse_id")
+  shiftId                 Int?              @map("shift_id")
+  deliveryManId           Int?              @map("delivery_man_id")
+  deliveryZoneId          Int?              @map("delivery_zone_id")
+  deliveryFee             Decimal?          @map("delivery_fee") @db.Decimal(10, 2)
+  deliveryDriverShare     Decimal?          @map("delivery_driver_share") @db.Decimal(10, 2)
+  deliveryAddress         String?           @map("delivery_address") @db.Text
+  deliveryStatus          DeliveryStatus?   @map("delivery_status")
+  subtotal                Decimal           @db.Decimal(10, 2)
+  discountType            DiscountType?     @map("discount_type")
+  discountValue           Decimal?          @map("discount_value") @db.Decimal(10, 2)
+  discountAmount          Decimal?          @map("discount_amount") @db.Decimal(10, 2)
+  discountReason          String?           @map("discount_reason") @db.VarChar(32)
+  discountAppliedByUserId Int?              @map("discount_applied_by_user_id")
+  taxRate                 Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
+  taxAmount               Decimal           @map("tax_amount") @db.Decimal(10, 2)
+  total                   Decimal           @db.Decimal(10, 2)
+  paymentMethod           SalePaymentMethod @default(CASH) @map("payment_method")
+  paidAmount              Decimal           @map("paid_amount") @db.Decimal(10, 2)
+  changeAmount            Decimal           @default(0) @map("change_amount") @db.Decimal(10, 2)
+  status                  SaleStatus        @default(COMPLETED)
+  notes                   String?           @db.Text
+  paidAt                  DateTime?         @map("paid_at")
+  createdAt               DateTime          @default(now()) @map("created_at")
+  updatedAt               DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  client       Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  employee     Employee?     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  user         User?         @relation("SaleCreator", fields: [userId], references: [id], onDelete: Restrict)
-  discountAppliedBy User?    @relation("SaleDiscountApplier", fields: [discountAppliedByUserId], references: [id], onDelete: SetNull)
-  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  treasury     Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  warehouse    Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  shift        Shift?        @relation(fields: [shiftId], references: [id], onDelete: Restrict)
-  deliveryMan  DeliveryMan?  @relation(fields: [deliveryManId], references: [id], onDelete: SetNull)
-  deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
-  items        SaleItem[]
-  order        Order?
+  client            Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  employee          Employee?     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  user              User?         @relation("SaleCreator", fields: [userId], references: [id], onDelete: Restrict)
+  discountAppliedBy User?         @relation("SaleDiscountApplier", fields: [discountAppliedByUserId], references: [id], onDelete: SetNull)
+  branch            Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  treasury          Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  warehouse         Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  shift             Shift?        @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  deliveryMan       DeliveryMan?  @relation(fields: [deliveryManId], references: [id], onDelete: SetNull)
+  deliveryZone      DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  items             SaleItem[]
+  order             Order?
 
   @@map("sales")
 }
@@ -691,7 +697,7 @@ model SaleItem {
   total     Decimal @db.Decimal(10, 2)
 
   // Relations
-  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sale Sale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
   item Item? @relation(fields: [itemId], references: [id], onDelete: Restrict)
   bom  BOM?  @relation(fields: [bomId], references: [id], onDelete: Restrict)
 
@@ -738,9 +744,10 @@ model SystemConfiguration {
   taxNumber   String @default("") @map("tax_number")
 
   // Operational Defaults
-  mainWarehouseId Int? @map("main_warehouse_id")
-  mainTreasuryId  Int? @map("main_treasury_id")
-  bankTreasuryId  Int? @map("bank_treasury_id")
+  mainWarehouseId    Int? @map("main_warehouse_id")
+  mainTreasuryId     Int? @map("main_treasury_id")
+  visaTreasuryId     Int? @map("visa_treasury_id")
+  instapayTreasuryId Int? @map("instapay_treasury_id")
 
   // Financial Defaults
   taxRate Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
@@ -760,9 +767,10 @@ model SystemConfiguration {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  mainWarehouse Warehouse? @relation(fields: [mainWarehouseId], references: [id])
-  mainTreasury  Treasury?  @relation("ConfigMainTreasury", fields: [mainTreasuryId], references: [id])
-  bankTreasury  Treasury?  @relation("ConfigBankTreasury", fields: [bankTreasuryId], references: [id])
+  mainWarehouse    Warehouse? @relation(fields: [mainWarehouseId], references: [id])
+  mainTreasury     Treasury?  @relation("ConfigMainTreasury", fields: [mainTreasuryId], references: [id])
+  visaTreasury     Treasury?  @relation("ConfigVisaTreasury", fields: [visaTreasuryId], references: [id])
+  instapayTreasury Treasury?  @relation("ConfigInstapayTreasury", fields: [instapayTreasuryId], references: [id])
 
   @@map("system_configuration")
 }
@@ -929,20 +937,20 @@ model Withdrawal {
 // ============================================
 
 model DeliveryMan {
-  id          Int      @id @default(autoincrement())
-  name        String
-  phone       String
-  nationalId  String?  @map("national_id")
-  vehicleType String?  @map("vehicle_type") // motorcycle, car, van, etc.
-  branchId    Int      @map("branch_id")
-  walletBalance Decimal @default(0) @map("wallet_balance") @db.Decimal(10, 2)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id            Int      @id @default(autoincrement())
+  name          String
+  phone         String
+  nationalId    String?  @map("national_id")
+  vehicleType   String?  @map("vehicle_type") // motorcycle, car, van, etc.
+  branchId      Int      @map("branch_id")
+  walletBalance Decimal  @default(0) @map("wallet_balance") @db.Decimal(10, 2)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
-  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  sales  Sale[]
+  branch       Branch                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales        Sale[]
   transactions DeliveryManTransaction[]
 
   @@map("delivery_men")
@@ -952,7 +960,7 @@ model DeliveryManTransaction {
   id            Int      @id @default(autoincrement())
   deliveryManId Int      @map("delivery_man_id")
   amount        Decimal  @db.Decimal(10, 2)
-  type          String   // "DEBT_ACCRUED" (Order), "PAYMENT" (Settlement)
+  type          String // "DEBT_ACCRUED" (Order), "PAYMENT" (Settlement)
   description   String?
   createdAt     DateTime @default(now()) @map("created_at")
   createdById   Int?     @map("created_by_id")
@@ -965,18 +973,18 @@ model DeliveryManTransaction {
 }
 
 model DeliveryZone {
-  id        Int      @id @default(autoincrement())
-  name      String
-  fee       Decimal  @db.Decimal(10, 2)
-  driverShare Decimal @default(0) @map("driver_share") @db.Decimal(10, 2)
-  branchId  Int?     @map("branch_id")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          Int      @id @default(autoincrement())
+  name        String
+  fee         Decimal  @db.Decimal(10, 2)
+  driverShare Decimal  @default(0) @map("driver_share") @db.Decimal(10, 2)
+  branchId    Int?     @map("branch_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  sales    Sale[]
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sales  Sale[]
 
   @@unique([branchId, name])
   @@map("delivery_zones")
@@ -1033,7 +1041,7 @@ model ProductionOrder {
   sourceWarehouseId Int       @map("source_warehouse_id")
   destWarehouseId   Int?      @map("dest_warehouse_id")
   targetOutputQty   Decimal   @map("target_output_qty") @db.Decimal(10, 4)
-  actualOutputQty   Decimal   @map("actual_output_qty")  @db.Decimal(10, 4)
+  actualOutputQty   Decimal   @map("actual_output_qty") @db.Decimal(10, 4)
   outputWasteQty    Decimal   @default(0) @map("output_waste_qty") @db.Decimal(10, 4)
   totalCost         Decimal   @default(0) @map("total_cost") @db.Decimal(10, 2)
   notes             String?   @db.Text
@@ -1045,13 +1053,13 @@ model ProductionOrder {
   createdAt         DateTime  @default(now()) @map("created_at")
 
   // Relations
-  bom             BOM        @relation(fields: [bomId], references: [id], onDelete: Restrict)
-  sourceWarehouse Warehouse  @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
-  destWarehouse   Warehouse? @relation("DestWarehouse", fields: [destWarehouseId], references: [id], onDelete: Restrict)
-  createdBy       User       @relation("ProductionOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  cancelledBy     User?      @relation("ProductionOrderCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)
-  linkedOrder     ProductionOrder?  @relation("LinkedOrders", fields: [linkedOrderId], references: [id], onDelete: SetNull)
-  linkedFrom      ProductionOrder[] @relation("LinkedOrders")
+  bom             BOM                   @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  sourceWarehouse Warehouse             @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
+  destWarehouse   Warehouse?            @relation("DestWarehouse", fields: [destWarehouseId], references: [id], onDelete: Restrict)
+  createdBy       User                  @relation("ProductionOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy     User?                 @relation("ProductionOrderCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)
+  linkedOrder     ProductionOrder?      @relation("LinkedOrders", fields: [linkedOrderId], references: [id], onDelete: SetNull)
+  linkedFrom      ProductionOrder[]     @relation("LinkedOrders")
   items           ProductionOrderItem[]
 
   @@map("production_orders")
@@ -1123,24 +1131,24 @@ enum OrderCancellationReason {
 }
 
 model Order {
-  id           Int          @id @default(autoincrement())
-  saleId       Int          @unique @map("sale_id")
-  channel      OrderChannel @default(POS)
-  status       OrderStatus  @default(NEW)
-  branchId     Int          @map("branch_id")
-  createdById  Int          @map("created_by_id")
-  claimedById  Int?         @map("claimed_by_id")
-  claimedAt    DateTime?    @map("claimed_at")
-  readyAt      DateTime?    @map("ready_at")
-  dispatchedAt DateTime?    @map("dispatched_at")
-  deliveredAt  DateTime?    @map("delivered_at")
+  id                 Int                      @id @default(autoincrement())
+  saleId             Int                      @unique @map("sale_id")
+  channel            OrderChannel             @default(POS)
+  status             OrderStatus              @default(NEW)
+  branchId           Int                      @map("branch_id")
+  createdById        Int                      @map("created_by_id")
+  claimedById        Int?                     @map("claimed_by_id")
+  claimedAt          DateTime?                @map("claimed_at")
+  readyAt            DateTime?                @map("ready_at")
+  dispatchedAt       DateTime?                @map("dispatched_at")
+  deliveredAt        DateTime?                @map("delivered_at")
   cancelledAt        DateTime?                @map("cancelled_at")
   cancelReason       String?                  @map("cancel_reason") @db.Text
   cancellationReason OrderCancellationReason? @map("cancellation_reason")
   cancellationNote   String?                  @map("cancellation_note") @db.Text
   cancelledById      Int?                     @map("cancelled_by_id")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
 
   sale        Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
   branch      Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
@@ -1209,22 +1217,22 @@ enum BulkRefundMethod {
 }
 
 model BulkCustomer {
-  id                   Int       @id @default(autoincrement())
-  companyName          String    @map("company_name") @db.VarChar(200)
-  tradeName            String?   @map("trade_name") @db.VarChar(200)
-  taxNumber            String?   @unique @map("tax_number") @db.VarChar(50)
-  primaryContactName   String    @map("primary_contact_name") @db.VarChar(120)
-  primaryContactPhone  String    @map("primary_contact_phone") @db.VarChar(40)
-  primaryContactEmail  String?   @map("primary_contact_email") @db.VarChar(120)
-  shippingAddress      String    @map("shipping_address") @db.Text
-  creditLimit          Decimal?  @map("credit_limit") @db.Decimal(12, 2)
-  notes                String?   @db.Text
-  isActive             Boolean   @default(true) @map("is_active")
-  createdByUserId      Int?      @map("created_by_user_id")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
+  id                  Int      @id @default(autoincrement())
+  companyName         String   @map("company_name") @db.VarChar(200)
+  tradeName           String?  @map("trade_name") @db.VarChar(200)
+  taxNumber           String?  @unique @map("tax_number") @db.VarChar(50)
+  primaryContactName  String   @map("primary_contact_name") @db.VarChar(120)
+  primaryContactPhone String   @map("primary_contact_phone") @db.VarChar(40)
+  primaryContactEmail String?  @map("primary_contact_email") @db.VarChar(120)
+  shippingAddress     String   @map("shipping_address") @db.Text
+  creditLimit         Decimal? @map("credit_limit") @db.Decimal(12, 2)
+  notes               String?  @db.Text
+  isActive            Boolean  @default(true) @map("is_active")
+  createdByUserId     Int?     @map("created_by_user_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
-  createdBy      User?                  @relation("BulkCustomerCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdBy      User?                 @relation("BulkCustomerCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   contacts       BulkCustomerContact[]
   contractPrices BulkContractPrice[]
   orders         BulkOrder[]
@@ -1268,21 +1276,21 @@ model BulkContractPrice {
 }
 
 model BulkOrder {
-  id                  Int             @id @default(autoincrement())
-  orderNumber         String?         @unique @map("order_number")
-  customerId          Int             @map("customer_id")
-  warehouseId         Int             @map("warehouse_id")
-  createdByUserId     Int             @map("created_by_user_id")
-  status              BulkOrderStatus @default(DRAFT)
+  id              Int             @id @default(autoincrement())
+  orderNumber     String?         @unique @map("order_number")
+  customerId      Int             @map("customer_id")
+  warehouseId     Int             @map("warehouse_id")
+  createdByUserId Int             @map("created_by_user_id")
+  status          BulkOrderStatus @default(DRAFT)
 
-  subtotalInclusive   Decimal  @map("subtotal_inclusive") @db.Decimal(12, 2)
-  taxRate             Decimal  @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
-  netAmount           Decimal  @map("net_amount") @db.Decimal(12, 2)
-  taxAmount           Decimal  @map("tax_amount") @db.Decimal(12, 2)
-  total               Decimal  @db.Decimal(12, 2)
+  subtotalInclusive Decimal @map("subtotal_inclusive") @db.Decimal(12, 2)
+  taxRate           Decimal @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
+  netAmount         Decimal @map("net_amount") @db.Decimal(12, 2)
+  taxAmount         Decimal @map("tax_amount") @db.Decimal(12, 2)
+  total             Decimal @db.Decimal(12, 2)
 
-  paidAmount          Decimal  @default(0) @map("paid_amount") @db.Decimal(12, 2)
-  balanceDue          Decimal  @map("balance_due") @db.Decimal(12, 2)
+  paidAmount Decimal @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  balanceDue Decimal @map("balance_due") @db.Decimal(12, 2)
 
   scheduledPickupDate DateTime? @map("scheduled_pickup_date")
   confirmedAt         DateTime? @map("confirmed_at")
@@ -1292,9 +1300,9 @@ model BulkOrder {
   cancelReason        String?   @map("cancel_reason") @db.Text
   returnedAt          DateTime? @map("returned_at")
 
-  notes               String?   @db.Text
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   customer    BulkCustomer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
   warehouse   Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
@@ -1359,21 +1367,21 @@ model BulkPayment {
   receivedAt      DateTime          @default(now()) @map("received_at")
   createdByUserId Int               @map("created_by_user_id")
 
-  bankReference   String?           @map("bank_reference") @db.VarChar(120)
-  chequeNumber    String?           @map("cheque_number") @db.VarChar(60)
-  chequeDueDate   DateTime?         @map("cheque_due_date")
+  bankReference String?   @map("bank_reference") @db.VarChar(120)
+  chequeNumber  String?   @map("cheque_number") @db.VarChar(60)
+  chequeDueDate DateTime? @map("cheque_due_date")
 
-  voidedAt        DateTime?         @map("voided_at")
-  voidedByUserId  Int?              @map("voided_by_user_id")
-  voidReason      String?           @map("void_reason") @db.Text
+  voidedAt       DateTime? @map("voided_at")
+  voidedByUserId Int?      @map("voided_by_user_id")
+  voidReason     String?   @map("void_reason") @db.Text
 
-  notes           String?           @db.Text
+  notes String? @db.Text
 
-  order           BulkOrder         @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  customer        BulkCustomer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  treasury        Treasury?         @relation("BulkPaymentTreasury", fields: [treasuryId], references: [id], onDelete: Restrict)
-  createdBy       User              @relation("BulkPaymentCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  voidedBy        User?             @relation("BulkPaymentVoider", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+  order     BulkOrder    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customer  BulkCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  treasury  Treasury?    @relation("BulkPaymentTreasury", fields: [treasuryId], references: [id], onDelete: Restrict)
+  createdBy User         @relation("BulkPaymentCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  voidedBy  User?        @relation("BulkPaymentVoider", fields: [voidedByUserId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@index([customerId, receivedAt])
@@ -1391,9 +1399,9 @@ model BulkRefund {
   createdByUserId  Int              @map("created_by_user_id")
   createdAt        DateTime         @default(now()) @map("created_at")
 
-  order            BulkOrder        @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  treasury         Treasury?        @relation("BulkRefundTreasury", fields: [treasuryId], references: [id], onDelete: Restrict)
-  createdBy        User             @relation("BulkRefundCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  order     BulkOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  treasury  Treasury? @relation("BulkRefundTreasury", fields: [treasuryId], references: [id], onDelete: Restrict)
+  createdBy User      @relation("BulkRefundCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
   @@map("bulk_refunds")

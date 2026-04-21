@@ -10,7 +10,7 @@ const BranchesSalesPage = () => {
   const { activeBranchId } = useBranch();
   const [branches, setBranches] = useState([]);
   const [mainTreasury, setMainTreasury] = useState(null);
-  const [bankTreasury, setBankTreasury] = useState(null);
+  const [visaTreasury, setVisaTreasury] = useState(null);
   const [percentageChange, setPercentageChange] = useState(0);
   const [branchesTotalBalance, setBranchesTotalBalance] = useState(0);
   const [isPositive, setIsPositive] = useState(true);
@@ -29,12 +29,12 @@ const BranchesSalesPage = () => {
           setMainTreasury(mainTreasuryData);
         }
 
-        // Fetch Bank Treasury if configured
-        if (settings.bankTreasuryId) {
-          const bankTreasuryData = await treasuryService.getById(
-            settings.bankTreasuryId,
+        // Fetch Visa Treasury if configured (phase 6 will add Instapay card + date filter)
+        if (settings.visaTreasuryId) {
+          const visaTreasuryData = await treasuryService.getById(
+            settings.visaTreasuryId,
           );
-          setBankTreasury(bankTreasuryData);
+          setVisaTreasury(visaTreasuryData);
         }
 
         // Fetch Branch Balances (includes cash + instapay)
@@ -138,8 +138,8 @@ const BranchesSalesPage = () => {
             </div>
           </div>
 
-          {/* Bank Account Card */}
-          {bankTreasury && (
+          {/* Visa Treasury Card (Instapay card + date filter come in phase 6) */}
+          {visaTreasury && (
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#4c096e] text-white p-6 md:p-8 shadow-lg">
               <div
                 className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
@@ -155,15 +155,15 @@ const BranchesSalesPage = () => {
                       account_balance
                     </span>
                     <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-                      حساب البنك
+                      خزينة فيزا
                     </span>
                   </div>
                   <div>
                     <p className="text-white/60 text-sm mb-1">
-                      الرصيد المتراكم (فيزا + انستاباي)
+                      الرصيد المتراكم من مدفوعات الفيزا
                     </p>
                     <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white">
-                      {Number(bankTreasury.balance).toLocaleString()} جنيه مصري
+                      {Number(visaTreasury.balance).toLocaleString()} جنيه مصري
                     </h2>
                   </div>
                 </div>

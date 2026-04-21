@@ -14,7 +14,8 @@ router.get("/", async (req, res, next) => {
       include: {
         mainWarehouse: true,
         mainTreasury: true,
-        bankTreasury: true,
+        visaTreasury: true,
+        instapayTreasury: true,
       },
     });
 
@@ -28,7 +29,8 @@ router.get("/", async (req, res, next) => {
         include: {
           mainWarehouse: true,
           mainTreasury: true,
-          bankTreasury: true,
+          visaTreasury: true,
+          instapayTreasury: true,
         },
       });
     }
@@ -54,7 +56,8 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       taxNumber,
       mainWarehouseId,
       mainTreasuryId,
-      bankTreasuryId,
+      visaTreasuryId,
+      instapayTreasuryId,
       taxRate,
       salaryStartDay,
       salaryEndDay,
@@ -71,7 +74,8 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       taxNumber: taxNumber !== undefined ? String(taxNumber) : undefined,
       mainWarehouseId: safeInt(mainWarehouseId),
       mainTreasuryId: safeInt(mainTreasuryId),
-      bankTreasuryId: safeInt(bankTreasuryId),
+      visaTreasuryId: safeInt(visaTreasuryId),
+      instapayTreasuryId: safeInt(instapayTreasuryId),
       taxRate: parsedTaxRate,
       salaryStartDay: safeInt(salaryStartDay),
       salaryEndDay: safeInt(salaryEndDay),
@@ -93,7 +97,8 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
         taxNumber: taxNumber ? String(taxNumber) : "",
         mainWarehouseId: safeInt(mainWarehouseId),
         mainTreasuryId: safeInt(mainTreasuryId),
-        bankTreasuryId: safeInt(bankTreasuryId),
+        visaTreasuryId: safeInt(visaTreasuryId),
+        instapayTreasuryId: safeInt(instapayTreasuryId),
         taxRate: parsedTaxRate !== undefined ? parsedTaxRate : 14.0,
         salaryStartDay: safeInt(salaryStartDay) || 1,
         salaryEndDay: safeInt(salaryEndDay) || 30,
