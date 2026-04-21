@@ -158,37 +158,40 @@ router.get("/balances", async (req, res, next) => {
       orderBy: { createdAt: "asc" },
     });
 
-    // Today's range
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    // Date range: accept ?from=YYYY-MM-DD&to=YYYY-MM-DD (server local tz).
+    // Defaults to "today" when omitted. Sale.createdAt is stored in UTC but
+    // comparisons here use the server's local-day boundaries which is acceptable
+    // for Africa/Cairo (no DST) per Phase 5 spec.
+    const parseDateStart = (s) => {
+      const d = s ? new Date(s) : new Date();
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+    const parseDateEnd = (s) => {
+      const d = s ? new Date(s) : new Date();
+      d.setHours(23, 59, 59, 999);
+      return d;
+    };
+    const rangeStart = parseDateStart(req.query.from);
+    const rangeEnd = parseDateEnd(req.query.to);
 
     const branchIds = branches.map((b) => b.id);
 
-    // Aggregate INSTAPAY sales per branch for today
-    const instapaySales = await prisma.sale.groupBy({
-      by: ["branchId"],
+    // Aggregate digital sales per branch per method for the requested window
+    const digitalSales = await prisma.sale.groupBy({
+      by: ["branchId", "paymentMethod"],
       where: {
-        paymentMethod: "INSTAPAY",
+        paymentMethod: { in: ["INSTAPAY", "VISA"] },
         status: "COMPLETED",
-        createdAt: { gte: todayStart, lte: todayEnd },
+        createdAt: { gte: rangeStart, lte: rangeEnd },
         branchId: { in: branchIds },
       },
       _sum: { total: true },
     });
-
-    // Aggregate VISA sales per branch for today
-    const visaSales = await prisma.sale.groupBy({
-      by: ["branchId"],
-      where: {
-        paymentMethod: "VISA",
-        status: "COMPLETED",
-        createdAt: { gte: todayStart, lte: todayEnd },
-        branchId: { in: branchIds },
-      },
-      _sum: { total: true },
-    });
+    const instapaySales = digitalSales.filter(
+      (r) => r.paymentMethod === "INSTAPAY",
+    );
+    const visaSales = digitalSales.filter((r) => r.paymentMethod === "VISA");
 
     // Get Visa + Instapay treasury running balances from system config
     const sysConfig = await prisma.systemConfiguration.findFirst({
@@ -221,17 +224,26 @@ router.get("/balances", async (req, res, next) => {
       visaMap[row.branchId] = Number(row._sum.total || 0);
     });
 
-    const result = branches.map((branch) => ({
-      id: branch.id,
-      name: branch.name,
-      address: branch.address,
-      cashBalance: Number(branch.treasury?.balance || 0),
-      treasuryName: branch.treasury?.name || "الخزينة",
-      instapayToday: instapayMap[branch.id] || 0,
-      visaToday: visaMap[branch.id] || 0,
-      visaTreasuryBalance,
-      instapayTreasuryBalance,
-    }));
+    const result = branches.map((branch) => {
+      const cashBalance = Number(branch.treasury?.balance || 0);
+      const visa = visaMap[branch.id] || 0;
+      const instapay = instapayMap[branch.id] || 0;
+      return {
+        id: branch.id,
+        name: branch.name,
+        address: branch.address,
+        cashBalance,
+        visa,
+        instapay,
+        total: Math.round((cashBalance + visa + instapay) * 100) / 100,
+        treasuryName: branch.treasury?.name || "الخزينة",
+        // Legacy fields — kept for backward compat with existing UI consumers.
+        instapayToday: instapay,
+        visaToday: visa,
+        visaTreasuryBalance,
+        instapayTreasuryBalance,
+      };
+    });
 
     res.json(result);
   } catch (error) {

@@ -1350,8 +1350,14 @@ router.post(
   requireAnyPermission(["SALES", "POS"]),
   async (req, res, next) => {
     try {
-      const { saleId, items, managerUsername, managerPassword, notes } =
-        req.body;
+      const {
+        saleId,
+        items,
+        managerUsername,
+        managerPassword,
+        notes,
+        refundMethod,
+      } = req.body;
 
       // Validation
       if (!saleId || !items || items.length === 0) {
@@ -1368,6 +1374,39 @@ router.post(
           resolution:
             "Please provide manager credentials to authorize the refund.",
         });
+      }
+
+      // Normalize + validate refund method (Cash | Visa | Instapay, defaults to Cash)
+      const normalizedRefundMethod = (refundMethod || "CASH").toUpperCase();
+      const ALLOWED_REFUND_METHODS = ["CASH", "VISA", "INSTAPAY"];
+      if (!ALLOWED_REFUND_METHODS.includes(normalizedRefundMethod)) {
+        return res.status(400).json({
+          error: "Invalid refund method",
+          message: "طريقة الاسترداد غير صالحة",
+        });
+      }
+
+      // Pre-check: VISA/INSTAPAY require a configured global treasury
+      if (
+        normalizedRefundMethod === "VISA" ||
+        normalizedRefundMethod === "INSTAPAY"
+      ) {
+        const config = await prisma.systemConfiguration.findFirst({
+          select: { visaTreasuryId: true, instapayTreasuryId: true },
+        });
+        const treasuryId =
+          normalizedRefundMethod === "VISA"
+            ? config?.visaTreasuryId
+            : config?.instapayTreasuryId;
+        if (!treasuryId) {
+          return res.status(422).json({
+            error: "Refund treasury not configured",
+            message:
+              normalizedRefundMethod === "VISA"
+                ? "لم يتم ضبط خزينة فيزا. برجاء ضبطها من إعدادات النظام."
+                : "لم يتم ضبط خزينة انستاباي. برجاء ضبطها من إعدادات النظام.",
+          });
+        }
       }
 
       // Verify manager credentials
@@ -1586,7 +1625,7 @@ router.post(
             taxRate: taxRate,
             taxAmount: -taxAmount, // Negative for refund (post-discount)
             total: -total, // Negative for refund
-            paymentMethod: originalSale.paymentMethod,
+            paymentMethod: normalizedRefundMethod,
             paidAmount: -total, // Negative for refund
             changeAmount: 0,
             status: "COMPLETED",
@@ -1623,16 +1662,16 @@ router.post(
           "💰 Refund sale created successfully. Now processing treasury refund...",
         );
 
-        // Refund treasury balance
-        const method = (originalSale.paymentMethod || "CASH").toUpperCase();
-        console.log(`   Payment method: ${method}, Amount to refund: ${total}`);
+        // Refund treasury balance — routed by refundMethod (user pick, defaults to CASH)
+        const method = normalizedRefundMethod;
+        console.log(`   Refund method: ${method}, Amount to refund: ${total}`);
 
         if (method === "CASH") {
           await tx.treasury.update({
             where: { id: originalSale.treasuryId },
             data: { balance: { decrement: total } },
           });
-        } else if (method === "VISA" || method === "INSTAPAY") {
+        } else {
           const config = await tx.systemConfiguration.findFirst({
             select: { visaTreasuryId: true, instapayTreasuryId: true },
           });
@@ -1640,12 +1679,18 @@ router.post(
             method === "VISA"
               ? config?.visaTreasuryId
               : config?.instapayTreasuryId;
-          if (destTreasuryId) {
-            await tx.treasury.update({
-              where: { id: destTreasuryId },
-              data: { balance: { decrement: total } },
-            });
+          if (!destTreasuryId) {
+            // Should have been caught by pre-check, but guard anyway inside tx
+            throw new Error(
+              method === "VISA"
+                ? "لم يتم ضبط خزينة فيزا"
+                : "لم يتم ضبط خزينة انستاباي",
+            );
           }
+          await tx.treasury.update({
+            where: { id: destTreasuryId },
+            data: { balance: { decrement: total } },
+          });
         }
 
         return refundSale;

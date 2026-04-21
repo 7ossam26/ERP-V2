@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { FaSearch, FaRedo, FaTrash, FaCheck, FaTimes } from "react-icons/fa";
 import { salesService } from "../../services/domainServices";
+import { settingsService } from "../../services/settingsService";
 import toast from "react-hot-toast";
 import ManagerAuthModal from "../../components/common/ManagerAuthModal";
 
@@ -15,6 +16,11 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
   const [searchResults, setSearchResults] = useState([]); // List of found sales for selection
   const [shiftRefunds, setShiftRefunds] = useState([]); // Returns made in this shift
   const [recentSales, setRecentSales] = useState([]); // S8: auto-loaded recent sales
+  const [refundMethod, setRefundMethod] = useState("CASH");
+  const [systemConfig, setSystemConfig] = useState({
+    visaTreasuryId: null,
+    instapayTreasuryId: null,
+  });
 
   // Effect to auto-load if saleId provided, and load shift refunds + recent sales
   useEffect(() => {
@@ -31,6 +37,18 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
       salesService.getRecent(50)
         .then(setRecentSales)
         .catch(() => setRecentSales([]));
+    }
+    if (isOpen) {
+      settingsService
+        .get()
+        .then((cfg) =>
+          setSystemConfig({
+            visaTreasuryId: cfg?.visaTreasuryId ?? null,
+            instapayTreasuryId: cfg?.instapayTreasuryId ?? null,
+          }),
+        )
+        .catch(() => {});
+      setRefundMethod("CASH");
     }
     if (isOpen && shiftId) {
       salesService.getShiftRefunds(shiftId)
@@ -145,6 +163,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
       managerUsername: username,
       managerPassword: password,
       notes: refundNote,
+      refundMethod,
     };
 
     try {
@@ -408,6 +427,42 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
                   ))}
                 </tbody>
               </table>
+
+              <div className="flex gap-4 items-center">
+                <label className="whitespace-nowrap font-bold">
+                  طريقة الاسترداد:
+                </label>
+                <select
+                  value={refundMethod}
+                  onChange={(e) => setRefundMethod(e.target.value)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-red-500 outline-none bg-white dark:bg-gray-800"
+                >
+                  <option value="CASH">نقدي (خزينة الفرع)</option>
+                  <option
+                    value="VISA"
+                    disabled={!systemConfig.visaTreasuryId}
+                    title={
+                      !systemConfig.visaTreasuryId
+                        ? "لم يتم ضبط خزينة فيزا في إعدادات النظام"
+                        : undefined
+                    }
+                  >
+                    فيزا{!systemConfig.visaTreasuryId ? " (غير مُعدّ)" : ""}
+                  </option>
+                  <option
+                    value="INSTAPAY"
+                    disabled={!systemConfig.instapayTreasuryId}
+                    title={
+                      !systemConfig.instapayTreasuryId
+                        ? "لم يتم ضبط خزينة انستاباي في إعدادات النظام"
+                        : undefined
+                    }
+                  >
+                    انستاباي
+                    {!systemConfig.instapayTreasuryId ? " (غير مُعدّ)" : ""}
+                  </option>
+                </select>
+              </div>
 
               <div className="flex gap-4 items-center">
                 <label className="whitespace-nowrap font-bold">

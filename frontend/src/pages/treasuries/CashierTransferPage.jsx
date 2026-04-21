@@ -146,6 +146,15 @@ const CashierTransferPage = () => {
                     </option>
                     {treasuries
                       .filter((t) => {
+                        // Source must be branch cash (or MAIN for global-role users).
+                        // Visa / Instapay are one-way destinations and can never be source.
+                        if (
+                          t.scope === "GLOBAL_VISA" ||
+                          t.scope === "GLOBAL_INSTAPAY"
+                        ) {
+                          return false;
+                        }
+
                         const userBranchId =
                           currentUser?.branchId || currentUser?.branch?.id;
 
@@ -155,8 +164,8 @@ const CashierTransferPage = () => {
                           return Number(t.branch?.id) === Number(userBranchId);
                         }
 
-                        // If no user branch (Superadmin?), show all
-                        return true;
+                        // If no user branch (Superadmin?), show branch-cash + main
+                        return t.scope === "BRANCH_CASH" || t.scope === "MAIN";
                       })
                       .map((t) => (
                         <option key={t.id} value={t.id} className="text-black">
@@ -196,11 +205,32 @@ const CashierTransferPage = () => {
                     <option value="" disabled>
                       اختر الوجهة
                     </option>
-                    {treasuries.map((t) => (
-                      <option key={t.id} value={t.id} className="text-black">
-                        {t.name}
-                      </option>
-                    ))}
+                    {treasuries
+                      .filter((t) => {
+                        // Exclude the chosen source from destination list.
+                        if (
+                          sourceTreasuryId &&
+                          Number(t.id) === Number(sourceTreasuryId)
+                        ) {
+                          return false;
+                        }
+                        // If source is already a digital global treasury (shouldn't
+                        // happen given source filter above), the backend will reject;
+                        // but guard here so we don't present invalid pairings.
+                        return true;
+                      })
+                      .map((t) => (
+                        <option key={t.id} value={t.id} className="text-black">
+                          {t.name}
+                          {t.scope === "GLOBAL_VISA"
+                            ? " — خزينة فيزا"
+                            : t.scope === "GLOBAL_INSTAPAY"
+                              ? " — خزينة انستاباي"
+                              : t.scope === "MAIN"
+                                ? " — الخزينة الرئيسية"
+                                : ""}
+                        </option>
+                      ))}
                   </select>
                   <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
                     يتم التحويل كطلب معلق

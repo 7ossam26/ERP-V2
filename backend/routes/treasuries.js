@@ -21,15 +21,28 @@ router.get("/", requireAnyPermission(["TREASURIES", "PURCHASES", "SALES", "CASH_
     // Build query: Active treasuries
     const where = { isActive: true };
 
-    // If scoped to a branch, only show that branch's treasury
+    // Optional scope filter: ?scope=BRANCH_CASH|GLOBAL_VISA|GLOBAL_INSTAPAY|MAIN
+    // Also accept comma-separated list: ?scope=BRANCH_CASH,MAIN
+    if (req.query.scope) {
+      const ALLOWED_SCOPES = ["BRANCH_CASH", "GLOBAL_VISA", "GLOBAL_INSTAPAY", "MAIN"];
+      const requested = String(req.query.scope)
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter((s) => ALLOWED_SCOPES.includes(s));
+      if (requested.length === 1) where.scope = requested[0];
+      else if (requested.length > 1) where.scope = { in: requested };
+    }
+
+    // If scoped to a branch, only show that branch's cash treasury + global treasuries
+    // (MAIN / GLOBAL_VISA / GLOBAL_INSTAPAY are not branch-bound and must remain visible)
     if (branchFilter) {
-      if (branchFilter.id.in) {
-        // Multi-branch user (e.g., General Manager)
-        where.branch = { id: { in: branchFilter.id.in } };
-      } else {
-        // Single-branch user
-        where.branch = { id: branchFilter.id };
-      }
+      const branchClause = branchFilter.id.in
+        ? { branch: { id: { in: branchFilter.id.in } } }
+        : { branch: { id: branchFilter.id } };
+      where.OR = [
+        branchClause,
+        { scope: { in: ["GLOBAL_VISA", "GLOBAL_INSTAPAY", "MAIN"] } },
+      ];
     }
 
     const treasuries = await prisma.treasury.findMany({
@@ -43,6 +56,43 @@ router.get("/", requireAnyPermission(["TREASURIES", "PURCHASES", "SALES", "CASH_
     res
       .status(500)
       .json({ error: "Failed to fetch treasuries", message: error.message });
+  }
+});
+
+// GET global-balances — Visa, Instapay, Main treasury balances in one call.
+// Used by the Branches-Sales header cards (Phase 5 / 6).
+router.get("/global-balances", async (req, res) => {
+  try {
+    const cfg = await prisma.systemConfiguration.findFirst({
+      select: {
+        mainTreasuryId: true,
+        visaTreasuryId: true,
+        instapayTreasuryId: true,
+      },
+    });
+
+    const fetchOne = async (id) => {
+      if (!id) return null;
+      const t = await prisma.treasury.findUnique({
+        where: { id },
+        select: { id: true, name: true, balance: true, scope: true },
+      });
+      if (!t) return null;
+      return { id: t.id, name: t.name, balance: Number(t.balance || 0) };
+    };
+
+    const [mainTreasury, visaTreasury, instapayTreasury] = await Promise.all([
+      fetchOne(cfg?.mainTreasuryId),
+      fetchOne(cfg?.visaTreasuryId),
+      fetchOne(cfg?.instapayTreasuryId),
+    ]);
+
+    res.json({ mainTreasury, visaTreasury, instapayTreasury });
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch global treasury balances",
+      message: error.message,
+    });
   }
 });
 
@@ -155,6 +205,13 @@ router.post("/transfer", async (req, res) => {
 
       if (!source) throw new Error("Source treasury not found");
 
+      // Block Visa / Instapay as SOURCE — these are one-way destinations.
+      if (source.scope === "GLOBAL_VISA" || source.scope === "GLOBAL_INSTAPAY") {
+        const err = new Error("لا يمكن التحويل من خزائن فيزا / انستاباي");
+        err.status = 422;
+        throw err;
+      }
+
       // ----------------------------------------
 
       if (Number(source.balance) < transferAmount) {
@@ -183,7 +240,8 @@ router.post("/transfer", async (req, res) => {
     res.status(201).json(result);
   } catch (error) {
     console.error("Transfer Error:", error);
-    res.status(400).json({ error: error.message || "Transfer failed" });
+    const status = error.status && Number.isInteger(error.status) ? error.status : 400;
+    res.status(status).json({ error: error.message || "Transfer failed" });
   }
 });
 

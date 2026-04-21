@@ -246,10 +246,29 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               </div>
               <div
                 className={`flex justify-between items-center py-2 px-2 rounded font-bold ${report.shortage < 0 ? "bg-red-100 text-red-700" : report.shortage > 0 ? "bg-green-100 text-green-700" : "bg-green-50 text-green-700"}`}>
-                <span>العجز / الزيادة</span>
+                <span>العجز / الزيادة (كاش فقط)</span>
                 <span className="font-mono text-lg">
                   {report.shortage.toLocaleString()}
                 </span>
+              </div>
+
+              {/* Digital payment reconciliation — auto-trusted, no variance prompt */}
+              <div className="pt-3 border-t border-gray-200 space-y-2">
+                <div className="text-xs text-gray-500 italic">
+                  مبيعات رقمية — موثوقة تلقائياً (لا تحتاج عد)
+                </div>
+                <div className="flex justify-between items-center py-1 px-2 bg-blue-50 rounded">
+                  <span className="text-blue-700">فيزا</span>
+                  <span className="font-mono font-bold text-blue-700">
+                    {Number(report.expectedVisa ?? 0).toLocaleString()} ج.م
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1 px-2 bg-purple-50 rounded">
+                  <span className="text-purple-700">انستاباي</span>
+                  <span className="font-mono font-bold text-purple-700">
+                    {Number(report.expectedInstapay ?? 0).toLocaleString()} ج.م
+                  </span>
+                </div>
               </div>
             </div>
           </div>

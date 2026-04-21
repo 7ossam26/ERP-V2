@@ -591,6 +591,8 @@ model Shift {
   systemExpectedCash Decimal?    @map("system_expected_cash") @db.Decimal(10, 2)
   actualCash         Decimal?    @map("actual_cash") @db.Decimal(10, 2)
   shortage           Decimal?    @db.Decimal(10, 2)
+  expectedVisa       Decimal?    @map("expected_visa") @db.Decimal(10, 2)
+  expectedInstapay   Decimal?    @map("expected_instapay") @db.Decimal(10, 2)
   status             ShiftStatus @default(OPEN)
   reviewedById       Int?        @map("reviewed_by_id")
   reviewedAt         DateTime?   @map("reviewed_at")

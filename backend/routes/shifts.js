@@ -190,7 +190,7 @@ async function calculateSystemExpectedCash(shiftId) {
     },
   });
 
-  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0 };
+  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0, expectedVisa: 0, expectedInstapay: 0 };
 
   // Start with opening cash
   let startCash = parseFloat(shift.startCash) || 0;
@@ -199,6 +199,8 @@ async function calculateSystemExpectedCash(shiftId) {
   let codDeliveredThisShift = 0;
   let codPendingExcluded = 0;
   let cashExpenses = 0;
+  let expectedVisa = 0;
+  let expectedInstapay = 0;
 
   // Add cash sales only (card sales don't go in drawer).
   // S6: for sales linked to an Order (delivery flow), only count cash that's
@@ -207,8 +209,16 @@ async function calculateSystemExpectedCash(shiftId) {
   // with shiftId=current implicitly satisfies the "this shift" half of the
   // rule. In-flight COD stays attributed here but is excluded from expected.
   shift.sales.forEach((sale) => {
-    if (sale.paymentMethod !== "CASH") return;
     const amount = parseFloat(sale.total) || 0;
+    if (sale.paymentMethod === "VISA") {
+      expectedVisa += amount;
+      return;
+    }
+    if (sale.paymentMethod === "INSTAPAY") {
+      expectedInstapay += amount;
+      return;
+    }
+    if (sale.paymentMethod !== "CASH") return;
     if (!sale.order) {
       // Walk-in POS cash — money in the drawer at sale time.
       posCash += amount;
@@ -242,6 +252,8 @@ async function calculateSystemExpectedCash(shiftId) {
     codPendingExcluded: round(codPendingExcluded),
     cashExpenses: round(cashExpenses),
     startCash: round(startCash),
+    expectedVisa: round(expectedVisa),
+    expectedInstapay: round(expectedInstapay),
   };
 }
 
@@ -424,6 +436,8 @@ router.post("/end", async (req, res, next) => {
       codPendingExcluded,
       cashExpenses,
       startCash,
+      expectedVisa,
+      expectedInstapay,
     } = await calculateSystemExpectedCash(parseInt(shiftId));
     const actualCashValue = parseFloat(actualCash);
 
@@ -440,6 +454,8 @@ router.post("/end", async (req, res, next) => {
         systemExpectedCash: systemExpectedCash,
         actualCash: actualCashValue,
         shortage: shortage,
+        expectedVisa: expectedVisa,
+        expectedInstapay: expectedInstapay,
         status: "PENDING_REVIEW",
       },
     });
@@ -487,6 +503,8 @@ router.post("/end", async (req, res, next) => {
         codPendingExcluded,
         cashExpenses,
         systemExpectedCash,
+        expectedVisa,
+        expectedInstapay,
       },
       deliveryWarnings: deliveryWarnings.length > 0 ? deliveryWarnings : null,
       hasPendingDeliveries: deliveryWarnings.length > 0,
@@ -782,6 +800,8 @@ router.get(
       let totalSales = 0;
       let cashSales = 0;
       let cardSales = 0;
+      let visaSales = 0;
+      let instapaySales = 0;
       let posCashReport = 0;
       let codDeliveredReport = 0;
       let codPendingReport = 0;
@@ -833,6 +853,8 @@ router.get(
           }
         } else {
           cardSales += saleTotal;
+          if (paymentMethod === "VISA") visaSales += saleTotal;
+          else if (paymentMethod === "INSTAPAY") instapaySales += saleTotal;
         }
 
         // Breakdown by type: takeaway vs delivery
@@ -982,6 +1004,10 @@ router.get(
         totalSales,
         cashReceived: cashSales,
         cardPayments: cardSales,
+        visaPayments: Math.round(visaSales * 100) / 100,
+        instapayPayments: Math.round(instapaySales * 100) / 100,
+        expectedVisa: shift.expectedVisa != null ? parseFloat(shift.expectedVisa) : Math.round(visaSales * 100) / 100,
+        expectedInstapay: shift.expectedInstapay != null ? parseFloat(shift.expectedInstapay) : Math.round(instapaySales * 100) / 100,
         cashBreakdown: {
           posCash: Math.round(posCashReport * 100) / 100,
           codDeliveredThisShift: Math.round(codDeliveredReport * 100) / 100,
