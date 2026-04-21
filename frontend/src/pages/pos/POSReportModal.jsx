@@ -31,6 +31,8 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
 
   const cashReceived = reportData?.cashReceived || 0;
   const cardPayments = reportData?.cardPayments || 0;
+  const expectedVisa = reportData?.expectedVisa || reportData?.visaPayments || 0;
+  const expectedInstapay = reportData?.expectedInstapay || reportData?.instapayPayments || 0;
   const totalSales = reportData?.totalSales || 0;
   const startCash = reportData?.startCash || 0;
   const systemExpectedCash = reportData?.systemExpectedCash || 0;
@@ -159,8 +161,18 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
               <span className="w-32 text-left font-mono font-bold text-lg text-gray-900 dark:text-white">{fmt(totalSales)}</span>
             </div>
             <div className="flex items-center py-3 px-4 text-sm border-b border-gray-200 dark:border-zinc-700">
-              <span className="flex-1 text-right font-bold text-purple-700 dark:text-purple-400">فيزا :</span>
-              <span className="w-32 text-left font-mono font-bold text-lg text-purple-700 dark:text-purple-400">{fmt(cardPayments)}</span>
+              <div className="flex-1 text-right flex flex-col">
+                <span className="font-bold text-blue-700 dark:text-blue-400">فيزا :</span>
+                <span className="text-xs text-gray-500 font-medium">موثوقة تلقائياً</span>
+              </div>
+              <span className="w-32 text-left font-mono font-bold text-lg text-blue-700 dark:text-blue-400">{fmt(expectedVisa)}</span>
+            </div>
+            <div className="flex items-center py-3 px-4 text-sm border-b border-gray-200 dark:border-zinc-700">
+              <div className="flex-1 text-right flex flex-col">
+                <span className="font-bold text-purple-700 dark:text-purple-400">انستا باي :</span>
+                <span className="text-xs text-gray-500 font-medium">موثوقة تلقائياً</span>
+              </div>
+              <span className="w-32 text-left font-mono font-bold text-lg text-purple-700 dark:text-purple-400">{fmt(expectedInstapay)}</span>
             </div>
             <div className="flex items-center py-3 px-4 text-sm bg-amber-50 dark:bg-amber-900/20">
               <span className="flex-1 text-right font-bold text-amber-800 dark:text-amber-300">المبلغ في الدرج :</span>

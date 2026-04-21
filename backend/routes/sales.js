@@ -1385,6 +1385,7 @@ router.post(
       }
 
       // Pre-check: VISA/INSTAPAY require a configured global treasury
+      let refundTreasuryId = null;
       if (
         normalizedRefundMethod === "VISA" ||
         normalizedRefundMethod === "INSTAPAY"
@@ -1392,11 +1393,11 @@ router.post(
         const config = await prisma.systemConfiguration.findFirst({
           select: { visaTreasuryId: true, instapayTreasuryId: true },
         });
-        const treasuryId =
+        refundTreasuryId =
           normalizedRefundMethod === "VISA"
             ? config?.visaTreasuryId
             : config?.instapayTreasuryId;
-        if (!treasuryId) {
+        if (!refundTreasuryId) {
           return res.status(422).json({
             error: "Refund treasury not configured",
             message:
@@ -1612,7 +1613,7 @@ router.post(
             employeeId: originalSale.employeeId,
             userId: originalSale.userId,
             branchId: originalSale.branchId,
-            treasuryId: originalSale.treasuryId,
+            treasuryId: refundTreasuryId || originalSale.treasuryId,
             warehouseId: originalSale.warehouseId,
             shiftId: originalSale.shiftId,
             subtotal: -refundSubtotal, // Negative for refund
