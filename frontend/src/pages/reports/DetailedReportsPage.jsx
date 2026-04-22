@@ -93,6 +93,15 @@ const DetailedReportsPage = () => {
       bg: "bg-lime-100",
       darkBg: "dark:bg-lime-900/20",
     },
+    {
+      title: "تقارير الجملة",
+      description: "مبيعات وتقادم الذمم وكشف الحساب",
+      icon: "analytics",
+      path: "/reports/bulk",
+      color: "text-amber-700",
+      bg: "bg-amber-100",
+      darkBg: "dark:bg-amber-900/20",
+    },
   ];
 
   return (

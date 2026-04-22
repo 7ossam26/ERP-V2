@@ -2,10 +2,12 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
+import { settingsService } from "../../services/settingsService";
 import { formatEGP, formatNumber } from "../../utils/bulkMoney";
 import BulkSalesReceipt from "../../components/bulk/BulkSalesReceipt";
 import BulkPaymentModal from "../../components/bulk/BulkPaymentModal";
 import BulkReturnModal from "../../components/bulk/BulkReturnModal";
+import StatusChip from "../../components/bulk/StatusChip";
 
 const STATUS_LABELS = {
   DRAFT: "مسودة",
@@ -32,11 +34,14 @@ export default function BulkOrderDetailPage() {
   const [printing, setPrinting] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [settingsTaxRate, setSettingsTaxRate] = useState(0.14);
 
   const load = async () => {
     setLoading(true);
     try {
-      setOrder(await bulkService.getOrder(id));
+      const [ord, cfg] = await Promise.all([bulkService.getOrder(id), settingsService.get()]);
+      setOrder(ord);
+      if (cfg?.taxRate != null) setSettingsTaxRate(Number(cfg.taxRate) / 100);
     } catch (err) {
       toast.error(err?.data?.error || "تعذر تحميل الطلب");
     } finally {
@@ -54,9 +59,7 @@ export default function BulkOrderDetailPage() {
     if (!window.confirm("تأكيد الطلب وخصم المخزون نقدًا؟")) return;
     setWorking(true);
     try {
-      const updated = await bulkService.confirmOrder(order.id, {
-        paidAmount: Number(order.total),
-      });
+      const updated = await bulkService.confirmOrder(order.id, { paidAmount: Number(order.total) });
       toast.success(`تم التأكيد ${updated.orderNumber || ""}`);
       setOrder(updated);
     } catch (err) {
@@ -126,8 +129,8 @@ export default function BulkOrderDetailPage() {
     }
   };
 
-  if (loading) return <div className="p-6 text-center">جارٍ التحميل...</div>;
-  if (!order) return <div className="p-6 text-center">الطلب غير موجود.</div>;
+  if (loading) return <div className="p-6 text-center text-text-light/60 dark:text-text-dark/60">جارٍ التحميل...</div>;
+  if (!order) return <div className="p-6 text-center text-text-light/60 dark:text-text-dark/60">الطلب غير موجود.</div>;
 
   const canConfirm = order.status === "DRAFT" || order.status === "QUOTED";
   const canCancel = order.status === "DRAFT" || order.status === "QUOTED";
@@ -139,41 +142,36 @@ export default function BulkOrderDetailPage() {
 
   return (
     <div className="p-4 sm:p-6" dir="rtl">
-      {printing && (
-        <BulkSalesReceipt order={order} onDone={() => setPrinting(false)} />
-      )}
+      {printing && <BulkSalesReceipt order={order} onDone={() => setPrinting(false)} />}
       {showPayModal && (
         <BulkPaymentModal
           order={order}
-          onSuccess={(result) => {
-            setShowPayModal(false);
-            load();
-          }}
+          onSuccess={() => { setShowPayModal(false); load(); }}
           onClose={() => setShowPayModal(false)}
         />
       )}
       {showReturnModal && (
         <BulkReturnModal
           order={order}
-          onSuccess={(updated) => {
-            setShowReturnModal(false);
-            setOrder(updated);
-          }}
+          onSuccess={(updated) => { setShowReturnModal(false); setOrder(updated); }}
           onClose={() => setShowReturnModal(false)}
         />
       )}
 
-      <div className="flex items-center justify-between mb-4 no-print flex-wrap gap-2">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-5 no-print flex-wrap gap-3">
         <div>
-          <Link to="/bulk/orders" className="text-blue-600 hover:underline text-sm">
+          <Link to="/bulk/orders" className="text-primary hover:text-primary-hover text-sm transition-colors">
             ← الرجوع للقائمة
           </Link>
-          <h1 className="text-2xl font-bold mt-1">
+          <h1 className="text-2xl font-bold text-text-light dark:text-text-dark mt-1">
             {order.orderNumber || `طلب #${order.id}`}
           </h1>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            {STATUS_LABELS[order.status] || order.status} ·{" "}
-            {new Date(order.createdAt).toLocaleString("ar-EG")}
+          <div className="flex items-center gap-2 mt-1">
+            <StatusChip status={order.status} />
+            <span className="text-sm text-text-light/60 dark:text-text-dark/60">
+              {new Date(order.createdAt).toLocaleString("ar-EG")}
+            </span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -181,7 +179,7 @@ export default function BulkOrderDetailPage() {
             <button
               disabled={working}
               onClick={onCancel}
-              className="border text-red-700 border-red-200 hover:bg-red-50 px-3 py-2 rounded-md disabled:opacity-50"
+              className="border border-red-300 text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 rounded-xl text-sm disabled:opacity-50 transition-colors duration-200"
             >
               إلغاء الطلب
             </button>
@@ -191,14 +189,14 @@ export default function BulkOrderDetailPage() {
               <button
                 disabled={working}
                 onClick={onConfirmCredit}
-                className="border border-amber-400 text-amber-700 hover:bg-amber-50 px-3 py-2 rounded-md disabled:opacity-60"
+                className="border border-amber-400/60 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 px-3 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
               >
                 {working ? "..." : "تأكيد آجل"}
               </button>
               <button
                 disabled={working}
                 onClick={onConfirmCash}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md disabled:opacity-60"
+                className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
               >
                 {working ? "..." : "تأكيد نقدي"}
               </button>
@@ -207,7 +205,7 @@ export default function BulkOrderDetailPage() {
           {canPay && (
             <button
               onClick={() => setShowPayModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+              className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm transition-colors duration-200"
             >
               سجّل دفعة
             </button>
@@ -215,7 +213,7 @@ export default function BulkOrderDetailPage() {
           {canReturn && (
             <button
               onClick={() => setShowReturnModal(true)}
-              className="border border-orange-400 text-orange-700 hover:bg-orange-50 px-3 py-2 rounded-md"
+              className="border border-orange-400/60 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 px-3 py-2 rounded-xl text-sm transition-colors duration-200"
             >
               إرجاع
             </button>
@@ -223,7 +221,7 @@ export default function BulkOrderDetailPage() {
           {printDoc && (
             <button
               onClick={() => setPrinting(true)}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
+              className="bg-primary/90 hover:bg-primary text-white px-4 py-2 rounded-xl text-sm transition-colors duration-200"
             >
               طباعة
             </button>
@@ -231,85 +229,94 @@ export default function BulkOrderDetailPage() {
         </div>
       </div>
 
+      {/* Info cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 no-print">
-        <Card title="العميل">
-          <div className="font-semibold">{order.customer?.companyName}</div>
-          <div className="text-xs text-gray-500">
+        <InfoCard title="العميل">
+          <div className="font-semibold text-text-light dark:text-text-dark">{order.customer?.companyName}</div>
+          <div className="text-xs text-text-light/50 dark:text-text-dark/50">
             {order.customer?.taxNumber ? `رقم ضريبي ${order.customer.taxNumber}` : "بدون رقم ضريبي"}
           </div>
-        </Card>
-        <Card title="المخزن">{order.warehouse?.name}</Card>
-        <Card title="أنشأ بواسطة">{order.createdBy?.name}</Card>
+        </InfoCard>
+        <InfoCard title="المخزن">
+          <span className="text-text-light dark:text-text-dark">{order.warehouse?.name}</span>
+        </InfoCard>
+        <InfoCard title="أنشأ بواسطة">
+          <span className="text-text-light dark:text-text-dark">{order.createdBy?.name}</span>
+        </InfoCard>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 mb-4 no-print">
-        <h3 className="font-bold mb-2">السطور</h3>
+      {/* Lines */}
+      <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark p-4 mb-4 no-print">
+        <h3 className="font-bold mb-2 text-text-light dark:text-text-dark">السطور</h3>
         <table className="w-full text-sm">
-          <thead className="bg-gray-100 dark:bg-gray-700">
+          <thead className="bg-accent/30 dark:bg-primary/10">
             <tr>
-              <th className="text-right p-2">الصنف</th>
-              <th className="text-right p-2">الكمية</th>
-              <th className="text-right p-2">السعر</th>
-              <th className="text-right p-2">الإجمالي</th>
+              <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الصنف</th>
+              <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الكمية</th>
+              <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">السعر</th>
+              <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الإجمالي</th>
             </tr>
           </thead>
           <tbody>
             {order.items?.map((l) => (
-              <tr key={l.id} className="border-t">
-                <td className="p-2">{l.item?.name}</td>
-                <td className="p-2 ltr-numbers">{formatNumber(l.quantity)} {l.item?.unit || ""}</td>
-                <td className="p-2">{formatEGP(l.unitPrice)}</td>
-                <td className="p-2">{formatEGP(l.lineTotal)}</td>
+              <tr key={l.id} className="border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10">
+                <td className="p-2 text-text-light dark:text-text-dark">{l.item?.name}</td>
+                <td className="p-2 ltr-numbers text-text-light dark:text-text-dark">{formatNumber(l.quantity)} {l.item?.unit || ""}</td>
+                <td className="p-2 text-text-light dark:text-text-dark">{formatEGP(l.unitPrice)}</td>
+                <td className="p-2 text-text-light dark:text-text-dark">{formatEGP(l.lineTotal)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 mb-4 no-print">
-        <h3 className="font-bold mb-2">الإجماليات</h3>
+      {/* Totals */}
+      <div className="bg-accent/20 dark:bg-primary/10 border border-border-light dark:border-border-dark rounded-xl p-4 mb-4 no-print">
+        <h3 className="font-bold mb-2 text-text-light dark:text-text-dark">الإجماليات</h3>
         <div className="space-y-1 text-sm">
           <Row label="الصافي قبل الضريبة" value={formatEGP(order.netAmount)} />
-          <Row label={`الضريبة (${(Number(order.taxRate) * 100).toFixed(0)}%)`} value={formatEGP(order.taxAmount)} />
+          <Row label={`الضريبة (${((Number(order.taxRate) || settingsTaxRate) * 100).toFixed(0)}%)`} value={formatEGP(order.taxAmount)} />
           <Row label="الإجمالي شامل الضريبة" value={formatEGP(order.total)} bold />
           <Row label="المدفوع" value={formatEGP(order.paidAmount)} />
           <Row label="المتبقي" value={formatEGP(order.balanceDue)} bold />
         </div>
       </div>
 
-      {/* Payments list */}
+      {/* Payments */}
       {order.payments?.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 mb-4 no-print">
-          <h3 className="font-bold mb-2">الدفعات</h3>
+        <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark p-4 mb-4 no-print">
+          <h3 className="font-bold mb-2 text-text-light dark:text-text-dark">الدفعات</h3>
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+            <thead className="bg-accent/30 dark:bg-primary/10">
               <tr>
-                <th className="text-right p-2">التاريخ</th>
-                <th className="text-right p-2">الطريقة</th>
-                <th className="text-right p-2">المبلغ</th>
-                <th className="text-right p-2">الخزينة</th>
-                <th className="text-right p-2">الحالة</th>
+                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
+                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الطريقة</th>
+                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">المبلغ</th>
+                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الخزينة</th>
+                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الحالة</th>
                 <th className="p-2"></th>
               </tr>
             </thead>
             <tbody>
               {order.payments.map((p) => (
-                <tr key={p.id} className={`border-t ${p.voidedAt ? "opacity-50 line-through" : ""}`}>
-                  <td className="p-2 ltr-numbers">{new Date(p.receivedAt).toLocaleDateString("ar-EG")}</td>
-                  <td className="p-2">{METHOD_LABELS[p.method] || p.method}</td>
-                  <td className="p-2 font-medium">{formatEGP(p.amount)}</td>
-                  <td className="p-2">{p.treasury?.name || "—"}</td>
+                <tr key={p.id} className={`border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10 ${p.voidedAt ? "opacity-50 line-through" : ""}`}>
+                  <td className="p-2 ltr-numbers text-text-light/70 dark:text-text-dark/70">
+                    {new Date(p.receivedAt).toLocaleDateString("ar-EG")}
+                  </td>
+                  <td className="p-2 text-text-light dark:text-text-dark">{METHOD_LABELS[p.method] || p.method}</td>
+                  <td className="p-2 font-medium text-text-light dark:text-text-dark">{formatEGP(p.amount)}</td>
+                  <td className="p-2 text-text-light dark:text-text-dark">{p.treasury?.name || "—"}</td>
                   <td className="p-2">
                     {p.voidedAt
                       ? <span className="text-red-600 text-xs">ملغاة</span>
-                      : <span className="text-green-700 text-xs">مسجلة</span>
+                      : <span className="text-emerald-700 text-xs">مسجلة</span>
                     }
                   </td>
                   <td className="p-2">
                     {!p.voidedAt && (
                       <button
                         onClick={() => onVoidPayment(p.id)}
-                        className="text-red-600 hover:underline text-xs"
+                        className="text-red-600 hover:text-red-700 text-xs transition-colors"
                       >
                         إلغاء
                       </button>
@@ -322,15 +329,16 @@ export default function BulkOrderDetailPage() {
         </div>
       )}
 
+      {/* Documents */}
       {order.documents?.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 no-print">
-          <h3 className="font-bold mb-2">المستندات</h3>
+        <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark p-4 no-print">
+          <h3 className="font-bold mb-2 text-text-light dark:text-text-dark">المستندات</h3>
           <ul className="text-sm space-y-1">
             {order.documents.map((d) => (
               <li key={d.id}>
-                <span className="text-gray-500">{d.type}:</span>{" "}
-                <span className="font-medium">{d.documentNumber}</span>{" "}
-                <span className="text-xs text-gray-400">
+                <span className="text-text-light/50 dark:text-text-dark/50">{d.type}:</span>{" "}
+                <span className="font-medium text-text-light dark:text-text-dark">{d.documentNumber}</span>{" "}
+                <span className="text-xs text-text-light/40 dark:text-text-dark/40">
                   ({new Date(d.issuedAt).toLocaleString("ar-EG")})
                 </span>
               </li>
@@ -342,10 +350,10 @@ export default function BulkOrderDetailPage() {
   );
 }
 
-function Card({ title, children }) {
+function InfoCard({ title, children }) {
   return (
-    <div className="bg-white dark:bg-gray-800 border rounded-lg p-3">
-      <div className="text-xs text-gray-500 mb-1">{title}</div>
+    <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark p-3">
+      <div className="text-xs text-text-light/50 dark:text-text-dark/50 mb-1">{title}</div>
       <div>{children}</div>
     </div>
   );
@@ -353,7 +361,7 @@ function Card({ title, children }) {
 
 function Row({ label, value, bold }) {
   return (
-    <div className={`flex justify-between ${bold ? "font-bold" : ""}`}>
+    <div className={`flex justify-between ${bold ? "font-bold text-primary dark:text-accent" : "text-text-light/70 dark:text-text-dark/70"}`}>
       <span>{label}</span>
       <span>{value}</span>
     </div>

@@ -499,9 +499,9 @@ function App() {
             }
           />
           <Route
-            path="/bulk/reports"
+            path="/reports/bulk"
             element={
-              <ProtectedRoute requiredPermission={["BULK_POS", "BULK_REPORTS"]}>
+              <ProtectedRoute requiredPermission="REPORTS">
                 <BulkReportsPage />
               </ProtectedRoute>
             }

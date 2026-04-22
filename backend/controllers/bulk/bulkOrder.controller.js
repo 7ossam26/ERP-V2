@@ -204,15 +204,6 @@ exports.confirm = async (req, res, next) => {
         throw err;
       }
 
-      // Phase 1 gate: tax invoices are deferred to Phase 2.
-      if (CURRENT_PHASE < 2 && order.customer.taxNumber) {
-        const err = new Error("TAX_INVOICE_NOT_AVAILABLE_IN_PHASE_1");
-        err.status = 400;
-        err.data = { error: "TAX_INVOICE_NOT_AVAILABLE_IN_PHASE_1",
-          message: "Orders for tax-registered customers require Phase 2 to issue a tax invoice" };
-        throw err;
-      }
-
       const orderTotal = Number(order.total);
       const now = new Date();
 

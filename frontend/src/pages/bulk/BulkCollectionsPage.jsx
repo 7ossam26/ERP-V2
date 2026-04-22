@@ -3,13 +3,9 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { formatEGP } from "../../utils/bulkMoney";
-
-const METHOD_LABELS = {
-  CASH: "نقدي",
-  BANK_TRANSFER: "تحويل بنكي",
-  CHEQUE: "شيك",
-  CREDIT: "آجل",
-};
+import BulkSectionTabs from "../../components/bulk/BulkSectionTabs";
+import SummaryCard from "../../components/bulk/SummaryCard";
+import StatusChip from "../../components/bulk/StatusChip";
 
 export default function BulkCollectionsPage() {
   const [orders, setOrders] = useState([]);
@@ -19,9 +15,7 @@ export default function BulkCollectionsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const params = {};
       if (statusFilter) {
-        // Fetch multiple statuses by calling multiple times or filter client-side
         const allResults = await Promise.all(
           statusFilter.split(",").map((s) => bulkService.listOrders({ status: s.trim() }))
         );
@@ -29,7 +23,7 @@ export default function BulkCollectionsPage() {
         merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setOrders(merged);
       } else {
-        const data = await bulkService.listOrders(params);
+        const data = await bulkService.listOrders({});
         setOrders(data);
       }
     } catch (err) {
@@ -47,15 +41,22 @@ export default function BulkCollectionsPage() {
   const totalBalanceDue = orders.reduce((s, o) => s + Number(o.balanceDue || 0), 0);
 
   return (
-    <div className="p-4 sm:p-6" dir="rtl">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-3 sm:p-4" dir="rtl">
+      {/* Page header */}
+      <div className="mb-3">
+        <h1 className="text-2xl font-bold text-text-light dark:text-text-dark">الجملة</h1>
+        <div className="h-1 w-16 bg-primary rounded-full mt-1 mb-3 opacity-80" />
+        <BulkSectionTabs />
+      </div>
+
+      {/* Sub-header row */}
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-2xl font-bold">التحصيلات</h1>
-          <div className="text-sm text-gray-500">الطلبات المعلقة التحصيل</div>
+          <p className="text-sm text-text-light/60 dark:text-text-dark/60">الطلبات المعلقة التحصيل</p>
         </div>
         <div className="flex gap-2 items-center">
           <select
-            className="border rounded-md p-2 bg-white dark:bg-gray-800 text-sm"
+            className="border border-border-light dark:border-border-dark rounded-xl p-2.5 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -64,65 +65,61 @@ export default function BulkCollectionsPage() {
             <option value="PARTIALLY_PAID">مدفوع جزئيًا</option>
             <option value="">الكل</option>
           </select>
-          <Link
-            to="/bulk/orders"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            كل الطلبات
-          </Link>
         </div>
       </div>
 
+      {/* KPI */}
       {!loading && orders.length > 0 && (
-        <div className="mb-3 text-sm font-medium text-red-700 dark:text-red-400">
-          إجمالي المتبقي: {formatEGP(totalBalanceDue)}
+        <div className="mb-4 max-w-xs">
+          <SummaryCard label="إجمالي المتبقي" value={formatEGP(totalBalanceDue)} tone="danger" />
         </div>
       )}
 
-      <div className="overflow-x-auto bg-white dark:bg-gray-800 border rounded-lg">
+      {/* Table */}
+      <div className="overflow-x-auto bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100 dark:bg-gray-700">
+          <thead className="bg-accent/30 dark:bg-primary/10">
             <tr>
-              <th className="text-right p-3">الطلب</th>
-              <th className="text-right p-3">العميل</th>
-              <th className="text-right p-3">التاريخ</th>
-              <th className="text-right p-3">الإجمالي</th>
-              <th className="text-right p-3">المدفوع</th>
-              <th className="text-right p-3">المتبقي</th>
-              <th className="text-right p-3">الحالة</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الطلب</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">العميل</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الإجمالي</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">المدفوع</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">المتبقي</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الحالة</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="p-4 text-center">جارٍ التحميل...</td>
+                <td colSpan={7} className="p-4 text-center text-text-light/60 dark:text-text-dark/60">
+                  جارٍ التحميل...
+                </td>
               </tr>
             )}
             {!loading && orders.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500">لا يوجد طلبات معلقة.</td>
+                <td colSpan={7} className="p-4 text-center text-text-light/40 dark:text-text-dark/40">
+                  لا يوجد طلبات معلقة.
+                </td>
               </tr>
             )}
             {orders.map((o) => (
-              <tr key={o.id} className="border-t hover:bg-gray-50 dark:hover:bg-gray-700">
+              <tr key={o.id} className="border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10 transition-colors duration-150">
                 <td className="p-3">
-                  <Link to={`/bulk/orders/${o.id}`} className="text-blue-600 hover:underline font-medium">
+                  <Link to={`/bulk/orders/${o.id}`} className="text-primary hover:text-primary-hover font-semibold transition-colors">
                     {o.orderNumber || `#${o.id}`}
                   </Link>
                 </td>
-                <td className="p-3">{o.customer?.companyName || "—"}</td>
-                <td className="p-3 ltr-numbers">{new Date(o.createdAt).toLocaleDateString("ar-EG")}</td>
-                <td className="p-3">{formatEGP(o.total)}</td>
-                <td className="p-3 text-green-700 dark:text-green-400">{formatEGP(o.paidAmount)}</td>
-                <td className="p-3 text-red-700 dark:text-red-400 font-medium">{formatEGP(o.balanceDue)}</td>
+                <td className="p-3 text-text-light dark:text-text-dark">{o.customer?.companyName || "—"}</td>
+                <td className="p-3 ltr-numbers text-text-light/70 dark:text-text-dark/70">
+                  {new Date(o.createdAt).toLocaleDateString("ar-EG")}
+                </td>
+                <td className="p-3 text-text-light dark:text-text-dark">{formatEGP(o.total)}</td>
+                <td className="p-3 text-emerald-700 dark:text-emerald-400 font-medium">{formatEGP(o.paidAmount)}</td>
+                <td className="p-3 text-red-700 dark:text-red-400 font-bold">{formatEGP(o.balanceDue)}</td>
                 <td className="p-3">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    o.status === "CONFIRMED"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}>
-                    {o.status === "CONFIRMED" ? "مؤكد" : "مدفوع جزئيًا"}
-                  </span>
+                  <StatusChip status={o.status} />
                 </td>
               </tr>
             ))}

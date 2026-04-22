@@ -248,8 +248,8 @@ export const MODULES = [
   {
     id: "bulk_pos",
     code: "BULK_POS",
-    label: "البيع بالجملة",
-    description: "فواتير العملاء والعقود",
+    label: "الجملة",
+    description: "نقاط البيع والتحصيلات",
     icon: "store",
     path: "/bulk/pos",
     category: "MANAGEMENT",
@@ -261,25 +261,7 @@ export const MODULES = [
     description: "الشركات والعقود والأسعار",
     icon: "business",
     path: "/bulk/customers",
-    category: "MANAGEMENT",
-  },
-  {
-    id: "bulk_collections",
-    code: "BULK_POS",
-    label: "تحصيلات الجملة",
-    description: "الطلبات المعلقة والدفعات",
-    icon: "payments",
-    path: "/bulk/collections",
-    category: "MANAGEMENT",
-  },
-  {
-    id: "bulk_reports",
-    code: "BULK_POS",
-    label: "تقارير الجملة",
-    description: "المبيعات وتقادم الذمم وكشف الحساب",
-    icon: "analytics",
-    path: "/bulk/reports",
-    category: "MANAGEMENT",
+    category: "CREATION",
   },
 ];
 
