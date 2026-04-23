@@ -216,9 +216,25 @@ exports.confirm = async (req, res, next) => {
       const orderTotal = Number(order.total);
       const now = new Date();
 
-      // Credit check: always assume worst case (full order total added to AR) so
-      // a customer at their limit can't slip through by promising partial cash.
-      await assertCreditLimitOk(tx, order.customer, orderTotal, order.id);
+      // Resolve payment intent first so the credit check can use the real exposure.
+      // Confirm respects the caller's paidAmount:
+      //   0           → CONFIRMED (open credit, settle later via BulkPaymentModal)
+      //   full total  → PAID
+      //   partial     → PARTIALLY_PAID
+      const paidAmount = round2(
+        req.body?.paidAmount !== undefined ? Number(req.body.paidAmount) : orderTotal,
+      );
+
+      // Payment details — passed by BulkConfirmOrderModal; fall back to safe defaults
+      // so old callers that send only { paidAmount: 0 } continue to work.
+      const methodRaw = (req.body?.method || "CASH").toUpperCase();
+      const method = paidAmount <= 0 ? "CREDIT" : methodRaw;
+
+      // Credit check: only the unpaid remainder adds to the customer's AR.
+      // Cash/cheque/bank payments are committed atomically in this same transaction,
+      // so they reduce the real credit exposure immediately.
+      const creditExposure = round2(orderTotal - paidAmount);
+      await assertCreditLimitOk(tx, order.customer, creditExposure, order.id);
 
       // Atomic stock deduction (throws INSUFFICIENT_STOCK if any line short).
       await applyBulkOrderStockMovement(tx, order, "DEBIT");
@@ -248,19 +264,6 @@ exports.confirm = async (req, res, next) => {
           },
         },
       });
-
-      // Confirm respects the caller's paidAmount:
-      //   0           → CONFIRMED (open credit, settle later via BulkPaymentModal)
-      //   full total  → PAID
-      //   partial     → PARTIALLY_PAID
-      const paidAmount = round2(
-        req.body?.paidAmount !== undefined ? Number(req.body.paidAmount) : orderTotal,
-      );
-
-      // Payment details — passed by BulkConfirmOrderModal; fall back to safe defaults
-      // so old callers that send only { paidAmount: 0 } continue to work.
-      const methodRaw = (req.body?.method || "CASH").toUpperCase();
-      const method = paidAmount <= 0 ? "CREDIT" : methodRaw;
       const treasuryId = req.body?.treasuryId ? Number(req.body.treasuryId) : null;
       const bankReference = req.body?.bankReference?.trim() || null;
       const chequeNumber = req.body?.chequeNumber?.trim() || null;

@@ -1,11 +1,13 @@
 import React from "react";
 import { Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
 
+// Relative paths fail is-url() in @react-pdf/font, causing fontkit.open() (Node FS)
+// to be called in the browser. Use absolute URLs so the fetch() path is taken.
 Font.register({
   family: "Cairo",
   fonts: [
-    { src: "/fonts/Cairo-Regular.woff2" },
-    { src: "/fonts/Cairo-Latin-Regular.woff2" },
+    { src: `${window.location.origin}/fonts/Cairo-Regular.woff2` },
+    { src: `${window.location.origin}/fonts/Cairo-Latin-Regular.woff2` },
   ],
 });
 

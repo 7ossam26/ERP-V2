@@ -147,8 +147,9 @@ export default function BulkOrderDetailPage() {
     setGenerating(true);
     try {
       await generateAndOpenOrderPdf(order, doc || null);
-    } catch {
-      toast.error("تعذر إنشاء PDF — تحقق من الاتصال بالإنترنت");
+    } catch (err) {
+      console.error("[PDF]", err);
+      toast.error("تعذر إنشاء PDF");
     } finally {
       setGenerating(false);
     }

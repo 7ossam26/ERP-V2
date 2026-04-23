@@ -14,7 +14,9 @@
 async function getOpenBalanceTx(tx, customerId, excludeOrderId = null) {
   const orderWhere = {
     customerId,
-    status: { notIn: ["CANCELLED", "RETURNED"] },
+    // Only committed orders carry real credit exposure.
+    // DRAFT / QUOTED have no payments yet and would inflate the open balance.
+    status: { in: ["CONFIRMED", "PARTIALLY_PAID", "PAID"] },
   };
   if (excludeOrderId != null) orderWhere.id = { not: excludeOrderId };
 
@@ -38,7 +40,7 @@ async function getOpenBalanceTx(tx, customerId, excludeOrderId = null) {
 async function getOpenBalance(prisma, customerId) {
   const [orders, payments] = await Promise.all([
     prisma.bulkOrder.findMany({
-      where: { customerId, status: { notIn: ["CANCELLED", "RETURNED"] } },
+      where: { customerId, status: { in: ["CONFIRMED", "PARTIALLY_PAID", "PAID"] } },
       select: { total: true },
     }),
     prisma.bulkPayment.findMany({
@@ -55,15 +57,9 @@ async function getOpenBalance(prisma, customerId) {
  * Throw 409 CREDIT_LIMIT_EXCEEDED if adding projectedOrderTotal would breach the
  * customer's credit limit. No-op when creditLimit is null (unlimited).
  *
- * Caller responsibility: always pass the FULL order total as projectedOrderTotal,
- * regardless of how much has already been paid. At confirm time we don't yet know
- * the final payment split, so we assume the worst case (full amount added to AR).
- * Subsequent payment recordings reduce the live balance, but this gate must be
- * conservative at the moment of confirm.
- *
  * @param {object} tx Prisma transaction client
  * @param {{ id: number, creditLimit: any }} customer
- * @param {number} projectedOrderTotal  full order total (tax-inclusive, worst case)
+ * @param {number} projectedOrderTotal  credit exposure being added (orderTotal − paidAmount)
  * @param {number|null} excludeOrderId  exclude this order id from AR sum (re-confirm)
  */
 async function assertCreditLimitOk(tx, customer, projectedOrderTotal, excludeOrderId = null) {

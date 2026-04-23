@@ -32,6 +32,17 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: apiUrl,
           changeOrigin: true,
+          // SSE connections (long-lived) must not time out at the proxy layer.
+          proxyTimeout: 0,
+          timeout: 0,
+          configure: (proxy) => {
+            proxy.on("error", (err, req) => {
+              // ECONNRESET on SSE streams is expected whenever the backend
+              // restarts — the browser EventSource reconnects automatically.
+              if (req.url?.includes("/events/stream")) return;
+              console.error("[proxy]", err.message);
+            });
+          },
         },
       },
     },
