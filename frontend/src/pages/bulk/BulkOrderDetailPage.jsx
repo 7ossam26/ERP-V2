@@ -4,26 +4,17 @@ import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { settingsService } from "../../services/settingsService";
 import { formatEGP, formatNumber } from "../../utils/bulkMoney";
-import BulkSalesReceipt from "../../components/bulk/BulkSalesReceipt";
 import BulkPaymentModal from "../../components/bulk/BulkPaymentModal";
 import BulkReturnModal from "../../components/bulk/BulkReturnModal";
 import BulkConfirmOrderModal from "../../components/bulk/BulkConfirmOrderModal";
 import StatusChip from "../../components/bulk/StatusChip";
+import { generateAndOpenOrderPdf } from "../../utils/pdfGenerate";
 
 const ERROR_LABELS = {
   INSUFFICIENT_STOCK: "الكمية غير متاحة في المخزون",
   CREDIT_LIMIT_EXCEEDED: "تم تجاوز حد الائتمان",
 };
 
-const STATUS_LABELS = {
-  DRAFT: "مسودة",
-  QUOTED: "عرض سعر",
-  CONFIRMED: "مؤكد",
-  PARTIALLY_PAID: "مدفوع جزئيًا",
-  PAID: "مدفوع",
-  CANCELLED: "ملغي",
-  RETURNED: "مرتجع",
-};
 
 const METHOD_LABELS = {
   CASH: "نقدي",
@@ -32,12 +23,19 @@ const METHOD_LABELS = {
   CREDIT: "آجل",
 };
 
+const DOC_TYPE_LABELS = {
+  SALES_RECEIPT: "إيصال بيع",
+  TAX_INVOICE: "فاتورة ضريبية",
+  PROFORMA: "عرض سعر",
+  CREDIT_NOTE: "إشعار دائن",
+};
+
 export default function BulkOrderDetailPage() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
-  const [printing, setPrinting] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -110,6 +108,18 @@ export default function BulkOrderDetailPage() {
     }
   };
 
+  const openPdf = async (doc) => {
+    if (!order) return;
+    setGenerating(true);
+    try {
+      await generateAndOpenOrderPdf(order, doc || null);
+    } catch {
+      toast.error("تعذر إنشاء PDF — تحقق من الاتصال بالإنترنت");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (loading) return <div className="p-6 text-center text-text-light/60 dark:text-text-dark/60">جارٍ التحميل...</div>;
   if (!order) return <div className="p-6 text-center text-text-light/60 dark:text-text-dark/60">الطلب غير موجود.</div>;
 
@@ -123,7 +133,6 @@ export default function BulkOrderDetailPage() {
 
   return (
     <div className="p-4 sm:p-6" dir="rtl">
-      {printing && <BulkSalesReceipt order={order} onDone={() => setPrinting(false)} />}
       {showPayModal && (
         <BulkPaymentModal
           order={order}
@@ -201,10 +210,11 @@ export default function BulkOrderDetailPage() {
           )}
           {printDoc && (
             <button
-              onClick={() => setPrinting(true)}
-              className="bg-primary/90 hover:bg-primary text-white px-4 py-2 rounded-xl text-sm transition-colors duration-200"
+              disabled={generating}
+              onClick={() => openPdf(printDoc)}
+              className="bg-primary/90 hover:bg-primary text-white px-4 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
             >
-              طباعة
+              {generating ? "جارٍ الإنشاء…" : "PDF طباعة / تحميل"}
             </button>
           )}
         </div>
@@ -313,18 +323,34 @@ export default function BulkOrderDetailPage() {
       {/* Documents */}
       {order.documents?.length > 0 && (
         <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark p-4 no-print">
-          <h3 className="font-bold mb-2 text-text-light dark:text-text-dark">المستندات</h3>
-          <ul className="text-sm space-y-1">
+          <h3 className="font-bold mb-3 text-text-light dark:text-text-dark">المستندات</h3>
+          <div className="space-y-2">
             {order.documents.map((d) => (
-              <li key={d.id}>
-                <span className="text-text-light/50 dark:text-text-dark/50">{d.type}:</span>{" "}
-                <span className="font-medium text-text-light dark:text-text-dark">{d.documentNumber}</span>{" "}
-                <span className="text-xs text-text-light/40 dark:text-text-dark/40">
-                  ({new Date(d.issuedAt).toLocaleString("ar-EG")})
-                </span>
-              </li>
+              <div
+                key={d.id}
+                className="flex items-center justify-between bg-accent/20 dark:bg-primary/10 rounded-lg px-3 py-2"
+              >
+                <div>
+                  <span className="font-medium text-sm text-text-light dark:text-text-dark">
+                    {DOC_TYPE_LABELS[d.type] || d.type}
+                  </span>
+                  <span className="mx-2 text-text-light/40 dark:text-text-dark/40 text-xs">·</span>
+                  <span className="text-sm text-primary dark:text-accent">{d.documentNumber}</span>
+                  <span className="ms-2 text-xs text-text-light/40 dark:text-text-dark/40">
+                    {new Date(d.issuedAt).toLocaleDateString("ar-EG")}
+                  </span>
+                </div>
+                <button
+                  disabled={generating}
+                  onClick={() => openPdf(d)}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover disabled:opacity-50 transition-colors"
+                >
+                  <span className="material-icons-round text-sm">picture_as_pdf</span>
+                  عرض / تحميل
+                </button>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
     </div>

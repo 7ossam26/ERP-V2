@@ -17,6 +17,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.18.0",
+    "@react-pdf/renderer": "^4.5.1",
     "@tailwindcss/postcss": "^4.1.18",
     "axios": "^1.13.5",
     "chart.js": "^4.5.1",
