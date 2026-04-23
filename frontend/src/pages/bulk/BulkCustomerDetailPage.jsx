@@ -6,6 +6,7 @@ import { itemService } from "../../services/itemService";
 import { formatEGP } from "../../utils/bulkMoney";
 import BulkCreditBadge from "../../components/bulk/BulkCreditBadge";
 import SummaryCard from "../../components/bulk/SummaryCard";
+import { useConfirm } from "../../hooks/useConfirm";
 
 const TABS = [
   { key: "profile", label: "البيانات" },
@@ -18,6 +19,7 @@ export default function BulkCustomerDetailPage() {
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile");
+  const [confirm, ConfirmDialog] = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -41,6 +43,7 @@ export default function BulkCustomerDetailPage() {
 
   return (
     <div className="p-4 sm:p-6" dir="rtl">
+      {ConfirmDialog}
       <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
           <Link to="/bulk/customers" className="text-primary hover:text-primary-hover text-sm transition-colors">
@@ -237,7 +240,8 @@ function PricesTab({ customerId }) {
   };
 
   const removeOverride = async (priceId) => {
-    if (!window.confirm("حذف سعر العقد لهذا الصنف؟")) return;
+    const ok = await confirm({ title: "حذف سعر العقد", message: "هل تريد حذف سعر العقد لهذا الصنف؟", tone: "danger", confirmLabel: "حذف" });
+    if (!ok) return;
     try {
       await bulkService.removePrice(customerId, priceId);
       toast.success("تم الحذف");

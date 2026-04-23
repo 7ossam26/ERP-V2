@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
@@ -9,12 +9,12 @@ import BulkReturnModal from "../../components/bulk/BulkReturnModal";
 import BulkConfirmOrderModal from "../../components/bulk/BulkConfirmOrderModal";
 import StatusChip from "../../components/bulk/StatusChip";
 import { generateAndOpenOrderPdf } from "../../utils/pdfGenerate";
+import { usePrompt } from "../../hooks/usePrompt";
 
 const ERROR_LABELS = {
   INSUFFICIENT_STOCK: "الكمية غير متاحة في المخزون",
   CREDIT_LIMIT_EXCEEDED: "تم تجاوز حد الائتمان",
 };
-
 
 const METHOD_LABELS = {
   CASH: "نقدي",
@@ -30,6 +30,17 @@ const DOC_TYPE_LABELS = {
   CREDIT_NOTE: "إشعار دائن",
 };
 
+// Legal status transitions: maps current status → [{label, icon, tone?, action}]
+// Actions are resolved at render time by passing the opener functions.
+function buildStatusActions({ canConfirm, canCancel, canPay, canReturn, openConfirm, openCancel, openPay, openReturn }) {
+  const actions = [];
+  if (canConfirm) actions.push({ label: "تأكيد الطلب",  icon: "check_circle", action: openConfirm });
+  if (canPay)     actions.push({ label: "سجّل دفعة",    icon: "payments",     action: openPay });
+  if (canReturn)  actions.push({ label: "إرجاع",         icon: "undo",         action: openReturn });
+  if (canCancel)  actions.push({ label: "إلغاء الطلب",  icon: "cancel",       tone: "danger", action: openCancel });
+  return actions;
+}
+
 export default function BulkOrderDetailPage() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
@@ -39,7 +50,22 @@ export default function BulkOrderDetailPage() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [settingsTaxRate, setSettingsTaxRate] = useState(0.14);
+  const statusMenuRef = useRef(null);
+
+  const [prompt, PromptDialog] = usePrompt();
+
+  // Close status dropdown when clicking outside
+  useEffect(() => {
+    const handle = (e) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target)) {
+        setShowStatusMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -74,11 +100,15 @@ export default function BulkOrderDetailPage() {
 
   const onCancel = async () => {
     if (!order) return;
-    const reason = window.prompt("سبب الإلغاء:");
-    if (!reason || !reason.trim()) return;
+    const reason = await prompt({
+      title: "إلغاء الطلب",
+      label: "سبب الإلغاء",
+      placeholder: "اكتب سبب الإلغاء...",
+    });
+    if (!reason) return;
     setWorking(true);
     try {
-      const updated = await bulkService.cancelOrder(order.id, reason.trim());
+      const updated = await bulkService.cancelOrder(order.id, reason);
       toast.success("تم الإلغاء");
       setOrder(updated);
     } catch (err) {
@@ -89,10 +119,14 @@ export default function BulkOrderDetailPage() {
   };
 
   const onVoidPayment = async (paymentId) => {
-    const reason = window.prompt("سبب الإلغاء:");
-    if (!reason || !reason.trim()) return;
+    const reason = await prompt({
+      title: "إلغاء الدفعة",
+      label: "سبب الإلغاء",
+      placeholder: "اكتب سبب الإلغاء...",
+    });
+    if (!reason) return;
     try {
-      const result = await bulkService.voidPayment(paymentId, reason.trim());
+      const result = await bulkService.voidPayment(paymentId, reason);
       toast.success("تم إلغاء الدفعة");
       setOrder((prev) => ({
         ...prev,
@@ -124,15 +158,26 @@ export default function BulkOrderDetailPage() {
   if (!order) return <div className="p-6 text-center text-text-light/60 dark:text-text-dark/60">الطلب غير موجود.</div>;
 
   const canConfirm = order.status === "DRAFT" || order.status === "QUOTED";
-  const canCancel = order.status === "DRAFT" || order.status === "QUOTED";
-  const canPay = order.status === "CONFIRMED" || order.status === "PARTIALLY_PAID";
-  const canReturn = ["CONFIRMED", "PARTIALLY_PAID", "PAID"].includes(order.status);
-  const receipt = order.documents?.find((d) => d.type === "SALES_RECEIPT");
+  const canCancel  = order.status === "DRAFT" || order.status === "QUOTED";
+  const canPay     = order.status === "CONFIRMED" || order.status === "PARTIALLY_PAID";
+  const canReturn  = ["CONFIRMED", "PARTIALLY_PAID", "PAID"].includes(order.status);
+  const receipt    = order.documents?.find((d) => d.type === "SALES_RECEIPT");
   const taxInvoice = order.documents?.find((d) => d.type === "TAX_INVOICE");
-  const printDoc = taxInvoice || receipt;
+  const printDoc   = taxInvoice || receipt;
+
+  const closeMenu = () => setShowStatusMenu(false);
+  const statusActions = buildStatusActions({
+    canConfirm, canCancel, canPay, canReturn,
+    openConfirm: () => { closeMenu(); setShowConfirmModal(true); },
+    openCancel:  () => { closeMenu(); onCancel(); },
+    openPay:     () => { closeMenu(); setShowPayModal(true); },
+    openReturn:  () => { closeMenu(); setShowReturnModal(true); },
+  });
 
   return (
     <div className="p-4 sm:p-6" dir="rtl">
+      {PromptDialog}
+
       {showPayModal && (
         <BulkPaymentModal
           order={order}
@@ -174,40 +219,41 @@ export default function BulkOrderDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canCancel && (
-            <button
-              disabled={working}
-              onClick={onCancel}
-              className="border border-red-300 text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 rounded-xl text-sm disabled:opacity-50 transition-colors duration-200"
-            >
-              إلغاء الطلب
-            </button>
+          {/* تغيير الحالة dropdown — only shown when there are legal transitions */}
+          {statusActions.length > 0 && (
+            <div className="relative" ref={statusMenuRef}>
+              <button
+                disabled={working}
+                onClick={() => setShowStatusMenu((v) => !v)}
+                className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
+              >
+                <span className="material-icons-round text-sm">sync_alt</span>
+                تغيير الحالة
+                <span className="material-icons-round text-sm">
+                  {showStatusMenu ? "expand_less" : "expand_more"}
+                </span>
+              </button>
+              {showStatusMenu && (
+                <div className="absolute start-0 mt-1 w-44 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-lg z-20 overflow-hidden">
+                  {statusActions.map((a) => (
+                    <button
+                      key={a.label}
+                      onClick={a.action}
+                      className={`flex items-center gap-2 w-full px-3 py-2.5 text-sm text-right hover:bg-accent/30 dark:hover:bg-primary/10 transition-colors ${
+                        a.tone === "danger"
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-text-light dark:text-text-dark"
+                      }`}
+                    >
+                      <span className="material-icons-round text-sm">{a.icon}</span>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
-          {canConfirm && (
-            <button
-              disabled={working}
-              onClick={() => setShowConfirmModal(true)}
-              className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
-            >
-              {working ? "..." : "تأكيد الطلب"}
-            </button>
-          )}
-          {canPay && (
-            <button
-              onClick={() => setShowPayModal(true)}
-              className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm transition-colors duration-200"
-            >
-              سجّل دفعة
-            </button>
-          )}
-          {canReturn && (
-            <button
-              onClick={() => setShowReturnModal(true)}
-              className="border border-orange-400/60 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 px-3 py-2 rounded-xl text-sm transition-colors duration-200"
-            >
-              إرجاع
-            </button>
-          )}
+
           {printDoc && (
             <button
               disabled={generating}
@@ -290,7 +336,10 @@ export default function BulkOrderDetailPage() {
             </thead>
             <tbody>
               {order.payments.map((p) => (
-                <tr key={p.id} className={`border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10 ${p.voidedAt ? "opacity-50 line-through" : ""}`}>
+                <tr
+                  key={p.id}
+                  className={`border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10 ${p.voidedAt ? "opacity-50 line-through" : ""}`}
+                >
                   <td className="p-2 ltr-numbers text-text-light/70 dark:text-text-dark/70">
                     {new Date(p.receivedAt).toLocaleDateString("ar-EG")}
                   </td>
