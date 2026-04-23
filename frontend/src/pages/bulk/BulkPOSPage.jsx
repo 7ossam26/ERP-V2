@@ -5,30 +5,15 @@ import { bulkService } from "../../services/bulkService";
 import { itemService } from "../../services/itemService";
 import { warehouseService } from "../../services/warehouseService";
 import { settingsService } from "../../services/settingsService";
+import { inventoryService } from "../../services/inventoryService";
 import { formatEGP, splitInclusive } from "../../utils/bulkMoney";
-import BulkPaymentModal from "../../components/bulk/BulkPaymentModal";
+import BulkConfirmOrderModal from "../../components/bulk/BulkConfirmOrderModal";
 import BulkCreditBadge from "../../components/bulk/BulkCreditBadge";
 import BulkSectionTabs from "../../components/bulk/BulkSectionTabs";
 
-const ERROR_LABELS = {
-  INSUFFICIENT_STOCK: "الكمية غير متاحة في المخزون",
-  CREDIT_LIMIT_EXCEEDED: "تم تجاوز حد الائتمان",
-  TAX_INVOICE_NOT_AVAILABLE_IN_PHASE_1: "الفوترة الضريبية غير متاحة حاليًا",
-};
 
-function formatConfirmError(err) {
-  const code = err?.data?.error;
-  if (code === "INSUFFICIENT_STOCK" && Array.isArray(err?.data?.details)) {
-    const lines = err.data.details
-      .map((d) => `• ${d.itemName}: مطلوب ${d.requested}، متاح ${d.available}`)
-      .join("\n");
-    return `الكمية غير متاحة في المخزون:\n${lines}`;
-  }
-  if (code === "CREDIT_LIMIT_EXCEEDED") {
-    return `تم تجاوز حد الائتمان (مفتوح: ${formatEGP(err.data?.open)}، الحد: ${formatEGP(err.data?.limit)})`;
-  }
-  return ERROR_LABELS[code] || code || "تعذر التأكيد";
-}
+const PIECE_UNITS = new Set(["piece", "قطعة", "pcs", "unit", "وحدة", "علبة", "box", "carton"]);
+const isPiece = (unit) => PIECE_UNITS.has((unit || "").toLowerCase());
 
 export default function BulkPOSPage() {
   const navigate = useNavigate();
@@ -39,15 +24,18 @@ export default function BulkPOSPage() {
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [contractPrices, setContractPrices] = useState(new Map());
+  const [stock, setStock] = useState(new Map()); // itemId → onHand qty
+  const [stockLoading, setStockLoading] = useState(false);
 
   const [customerId, setCustomerId] = useState(initialCustomerId ? Number(initialCustomerId) : null);
   const [warehouseId, setWarehouseId] = useState(null);
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [pendingOrder, setPendingOrder] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [taxRate, setTaxRate] = useState(0.14);
 
+  // Initial load: customers, base items, warehouses, settings
   useEffect(() => {
     (async () => {
       try {
@@ -67,6 +55,27 @@ export default function BulkPOSPage() {
     })();
   }, []);
 
+  // Fetch warehouse stock when warehouse changes
+  useEffect(() => {
+    if (!warehouseId) {
+      setStock(new Map());
+      return;
+    }
+    let cancelled = false;
+    setStockLoading(true);
+    inventoryService.getInventory({ warehouseId }).then((data) => {
+      if (cancelled) return;
+      const map = new Map(data.map((it) => [it.id, Number(it.quantity ?? 0)]));
+      setStock(map);
+    }).catch(() => {
+      if (!cancelled) toast.error("تعذر تحميل أرصدة المخزون");
+    }).finally(() => {
+      if (!cancelled) setStockLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [warehouseId]);
+
+  // Fetch contract prices when customer changes
   useEffect(() => {
     if (!customerId) {
       setContractPrices(new Map());
@@ -90,34 +99,65 @@ export default function BulkPOSPage() {
     return items.filter((i) => (i.name || "").toLowerCase().includes(s));
   }, [items, search]);
 
+  const getOnHand = (itemId) => (warehouseId ? (stock.get(itemId) ?? 0) : Infinity);
+
   const addToCart = (item) => {
     const overridePrice = contractPrices.get(item.id);
     const unitPrice = overridePrice != null ? overridePrice : Number(item.price);
+    const onHand = getOnHand(item.id);
+    const step = isPiece(item.unit) ? 1 : 0.01;
+
     setCart((c) => {
       const existing = c.find((l) => l.itemId === item.id);
+      const newQty = existing ? existing.quantity + step : step;
+      if (newQty > onHand) {
+        toast.error(`${item.name}: الكمية المتاحة ${onHand} ${item.unit || ""}`);
+        return c;
+      }
       if (existing) {
-        return c.map((l) =>
-          l.itemId === item.id ? { ...l, quantity: l.quantity + 1 } : l,
-        );
+        return c.map((l) => l.itemId === item.id ? { ...l, quantity: newQty } : l);
       }
       return [
         ...c,
-        {
-          itemId: item.id,
-          name: item.name,
-          unit: item.unit,
-          quantity: 1,
-          unitPrice,
-          source: overridePrice != null ? "CONTRACT" : "BASE",
-        },
+        { itemId: item.id, name: item.name, unit: item.unit, quantity: step, unitPrice, source: overridePrice != null ? "CONTRACT" : "BASE" },
       ];
     });
   };
 
-  const updateLine = (itemId, patch) =>
+  const updateLine = (itemId, patch) => {
+    if ("quantity" in patch) {
+      const qty = Number(patch.quantity);
+      const onHand = getOnHand(itemId);
+      if (qty > onHand) {
+        toast.error(`الكمية المتاحة في المخزون ${onHand}`);
+      }
+    }
     setCart((c) => c.map((l) => (l.itemId === itemId ? { ...l, ...patch } : l)));
+  };
 
   const removeLine = (itemId) => setCart((c) => c.filter((l) => l.itemId !== itemId));
+
+  // Validate all cart lines before submitting
+  const validateCart = () => {
+    for (const l of cart) {
+      const qty = Number(l.quantity);
+      const price = Number(l.unitPrice);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        toast.error(`${l.name}: أدخل كمية صحيحة`);
+        return false;
+      }
+      if (!Number.isFinite(price) || price < 0) {
+        toast.error(`${l.name}: أدخل سعرًا صحيحًا`);
+        return false;
+      }
+      const onHand = getOnHand(l.itemId);
+      if (qty > onHand) {
+        toast.error(`${l.name}: الكمية المطلوبة ${qty} تتجاوز المتاح ${onHand}`);
+        return false;
+      }
+    }
+    return true;
+  };
 
   const subtotalInclusive = cart.reduce(
     (acc, l) => acc + Number(l.quantity) * Number(l.unitPrice),
@@ -131,6 +171,7 @@ export default function BulkPOSPage() {
     customerId,
     warehouseId,
     status,
+    taxRate, // send the settings-derived tax rate so backend stores it correctly
     items: cart.map((l) => ({
       itemId: l.itemId,
       quantity: Number(l.quantity),
@@ -139,7 +180,7 @@ export default function BulkPOSPage() {
   });
 
   const saveDraft = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !validateCart()) return;
     setSubmitting(true);
     try {
       const created = await bulkService.createOrder(buildOrderPayload("DRAFT"));
@@ -153,7 +194,7 @@ export default function BulkPOSPage() {
   };
 
   const saveQuote = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !validateCart()) return;
     setSubmitting(true);
     try {
       const created = await bulkService.createOrder(buildOrderPayload("QUOTED"));
@@ -166,15 +207,18 @@ export default function BulkPOSPage() {
     }
   };
 
-  const openConfirmModal = async () => {
-    if (!canSubmit) return;
+  const openConfirmModal = () => {
+    if (!canSubmit || !validateCart()) return;
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirm = async (confirmBody) => {
     setSubmitting(true);
     try {
       const created = await bulkService.createOrder(buildOrderPayload("DRAFT"));
-      const confirmed = await bulkService.confirmOrder(created.id, { paidAmount: 0 });
-      setPendingOrder(confirmed);
-    } catch (err) {
-      toast.error(formatConfirmError(err), { duration: 6000, style: { whiteSpace: "pre-line", textAlign: "right", maxWidth: "420px" } });
+      await bulkService.confirmOrder(created.id, confirmBody);
+      toast.success("تم تأكيد الطلب");
+      navigate(`/bulk/orders/${created.id}`);
     } finally {
       setSubmitting(false);
     }
@@ -182,16 +226,12 @@ export default function BulkPOSPage() {
 
   return (
     <div className="p-3 sm:p-4" dir="rtl">
-      {pendingOrder && (
-        <BulkPaymentModal
-          order={pendingOrder}
-          onSuccess={() => {
-            toast.success(`تم تأكيد الطلب ${pendingOrder.orderNumber}`);
-            navigate(`/bulk/orders/${pendingOrder.id}`);
-          }}
-          onClose={() => {
-            navigate(`/bulk/orders/${pendingOrder.id}`);
-          }}
+      {showConfirmModal && (
+        <BulkConfirmOrderModal
+          totalAmount={totals.total}
+          customerName={customer?.companyName || ""}
+          onConfirm={handleConfirm}
+          onClose={() => setShowConfirmModal(false)}
         />
       )}
 
@@ -241,25 +281,48 @@ export default function BulkPOSPage() {
             </div>
           )}
 
+          {stockLoading && (
+            <div className="text-xs text-text-light/40 dark:text-text-dark/40 mb-2">جارٍ تحميل الأرصدة...</div>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[70vh] overflow-y-auto">
             {filteredItems.map((it) => {
               const overridden = contractPrices.has(it.id);
               const price = overridden ? contractPrices.get(it.id) : Number(it.price);
+              const onHand = warehouseId ? (stock.get(it.id) ?? 0) : null;
+              const outOfStock = onHand !== null && onHand <= 0;
               return (
                 <button
                   key={it.id}
-                  disabled={!customerId}
+                  disabled={!customerId || !warehouseId || outOfStock}
                   onClick={() => addToCart(it)}
-                  className="text-right border border-border-light dark:border-border-dark rounded-xl p-2.5 bg-surface-light dark:bg-surface-dark hover:border-primary/40 hover:bg-primary/5 dark:hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                  className={`text-right border rounded-xl p-2.5 transition-colors duration-200 ${
+                    outOfStock
+                      ? "border-border-light dark:border-border-dark bg-surface-light/50 dark:bg-surface-dark/50 opacity-50 cursor-not-allowed"
+                      : "border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:border-primary/40 hover:bg-primary/5 dark:hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  }`}
                 >
                   <div className="font-medium text-sm line-clamp-2 text-text-light dark:text-text-dark">{it.name}</div>
                   <div className="text-xs text-text-light/50 dark:text-text-dark/50">{it.unit}</div>
                   <div className="mt-1 font-bold text-text-light dark:text-text-dark">{formatEGP(price)}</div>
-                  {overridden && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary ring-1 ring-inset ring-primary/20 mt-0.5">
-                      سعر عقد
-                    </span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                    {overridden && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
+                        سعر عقد
+                      </span>
+                    )}
+                    {onHand !== null && (
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                        outOfStock
+                          ? "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400"
+                          : onHand <= 10
+                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+                      }`}>
+                        {outOfStock ? "نفد" : `${onHand}`}
+                      </span>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -273,41 +336,54 @@ export default function BulkPOSPage() {
             {cart.length === 0 && (
               <div className="text-center text-text-light/40 dark:text-text-dark/40 text-sm p-6">السلة فارغة</div>
             )}
-            {cart.map((l) => (
-              <div key={l.itemId} className="border-b border-border-light dark:border-border-dark py-2">
-                <div className="flex justify-between items-start">
-                  <div className="text-sm font-medium text-text-light dark:text-text-dark">{l.name}</div>
-                  <button
-                    className="text-red-600 text-xs hover:text-red-700 transition-colors"
-                    onClick={() => removeLine(l.itemId)}
-                  >
-                    حذف
-                  </button>
+            {cart.map((l) => {
+              const onHand = getOnHand(l.itemId);
+              const qty = Number(l.quantity);
+              const overStock = qty > onHand;
+              const step = isPiece(l.unit) ? 1 : 0.01;
+              const minQty = isPiece(l.unit) ? 1 : 0.01;
+              return (
+                <div key={l.itemId} className="border-b border-border-light dark:border-border-dark py-2">
+                  <div className="flex justify-between items-start">
+                    <div className="text-sm font-medium text-text-light dark:text-text-dark">{l.name}</div>
+                    <button
+                      className="text-red-600 text-xs hover:text-red-700 transition-colors"
+                      onClick={() => removeLine(l.itemId)}
+                    >
+                      حذف
+                    </button>
+                  </div>
+                  {overStock && (
+                    <div className="text-[11px] text-red-500 mb-1">⚠ المتاح {onHand} {l.unit}</div>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="number"
+                      step={step}
+                      min={minQty}
+                      max={onHand === Infinity ? undefined : onHand}
+                      className={`border rounded-lg p-1 w-20 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                        overStock ? "border-red-400" : "border-border-light dark:border-border-dark"
+                      }`}
+                      value={l.quantity}
+                      onChange={(e) => updateLine(l.itemId, { quantity: e.target.value })}
+                    />
+                    <span className="text-xs text-text-light/50">×</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="border border-border-light dark:border-border-dark rounded-lg p-1 w-24 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      value={l.unitPrice}
+                      onChange={(e) => updateLine(l.itemId, { unitPrice: e.target.value })}
+                    />
+                    <span className="ms-auto font-semibold text-sm text-text-light dark:text-text-dark">
+                      {formatEGP(qty * Number(l.unitPrice))}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.0001"
-                    className="border border-border-light dark:border-border-dark rounded-lg p-1 w-20 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    value={l.quantity}
-                    onChange={(e) => updateLine(l.itemId, { quantity: e.target.value })}
-                  />
-                  <span className="text-xs text-text-light/50">×</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    className="border border-border-light dark:border-border-dark rounded-lg p-1 w-24 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    value={l.unitPrice}
-                    onChange={(e) => updateLine(l.itemId, { unitPrice: e.target.value })}
-                  />
-                  <span className="ms-auto font-semibold text-sm text-text-light dark:text-text-dark">
-                    {formatEGP(Number(l.quantity) * Number(l.unitPrice))}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Totals */}

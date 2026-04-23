@@ -324,131 +324,112 @@ function PricesTab({ customerId }) {
   );
 }
 
+const TYPE_BADGE = {
+  ORDER: { label: "مبيعات", cls: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400" },
+  PAYMENT: { label: "دفعة", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" },
+  REFUND: { label: "مرتجع", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" },
+};
+
 function ARTab({ customerId }) {
-  const [payments, setPayments] = useState([]);
-  const [orders, setOrders] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const METHOD_LABELS = {
-    CASH: "نقدي",
-    BANK_TRANSFER: "تحويل بنكي",
-    CHEQUE: "شيك",
-    CREDIT: "آجل",
+  const load = () => {
+    setLoading(true);
+    bulkService
+      .reportStatement({ customerId })
+      .then(setData)
+      .catch(() => toast.error("تعذر تحميل كشف الحساب"))
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const [p, o] = await Promise.all([
-          bulkService.listCustomerPayments(customerId),
-          bulkService.listOrders({ customerId }),
-        ]);
-        setPayments(p);
-        setOrders(o);
-      } catch (err) {
-        toast.error(err?.data?.error || "تعذر تحميل الحساب");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [customerId]);
-
-  const totalOrders = orders
-    .filter((o) => !["CANCELLED", "RETURNED"].includes(o.status))
-    .reduce((s, o) => s + Number(o.total), 0);
-  const totalPaid = payments
-    .filter((p) => !p.voidedAt)
-    .reduce((s, p) => s + Number(p.amount), 0);
-  const openBalance = Math.max(0, totalOrders - totalPaid);
+  useEffect(() => { load(); }, [customerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="p-6 text-center text-text-light/60 dark:text-text-dark/60">جارٍ التحميل...</div>;
+  if (!data) return null;
+
+  const { summary, entries } = data;
 
   return (
     <div className="space-y-4">
       {/* KPI cards */}
       <div className="grid grid-cols-3 gap-3">
-        <SummaryCard label="إجمالي الطلبات" value={formatEGP(totalOrders)} />
-        <SummaryCard label="إجمالي المدفوع" value={formatEGP(totalPaid)} tone="success" />
-        <SummaryCard label="الرصيد المفتوح" value={formatEGP(openBalance)} tone={openBalance > 0 ? "danger" : "default"} />
+        <SummaryCard label="إجمالي المبيعات" value={formatEGP(summary.totalDebit)} />
+        <SummaryCard label="إجمالي المدفوع" value={formatEGP(summary.totalCredit)} tone="success" />
+        <SummaryCard
+          label="الرصيد المفتوح"
+          value={formatEGP(summary.closingBalance)}
+          tone={summary.closingBalance > 0 ? "danger" : "default"}
+        />
       </div>
 
-      {/* Payments log */}
-      <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark p-4">
-        <h3 className="font-bold mb-3 text-sm text-text-light dark:text-text-dark">سجل الدفعات</h3>
-        {payments.length === 0 ? (
-          <div className="text-sm text-text-light/40 dark:text-text-dark/40">لا يوجد دفعات مسجلة.</div>
+      {/* Chronological ledger */}
+      <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark overflow-hidden">
+        <div className="px-4 py-3 border-b border-border-light dark:border-border-dark bg-accent/5 dark:bg-primary/5">
+          <h3 className="font-bold text-sm text-text-light dark:text-text-dark">كشف الحساب الكامل</h3>
+        </div>
+        {entries.length === 0 ? (
+          <div className="p-6 text-center text-sm text-text-light/40 dark:text-text-dark/40">لا يوجد حركات.</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-accent/30 dark:bg-primary/10">
-              <tr>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الطلب</th>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الطريقة</th>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">المبلغ</th>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => (
-                <tr key={p.id} className={`border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10 ${p.voidedAt ? "opacity-50" : ""}`}>
-                  <td className="p-2 ltr-numbers text-text-light/70 dark:text-text-dark/70">
-                    {new Date(p.receivedAt).toLocaleDateString("ar-EG")}
-                  </td>
-                  <td className="p-2">
-                    <Link to={`/bulk/orders/${p.order?.id}`} className="text-primary hover:text-primary-hover transition-colors">
-                      {p.order?.orderNumber || `#${p.order?.id}`}
-                    </Link>
-                  </td>
-                  <td className="p-2 text-text-light dark:text-text-dark">{METHOD_LABELS[p.method] || p.method}</td>
-                  <td className="p-2 font-medium text-text-light dark:text-text-dark">{formatEGP(p.amount)}</td>
-                  <td className="p-2">
-                    {p.voidedAt
-                      ? <span className="text-red-600 text-xs">ملغاة</span>
-                      : <span className="text-emerald-700 text-xs">مسجلة</span>
-                    }
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-accent/30 dark:bg-primary/10">
+                <tr>
+                  <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
+                  <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">النوع</th>
+                  <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">المرجع</th>
+                  <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">مدين</th>
+                  <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">دائن</th>
+                  <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الرصيد</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((e, i) => {
+                  const badge = TYPE_BADGE[e.type] || TYPE_BADGE.PAYMENT;
+                  return (
+                    <tr key={i} className="border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10">
+                      <td className="p-2 ltr-numbers text-text-light/70 dark:text-text-dark/70 whitespace-nowrap">
+                        {new Date(e.date).toLocaleDateString("ar-EG")}
+                      </td>
+                      <td className="p-2">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${badge.cls}`}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td className="p-2">
+                        {e.type === "ORDER" ? (
+                          <Link to={`/bulk/orders/${e.orderId}`} className="text-primary hover:text-primary-hover transition-colors font-medium">
+                            {e.ref}
+                          </Link>
+                        ) : (
+                          <span className="text-text-light/60 dark:text-text-dark/60">{e.ref}</span>
+                        )}
+                      </td>
+                      <td className="p-2 text-left ltr-numbers font-medium text-red-600 dark:text-red-400">
+                        {e.debit > 0 ? formatEGP(e.debit) : "—"}
+                      </td>
+                      <td className="p-2 text-left ltr-numbers font-medium text-emerald-600 dark:text-emerald-400">
+                        {e.credit > 0 ? formatEGP(e.credit) : "—"}
+                      </td>
+                      <td className={`p-2 text-left ltr-numbers font-bold ${e.balance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                        {formatEGP(e.balance)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="border-t-2 border-border-light dark:border-border-dark bg-accent/20 dark:bg-primary/10">
+                <tr>
+                  <td colSpan={3} className="p-2 font-bold text-text-light dark:text-text-dark text-sm">الإجمالي</td>
+                  <td className="p-2 text-left ltr-numbers font-bold text-red-600 dark:text-red-400">{formatEGP(summary.totalDebit)}</td>
+                  <td className="p-2 text-left ltr-numbers font-bold text-emerald-600 dark:text-emerald-400">{formatEGP(summary.totalCredit)}</td>
+                  <td className={`p-2 text-left ltr-numbers font-bold ${summary.closingBalance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                    {formatEGP(summary.closingBalance)}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Pending orders */}
-      <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark p-4">
-        <h3 className="font-bold mb-3 text-sm text-text-light dark:text-text-dark">الطلبات المعلقة</h3>
-        {orders.filter((o) => ["CONFIRMED", "PARTIALLY_PAID"].includes(o.status)).length === 0 ? (
-          <div className="text-sm text-text-light/40 dark:text-text-dark/40">لا يوجد طلبات معلقة.</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-accent/30 dark:bg-primary/10">
-              <tr>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">رقم الطلب</th>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الإجمالي</th>
-                <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">المتبقي</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders
-                .filter((o) => ["CONFIRMED", "PARTIALLY_PAID"].includes(o.status))
-                .map((o) => (
-                  <tr key={o.id} className="border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10">
-                    <td className="p-2">
-                      <Link to={`/bulk/orders/${o.id}`} className="text-primary hover:text-primary-hover transition-colors">
-                        {o.orderNumber || `#${o.id}`}
-                      </Link>
-                    </td>
-                    <td className="p-2 ltr-numbers text-text-light/70 dark:text-text-dark/70">
-                      {new Date(o.createdAt).toLocaleDateString("ar-EG")}
-                    </td>
-                    <td className="p-2 text-text-light dark:text-text-dark">{formatEGP(o.total)}</td>
-                    <td className="p-2 font-bold text-red-700 dark:text-red-400">{formatEGP(o.balanceDue)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         )}
       </div>
     </div>

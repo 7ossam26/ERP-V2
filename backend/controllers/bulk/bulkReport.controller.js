@@ -253,6 +253,7 @@ async function statement(req, res, next) {
       entries.push({
         date: o.createdAt,
         type: "ORDER",
+        orderId: o.id,
         ref: o.orderNumber || `#${o.id}`,
         description: `طلب ${o.orderNumber || o.id} — ${o.status}`,
         debit: round2(Number(o.total)),

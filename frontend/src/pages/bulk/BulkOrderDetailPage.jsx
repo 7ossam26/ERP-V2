@@ -7,7 +7,13 @@ import { formatEGP, formatNumber } from "../../utils/bulkMoney";
 import BulkSalesReceipt from "../../components/bulk/BulkSalesReceipt";
 import BulkPaymentModal from "../../components/bulk/BulkPaymentModal";
 import BulkReturnModal from "../../components/bulk/BulkReturnModal";
+import BulkConfirmOrderModal from "../../components/bulk/BulkConfirmOrderModal";
 import StatusChip from "../../components/bulk/StatusChip";
+
+const ERROR_LABELS = {
+  INSUFFICIENT_STOCK: "الكمية غير متاحة في المخزون",
+  CREDIT_LIMIT_EXCEEDED: "تم تجاوز حد الائتمان",
+};
 
 const STATUS_LABELS = {
   DRAFT: "مسودة",
@@ -34,6 +40,7 @@ export default function BulkOrderDetailPage() {
   const [printing, setPrinting] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [settingsTaxRate, setSettingsTaxRate] = useState(0.14);
 
   const load = async () => {
@@ -54,40 +61,14 @@ export default function BulkOrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const onConfirmCash = async () => {
+  const onConfirm = async (confirmBody) => {
     if (!order) return;
-    if (!window.confirm("تأكيد الطلب وخصم المخزون نقدًا؟")) return;
     setWorking(true);
     try {
-      const updated = await bulkService.confirmOrder(order.id, { paidAmount: Number(order.total) });
+      const updated = await bulkService.confirmOrder(order.id, confirmBody);
       toast.success(`تم التأكيد ${updated.orderNumber || ""}`);
       setOrder(updated);
-    } catch (err) {
-      const detail = err?.data?.details
-        ? err.data.details.map((d) => `${d.itemName} (طلب ${d.requested}, متاح ${d.available})`).join(", ")
-        : "";
-      const creditMsg = err?.data?.error === "CREDIT_LIMIT_EXCEEDED"
-        ? ` (مفتوح: ${formatEGP(err.data?.open)}, حد: ${formatEGP(err.data?.limit)})`
-        : "";
-      toast.error(`${err?.data?.error || "تعذر التأكيد"}${detail ? `: ${detail}` : ""}${creditMsg}`);
-    } finally {
-      setWorking(false);
-    }
-  };
-
-  const onConfirmCredit = async () => {
-    if (!order) return;
-    if (!window.confirm("تأكيد الطلب كآجل كامل؟ سيظل رصيد المتبقي مفتوحًا.")) return;
-    setWorking(true);
-    try {
-      const updated = await bulkService.confirmOrder(order.id, { paidAmount: 0 });
-      toast.success(`تم التأكيد ${updated.orderNumber || ""}`);
-      setOrder(updated);
-    } catch (err) {
-      const creditMsg = err?.data?.error === "CREDIT_LIMIT_EXCEEDED"
-        ? ` (مفتوح: ${formatEGP(err.data?.open)}, حد: ${formatEGP(err.data?.limit)})`
-        : "";
-      toast.error(`${err?.data?.error || "تعذر التأكيد"}${creditMsg}`);
+      setShowConfirmModal(false);
     } finally {
       setWorking(false);
     }
@@ -103,7 +84,7 @@ export default function BulkOrderDetailPage() {
       toast.success("تم الإلغاء");
       setOrder(updated);
     } catch (err) {
-      toast.error(err?.data?.error || "تعذر الإلغاء");
+      toast.error(ERROR_LABELS[err?.data?.error] || err?.data?.error || "تعذر الإلغاء");
     } finally {
       setWorking(false);
     }
@@ -125,7 +106,7 @@ export default function BulkOrderDetailPage() {
         ),
       }));
     } catch (err) {
-      toast.error(err?.data?.error || "تعذر الإلغاء");
+      toast.error(ERROR_LABELS[err?.data?.error] || err?.data?.error || "تعذر الإلغاء");
     }
   };
 
@@ -157,6 +138,15 @@ export default function BulkOrderDetailPage() {
           onClose={() => setShowReturnModal(false)}
         />
       )}
+      {showConfirmModal && (
+        <BulkConfirmOrderModal
+          totalAmount={Number(order.total)}
+          customerName={order.customer?.companyName || ""}
+          orderRef={order.orderNumber || `#${order.id}`}
+          onConfirm={onConfirm}
+          onClose={() => setShowConfirmModal(false)}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between mb-5 no-print flex-wrap gap-3">
@@ -185,22 +175,13 @@ export default function BulkOrderDetailPage() {
             </button>
           )}
           {canConfirm && (
-            <>
-              <button
-                disabled={working}
-                onClick={onConfirmCredit}
-                className="border border-amber-400/60 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 px-3 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
-              >
-                {working ? "..." : "تأكيد آجل"}
-              </button>
-              <button
-                disabled={working}
-                onClick={onConfirmCash}
-                className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
-              >
-                {working ? "..." : "تأكيد نقدي"}
-              </button>
-            </>
+            <button
+              disabled={working}
+              onClick={() => setShowConfirmModal(true)}
+              className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
+            >
+              {working ? "..." : "تأكيد الطلب"}
+            </button>
           )}
           {canPay && (
             <button

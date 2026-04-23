@@ -143,7 +143,16 @@ exports.create = async (req, res, next) => {
     }
     const status = body.status === "QUOTED" ? "QUOTED" : "DRAFT";
     const lines = validateLines(body.items);
-    const taxRate = body.taxRate != null ? Number(body.taxRate) : DEFAULT_TAX_RATE;
+
+    // Prefer taxRate from the request body (client already fetched it from settings).
+    // Fall back to SystemConfiguration, then to DEFAULT_TAX_RATE.
+    let taxRate;
+    if (body.taxRate != null) {
+      taxRate = Number(body.taxRate);
+    } else {
+      const cfg = await prisma.systemConfiguration.findFirst();
+      taxRate = cfg?.taxRate != null ? Number(cfg.taxRate) / 100 : DEFAULT_TAX_RATE;
+    }
     if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate >= 1) {
       return res.status(400).json({ error: "taxRate must be between 0 and 1" });
     }
@@ -240,26 +249,60 @@ exports.confirm = async (req, res, next) => {
         },
       });
 
-      // Phase 1: confirm = immediate full cash payment (synthetic BulkPayment).
-      // Phase 2 will replace this with a real payment-selection step.
-      if (CURRENT_PHASE < 2) {
+      // Confirm respects the caller's paidAmount:
+      //   0           → CONFIRMED (open credit, settle later via BulkPaymentModal)
+      //   full total  → PAID
+      //   partial     → PARTIALLY_PAID
+      const paidAmount = round2(
+        req.body?.paidAmount !== undefined ? Number(req.body.paidAmount) : orderTotal,
+      );
+
+      // Payment details — passed by BulkConfirmOrderModal; fall back to safe defaults
+      // so old callers that send only { paidAmount: 0 } continue to work.
+      const methodRaw = (req.body?.method || "CASH").toUpperCase();
+      const method = paidAmount <= 0 ? "CREDIT" : methodRaw;
+      const treasuryId = req.body?.treasuryId ? Number(req.body.treasuryId) : null;
+      const bankReference = req.body?.bankReference?.trim() || null;
+      const chequeNumber = req.body?.chequeNumber?.trim() || null;
+      const chequeDueDate = req.body?.chequeDueDate ? new Date(req.body.chequeDueDate) : null;
+      const paymentNotes = req.body?.notes?.trim() || null;
+
+      if (paidAmount > 0 && method !== "CREDIT") {
+        if (!treasuryId) {
+          const err = new Error("يجب تحديد الخزينة عند الدفع النقدي أو بالشيك أو بالتحويل");
+          err.status = 400;
+          throw err;
+        }
+        if (method === "CHEQUE") {
+          if (!chequeNumber) {
+            const err = new Error("رقم الشيك مطلوب");
+            err.status = 400;
+            throw err;
+          }
+          if (!chequeDueDate) {
+            const err = new Error("تاريخ استحقاق الشيك مطلوب");
+            err.status = 400;
+            throw err;
+          }
+        }
+      }
+
+      if (paidAmount > 0) {
         await tx.bulkPayment.create({
           data: {
             orderId: order.id,
             customerId: order.customerId,
-            treasuryId: null, // no treasury selection in Phase 1
-            method: "CASH",
-            amount: orderTotal,
+            treasuryId,
+            method,
+            amount: paidAmount,
+            bankReference,
+            chequeNumber,
+            chequeDueDate,
             createdByUserId: req.user.id,
-            notes: "Phase-1 implicit settlement",
+            notes: paymentNotes || "تسوية عند التأكيد",
           },
         });
       }
-
-      // Determine final status from paidAmount (Phase 1 always PAID).
-      const paidAmount = CURRENT_PHASE < 2 ? orderTotal : round2(
-        req.body?.paidAmount !== undefined ? Number(req.body.paidAmount) : orderTotal,
-      );
       const balanceDue = round2(orderTotal - paidAmount);
       let newStatus;
       if (paidAmount === 0) newStatus = "CONFIRMED";

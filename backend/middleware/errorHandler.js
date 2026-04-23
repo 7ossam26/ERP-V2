@@ -56,20 +56,24 @@ const errorHandler = (err, req, res, next) => {
         error = "Validation Error";
         message = err.message;
     } else if (err.status) {
-        // Respect manually thrown errors with status codes
+        // Respect manually thrown errors with status codes.
+        // Prefer err.code (e.g., "INSUFFICIENT_STOCK") as the machine-readable
+        // error identifier so clients can branch on specific business cases.
         statusCode = err.status;
         message = err.message;
-        error = err.error || "Application Error";
+        error = err.error || err.code || err.message || "Application Error";
     }
 
-    // Send sanitized response
+    // Send sanitized response. Forward err.data fields (e.g., details, open, limit)
+    // so clients can render rich error toasts without losing context.
     res.status(statusCode).json({
         error,
         message,
-        // Only include code in development for easier debugging if needed
         code: err.code,
         meta: err.meta,
-        stack: err.stack, // Optional: might be too noisy, but useful
+        details: err.details,
+        ...(err.data && typeof err.data === "object" ? err.data : {}),
+        stack: err.stack,
     });
 };
 
