@@ -1,3 +1,5 @@
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -18,6 +20,13 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react({ jsxRuntime: "automatic" })],
+    resolve: {
+      alias: {
+        fontkit: fileURLToPath(
+          new URL("./src/vendor/fontkitPatched.js", import.meta.url)
+        ),
+      },
+    },
     // define makes VITE_ENV available in the app at build time
     define: {
       __APP_ENV__: JSON.stringify(mode),
@@ -26,6 +35,9 @@ export default defineConfig(({ mode }) => {
       // Output directly to backend/client_dist so the server serves fresh builds
       outDir: "../backend/client_dist",
       emptyOutDir: true,
+    },
+    worker: {
+      format: "es",
     },
     server: {
       proxy: {

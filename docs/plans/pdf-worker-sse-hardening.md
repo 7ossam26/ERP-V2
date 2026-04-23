@@ -2,11 +2,13 @@
 
 **Branch:** `feat/call-center-phase-1`
 **Date:** 2026-04-23
-**Status:** Design locked, ready to implement
+**Status:** Pillar 3 ready to implement; Pillar 1 + 2 superseded for bulk invoice printing on 2026-04-23
 
 ---
 
 ## 1. Overview
+
+> **Update - 2026-04-23:** Bulk order invoice printing now follows the browser-native HTML print path from [pdf-arabic-rendering.md](./pdf-arabic-rendering.md). That supersedes this plan's Pillar 1 (worker PDF rendering) and Pillar 2 (font prefetch) for the bulk invoice flow. Pillar 3 (SSE hardening) remains valid.
 
 ### Problem
 Clicking **Print / PDF** on a bulk order ([BulkOrderDetailPage.jsx](frontend/src/pages/bulk/BulkOrderDetailPage.jsx)) sometimes freezes the browser tab for tens of seconds, leaves the button stuck on `جارٍ الإنشاء…`, and drops the SSE connection to the backend. Users misread the symptom as "the backend crashed".

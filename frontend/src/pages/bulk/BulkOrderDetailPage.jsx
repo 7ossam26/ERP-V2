@@ -8,7 +8,7 @@ import BulkPaymentModal from "../../components/bulk/BulkPaymentModal";
 import BulkReturnModal from "../../components/bulk/BulkReturnModal";
 import BulkConfirmOrderModal from "../../components/bulk/BulkConfirmOrderModal";
 import StatusChip from "../../components/bulk/StatusChip";
-import { generateAndOpenOrderPdf } from "../../utils/pdfGenerate";
+import { printInvoice } from "../../utils/printInvoice";
 import { usePrompt } from "../../hooks/usePrompt";
 
 const ERROR_LABELS = {
@@ -46,7 +46,6 @@ export default function BulkOrderDetailPage() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -142,16 +141,13 @@ export default function BulkOrderDetailPage() {
     }
   };
 
-  const openPdf = async (doc) => {
+  const printInvoiceHandler = async (doc) => {
     if (!order) return;
-    setGenerating(true);
     try {
-      await generateAndOpenOrderPdf(order, doc || null);
+      printInvoice(order, doc || null);
     } catch (err) {
-      console.error("[PDF]", err);
-      toast.error("تعذر إنشاء PDF");
-    } finally {
-      setGenerating(false);
+      console.error("[Print]", err);
+      toast.error("تعذر فتح نافذة الطباعة");
     }
   };
 
@@ -257,11 +253,10 @@ export default function BulkOrderDetailPage() {
 
           {printDoc && (
             <button
-              disabled={generating}
-              onClick={() => openPdf(printDoc)}
-              className="bg-primary/90 hover:bg-primary text-white px-4 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors duration-200"
+              onClick={() => printInvoiceHandler(printDoc)}
+              className="bg-primary/90 hover:bg-primary text-white px-4 py-2 rounded-xl text-sm transition-colors duration-200"
             >
-              {generating ? "جارٍ الإنشاء…" : "PDF طباعة / تحميل"}
+              طباعة / PDF
             </button>
           )}
         </div>
@@ -391,12 +386,11 @@ export default function BulkOrderDetailPage() {
                   </span>
                 </div>
                 <button
-                  disabled={generating}
-                  onClick={() => openPdf(d)}
-                  className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover disabled:opacity-50 transition-colors"
+                  onClick={() => printInvoiceHandler(d)}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover transition-colors"
                 >
-                  <span className="material-icons-round text-sm">picture_as_pdf</span>
-                  عرض / تحميل
+                  <span className="material-icons-round text-sm">print</span>
+                  طباعة / PDF
                 </button>
               </div>
             ))}
