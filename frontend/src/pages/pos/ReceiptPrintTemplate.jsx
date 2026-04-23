@@ -116,7 +116,7 @@ const ReceiptPrintTemplate = React.forwardRef(({ data }, ref) => {
             <div style={{ ...S.bold, fontSize: "11px" }}>{item.name}</div>
             <div style={{ ...S.row, paddingRight: "2mm" }}>
               <span>
-                {num(item.quantity)} × {num(item.unitPrice)}
+                {num(item.quantity)}{" \u00d7 "}{num(item.unitPrice)}
               </span>
               <span>{num(item.total)}</span>
             </div>

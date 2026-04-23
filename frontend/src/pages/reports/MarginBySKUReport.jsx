@@ -38,7 +38,9 @@ export default function MarginBySKUReport() {
           <span className="material-icons-round text-primary text-xl">trending_up</span>
         </div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">هامش الربح بالصنف</h1>
-        <p className="text-xs text-slate-400">التكلفة = آخر سعر شراء × الكمية</p>
+        <p className="text-xs text-slate-400">
+          {"\u0627\u0644\u062a\u0643\u0644\u0641\u0629 = \u0622\u062e\u0631 \u0633\u0639\u0631 \u0634\u0631\u0627\u0621 \u00d7 \u0627\u0644\u0643\u0645\u064a\u0629"}
+        </p>
       </div>
 
       <ReportFilterBar filters={filters} onChange={setFilters} onExport={handleExport} exporting={exporting} />

@@ -30,7 +30,7 @@ export default {
         xl: "1rem",
       },
       boxShadow: {
-        soft: "0 4px 20px -2px rgba(111, 78, 55, 0.05)",
+        soft: "0 18px 38px -28px rgba(50, 81, 99, 0.28)",
         "soft-dark": "0 4px 20px -2px rgba(0, 0, 0, 0.4)",
       },
       keyframes: {

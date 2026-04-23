@@ -98,7 +98,7 @@ const InventoryPage = () => {
       header: "التصنيف",
       accessor: "category",
       render: (item) => (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFEBE9] dark:bg-primary/10 text-text-muted dark:text-gray-300 text-xs font-medium border border-[#D7CCC8] dark:border-primary/20">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-accent/25 dark:bg-primary/10 text-text-muted dark:text-gray-300 text-xs font-medium border border-border-light dark:border-primary/20">
           <span
             className={`w-1.5 h-1.5 rounded-full ${item.categoryColor}`}></span>
           {item.category}
@@ -439,7 +439,7 @@ const InventoryPage = () => {
                   className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold border transition-all duration-200 ${
                     filter === cat
                       ? "bg-primary text-surface-light border-transparent shadow-sm"
-                      : "bg-transparent text-text-muted dark:text-gray-400 hover:text-primary hover:bg-[#EFEBE9] dark:hover:bg-primary/10 border-transparent"
+                      : "bg-transparent text-text-muted dark:text-gray-400 hover:text-primary hover:bg-accent/25 dark:hover:bg-primary/10 border-transparent"
                   }`}>
                   {cat}
                 </button>

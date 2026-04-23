@@ -149,7 +149,7 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
                     </span>
                     {order.deliveryAddress && (
                       <span className="text-gray-500 dark:text-gray-400 truncate">
-                        — {order.deliveryAddress}
+                        {" \u2014 "}{order.deliveryAddress}
                       </span>
                     )}
                   </div>
@@ -159,7 +159,7 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-3 bg-white dark:bg-gray-800 rounded-lg p-2">
                       {order.items.map((si, i) => (
                         <span key={i}>
-                          {si.item?.name || si.bom?.name} ×{" "}
+                          {si.item?.name || si.bom?.name}{" \u00d7 "}
                           {parseFloat(si.quantity).toFixed(2)}
                           {i < order.items.length - 1 ? " ، " : ""}
                         </span>

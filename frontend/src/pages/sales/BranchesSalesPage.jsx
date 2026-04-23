@@ -80,12 +80,12 @@ const BranchesSalesPage = () => {
           </div>
 
           {/* Main Treasury Card */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4A3428] to-[#6F4E37] text-white p-6 md:p-10 shadow-lg">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-dark via-primary to-primary-hover text-white p-6 md:p-10 shadow-lg shadow-primary/20">
             <div
               className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
               style={{
                 backgroundImage:
-                  "radial-gradient(#d7ccc8 1px, transparent 1px)",
+                  "radial-gradient(rgb(var(--theme-accent) / 0.65) 1px, transparent 1px)",
                 backgroundSize: "20px 20px",
               }}></div>
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -121,7 +121,7 @@ const BranchesSalesPage = () => {
                   <span className="material-symbols-outlined text-[18px]">
                     {isPositive ? "trending_up" : "trending_down"}
                   </span>
-                  <span className="text-sm font-bold font-['Inter']">
+                  <span className="text-sm font-bold">
                     {isPositive ? "+" : "-"}
                     {percentageChange}%
                   </span>
