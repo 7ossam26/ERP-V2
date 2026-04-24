@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import AuthService from "../../services/authService";
 import KgQuantityInput from "../../components/ui/KgQuantityInput";
 import {
   supplierService,
@@ -15,22 +16,40 @@ import Modal from "../../components/ui/Modal";
 import { ItemForm } from "../items/ItemManager";
 import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
 import PurchaseReturnModal from "./PurchaseReturnModal";
+import { canReadSystemSettings } from "../../utils/systemSettingsAccess";
+import {
+  canReadPurchaseTreasuries,
+  getInitialPurchasePaymentMethod,
+  isTreasuryPaymentMethod,
+} from "../../utils/purchaseTreasuryAccess";
+
+const createPurchaseLineItem = (id = 1) => ({
+  id,
+  name: "",
+  itemId: null,
+  quantity: 1,
+  purchasePrice: 0,
+  sellPrice: 0,
+  unit: "piece",
+  itemType: null,
+  rolls: [],
+});
+
+const getNextNumericId = (records) =>
+  records.reduce((maxId, record) => Math.max(maxId, Number(record.id) || 0), 0) + 1;
+
+const getTimestampValue = (value) => Date.parse(value) || 0;
+
+const formatDateLabel = (value) => String(value || "").slice(0, 10);
 
 const PurchasesPage = () => {
-  const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH, CREDIT, DEFERRED, MIXED
-  const [items, setItems] = useState([
-    {
-      id: Date.now(),
-      name: "",
-      itemId: null,
-      quantity: 1,
-      purchasePrice: 0,
-      sellPrice: 0,
-      unit: "piece",
-      itemType: null,
-      rolls: [],
-    },
-  ]);
+  const canUseTreasuryPayments = canReadPurchaseTreasuries(AuthService);
+  const [paymentMethod, setPaymentMethod] = useState(() =>
+    getInitialPurchasePaymentMethod({
+      canReadTreasuries: canUseTreasuryPayments,
+    }),
+  ); // CASH, CREDIT, DEFERRED, MIXED
+  const [items, setItems] = useState(() => [createPurchaseLineItem()]);
   const [discountType, setDiscountType] = useState("percent"); // percent, value
 
   const [discountValue, setDiscountValue] = useState(0);
@@ -39,7 +58,6 @@ const PurchasesPage = () => {
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [treasuries, setTreasuries] = useState([]);
   const [selectedTreasuryId, setSelectedTreasuryId] = useState("");
-  const [selectedTreasuryBalance, setSelectedTreasuryBalance] = useState(0);
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
@@ -115,47 +133,57 @@ const PurchasesPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch essential data (suppliers, items, treasuries, warehouses)
+        // Fetch essential data. Treasury data is optional and permission-gated.
         const [
           fetchedSuppliers,
           fetchedItems,
-          fetchedTreasuries,
           fetchedWarehouses,
         ] = await Promise.all([
           supplierService.getAll(),
           itemService.getAll(),
-          treasuryService.getAll(),
           warehouseService.getAll(),
         ]);
         setSuppliers(fetchedSuppliers);
         setAllItems(fetchedItems);
-        setTreasuries(fetchedTreasuries);
         setWarehouses(fetchedWarehouses);
 
-        // Auto-select first treasury and warehouse if available
-        if (fetchedTreasuries.length > 0) {
-          setSelectedTreasuryId(fetchedTreasuries[0].id);
+        if (canUseTreasuryPayments) {
+          try {
+            const fetchedTreasuries = await treasuryService.getAll();
+            setTreasuries(fetchedTreasuries);
+            if (fetchedTreasuries.length > 0) {
+              setSelectedTreasuryId(fetchedTreasuries[0].id);
+            }
+          } catch (treasuryError) {
+            console.error("Failed to fetch treasuries", treasuryError);
+          }
+        } else {
+          setTreasuries([]);
+          setSelectedTreasuryId("");
         }
 
-        // Fetch Settings to set Main Warehouse
-        try {
-          const settings = await settingsService.get();
-          if (settings && settings.mainWarehouseId) {
-            setSelectedWarehouseId(settings.mainWarehouseId);
-          } else if (fetchedWarehouses.length > 0) {
-            // Fallback if no main warehouse configured
-            setSelectedWarehouseId(fetchedWarehouses[0].id);
+        // Only settings users can read protected system defaults safely.
+        if (canReadSystemSettings(AuthService)) {
+          try {
+            const settings = await settingsService.get();
+            if (settings && settings.mainWarehouseId) {
+              setSelectedWarehouseId(settings.mainWarehouseId);
+            } else if (fetchedWarehouses.length > 0) {
+              setSelectedWarehouseId(fetchedWarehouses[0].id);
+            }
+            setTaxEnabledOnPurchases(Boolean(settings?.taxEnabledOnPurchases));
+            setPurchaseTaxRate(Number(settings?.taxRate) || 14);
+            if (settings?.landedCostFeatureEnabled) {
+              setLandedCostFeatureEnabled(true);
+            }
+          } catch (settingsError) {
+            console.error("Failed to fetch settings", settingsError);
+            if (fetchedWarehouses.length > 0) {
+              setSelectedWarehouseId(fetchedWarehouses[0].id);
+            }
           }
-          setTaxEnabledOnPurchases(Boolean(settings?.taxEnabledOnPurchases));
-          setPurchaseTaxRate(Number(settings?.taxRate) || 14);
-          if (settings?.landedCostFeatureEnabled) {
-            setLandedCostFeatureEnabled(true);
-          }
-        } catch (settingsError) {
-          console.error("Failed to fetch settings", settingsError);
-          if (fetchedWarehouses.length > 0) {
-            setSelectedWarehouseId(fetchedWarehouses[0].id);
-          }
+        } else if (fetchedWarehouses.length > 0) {
+          setSelectedWarehouseId(fetchedWarehouses[0].id);
         }
 
         // Fetch purchases separately (non-blocking if it fails)
@@ -174,61 +202,43 @@ const PurchasesPage = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [canUseTreasuryPayments]);
 
   // Calculated totals
-  const [totals, setTotals] = useState({
-    subtotal: 0,
-    discountAmount: 0,
-    netBeforeTax: 0,
-    taxAmount: 0,
-    net: 0,
-    totalSell: 0,
-    profit: 0,
-    remaining: 0,
-  });
-
-  useEffect(() => {
-    calculateTotals();
-  }, [items, discountType, discountValue, paidAmount, taxEnabledOnPurchases, purchaseTaxRate]);
-
-  const calculateTotals = () => {
-    const subtotal = items.reduce(
-      (sum, item) =>
-        sum + (Number(item.quantity) * Number(item.purchasePrice) || 0),
-      0,
-    );
-    const totalSell = items.reduce(
-      (sum, item) =>
-        sum + (Number(item.quantity) * Number(item.sellPrice) || 0),
-      0,
-    );
-
-    let discountAmount = 0;
-    if (discountType === "percent") {
-      discountAmount = subtotal * (Number(discountValue) / 100);
-    } else {
-      discountAmount = Number(discountValue);
-    }
-
-    const netBeforeTax = Math.max(0, subtotal - discountAmount);
-    const taxAmount = taxEnabledOnPurchases
-      ? netBeforeTax * ((Number(purchaseTaxRate) || 0) / 100)
-      : 0;
-    const net = Math.max(0, netBeforeTax + taxAmount);
-    const profit = totalSell - net;
-    const remaining = Math.max(0, net - Number(paidAmount));
-
-    setTotals({
-      subtotal,
-      discountAmount,
-      netBeforeTax,
-      taxAmount,
-      net,
-      totalSell,
-      profit,
-      remaining,
-    });
+  const subtotal = items.reduce(
+    (sum, item) =>
+      sum + (Number(item.quantity) * Number(item.purchasePrice) || 0),
+    0,
+  );
+  const totalSell = items.reduce(
+    (sum, item) =>
+      sum + (Number(item.quantity) * Number(item.sellPrice) || 0),
+    0,
+  );
+  const discountAmount =
+    discountType === "percent"
+      ? subtotal * (Number(discountValue) / 100)
+      : Number(discountValue);
+  const netBeforeTax = Math.max(0, subtotal - discountAmount);
+  const taxAmount = taxEnabledOnPurchases
+    ? netBeforeTax * ((Number(purchaseTaxRate) || 0) / 100)
+    : 0;
+  const net = Math.max(0, netBeforeTax + taxAmount);
+  const effectivePaidAmount =
+    paymentMethod === "CASH" || paymentMethod === "CREDIT"
+      ? net
+      : paymentMethod === "DEFERRED"
+        ? 0
+        : Number(paidAmount) || 0;
+  const totals = {
+    subtotal,
+    discountAmount,
+    netBeforeTax,
+    taxAmount,
+    net,
+    totalSell,
+    profit: totalSell - net,
+    remaining: Math.max(0, net - effectivePaidAmount),
   };
 
   const totalLanded = landedCostEnabled
@@ -243,17 +253,7 @@ const PurchasesPage = () => {
   };
 
   const addItem = () => {
-    const newItem = {
-      id: Date.now(),
-      name: "",
-      itemId: null, // Track the actual item from database
-      quantity: 1,
-      purchasePrice: 0,
-      sellPrice: 0,
-      unit: "piece",
-      itemType: null,
-      rolls: [],
-    };
+    const newItem = createPurchaseLineItem(getNextNumericId(items));
     setItems([...items, newItem]);
   };
 
@@ -299,12 +299,13 @@ const PurchasesPage = () => {
       toast.error("أضف موردًا وصنف واحد على الأقل");
       return;
     }
+    const heldId = getNextNumericId(heldPurchases);
     const held = {
-      id: Date.now(),
+      id: heldId,
       supplierId: selectedSupplierId,
       supplierName: suppliers.find((s) => s.id === parseInt(selectedSupplierId))?.name || "",
       items: items.filter((i) => i.itemId),
-      timestamp: new Date().toLocaleTimeString("ar-EG"),
+      timestamp: `Held #${heldId}`,
       total: totals.net.toFixed(2),
       paymentMethod,
       discountType,
@@ -324,7 +325,7 @@ const PurchasesPage = () => {
     setHeldPurchases(updated);
     localStorage.setItem("heldPurchases", JSON.stringify(updated));
     // Reset form
-    setItems([{ id: Date.now(), name: "", itemId: null, quantity: 1, purchasePrice: 0, sellPrice: 0, unit: "piece", itemType: null, rolls: [] }]);
+    setItems([createPurchaseLineItem()]);
     setItemSearches({});
     setDiscountValue(0);
     setSupplierInvoiceNo("");
@@ -343,11 +344,15 @@ const PurchasesPage = () => {
     if (!held) return;
     setItems(held.items);
     setSelectedSupplierId(held.supplierId);
-    setPaymentMethod(held.paymentMethod || "CASH");
+    setPaymentMethod(
+      canUseTreasuryPayments ? held.paymentMethod || "CASH" : "DEFERRED",
+    );
     setDiscountType(held.discountType || "percent");
     setDiscountValue(held.discountValue || 0);
     setSelectedWarehouseId(held.warehouseId || selectedWarehouseId);
-    setSelectedTreasuryId(held.treasuryId || selectedTreasuryId);
+    setSelectedTreasuryId(
+      canUseTreasuryPayments ? held.treasuryId || selectedTreasuryId : "",
+    );
     setSupplierInvoiceNo(held.supplierInvoiceNo || "");
     setIsInternational(held.isInternational || false);
     setLandedCostEnabled(held.landedCostEnabled || false);
@@ -374,6 +379,12 @@ const PurchasesPage = () => {
   };
 
   const handlePaymentMethodChange = (method) => {
+    if (!canUseTreasuryPayments && isTreasuryPaymentMethod(method)) {
+      setPaymentMethod("DEFERRED");
+      setPaidAmount(0);
+      return;
+    }
+
     setPaymentMethod(method);
     // Reset paid amount logic based on method
     if (method === "CASH" || method === "CREDIT") {
@@ -384,26 +395,10 @@ const PurchasesPage = () => {
     // For MIXED, keep manual entry
   };
 
-  // Update paid amount automatically when net changes if mostly cash/credit
-  useEffect(() => {
-    if (paymentMethod === "CASH" || paymentMethod === "CREDIT") {
-      setPaidAmount(totals.net);
-    } else if (paymentMethod === "DEFERRED") {
-      setPaidAmount(0);
-    }
-  }, [totals.net, paymentMethod]);
-
-  // Update treasury balance when selected treasury changes
-  useEffect(() => {
-    if (selectedTreasuryId) {
-      const treasury = treasuries.find(
-        (t) => t.id === parseInt(selectedTreasuryId),
-      );
-      if (treasury) {
-        setSelectedTreasuryBalance(Number(treasury.balance) || 0);
-      }
-    }
-  }, [selectedTreasuryId, treasuries]);
+  const selectedTreasury = selectedTreasuryId
+    ? treasuries.find((t) => t.id === parseInt(selectedTreasuryId))
+    : null;
+  const selectedTreasuryBalance = Number(selectedTreasury?.balance) || 0;
 
   const handleSaveNewItem = async (formData) => {
     try {
@@ -431,7 +426,11 @@ const PurchasesPage = () => {
         toast.error("يرجى اختيار المورد");
         return;
       }
-      if (!selectedTreasuryId) {
+      if (!canUseTreasuryPayments && isTreasuryPaymentMethod(paymentMethod)) {
+        toast.error("This role can create deferred purchases only.");
+        return;
+      }
+      if (canUseTreasuryPayments && !selectedTreasuryId) {
         toast.error("يرجى اختيار الخزينة");
         return;
       }
@@ -476,7 +475,7 @@ const PurchasesPage = () => {
 
       const purchaseData = {
         supplierId: parseInt(selectedSupplierId),
-        treasuryId: parseInt(selectedTreasuryId),
+        treasuryId: selectedTreasuryId ? parseInt(selectedTreasuryId) : undefined,
         warehouseId: parseInt(selectedWarehouseId),
         supplierInvoiceNo,
         paymentMethod, // CASH, CREDIT, DEFERRED, or MIXED
@@ -485,7 +484,7 @@ const PurchasesPage = () => {
         discountValue: Number(discountValue) || 0,
         discountAmount: Number(totals.discountAmount),
         netTotal: Number(totals.net),
-        paidAmount: Number(paidAmount) || 0,
+        paidAmount: Number(effectivePaidAmount) || 0,
         remaining: Number(totals.remaining),
         isInternational,
         landedCostEnabled,
@@ -521,18 +520,7 @@ const PurchasesPage = () => {
       setPurchases(fetchedPurchases);
 
       // Reset form
-      setItems([
-        {
-          id: Date.now(),
-          name: "",
-          itemId: null,
-          quantity: 1,
-          purchasePrice: 0,
-          sellPrice: 0,
-          itemType: null,
-          rolls: [],
-        },
-      ]);
+      setItems([createPurchaseLineItem()]);
       setSelectedSupplierId("");
       setSupplierInvoiceNo("");
       setDiscountType("percent");
@@ -556,7 +544,7 @@ const PurchasesPage = () => {
   const pmLabel = (m) => ({ CASH:"نقدي", CREDIT:"كريدت", DEFERRED:"آجل", MIXED:"متنوع", cash:"نقدي", credit:"كريدت", deferred:"آجل", mixed:"متنوع" })[m] || m;
   const psLabel = (s) => ({ PAID:"مدفوع", PARTIALLY_PAID:"جزئي", UNPAID:"غير مدفوع", RETURNED:"مرتجع" })[s] || s;
   const psClass = (s) => s==="PAID" ? "bg-green-100 text-green-800" : s==="PARTIALLY_PAID" ? "bg-yellow-100 text-yellow-800" : s==="RETURNED" ? "bg-orange-100 text-orange-800" : "bg-red-100 text-red-800";
-  const filteredHistory = [...purchases].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).filter(p=>{
+  const filteredHistory = [...purchases].sort((a,b)=>getTimestampValue(b.createdAt)-getTimestampValue(a.createdAt)).filter(p=>{
     if (filterInternational && !p.isInternational) return false;
     if (filterHasLandedCost && !p.landedCostEnabled) return false;
     if (!historyFilter.trim()) return true;
@@ -632,7 +620,7 @@ const PurchasesPage = () => {
                     : filteredHistory.map(p=>(
                       <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                         <td className="p-3 font-mono font-bold text-blue-600">#{p.id}</td>
-                        <td className="p-3 text-gray-500">{new Date(p.createdAt).toLocaleDateString("ar-EG")}</td>
+                        <td className="p-3 text-gray-500">{formatDateLabel(p.createdAt)}</td>
                         <td className="p-3 font-medium">
                           {p.supplier?.name||"—"}
                           {p.isInternational && (
@@ -740,6 +728,7 @@ const PurchasesPage = () => {
                 value={purchases.length > 0 ? purchases.length + 1 : 1}
               />
             </div>
+            {canUseTreasuryPayments ? (
             <div className="md:col-span-3">
               <label className="block text-sm font-medium mb-1 text-text-muted dark:text-accent">
                 الخزينه
@@ -758,6 +747,16 @@ const PurchasesPage = () => {
                 </select>
               </div>
             </div>
+            ) : (
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium mb-1 text-text-muted dark:text-accent">
+                Treasury
+              </label>
+              <div className="rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2.5 text-sm text-text-muted dark:text-accent">
+                Deferred only for this role
+              </div>
+            </div>
+            )}
             <div className="md:col-span-3">
               <label className="block text-sm font-medium mb-1 text-text-muted dark:text-accent">
                 المخزن
@@ -1330,6 +1329,8 @@ const PurchasesPage = () => {
                 )}
 
               <div className="space-y-3">
+                {canUseTreasuryPayments && (
+                <>
                 {/* Cash Payment */}
                 <div
                   className="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer"
@@ -1373,6 +1374,8 @@ const PurchasesPage = () => {
                     </span>
                   </label>
                 </div>
+                </>
+                )}
 
                 {/* Deferred Payment */}
                 <div
@@ -1396,6 +1399,8 @@ const PurchasesPage = () => {
                   </label>
                 </div>
 
+                {canUseTreasuryPayments && (
+                <>
                 {/* Mixed Payment */}
                 <div
                   className="flex items-center p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer"
@@ -1417,6 +1422,8 @@ const PurchasesPage = () => {
                     </span>
                   </label>
                 </div>
+                </>
+                )}
               </div>
 
               {/* Conditional mixed payment inputs */}

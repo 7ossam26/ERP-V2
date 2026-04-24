@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from "react";
 import AuthService from "../../../services/authService";
 import { settingsService } from "../../../services/domainServices";
+import { canReadSystemSettings } from "../../../utils/systemSettingsAccess";
 
 const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
+      if (!canReadSystemSettings(AuthService)) {
+        setSettings(null);
+        return;
+      }
+
       try {
         const data = await settingsService.get();
         setSettings(data);

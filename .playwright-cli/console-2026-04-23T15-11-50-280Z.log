@@ -1,0 +1,13 @@
+[     636ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-WRD5HZVH.js?v=ff3a19f3:21550
+[     767ms] [LOG] Seeded erp_items @ http://localhost:5173/src/App.jsx:110
+[     768ms] [LOG] Seeded erp_employees @ http://localhost:5173/src/App.jsx:110
+[     768ms] [LOG] Seeded erp_expenses @ http://localhost:5173/src/App.jsx:110
+[     768ms] [LOG] Seeded erp_clients @ http://localhost:5173/src/App.jsx:110
+[     856ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/:0
+[  294047ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:5173/api/auth/login:0
+[  294049ms] [ERROR] Login error: APIError: Invalid credentials
+    at apiClient (http://localhost:5173/src/services/apiClient.js:80:13)
+    at async Object.login (http://localhost:5173/src/services/authService.js:7:24)
+    at async handleLogin (http://localhost:5173/src/pages/LoginPage.jsx:50:24) @ http://localhost:5173/src/pages/LoginPage.jsx:61
+[  929046ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-WRD5HZVH.js?v=ff3a19f3:21550
+[  929237ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/:0

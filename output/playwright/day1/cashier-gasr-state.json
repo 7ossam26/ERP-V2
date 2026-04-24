@@ -1,0 +1,34 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OSwidXNlcm5hbWUiOiJjYXNoaWVyLmdhc3IiLCJyb2xlIjoiQ2FzaGllciIsImhhc1NlbnNpdGl2ZUFjY2VzcyI6ZmFsc2UsImlhdCI6MTc3Njk1ODU1OCwiZXhwIjoxNzc3NTYzMzU4fQ.g36CEnw47rmSXSSnvF1z-BiNDhbOBT6rJrhhlwDEKVY"
+        },
+        {
+          "name": "erp_items",
+          "value": "[{\"id\":1,\"name\":\"اسبريسو غامق\",\"code\":\"CF-001\",\"category\":\"بن القهوة\",\"categoryColor\":\"bg-primary\",\"quantity\":45,\"unit\":\"كجم\",\"purchasePrice\":280,\"sellPrice\":450,\"status\":\"متوفر\",\"image\":\"https://lh3.googleusercontent.com/aida-public/AB6AXuAZAoZmkwZyH2TdUSGj3-yPf895fUr3F-u-s9LLWqaTONineDda9iXdLONis9YgeCYtotWHHDIZF1Ie8b7wCISWbURtKN7GWcSAmW6m3AuHsxSAGYnWxF59DzNtTs7E1-PKXhNnrBxTyQN1E8ZKUVdHPfcNaO0mt7rUQaMyckXYzvMP8Wn7CpZWdpH6t_KQj04mhA_M5uhpHcN5On3Dk7HKIaEhdCuQuanYi3gFUk6jXfdiTRPW4er9rDAUlJdFh_uGimu-gTpqIi4N\"},{\"id\":2,\"name\":\"شراب الفانيليا\",\"code\":\"SY-042\",\"category\":\"مستلزمات\",\"categoryColor\":\"bg-blue-700\",\"quantity\":2,\"unit\":\"نقص بالمخزون\",\"unitIsAlert\":true,\"purchasePrice\":120,\"sellPrice\":180,\"status\":\"نقص بالمخزون\",\"image\":\"https://lh3.googleusercontent.com/aida-public/AB6AXuB0d9jLSepehzP-XfUpMlaxyPFCK5yERbmAiXOFfSouYTiB39FlQkNNqiVc2QJ1IE5KW9Cgrbxv_i93IMKDfdNS2Ict03pi7fs3g5lnRCGJS77WBuusuMsNB57wTEKw6zQSh616lF79VNvBtFjC02ZawpiwCsTmy-y4uo4du3WGxx7yNT47kNs0G93VWxpxH83NVtufCYyHH4t2eHbxAi6lI-IxVwXr9-bUeWd6_78B_8i76gB6-EslV3ynjM4sNZ3H6maSUPPNCU57\"},{\"id\":3,\"name\":\"كرواسون بالزبدة\",\"code\":\"PA-105\",\"category\":\"مخبوزات\",\"categoryColor\":\"bg-yellow-600\",\"quantity\":12,\"unit\":\"قطعة\",\"purchasePrice\":15,\"sellPrice\":35,\"status\":\"متوفر\",\"image\":\"https://lh3.googleusercontent.com/aida-public/AB6AXuA6iJfh0cXzI4NNeSoTl0uZI-O0OwgdbNf-6kmTBKZtoRrQIWRcFRb7Xz9v-Ut_30mTZAi8xIEZ0ZbMlMvmI7tx2gtca7Puo8ujDB7OGxkyx6PFiqZopLmB_tt5ci3224-1R1ZY73k-_xpW42siFyEDBirT99Z6DIteF_f2SD9W_uUe8nYtgYvqfOBcxXR_JQovfxxHVyF4X9VEggqgl8ls7zbiSo_XR5YYb5BR7BXnGaWSSF0SPLsk4HKqOs9nyJVE4FTyd1dp_nfN\"},{\"id\":4,\"name\":\"أكواب تيك أواي (12oz)\",\"code\":\"SU-882\",\"category\":\"مستلزمات\",\"categoryColor\":\"bg-blue-700\",\"quantity\":500,\"unit\":\"قطعة\",\"purchasePrice\":2.5,\"sellPrice\":\"-\",\"status\":\"متوفر\",\"image\":\"https://lh3.googleusercontent.com/aida-public/AB6AXuB25LHJMYmjYVyTpzw6pENRhQ4_zihPoPWr0Giw8yELR_6cG05jkENK8qBkI0LntbFxCbTS48ILLgsySuIT-P6qXv2YhcluKHvg-RtoYaI6ODIOh7KfpW0Qt1M00Kizbej0uGLc6HO4FelPdo2YCl4dVpuRN4rNbT5wlbegr9T6DjKEjK-A8FmTLnvbU2K4zJxynJFsVgKpLI4r0lyc3YxnugwMCYS6RJamA7WYPZnWXLWx1eIcBkTDyfVmcNzM5lsQ7OteAumWiImc\"},{\"id\":5,\"name\":\"كابتشينو (وسط)\",\"code\":\"DR-001\",\"category\":\"مشروبات ساخنة\",\"quantity\":100,\"unit\":\"كوب\",\"purchasePrice\":15,\"sellPrice\":65,\"status\":\"متوفر\"},{\"id\":6,\"name\":\"لاتيه\",\"code\":\"DR-002\",\"category\":\"مشروبات ساخنة\",\"quantity\":100,\"unit\":\"كوب\",\"purchasePrice\":18,\"sellPrice\":70,\"status\":\"متوفر\"}]"
+        },
+        {
+          "name": "erp_expenses",
+          "value": "[{\"id\":1,\"date\":\"2024-01-25\",\"description\":\"شراء حبوب بن (برازيلي - أرابيكا)\",\"paymentMethod\":\"نقدي\",\"amount\":5400},{\"id\":2,\"date\":\"2024-01-24\",\"description\":\"فاتورة كهرباء شهر ديسمبر\",\"paymentMethod\":\"تحويل بنكي\",\"amount\":1200}]"
+        },
+        {
+          "name": "user",
+          "value": "{\"id\":9,\"name\":\"كاشير جسر السويس\",\"username\":\"cashier.gasr\",\"role\":\"Cashier\",\"roleId\":12,\"branch\":{\"id\":3,\"name\":\"فرع جسر السويس\",\"address\":\"جسر السويس\",\"warehouseId\":3,\"treasuryId\":3,\"createdAt\":\"2026-04-21T22:17:57.181Z\",\"updatedAt\":\"2026-04-21T22:17:57.000Z\",\"isActive\":true},\"accessibleBranches\":[],\"permissions\":{\"INVENTORY\":true,\"POS\":true,\"SALES\":true,\"CLIENTS\":true,\"CATEGORIES\":true,\"ITEMS\":true,\"SHIFTS\":true,\"CREATES_CLIENTS\":true},\"hasSensitiveAccess\":false,\"mustChangePassword\":false}"
+        },
+        {
+          "name": "erp_clients",
+          "value": "[{\"id\":1,\"name\":\"عميل عام\",\"phone\":\"\"}]"
+        },
+        {
+          "name": "erp_employees",
+          "value": "[{\"id\":1,\"name\":\"أحمد محمد\",\"role\":\"مدير فرع\",\"code\":\"EMP-001\",\"phone\":\"+20 101 234 5678\",\"salary\":8000,\"advances\":0,\"deductions\":0,\"image\":\"https://lh3.googleusercontent.com/aida-public/AB6AXuCOPfWWWsWaHp3fUBScVZJLURjbDbIy3CGfqsP0NC9GP0dVWGfrL8MyCSJ4hbKqBCVMSQh5RDg-nFIwJ1a0HhvFDJUjGtKA9G1sFOURpzYbKjwNQzAixZncslP5BOdGCL1Pe5BRxXfix9NPlR5OmGg_UtveCqYUYtezAknVFWULQbv8XVa_J9gZm4osT9Pf0h-vjMEGcG9JxSKt5rvmp814zN9jIPaKJHlPwkTAYsgt_z-lDjPovK5v8ceBayfuUHjD6qu_ARzcjB9T\"},{\"id\":2,\"name\":\"سارة علي\",\"role\":\"محاسب\",\"code\":\"EMP-002\",\"phone\":\"+20 112 345 6789\",\"salary\":6000,\"advances\":500,\"deductions\":0,\"image\":\"https://lh3.googleusercontent.com/aida-public/AB6AXuBnQmwZAVuFwTfAZXF_6Lx3DqeL5TYGO5WFLjGH_iVfPnxuqlrDboHSEvIH3fmuGoO_zeL-uWnFFhEp2zQxwf_3cqpXUFcurjqlKbgPnXPXnefYcdRzqZnzGVQ4hMgCFHp_Fxj5sOIa1ZTOWeufQ6yaLDM_jxAkm31Z3ZwIcF8aLfmBdz4v41_pkoEtU_eaYj4O-_x5YkzvihACQ26aRJxMN-eIYFcPoQN2w-hJewJ5ucRyg6BFzf_o_s_1oO8TwE3Ic0RbxUP4l-Mq\"}]"
+        }
+      ]
+    }
+  ]
+}

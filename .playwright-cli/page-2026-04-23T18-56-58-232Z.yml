@@ -1,0 +1,108 @@
+- generic [ref=e2]:
+  - status [ref=e94]: تم تغيير كلمة المرور بنجاح
+  - generic [ref=e95]:
+    - navigation [ref=e96]:
+      - generic [ref=e98]:
+        - generic [ref=e99]:
+          - button "arrow_forward رجوع" [ref=e100]:
+            - generic [ref=e101]: arrow_forward
+            - generic [ref=e102]: رجوع
+          - link "home الصفحة الرئيسية" [ref=e103] [cursor=pointer]:
+            - /url: /dashboard
+            - generic [ref=e104]: home
+            - generic [ref=e105]: الصفحة الرئيسية
+        - link "رامكس ستور" [ref=e106] [cursor=pointer]:
+          - /url: /dashboard
+          - img "رامكس ستور" [ref=e107]
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - generic [ref=e110]: store
+            - generic [ref=e111]: الفرع الرئيسي
+          - link "help_outline" [ref=e112] [cursor=pointer]:
+            - /url: /manual
+            - generic [ref=e113]: help_outline
+          - button "مدير فرع جسر السويس BranchManager person" [ref=e115]:
+            - generic [ref=e116]:
+              - paragraph [ref=e117]: مدير فرع جسر السويس
+              - paragraph [ref=e118]: BranchManager
+            - generic [ref=e120]: person
+    - main [ref=e121]:
+      - generic [ref=e123]:
+        - generic:
+          - generic: local_cafe
+          - generic: coffee_maker
+        - heading "الصفحة الرئيسية" [level=2] [ref=e125]
+        - generic [ref=e127]:
+          - button "qr_code_2 تكويدات إدارة الأصناف" [ref=e128] [cursor=pointer]:
+            - generic [ref=e130]: qr_code_2
+            - heading "تكويدات" [level=3] [ref=e131]
+            - paragraph [ref=e132]: إدارة الأصناف
+          - button "shopping_cart مشتريات إدارة التوريد" [ref=e133] [cursor=pointer]:
+            - generic [ref=e135]: shopping_cart
+            - heading "مشتريات" [level=3] [ref=e136]
+            - paragraph [ref=e137]: إدارة التوريد
+          - button "point_of_sale مبيعات فاتورة جديدة" [ref=e138] [cursor=pointer]:
+            - generic [ref=e140]: point_of_sale
+            - heading "مبيعات" [level=3] [ref=e141]
+            - paragraph [ref=e142]: فاتورة جديدة
+          - button "inventory_2 تحويلات مخزنية نقل البضائع" [ref=e143] [cursor=pointer]:
+            - generic [ref=e145]: inventory_2
+            - heading "تحويلات مخزنية" [level=3] [ref=e146]
+            - paragraph [ref=e147]: نقل البضائع
+          - button "account_balance_wallet تحويلات الخزائن النقدية والسيولة" [ref=e148] [cursor=pointer]:
+            - generic [ref=e150]: account_balance_wallet
+            - heading "تحويلات الخزائن" [level=3] [ref=e151]
+            - paragraph [ref=e152]: النقدية والسيولة
+          - button "account_balance_wallet حسابات الموردين إدارة حسابات الموردين والمدفوعات" [ref=e153] [cursor=pointer]:
+            - generic [ref=e155]: account_balance_wallet
+            - heading "حسابات الموردين" [level=3] [ref=e156]
+            - paragraph [ref=e157]: إدارة حسابات الموردين والمدفوعات
+          - button "fact_check الجرد جرد المخزون" [ref=e158] [cursor=pointer]:
+            - generic [ref=e160]: fact_check
+            - heading "الجرد" [level=3] [ref=e161]
+            - paragraph [ref=e162]: جرد المخزون
+          - button "bar_chart التقارير والسجلات تحليل البيانات" [ref=e163] [cursor=pointer]:
+            - generic [ref=e165]: bar_chart
+            - heading "التقارير والسجلات" [level=3] [ref=e166]
+            - paragraph [ref=e167]: تحليل البيانات
+          - button "receipt_long مصروفات إدارة المصروفات والفواتير" [ref=e168] [cursor=pointer]:
+            - generic [ref=e170]: receipt_long
+            - heading "مصروفات" [level=3] [ref=e171]
+            - paragraph [ref=e172]: إدارة المصروفات والفواتير
+          - button "account_balance الإيداعات والمسحوبات إدارة الإيداعات والمسحوبات" [ref=e173] [cursor=pointer]:
+            - generic [ref=e175]: account_balance
+            - heading "الإيداعات والمسحوبات" [level=3] [ref=e176]
+            - paragraph [ref=e177]: إدارة الإيداعات والمسحوبات
+          - button "groups موارد بشرية إدارة الموظفين" [ref=e178] [cursor=pointer]:
+            - generic [ref=e180]: groups
+            - heading "موارد بشرية" [level=3] [ref=e181]
+            - paragraph [ref=e182]: إدارة الموظفين
+          - button "schedule إدارة الورديات متابعة الورديات والموافقة عليها" [ref=e183] [cursor=pointer]:
+            - generic [ref=e185]: schedule
+            - heading "إدارة الورديات" [level=3] [ref=e186]
+            - paragraph [ref=e187]: متابعة الورديات والموافقة عليها
+          - button "motorcycle تسوية الطيارين إدارة مديونيات الطيارين والتسويات" [ref=e188] [cursor=pointer]:
+            - generic [ref=e190]: motorcycle
+            - heading "تسوية الطيارين" [level=3] [ref=e191]
+            - paragraph [ref=e192]: إدارة مديونيات الطيارين والتسويات
+          - button "inventory_2 لفات الأقمشة تتبع لفات الأقمشة وإدارتها" [ref=e193] [cursor=pointer]:
+            - generic [ref=e195]: inventory_2
+            - heading "لفات الأقمشة" [level=3] [ref=e196]
+            - paragraph [ref=e197]: تتبع لفات الأقمشة وإدارتها
+          - button "tune تسويات المخزون تسويات وتعديلات الكميات بأسباب" [ref=e198] [cursor=pointer]:
+            - generic [ref=e200]: tune
+            - heading "تسويات المخزون" [level=3] [ref=e201]
+            - paragraph [ref=e202]: تسويات وتعديلات الكميات بأسباب
+          - button "assignment الجرد الفعلي عمليات الجرد الدورية" [ref=e203] [cursor=pointer]:
+            - generic [ref=e205]: assignment
+            - heading "الجرد الفعلي" [level=3] [ref=e206]
+            - paragraph [ref=e207]: عمليات الجرد الدورية
+    - contentinfo [ref=e208]:
+      - generic [ref=e210]:
+        - link "code Developed by kiko-tech.com open_in_new" [ref=e211] [cursor=pointer]:
+          - /url: https://kiko-tech.com
+          - generic [ref=e212]: code
+          - generic [ref=e213]: Developed by
+          - generic [ref=e214]: kiko-tech.com
+          - generic [ref=e215]: open_in_new
+        - paragraph [ref=e216]: © 2026 Ramex Store ERP. All rights reserved.

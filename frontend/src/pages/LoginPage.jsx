@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import AuthService from "../services/authService";
 import { toast } from "react-hot-toast";
 import { showErrorToast } from "../utils/toastUtils";
+import { getLoginErrorMessage } from "../utils/loginErrorMessage";
 import Footer from "../components/shared/Footer";
 
 const LoginPage = () => {
@@ -11,6 +12,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   // Get return URL if exists
   const from = location.state?.from?.pathname || "/dashboard";
@@ -29,9 +31,10 @@ const LoginPage = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoginError("");
 
     if (!email || !password) {
-      toast.error("Please enter both username and password");
+      setLoginError("Please enter both username and password.");
       return;
     }
 
@@ -56,7 +59,16 @@ const LoginPage = () => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      showErrorToast(error, "Login failed. Please check your credentials.");
+      const message = getLoginErrorMessage(
+        error,
+        "Login failed. Please check your credentials.",
+      );
+
+      setLoginError(message);
+
+      if (error?.status !== 401) {
+        showErrorToast(error, message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -86,6 +98,15 @@ const LoginPage = () => {
                   </p>
                 </div>
 
+                {loginError ? (
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {loginError}
+                  </div>
+                ) : null}
+
                 <form onSubmit={handleLogin} className="space-y-6">
                   <div className="space-y-2">
                     <label className="block text-gray-900 dark:text-gray-100 text-base font-medium">
@@ -103,7 +124,12 @@ const LoginPage = () => {
                         required
                         type="text"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (loginError) {
+                            setLoginError("");
+                          }
+                        }}
                         disabled={isLoading}
                       />
                     </div>
@@ -127,7 +153,12 @@ const LoginPage = () => {
                         required
                         type="password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (loginError) {
+                            setLoginError("");
+                          }
+                        }}
                         disabled={isLoading}
                       />
                     </div>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
+import AuthService from "../../services/authService";
 import {
   branchService,
   settingsService,
   treasuryService,
 } from "../../services/domainServices";
+import { canReadSystemSettings } from "../../utils/systemSettingsAccess";
 
 const BranchesSalesPage = () => {
   const [branches, setBranches] = useState([]);
@@ -16,23 +18,26 @@ const BranchesSalesPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch System Configuration
-        const settings = await settingsService.get();
+        if (canReadSystemSettings(AuthService)) {
+          try {
+            const settings = await settingsService.get();
 
-        // Fetch Main Treasury if configured
-        if (settings.mainTreasuryId) {
-          const mainTreasuryData = await treasuryService.getById(
-            settings.mainTreasuryId,
-          );
-          setMainTreasury(mainTreasuryData);
-        }
+            if (settings.mainTreasuryId) {
+              const mainTreasuryData = await treasuryService.getById(
+                settings.mainTreasuryId,
+              );
+              setMainTreasury(mainTreasuryData);
+            }
 
-        // Fetch Bank Treasury if configured
-        if (settings.bankTreasuryId) {
-          const bankTreasuryData = await treasuryService.getById(
-            settings.bankTreasuryId,
-          );
-          setBankTreasury(bankTreasuryData);
+            if (settings.bankTreasuryId) {
+              const bankTreasuryData = await treasuryService.getById(
+                settings.bankTreasuryId,
+              );
+              setBankTreasury(bankTreasuryData);
+            }
+          } catch (settingsError) {
+            console.error("Failed to fetch system settings", settingsError);
+          }
         }
 
         // Fetch Branch Balances (includes cash + instapay)

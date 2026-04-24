@@ -317,9 +317,9 @@ async function main() {
       } else {
         const userId = existing[0].id;
         await query(
-          `UPDATE users SET role_id = ?, branch_id = ?, has_sensitive_access = ?,
+          `UPDATE users SET password = ?, role_id = ?, branch_id = ?, has_sensitive_access = ?,
            must_change_password = ?, updated_at = NOW() WHERE id = ?`,
-          [roleId, branchId, u.hasSensitiveAccess, u.mustChangePassword, userId]
+          [hashedPassword, roleId, branchId, u.hasSensitiveAccess, u.mustChangePassword, userId]
         );
         console.log(`  ✅ Updated user: ${u.username} (ID: ${userId})`);
 

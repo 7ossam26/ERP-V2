@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import AuthService from "../services/authService";
 import { settingsService } from "../services/settingsService";
 import { defaultTheme, findThemeByKey, themeOptions } from "../theme/themes";
+import { shouldFetchSystemSettings } from "../utils/systemSettingsAccess";
 
 const DEFAULT_SETTINGS = {
   companyName: "رامكس ستور",
@@ -116,14 +117,21 @@ export function SystemSettingsProvider({ children }) {
 
   const resolvedTheme = findThemeByKey(previewThemeKey || settings.themeKey);
 
+  const resetSettingsState = useCallback(() => {
+    setSettings(DEFAULT_SETTINGS);
+    setAvailableThemes(themeOptions);
+    setPreviewThemeKey(null);
+    setIsSettingsLoading(false);
+  }, []);
+
   const refreshSettings = useCallback(async () => {
-    if (!AuthService.isAuthenticated()) {
-      setSettings((current) => ({
-        ...DEFAULT_SETTINGS,
-        themeKey: current.themeKey || DEFAULT_SETTINGS.themeKey,
-      }));
-      setAvailableThemes(themeOptions);
-      setPreviewThemeKey(null);
+    if (
+      !shouldFetchSystemSettings({
+        isAuthenticated: AuthService.isAuthenticated(),
+        hasSettingsPermission: AuthService.hasPermission("SETTINGS"),
+      })
+    ) {
+      resetSettingsState();
       return;
     }
 
@@ -153,7 +161,7 @@ export function SystemSettingsProvider({ children }) {
     } finally {
       setIsSettingsLoading(false);
     }
-  }, []);
+  }, [resetSettingsState]);
 
   const applySettingsUpdate = useCallback((nextSettings) => {
     setSettings((current) => ({

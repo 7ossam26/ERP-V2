@@ -322,20 +322,41 @@ router.post("/", async (req, res, next) => {
 
     // ── Basic validation ──────────────────────────────────────────────────
     if (!supplierId) return res.status(400).json({ error: "Supplier is required" });
-    if (!treasuryId) return res.status(400).json({ error: "Treasury is required" });
     if (!items || items.length === 0) return res.status(400).json({ error: "At least one item is required" });
+
+    const effectiveMethod = paymentMethod || "CASH";
+    let userWithBranch = null;
+    const getUserWithBranch = async () => {
+      if (!userWithBranch) {
+        userWithBranch = await prisma.user.findUnique({
+          where: { id: req.user.id },
+          include: { branch: true },
+        });
+      }
+      return userWithBranch;
+    };
 
     // ── Resolve warehouse ────────────────────────────────────────────────
     let effectiveWarehouseId = warehouseId;
     if (!effectiveWarehouseId) {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        include: { branch: true },
-      });
+      const user = await getUserWithBranch();
       if (!user || !user.branch || !user.branch.warehouseId) {
         return res.status(400).json({ error: "Warehouse is required and user's branch warehouse is not configured." });
       }
       effectiveWarehouseId = user.branch.warehouseId;
+    }
+
+    let effectiveTreasuryId = treasuryId;
+    if (!effectiveTreasuryId) {
+      if (effectiveMethod !== "DEFERRED") {
+        return res.status(400).json({ error: "Treasury is required for paid purchases" });
+      }
+
+      const user = await getUserWithBranch();
+      if (!user || !user.branch || !user.branch.treasuryId) {
+        return res.status(400).json({ error: "Treasury is required and user's branch treasury is not configured." });
+      }
+      effectiveTreasuryId = user.branch.treasuryId;
     }
 
     // ── Pre-fetch item types (needed for fabric validation) ──────────────
@@ -377,10 +398,10 @@ router.post("/", async (req, res, next) => {
       const newPurchase = await tx.purchase.create({
         data: {
           supplierId: parseInt(supplierId),
-          treasuryId: parseInt(treasuryId),
+          treasuryId: parseInt(effectiveTreasuryId),
           warehouseId: parseInt(effectiveWarehouseId),
           supplierInvoiceNo: supplierInvoiceNo || null,
-          paymentMethod: paymentMethod || "CASH",
+          paymentMethod: effectiveMethod,
           subtotal: parseFloat(subtotal),
           discountType: discountType || "PERCENTAGE",
           discountValue: parseFloat(discountValue) || 0,
@@ -397,8 +418,8 @@ router.post("/", async (req, res, next) => {
           landedCostEnabled: Boolean(landedCostEnabled),
           landedCostAllocation: landedCostEnabled ? landedCostAllocation : "NONE",
           paymentStatus:
-            (paymentMethod || "CASH") === "DEFERRED" ? "UNPAID" :
-            (paymentMethod || "CASH") === "MIXED" ? "PARTIALLY_PAID" : "PAID",
+            effectiveMethod === "DEFERRED" ? "UNPAID" :
+            effectiveMethod === "MIXED" ? "PARTIALLY_PAID" : "PAID",
         },
       });
 
@@ -492,10 +513,9 @@ router.post("/", async (req, res, next) => {
       const netTotalNum = parseFloat(netTotal);
       const paidAmountNum = parseFloat(paidAmount) || 0;
       const remainingNum = parseFloat(remaining) || 0;
-      const effectiveMethod = paymentMethod || "CASH";
 
       if (effectiveMethod === "CASH" || effectiveMethod === "CREDIT") {
-        const treasury = await tx.treasury.findUnique({ where: { id: parseInt(treasuryId) } });
+        const treasury = await tx.treasury.findUnique({ where: { id: parseInt(effectiveTreasuryId) } });
         if (!treasury) {
           const err = new Error("Treasury not found");
           err.status = 404;
@@ -507,7 +527,7 @@ router.post("/", async (req, res, next) => {
           throw err;
         }
         await tx.treasury.update({
-          where: { id: parseInt(treasuryId) },
+          where: { id: parseInt(effectiveTreasuryId) },
           data: { balance: { decrement: netTotalNum } },
         });
         await tx.expense.create({
@@ -516,7 +536,7 @@ router.post("/", async (req, res, next) => {
             amount: netTotalNum,
             date: new Date(),
             type: "PURCHASE",
-            treasuryId: parseInt(treasuryId),
+            treasuryId: parseInt(effectiveTreasuryId),
             purchaseId: newPurchase.id,
             paymentMethod: effectiveMethod === "CREDIT" ? "CARD" : "CASH",
           },
@@ -531,7 +551,7 @@ router.post("/", async (req, res, next) => {
 
       } else if (effectiveMethod === "MIXED") {
         if (paidAmountNum > 0) {
-          const treasury = await tx.treasury.findUnique({ where: { id: parseInt(treasuryId) } });
+          const treasury = await tx.treasury.findUnique({ where: { id: parseInt(effectiveTreasuryId) } });
           if (!treasury) {
             const err = new Error("Treasury not found");
             err.status = 404;
@@ -543,7 +563,7 @@ router.post("/", async (req, res, next) => {
             throw err;
           }
           await tx.treasury.update({
-            where: { id: parseInt(treasuryId) },
+            where: { id: parseInt(effectiveTreasuryId) },
             data: { balance: { decrement: paidAmountNum } },
           });
           await tx.expense.create({
@@ -552,7 +572,7 @@ router.post("/", async (req, res, next) => {
               amount: paidAmountNum,
               date: new Date(),
               type: "PURCHASE",
-              treasuryId: parseInt(treasuryId),
+              treasuryId: parseInt(effectiveTreasuryId),
               purchaseId: newPurchase.id,
               paymentMethod: "CASH",
             },

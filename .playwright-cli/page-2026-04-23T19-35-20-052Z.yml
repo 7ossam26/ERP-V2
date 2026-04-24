@@ -1,0 +1,90 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - button "arrow_forward رجوع" [ref=e8]:
+          - generic [ref=e9]: arrow_forward
+          - generic [ref=e10]: رجوع
+        - link "home الصفحة الرئيسية" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e12]: home
+          - generic [ref=e13]: الصفحة الرئيسية
+      - link "رامكس ستور" [ref=e14] [cursor=pointer]:
+        - /url: /dashboard
+        - img "رامكس ستور" [ref=e15]
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: store
+          - generic [ref=e19]: فرع جسر السويس
+        - link "help_outline" [ref=e20] [cursor=pointer]:
+          - /url: /manual
+          - generic [ref=e21]: help_outline
+        - button "أمين المخزن WarehouseKeeper person" [ref=e23]:
+          - generic [ref=e24]:
+            - paragraph [ref=e25]: أمين المخزن
+            - paragraph [ref=e26]: WarehouseKeeper
+          - generic [ref=e28]: person
+  - main [ref=e29]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - button "arrow_forward" [ref=e34]:
+          - generic [ref=e35]: arrow_forward
+        - generic [ref=e36]:
+          - heading "إضافة لفات جديدة" [level=2] [ref=e37]
+          - paragraph [ref=e38]: يمكنك إضافة أكثر من لفة دفعة واحدة
+      - generic [ref=e39]:
+        - button "edit_note إدخال سريع (نص)" [ref=e41]:
+          - generic [ref=e42]: edit_note
+          - text: إدخال سريع (نص)
+        - generic [ref=e43]:
+          - table [ref=e45]:
+            - rowgroup [ref=e46]:
+              - row "# الصنف * المخزن * الطول (م) * التكلفة الباركود ملاحظات" [ref=e47]:
+                - columnheader "#" [ref=e48]
+                - columnheader "الصنف *" [ref=e49]
+                - columnheader "المخزن *" [ref=e50]
+                - columnheader "الطول (م) *" [ref=e51]
+                - columnheader "التكلفة" [ref=e52]
+                - columnheader "الباركود" [ref=e53]
+                - columnheader "ملاحظات" [ref=e54]
+                - columnheader [ref=e55]
+            - rowgroup [ref=e56]:
+              - row "1 -- اختر -- -- اختر -- content_copy delete_outline" [ref=e57]:
+                - cell "1" [ref=e58]
+                - cell "-- اختر --" [ref=e59]:
+                  - combobox [ref=e60]:
+                    - option "-- اختر --" [selected]
+                - cell "-- اختر --" [ref=e61]:
+                  - combobox [ref=e62]:
+                    - option "-- اختر --" [selected]
+                - cell [ref=e63]:
+                  - spinbutton [ref=e64]
+                - cell [ref=e65]:
+                  - spinbutton [ref=e66]
+                - cell [ref=e67]:
+                  - textbox "اختياري" [ref=e68]
+                - cell [ref=e69]:
+                  - textbox "اختياري" [ref=e70]
+                - cell "content_copy delete_outline" [ref=e71]:
+                  - generic [ref=e72]:
+                    - button "content_copy" [ref=e73]:
+                      - generic [ref=e74]: content_copy
+                    - button "delete_outline" [ref=e75]:
+                      - generic [ref=e76]: delete_outline
+          - button "add إضافة صف" [ref=e78]:
+            - generic [ref=e79]: add
+            - text: إضافة صف
+        - generic [ref=e80]:
+          - generic [ref=e81]: 1 لفة للإضافة
+          - generic [ref=e82]:
+            - button "إلغاء" [ref=e83]
+            - button "إضافة 1 لفة" [ref=e84]
+  - contentinfo [ref=e85]:
+    - generic [ref=e87]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e88] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e89]: code
+        - generic [ref=e90]: Developed by
+        - generic [ref=e91]: kiko-tech.com
+        - generic [ref=e92]: open_in_new
+      - paragraph [ref=e93]: © 2026 Ramex Store ERP. All rights reserved.

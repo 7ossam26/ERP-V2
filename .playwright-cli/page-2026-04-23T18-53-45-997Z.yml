@@ -1,0 +1,41 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - button "arrow_forward رجوع" [ref=e8]:
+          - generic [ref=e9]: arrow_forward
+          - generic [ref=e10]: رجوع
+        - link "home الصفحة الرئيسية" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e12]: home
+          - generic [ref=e13]: الصفحة الرئيسية
+      - link "رامكس ستور" [ref=e14] [cursor=pointer]:
+        - /url: /dashboard
+        - img "رامكس ستور" [ref=e15]
+      - generic [ref=e16]:
+        - button "store الفرع الرئيسي expand_more" [ref=e18] [cursor=pointer]:
+          - generic [ref=e19]: store
+          - generic [ref=e20]: الفرع الرئيسي
+          - generic [ref=e21]: expand_more
+        - link "help_outline" [ref=e22] [cursor=pointer]:
+          - /url: /manual
+          - generic [ref=e23]: help_outline
+        - button "المالك Owner person" [ref=e25]:
+          - generic [ref=e26]:
+            - paragraph [ref=e27]: المالك
+            - paragraph [ref=e28]: Owner
+          - generic [ref=e30]: person
+  - main [ref=e31]:
+    - generic [ref=e34]:
+      - progressbar [ref=e35]:
+        - img [ref=e36]
+      - generic [ref=e38]: جارٍ تحميل صفحة الإعدادات...
+  - contentinfo [ref=e39]:
+    - generic [ref=e41]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e42] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e43]: code
+        - generic [ref=e44]: Developed by
+        - generic [ref=e45]: kiko-tech.com
+        - generic [ref=e46]: open_in_new
+      - paragraph [ref=e47]: © 2026 Ramex Store ERP. All rights reserved.

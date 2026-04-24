@@ -31,6 +31,7 @@ import {
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { confirmAction } from "../../utils/toastUtils";
+import { canReadSystemSettings } from "../../utils/systemSettingsAccess";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 
 const POSPage = () => {
@@ -393,6 +394,7 @@ const POSPage = () => {
     try {
       // Fetch Settings Global Config (Tax, etc.)
       let settings = null;
+      if (canReadSystemSettings(AuthService)) {
       try {
         settings = await settingsService.get();
         if (settings) {
@@ -412,6 +414,7 @@ const POSPage = () => {
         }
       } catch (e) {
         console.error("Failed to load settings", e);
+      }
       }
 
       // Fetch Settings to know which warehouse to check

@@ -1,0 +1,157 @@
+- generic [ref=e49]:
+  - complementary [ref=e50]:
+    - img "Ramex Store Logo" [ref=e1165]
+    - navigation [ref=e1166]:
+      - link "people Users" [ref=e1167] [cursor=pointer]:
+        - /url: /superadmin/users
+        - generic [ref=e1168]: people
+        - generic [ref=e1169]: Users
+      - link "badge Roles & Permissions" [ref=e1170] [cursor=pointer]:
+        - /url: /superadmin/roles
+        - generic [ref=e1171]: badge
+        - generic [ref=e1172]: Roles & Permissions
+      - link "history Audit Logs" [ref=e1173] [cursor=pointer]:
+        - /url: /superadmin/audit-logs
+        - generic [ref=e1174]: history
+        - generic [ref=e1175]: Audit Logs
+      - link "delete_sweep Database Reset" [ref=e1176] [cursor=pointer]:
+        - /url: /superadmin/reset-database
+        - generic [ref=e1177]: delete_sweep
+        - generic [ref=e1178]: Database Reset
+    - generic [ref=e1179]:
+      - generic [ref=e1180]:
+        - generic [ref=e1182]: person
+        - generic [ref=e1183]:
+          - paragraph [ref=e1184]: Superadmin
+          - paragraph [ref=e1185]: "@superadmin"
+      - button "logout Sign Out" [ref=e1186]:
+        - generic [ref=e1187]: logout
+        - text: Sign Out
+  - main [ref=e76]:
+    - button "arrow_forward رجوع" [ref=e78]:
+      - generic [ref=e79]: arrow_forward
+      - generic [ref=e80]: رجوع
+    - generic [ref=e1188]:
+      - generic [ref=e1189]:
+        - heading "إعادة تعيين قاعدة البيانات" [level=1] [ref=e1190]
+        - paragraph [ref=e1191]: مسح بيانات النظام بشكل انتقائي — تتطلب كل عملية تأكيد المدير
+      - generic [ref=e1192]:
+        - generic [ref=e1193]:
+          - generic [ref=e1195]: warning
+          - generic [ref=e1196]:
+            - heading "مسح جميع الحركات (موصى به)" [level=2] [ref=e1197]
+            - paragraph [ref=e1198]: حذف جميع المبيعات، المشتريات، الرواتب، الشيفتات، حركات المخزون والخزينة دفعة واحدة
+        - button "delete_sweep مسح الكل" [ref=e1199]:
+          - generic [ref=e1200]: delete_sweep
+          - text: مسح الكل
+      - generic [ref=e1201]:
+        - generic [ref=e1202]:
+          - generic [ref=e1203]:
+            - generic [ref=e1204]: receipt_long
+            - heading "الإيرادات والمصروفات والتوريد" [level=3] [ref=e1205]
+          - button "point_of_sale مسح المبيعات فقط حذف جميع فواتير البيع وعناصرها chevron_right" [ref=e1206]:
+            - generic [ref=e1208]: point_of_sale
+            - generic [ref=e1209]:
+              - paragraph [ref=e1210]: مسح المبيعات فقط
+              - paragraph [ref=e1211]: حذف جميع فواتير البيع وعناصرها
+            - generic [ref=e1212]: chevron_right
+          - button "shopping_cart مسح المشتريات فقط حذف جميع فواتير الشراء والمرتجعات chevron_right" [ref=e1213]:
+            - generic [ref=e1215]: shopping_cart
+            - generic [ref=e1216]:
+              - paragraph [ref=e1217]: مسح المشتريات فقط
+              - paragraph [ref=e1218]: حذف جميع فواتير الشراء والمرتجعات
+            - generic [ref=e1219]: chevron_right
+          - button "account_balance_wallet مسح الخزينة والمصروفات حذف المصروفات والتحويلات والإيداعات والسحوبات chevron_right" [ref=e1220]:
+            - generic [ref=e1222]: account_balance_wallet
+            - generic [ref=e1223]:
+              - paragraph [ref=e1224]: مسح الخزينة والمصروفات
+              - paragraph [ref=e1225]: حذف المصروفات والتحويلات والإيداعات والسحوبات
+            - generic [ref=e1226]: chevron_right
+          - button "swap_horiz مسح التحويلات النقدية حذف جميع التحويلات بين الخزائن chevron_right" [ref=e1227]:
+            - generic [ref=e1229]: swap_horiz
+            - generic [ref=e1230]:
+              - paragraph [ref=e1231]: مسح التحويلات النقدية
+              - paragraph [ref=e1232]: حذف جميع التحويلات بين الخزائن
+            - generic [ref=e1233]: chevron_right
+          - button "savings مسح الإيداعات حذف جميع سجلات الإيداعات chevron_right" [ref=e1234]:
+            - generic [ref=e1236]: savings
+            - generic [ref=e1237]:
+              - paragraph [ref=e1238]: مسح الإيداعات
+              - paragraph [ref=e1239]: حذف جميع سجلات الإيداعات
+            - generic [ref=e1240]: chevron_right
+        - generic [ref=e1241]:
+          - generic [ref=e1242]:
+            - generic [ref=e1243]: manage_accounts
+            - heading "الموارد البشرية والمخزون" [level=3] [ref=e1244]
+          - button "inventory_2 مسح حركات المخزون حذف جميع تحويلات المخزون بين المستودعات chevron_right" [ref=e1245]:
+            - generic [ref=e1247]: inventory_2
+            - generic [ref=e1248]:
+              - paragraph [ref=e1249]: مسح حركات المخزون
+              - paragraph [ref=e1250]: حذف جميع تحويلات المخزون بين المستودعات
+            - generic [ref=e1251]: chevron_right
+          - button "exposure_zero تصفير كميات المخزون تصفير جميع كميات الأصناف في المستودعات إلى صفر chevron_right" [ref=e1252]:
+            - generic [ref=e1254]: exposure_zero
+            - generic [ref=e1255]:
+              - paragraph [ref=e1256]: تصفير كميات المخزون
+              - paragraph [ref=e1257]: تصفير جميع كميات الأصناف في المستودعات إلى صفر
+            - generic [ref=e1258]: chevron_right
+          - button "groups مسح بيانات الموارد البشرية حذف جميع حركات الموظفين (سلف وخصومات) chevron_right" [ref=e1259]:
+            - generic [ref=e1261]: groups
+            - generic [ref=e1262]:
+              - paragraph [ref=e1263]: مسح بيانات الموارد البشرية
+              - paragraph [ref=e1264]: حذف جميع حركات الموظفين (سلف وخصومات)
+            - generic [ref=e1265]: chevron_right
+          - button "payments مسح الرواتب حذف جميع سجلات الرواتب الشهرية chevron_right" [ref=e1266]:
+            - generic [ref=e1268]: payments
+            - generic [ref=e1269]:
+              - paragraph [ref=e1270]: مسح الرواتب
+              - paragraph [ref=e1271]: حذف جميع سجلات الرواتب الشهرية
+            - generic [ref=e1272]: chevron_right
+          - button "request_quote مسح السلف حذف سجلات السلفيات للموظفين فقط chevron_right" [ref=e1273]:
+            - generic [ref=e1275]: request_quote
+            - generic [ref=e1276]:
+              - paragraph [ref=e1277]: مسح السلف
+              - paragraph [ref=e1278]: حذف سجلات السلفيات للموظفين فقط
+            - generic [ref=e1279]: chevron_right
+          - button "schedule مسح الشيفتات حذف جميع شيفتات نقطة البيع chevron_right" [ref=e1280]:
+            - generic [ref=e1282]: schedule
+            - generic [ref=e1283]:
+              - paragraph [ref=e1284]: مسح الشيفتات
+              - paragraph [ref=e1285]: حذف جميع شيفتات نقطة البيع
+            - generic [ref=e1286]: chevron_right
+        - generic [ref=e1287]:
+          - generic [ref=e1288]:
+            - generic [ref=e1289]: dangerous
+            - heading "البيانات الأساسية (خطر)" [level=3] [ref=e1290]
+          - button "category مسح الأصناف والتصنيفات حذف جميع الأصناف والتصنيفات (يتطلب مسح المعاملات أولاً) chevron_right" [ref=e1291]:
+            - generic [ref=e1293]: category
+            - generic [ref=e1294]:
+              - paragraph [ref=e1295]: مسح الأصناف والتصنيفات
+              - paragraph [ref=e1296]: حذف جميع الأصناف والتصنيفات (يتطلب مسح المعاملات أولاً)
+            - generic [ref=e1297]: chevron_right
+          - button "people مسح العملاء حذف جميع سجلات العملاء (يتطلب مسح المبيعات أولاً) chevron_right" [ref=e1298]:
+            - generic [ref=e1300]: people
+            - generic [ref=e1301]:
+              - paragraph [ref=e1302]: مسح العملاء
+              - paragraph [ref=e1303]: حذف جميع سجلات العملاء (يتطلب مسح المبيعات أولاً)
+            - generic [ref=e1304]: chevron_right
+          - button "local_shipping مسح الموردين حذف جميع سجلات الموردين (يتطلب مسح المشتريات أولاً) chevron_right" [ref=e1305]:
+            - generic [ref=e1307]: local_shipping
+            - generic [ref=e1308]:
+              - paragraph [ref=e1309]: مسح الموردين
+              - paragraph [ref=e1310]: حذف جميع سجلات الموردين (يتطلب مسح المشتريات أولاً)
+            - generic [ref=e1311]: chevron_right
+          - button "badge مسح الموظفين حذف جميع سجلات الموظفين (يتطلب مسح المبيعات أولاً) chevron_right" [ref=e1312]:
+            - generic [ref=e1314]: badge
+            - generic [ref=e1315]:
+              - paragraph [ref=e1316]: مسح الموظفين
+              - paragraph [ref=e1317]: حذف جميع سجلات الموظفين (يتطلب مسح المبيعات أولاً)
+            - generic [ref=e1318]: chevron_right
+    - generic [ref=e249]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e250] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e251]: code
+        - generic [ref=e252]: Developed by
+        - generic [ref=e253]: kiko-tech.com
+        - generic [ref=e254]: open_in_new
+      - paragraph [ref=e255]: © 2026 Ramex Store ERP. All rights reserved.

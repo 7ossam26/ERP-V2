@@ -1,0 +1,7 @@
+- generic [ref=e4]:
+  - generic [ref=e7]: gpp_bad
+  - heading "403 Access Denied" [level=1] [ref=e8]
+  - paragraph [ref=e9]: You do not have permission to access this page. Please contact your administrator if you believe this is a mistake.
+  - generic [ref=e10]:
+    - button "Go Back" [ref=e11]
+    - button "Go to Dashboard" [ref=e12]

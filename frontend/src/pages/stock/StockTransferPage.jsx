@@ -11,6 +11,7 @@ import {
   categoryService,
 } from "../../services/domainServices";
 import authService from "../../services/authService";
+import { canReadSystemSettings } from "../../utils/systemSettingsAccess";
 
 const StockTransferPage = () => {
   const navigate = useNavigate();
@@ -34,12 +35,19 @@ const StockTransferPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch system settings to get main warehouse default
-        const settings = await settingsService.get();
         const warehousesList = await warehouseService.getAll();
         setAllWarehouses(warehousesList);
 
         const user = authService.getCurrentUser();
+        let settings = null;
+
+        if (canReadSystemSettings(authService)) {
+          try {
+            settings = await settingsService.get();
+          } catch (settingsError) {
+            console.error("Failed to fetch settings", settingsError);
+          }
+        }
 
         let initialSourceId = "";
 
