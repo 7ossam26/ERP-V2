@@ -19,6 +19,10 @@ const SuperadminService = {
     getPermissions: (roleId) => api.get(`/superadmin/roles/${roleId}/permissions`),
     updatePermissions: (roleId, permissions) => api.put(`/superadmin/roles/${roleId}/permissions`, { permissions }),
 
+    // === Database Reset ===
+    resetCategory: (category, credentials) =>
+        api.post(`/superadmin/reset/${category}`, credentials),
+
     // === Audit Logs ===
     // Params: { page, limit, type, userId }
     getAuditLogs: (params) => {

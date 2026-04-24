@@ -3,15 +3,16 @@ import React, { useEffect } from "react";
 /**
  * Toast Notification Component
  * Displays temporary notification messages with different types
+ * Now supports resolution guidance for errors
  */
-const Toast = ({ message, type = "info", onClose }) => {
+const Toast = ({ message, resolution, type = "info", onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
-    }, 4000); // Auto-close after 4 seconds
+    }, resolution ? 6000 : 4000); // Longer duration for messages with resolution
 
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [onClose, resolution]);
 
   const typeStyles = {
     success: {
@@ -36,19 +37,30 @@ const Toast = ({ message, type = "info", onClose }) => {
 
   return (
     <div
-      className={`fixed top-4 right-4 ${style.bg} text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-down z-50 min-w-[300px] max-w-md`}
+      className={`fixed top-4 right-4 ${style.bg} text-white px-6 py-4 rounded-xl shadow-2xl flex items-start gap-3 animate-slide-down z-50 min-w-[300px] max-w-md`}
       role="alert">
-      <span className="material-icons-round text-2xl">{style.icon}</span>
-      <span className="flex-1 font-medium">{message}</span>
+      <span className="material-icons-round text-2xl flex-shrink-0">{style.icon}</span>
+      <div className="flex-1">
+        <div className="font-semibold text-base leading-snug">{message}</div>
+        {resolution && (
+          <div className="mt-2 pt-2 border-t border-white/20">
+            <div className="flex items-start gap-2">
+              <span className="material-icons-round text-sm mt-0.5 flex-shrink-0">lightbulb</span>
+              <span className="text-sm text-white/90 leading-relaxed">{resolution}</span>
+            </div>
+          </div>
+        )}
+      </div>
       <button
         onClick={onClose}
-        className="material-icons-round text-xl hover:bg-white/20 rounded-lg p-1 transition-colors"
+        className="material-icons-round text-xl hover:bg-white/20 rounded-lg p-1 transition-colors flex-shrink-0"
         aria-label="إغلاق">
         close
       </button>
     </div>
   );
 };
+
 
 /**
  * Custom hook for managing toast notifications
@@ -57,8 +69,8 @@ const Toast = ({ message, type = "info", onClose }) => {
 export const useToast = () => {
   const [toast, setToast] = React.useState(null);
 
-  const showToast = (message, type = "info") => {
-    setToast({ message, type });
+  const showToast = (message, type = "info", resolution = null) => {
+    setToast({ message, type, resolution });
   };
 
   const hideToast = () => {

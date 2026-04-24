@@ -1,0 +1,35 @@
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - img "Ramex Store Logo" [ref=e8]
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - heading "Welcome Back" [level=1] [ref=e12]
+          - paragraph [ref=e13]: Please sign in to access the system
+        - alert [ref=e36]: Invalid username or password. Please try again.
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - generic [ref=e16]: Username
+            - generic [ref=e17]:
+              - generic:
+                - generic: person
+              - textbox "Enter your username" [ref=e18]: wrong.user
+          - generic [ref=e19]:
+            - generic [ref=e21]: Password
+            - generic [ref=e22]:
+              - generic:
+                - generic: lock
+              - textbox "•••••••••" [ref=e23]: wrongpass
+          - button "Sign In login" [ref=e24]:
+            - generic [ref=e25]: Sign In
+            - generic [ref=e37]: login
+  - contentinfo [ref=e27]:
+    - generic [ref=e29]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e30] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e31]: code
+        - generic [ref=e32]: Developed by
+        - generic [ref=e33]: kiko-tech.com
+        - generic [ref=e34]: open_in_new
+      - paragraph [ref=e35]: © 2026 Ramex Store ERP. All rights reserved.

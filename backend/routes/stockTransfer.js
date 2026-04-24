@@ -274,12 +274,56 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-// DELETE stock transfer
+// DELETE stock transfer — reverses inventory before deleting
 router.delete("/:id", async (req, res, next) => {
   try {
-    await prisma.stockTransfer.delete({
-      where: { id: parseInt(req.params.id) },
+    await prisma.$transaction(async (tx) => {
+      const transfer = await tx.stockTransfer.findUnique({
+        where: { id: parseInt(req.params.id) },
+        include: { items: true },
+      });
+
+      if (!transfer) {
+        const err = new Error("Stock transfer not found");
+        err.status = 404;
+        throw err;
+      }
+
+      // Reverse inventory: move items back from destination to source
+      for (const item of transfer.items) {
+        // Decrement from destination warehouse
+        await tx.inventory.update({
+          where: {
+            itemId_warehouseId: {
+              itemId: item.itemId,
+              warehouseId: transfer.toWarehouseId,
+            },
+          },
+          data: { quantity: { decrement: parseFloat(item.quantity) } },
+        });
+
+        // Increment back to source warehouse
+        await tx.inventory.upsert({
+          where: {
+            itemId_warehouseId: {
+              itemId: item.itemId,
+              warehouseId: transfer.fromWarehouseId,
+            },
+          },
+          update: { quantity: { increment: parseFloat(item.quantity) } },
+          create: {
+            itemId: item.itemId,
+            warehouseId: transfer.fromWarehouseId,
+            quantity: parseFloat(item.quantity),
+          },
+        });
+      }
+
+      await tx.stockTransfer.delete({
+        where: { id: parseInt(req.params.id) },
+      });
     });
+
     res.status(204).send();
   } catch (error) {
     next(error);

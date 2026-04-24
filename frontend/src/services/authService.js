@@ -13,11 +13,8 @@ const AuthService = {
 
       if (token && user) {
         localStorage.setItem("token", token);
-        if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
         localStorage.setItem("user", JSON.stringify(user));
-
-        // Start auto-refresh timer
-        AuthService.startTokenRefresh();
+        window.dispatchEvent(new Event("auth-changed"));
       }
 
       return response;
@@ -29,52 +26,15 @@ const AuthService = {
   // Logout current user
   logout: async () => {
     try {
-      const refreshToken = localStorage.getItem("refreshToken");
       // Call server to invalidate tokens
-      await apiClient.post("/auth/logout", { refreshToken });
+      await apiClient.post("/auth/logout");
     } catch (e) {
       // Ignore logout errors
     } finally {
-      AuthService.stopTokenRefresh();
       localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth-changed"));
       window.location.href = "/";
-    }
-  },
-
-  // Auto-refresh token before expiration
-  startTokenRefresh: () => {
-    // Clear any existing timer
-    if (window.tokenRefreshTimer) {
-      clearInterval(window.tokenRefreshTimer);
-    }
-
-    // Refresh every 25 minutes (5 min before 30 min expiry)
-    window.tokenRefreshTimer = setInterval(async () => {
-      try {
-        const refreshToken = localStorage.getItem("refreshToken");
-        if (!refreshToken) return;
-
-        const response = await apiClient.post("/auth/refresh", {
-          refreshToken,
-        });
-        if (response.token) {
-          localStorage.setItem("token", response.token);
-          window.dispatchEvent(new Event("tokenRefreshed"));
-        }
-      } catch (error) {
-        console.error("Token refresh failed:", error);
-        // Don't auto-logout immediately on network error, but maybe warn?
-        // For security, if refresh fails definitively (401), apiClient interceptor will handle it
-      }
-    }, 25 * 60 * 1000); // 25 minutes
-  },
-
-  stopTokenRefresh: () => {
-    if (window.tokenRefreshTimer) {
-      clearInterval(window.tokenRefreshTimer);
-      window.tokenRefreshTimer = null;
     }
   },
 
@@ -99,8 +59,8 @@ const AuthService = {
     const user = AuthService.getCurrentUser();
     if (!user) return false;
 
-    // Superadmin has all permissions
-    if (user.role === "Superadmin") return true;
+    // Superadmin and Admin have all permissions
+    if (user.role === "Superadmin" || user.role === "Admin") return true;
 
     // Check permissions object if available
     // Backend returns simplified boolean map: { "INVENTORY": true, "Sales": false }
@@ -150,15 +110,26 @@ const AuthService = {
           // Handle potential differences in role object vs string if applicable, though usually consistent
           const hasRoleChanged = currentUser.role !== userData.role;
           const hasNameChanged = currentUser.name !== userData.name;
-          const hasSensitiveAccessChanged = currentUser.hasSensitiveAccess !== userData.hasSensitiveAccess;
+          const hasSensitiveAccessChanged =
+            currentUser.hasSensitiveAccess !== userData.hasSensitiveAccess;
+          const hasBranchesChanged =
+            JSON.stringify(currentUser.accessibleBranches || []) !==
+            JSON.stringify(userData.accessibleBranches || []);
 
-          if (!hasPermissionsChanged && !hasRoleChanged && !hasNameChanged && !hasSensitiveAccessChanged) {
+          if (
+            !hasPermissionsChanged &&
+            !hasRoleChanged &&
+            !hasNameChanged &&
+            !hasSensitiveAccessChanged &&
+            !hasBranchesChanged
+          ) {
             return null; // No significant change, avoid re-render
           }
         }
 
         // Preserve the token, update the user object
         localStorage.setItem("user", JSON.stringify(userData));
+        window.dispatchEvent(new Event("auth-changed"));
         return userData;
       }
     } catch (error) {

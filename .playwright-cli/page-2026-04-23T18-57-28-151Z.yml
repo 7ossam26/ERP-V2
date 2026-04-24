@@ -1,0 +1,77 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - button "arrow_forward رجوع" [ref=e8]:
+          - generic [ref=e9]: arrow_forward
+          - generic [ref=e10]: رجوع
+        - link "home الصفحة الرئيسية" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e12]: home
+          - generic [ref=e13]: الصفحة الرئيسية
+      - link "رامكس ستور" [ref=e14] [cursor=pointer]:
+        - /url: /dashboard
+        - img "رامكس ستور" [ref=e15]
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: store
+          - generic [ref=e19]: فرع جسر السويس
+        - link "help_outline" [ref=e20] [cursor=pointer]:
+          - /url: /manual
+          - generic [ref=e21]: help_outline
+        - button "مدير فرع جسر السويس BranchManager person" [ref=e23]:
+          - generic [ref=e24]:
+            - paragraph [ref=e25]: مدير فرع جسر السويس
+            - paragraph [ref=e26]: BranchManager
+          - generic [ref=e28]: person
+  - main [ref=e29]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - heading "إدارة الورديات" [level=1] [ref=e34]
+          - paragraph [ref=e35]: متابعة ومراجعة ورديات الموظفين
+        - button "تسوية الطيارين" [ref=e36]:
+          - img [ref=e37]
+          - generic [ref=e39]: تسوية الطيارين
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]: الفرع
+          - combobox [ref=e43]:
+            - option "كل الفروع" [selected]
+        - generic [ref=e44]:
+          - generic [ref=e45]: الحالة
+          - combobox [ref=e46]:
+            - option "كل الحالات" [selected]
+            - option "مفتوحة (Active)"
+            - option "معلقة (Pending)"
+            - option "مغلقة (Closed)"
+        - button "تحديث البيانات" [ref=e47]:
+          - img [ref=e48]
+      - generic [ref=e50]:
+        - table [ref=e52]:
+          - rowgroup [ref=e53]:
+            - row "# ID الموظف الفرع الحالة وقت البداية وقت النهاية أدوات" [ref=e54]:
+              - columnheader "# ID" [ref=e55]
+              - columnheader "الموظف" [ref=e56]
+              - columnheader "الفرع" [ref=e57]
+              - columnheader "الحالة" [ref=e58]
+              - columnheader "وقت البداية" [ref=e59]
+              - columnheader "وقت النهاية" [ref=e60]
+              - columnheader "أدوات" [ref=e61]
+          - rowgroup [ref=e62]:
+            - row "جاري التحميل..." [ref=e63]:
+              - cell "جاري التحميل..." [ref=e64]
+        - generic [ref=e65]:
+          - generic [ref=e66]: الصفحة 1 من 1
+          - generic [ref=e67]:
+            - button "السابق" [disabled] [ref=e68]
+            - button "التالي" [disabled] [ref=e69]
+  - contentinfo [ref=e70]:
+    - generic [ref=e72]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e73] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e74]: code
+        - generic [ref=e75]: Developed by
+        - generic [ref=e76]: kiko-tech.com
+        - generic [ref=e77]: open_in_new
+      - paragraph [ref=e78]: © 2026 Ramex Store ERP. All rights reserved.

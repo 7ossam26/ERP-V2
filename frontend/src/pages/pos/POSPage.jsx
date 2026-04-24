@@ -1,9 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import POSReportModal from "./POSReportModal";
 import StartShiftModal from "./StartShiftModal";
+import ShiftBlockedModal from "./ShiftBlockedModal";
+import EndShiftModal from "../../components/pos/EndShiftModal";
+import ShiftVerificationModal from "../../components/pos/ShiftVerificationModal";
+import DeliveryModal from "../../components/pos/DeliveryModal";
+import DeliveryDebtsModal from "../../components/pos/DeliveryDebtsModal";
+import PreparationQueueModal from "../../components/pos/PreparationQueueModal";
 import Modal from "../../components/ui/Modal";
+import RefundModal from "./RefundModal";
+import OrdersHistoryModal from "./OrdersHistoryModal";
+import TierOverrideModal from "./TierOverrideModal";
+import PriceOverrideModal from "./PriceOverrideModal";
+import ReceiptPrintTemplate from "./ReceiptPrintTemplate";
+import FabricRollPickerModal from "../../components/shared/FabricRollPickerModal";
+import { FaHistory, FaRedo, FaTags } from "react-icons/fa";
 import { ClientForm } from "../clients/ClientManager";
 import {
   clientService,
@@ -13,9 +26,13 @@ import {
   inventoryService,
   settingsService,
   shiftService,
+  deliveryService,
+  bomService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { confirmAction } from "../../utils/toastUtils";
+import { canReadSystemSettings } from "../../utils/systemSettingsAccess";
+import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -25,25 +42,63 @@ const POSPage = () => {
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [lastSale, setLastSale] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const clientInputRef = useRef(null);
+  const cashClientRef = useRef(null);
 
   // User & Shift State
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(AuthService.getCurrentUser());
   const [currentShiftId, setCurrentShiftId] = useState(null);
   const [isStartShiftModalOpen, setIsStartShiftModalOpen] = useState(false);
+  const [isShiftBlocked, setIsShiftBlocked] = useState(false); // Added state
+  const [blockingShiftDetails, setBlockingShiftDetails] = useState(null); // Added state
   const [currentShift, setCurrentShift] = useState("صباحية");
   const [currentDate, setCurrentDate] = useState(
-    new Date().toLocaleDateString("en-CA")
+    new Date().toLocaleDateString("en-CA"),
   ); // YYYY-MM-DD
   const [currentTime, setCurrentTime] = useState(
-    new Date().toLocaleTimeString("en-US", { hour12: false })
+    new Date().toLocaleTimeString("en-US", { hour12: false }),
   );
 
+  // Mobile Tab State
+  const [activeMobileTab, setActiveMobileTab] = useState("products"); // 'products' or 'cart'
+
+  // System Settings State
+  const [taxRate, setTaxRate] = useState(0.14);
+  const [taxEnabledOnSales, setTaxEnabledOnSales] = useState(true);
+  const [companyTaxNumber, setCompanyTaxNumber] = useState("");
+  const [companyName, setCompanyName] = useState("");
+
+  // Phase 6 — Tier Override
+  const [tierOverride, setTierOverride] = useState(null);
+  const [tierOverrideReason, setTierOverrideReason] = useState(null);
+  const [isTierOverrideModalOpen, setIsTierOverrideModalOpen] = useState(false);
+
+  // Phase 6 — Fabric Roll Picker
+  const [fabricPickerOpen, setFabricPickerOpen] = useState(false);
+  const [fabricPickerItem, setFabricPickerItem] = useState(null);
+  const [pendingFabricProduct, setPendingFabricProduct] = useState(null);
+
+  // Phase 6 — Price Override
+  const [priceOverrideModalOpen, setPriceOverrideModalOpen] = useState(false);
+  const [priceOverrideTarget, setPriceOverrideTarget] = useState(null);
+
+  // Phase 6 — Receipt + Submit guard
+  const receiptRef = useRef(null);
+  const [receiptData, setReceiptData] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Phase 6 — Search refs
+  const searchInputRef = useRef(null);
+  const clientSearchRef = useRef(null);
+
   useEffect(() => {
-    const user = AuthService.getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-      checkActiveShift(user);
+    if (currentUser) {
+      checkActiveShift(currentUser);
     }
+
+    //## Implementation Phase (10 Granular Phases)
+    //- [/] **Phase 1**: Foundation - Global styles & utilities (2 files) 🟢
+    //- [ ] **Phase 2**: Core Layout - Header & Navigation (2 files) 🟡
 
     // Initial calculation
     const calculateTimeData = () => {
@@ -70,22 +125,116 @@ const POSPage = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Phase 6: Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't intercept if user is typing in an input/textarea
+      const tag = e.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+        // Only handle Escape in inputs
+        if (e.key === "Escape") {
+          e.target.blur();
+        }
+        return;
+      }
+
+      if (e.key === "F2") {
+        e.preventDefault();
+        clientSearchRef.current?.focus?.() || clientInputRef.current?.focus?.();
+      } else if (e.key === "F3") {
+        e.preventDefault();
+        searchInputRef.current?.focus?.();
+      } else if (e.key === "F4") {
+        e.preventDefault();
+        if (cartItems.length > 0) handleQuickPayment("cash");
+      } else if (e.key === "Escape") {
+        if (keypadMode !== "default") {
+          setKeypadMode("default");
+          setSelectedProductForQuantity(null);
+        } else if (cartItems.length > 0) {
+          removeFromCart(cartItems[cartItems.length - 1].id);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cartItems, keypadMode]);
+
   const checkActiveShift = async (user) => {
     try {
-      // 1. Check for active shift
+      console.log("🔍 Checking active shift for user:", user.id);
+
+      // 1. Check for active shift specifically for THIS user
       const activeShift = await shiftService.checkActive(user.id);
+      console.log("🔍 Active Shift Result:", activeShift);
 
       if (activeShift) {
-        console.log("Found active shift:", activeShift);
+        console.log("✅ Found active shift:", activeShift);
         setCurrentShiftId(activeShift.id);
+        setCurrentShift(activeShift.type === "MORNING" ? "صباحية" : "مسائية");
+
+        // Notify user about their own existing shift
+        toast.success(
+          `يوجد وردية مفتوحة بالفعل\n\n` +
+            `👤 بدأها: ${user.name}\n` +
+            `💰 رصيد البداية: ${activeShift.startCash || 0} ج.م`,
+          {
+            duration: 5000,
+            icon: "ℹ️",
+            position: "top-center",
+            id: "active-shift-notification",
+          },
+        );
       } else {
-        // 2. No active shift, open modal to start one manually
-        console.log("No active shift, opening start modal...");
-        setIsStartShiftModalOpen(true);
+        // 2. User has no active shift. Check if the BRANCH is blocked by someone else.
+        console.log("ℹ️ No active shift for user. Checking branch status...");
+
+        if (!user.branch) {
+          toast.error("هذا الحساب غير مرتبط بفرع — لا يمكن فتح وردية");
+          return;
+        }
+
+        // We use the pending endpoint which now returns ANY blocking shift (Open or Pending)
+        const blockingShift = await shiftService.getPending(user.branch.id);
+        console.log("🔍 Branch Blocking Shift Result:", blockingShift);
+
+        if (blockingShift) {
+          console.log("⚠️ Found blocking shift:", blockingShift);
+
+          const isPending = blockingShift.status === "PENDING_REVIEW";
+          const isMyShift = blockingShift.userId === user.id;
+
+          // STRICT BLOCKING:
+          // 1. If OPEN shift by ANOTHER user -> BLOCK
+          // 2. If PENDING shift by ANYONE (even me) -> BLOCK (waiting for approval)
+
+          if ((blockingShift.status === "OPEN" && !isMyShift) || isPending) {
+            console.log(
+              `⛔ ACCESS DENIED: Branch occupied by ${isMyShift ? "MY pending" : "ANOTHER user's"} shift`,
+            );
+            setBlockingShiftDetails(blockingShift);
+            setIsShiftBlocked(true);
+            return;
+          }
+        } else {
+          // 3. No active shift for user, and no blocking shift in branch -> Open Modal
+          console.log(
+            "✨ No active or pending shift. Opening StartShiftModal...",
+          );
+
+          toast(
+            `مرحباً ${user.name} 👋\n` +
+              `لا توجد وردية نشطة. يرجى بدء وردية جديدة.`,
+            { duration: 4000, icon: "🆕", position: "top-center" },
+          );
+
+          setIsStartShiftModalOpen(true);
+        }
       }
     } catch (error) {
-      console.error("Error checking shift:", error);
-      toast.error("حدث خطأ في التحقق من الورديات");
+      console.error("❌ Error checking shift:", error);
+      toast.error(error.message || "حدث خطأ في التحقق من الورديات");
     }
   };
 
@@ -99,26 +248,83 @@ const POSPage = () => {
       const newShift = await shiftService.start({
         userId: currentUser.id,
         branchId: currentUser.branch.id,
-        startCash: startCash,
+        startCash: startCash, // Can be undefined - backend will use rolling balance
       });
       console.log("Started new shift:", newShift);
       setCurrentShiftId(newShift.id);
+      setCurrentShift(newShift.type === "MORNING" ? "صباحية" : "مسائية");
       setIsStartShiftModalOpen(false);
-      toast.success("تم بدء الوردية بنجاح");
+      toast.success(
+        `تم بدء الوردية ${newShift.type === "MORNING" ? "الصباحية" : "المسائية"} بنجاح`,
+      );
     } catch (error) {
       console.error("Error starting shift:", error);
-      toast.error("فشل بدء الوردية");
+
+      // Handle specific blocking error
+      if (error.data?.previousShiftStatus) {
+        const message =
+          error.data?.message || "الوردية السابقة تحتاج موافقة المدير";
+        toast.error(message);
+        setIsStartShiftModalOpen(false);
+      } else {
+        toast.error(error.message || "فشل بدء الوردية");
+      }
     }
   };
 
+  const [isPendingDeliveriesModalOpen, setIsPendingDeliveriesModalOpen] =
+    useState(false);
+  const [pendingDeliveries, setPendingDeliveries] = useState(null);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [newClientInitialData, setNewClientInitialData] = useState(null);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [isWalkIn, setIsWalkIn] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
 
+  // Delivery Man State
+  const [deliveryMen, setDeliveryMen] = useState([]);
+  const [selectedDeliveryMan, setSelectedDeliveryMan] = useState(null);
+
+  // Delivery Modal State
+  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
+  const [deliveryData, setDeliveryData] = useState(null); // {riderId, riderName, zoneId, zoneName, zoneFee, address}
+  const [isDeliveryDebtsModalOpen, setIsDeliveryDebtsModalOpen] =
+    useState(false);
+  const [isPreparationQueueOpen, setIsPreparationQueueOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchDeliveryMen = async () => {
+      try {
+        const params = {};
+        if (currentUser?.branch?.id) {
+          params.branchId = currentUser.branch.id;
+        }
+        const data = await deliveryService.getAll(params);
+        setDeliveryMen(data || []);
+      } catch (error) {
+        console.error("Failed to fetch delivery men", error);
+        setDeliveryMen([]);
+      }
+    };
+    fetchDeliveryMen();
+  }, []);
+
   // Hold Cart State
-  const [heldCarts, setHeldCarts] = useState([]);
+  const [heldCarts, setHeldCarts] = useState(() => {
+    try {
+      const saved = localStorage.getItem("heldCarts");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load held carts", e);
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("heldCarts", JSON.stringify(heldCarts));
+  }, [heldCarts]);
   const [isHeldCartsModalOpen, setIsHeldCartsModalOpen] = useState(false);
   const [isPaymentConfirmOpen, setIsPaymentConfirmOpen] = useState(false);
   const [pendingPaymentMethod, setPendingPaymentMethod] = useState(null);
@@ -140,6 +346,19 @@ const POSPage = () => {
       try {
         const fetchedClients = await clientService.getAll();
         setClients(fetchedClients);
+
+        // Find and store the cash customer (عميل نقدي) for default selection
+        const cashClient =
+          fetchedClients.find((c) => c.name.includes("عميل نقدي")) ||
+          fetchedClients.find((c) => c.id === 1);
+        if (cashClient) {
+          cashClientRef.current = cashClient;
+        }
+
+        // Auto-select cash customer if no client is selected
+        if (!selectedClient && cashClient) {
+          setSelectedClient(cashClient);
+        }
       } catch (error) {
         console.error("Failed to fetch clients", error);
       }
@@ -160,8 +379,12 @@ const POSPage = () => {
 
   const handleSelectClient = (client) => {
     setSelectedClient(client);
+    setIsWalkIn(client === null);
     setClientSearchTerm(client ? client.name : "");
     setIsClientDropdownOpen(false);
+
+    // On mobile, switch to cart to see client details if needed, or stay.
+    // Usually selecting a client is part of cart operations.
   };
 
   const [products, setProducts] = useState([]);
@@ -169,6 +392,31 @@ const POSPage = () => {
 
   const loadInventory = async () => {
     try {
+      // Fetch Settings Global Config (Tax, etc.)
+      let settings = null;
+      if (canReadSystemSettings(AuthService)) {
+      try {
+        settings = await settingsService.get();
+        if (settings) {
+          if (settings.taxRate !== undefined) {
+            setTaxRate(Number(settings.taxRate) / 100);
+            console.log("💰 Applied Tax Rate:", settings.taxRate + "%");
+          }
+          if (settings.taxNumber) {
+            setCompanyTaxNumber(settings.taxNumber);
+          }
+          if (settings.companyName) {
+            setCompanyName(settings.companyName);
+          }
+          if (settings.taxEnabledOnSales !== undefined) {
+            setTaxEnabledOnSales(settings.taxEnabledOnSales);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load settings", e);
+      }
+      }
+
       // Fetch Settings to know which warehouse to check
       let warehouseId = null;
 
@@ -178,42 +426,130 @@ const POSPage = () => {
         warehouseId = user.branch.warehouseId;
         console.log(
           "🏭 Loading Inventory for Branch Warehouse ID:",
-          warehouseId
+          warehouseId,
         );
       } else {
         // FALLBACK: System Main Warehouse
-        try {
-          const settings = await settingsService.get();
-          if (settings && settings.mainWarehouseId) {
-            warehouseId = settings.mainWarehouseId;
-            console.log(
-              "🏭 Loading Inventory for Main Warehouse ID (Settings):",
-              warehouseId
-            );
-          }
-        } catch (e) {
-          console.error("Failed to load settings", e);
+        if (settings && settings.mainWarehouseId) {
+          warehouseId = settings.mainWarehouseId;
+          console.log(
+            "🏭 Loading Inventory for Main Warehouse ID (Settings):",
+            warehouseId,
+          );
         }
       }
 
-      const [inventoryItems, dbCategories] = await Promise.all([
+      // FETCH DATA: Inventory (Stock Levels) + BOMs (Recipes)
+      // We need inventory to know stock of Raw Materials.
+      // We need BOMs to know what we can sell (Recipes).
+      const [inventoryItems, dbCategories, boms] = await Promise.all([
         inventoryService.getInventory({ warehouseId }),
         categoryService.getAll(),
+        bomService.getAll(),
       ]);
 
-      setProducts(inventoryItems);
+      // Map Inventory to a Helper Object for fast lookup
+      // inventoryItems contains items with their "current stock" in the selected warehouse (or total)
+      const inventoryMap = {}; // ItemID -> Quantity
+      inventoryItems.forEach((item) => {
+        inventoryMap[item.id] = item.quantity || 0;
+      });
+
+      // TRANSFORM BOMS TO PRODUCTS
+      // We treat each active BOM as a sellable product.
+      // If linked to an outputItem: show actual warehouse stock of that item.
+      // If not linked: show max possible production from raw materials.
+      const bomProducts = boms
+        .filter((bom) => bom.isActive)
+        .map((bom) => {
+          // Find linked Output Item for categories and stock (if linked)
+          const outputItem = bom.outputItemId
+            ? inventoryItems.find((i) => i.id === bom.outputItemId)
+            : null;
+
+          let quantity;
+          let autoProducible = 0;
+          if (bom.outputItemId) {
+            // Use ACTUAL warehouse stock of the manufactured output
+            quantity = parseFloat(
+              (inventoryMap[bom.outputItemId] || 0).toFixed(4),
+            );
+            // Also calculate max auto-producible from raw materials
+            if (bom.items && bom.items.length > 0) {
+              const maxRuns = bom.items.reduce((min, bomItem) => {
+                const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
+                const requiredQty = Number(bomItem.quantity);
+                if (requiredQty <= 0) return min;
+                return Math.min(min, rawMaterialQty / requiredQty);
+              }, Infinity);
+              const outputPerRun = Number(bom.outputQuantity) || 1;
+              autoProducible = maxRuns === Infinity ? 0 : parseFloat((maxRuns * outputPerRun).toFixed(4));
+            }
+          } else {
+            // No linked item → fall back to max possible production from raw materials
+            const maxProduction = bom.items.reduce((min, bomItem) => {
+              const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
+              const requiredQty = bomItem.quantity;
+              if (requiredQty <= 0) return min;
+              const possible = rawMaterialQty / requiredQty;
+              return Math.min(min, possible);
+            }, Infinity);
+            quantity =
+              maxProduction === Infinity
+                ? 0
+                : parseFloat(maxProduction.toFixed(4));
+          }
+
+          // Map to Product Structure used by POS
+          return {
+            id: bom.outputItemId || `bom_${bom.id}`, // Use Item ID if linked, otherwise BOM ID
+            bomId: bom.id,
+            name: bom.name,
+            price: parseFloat(bom.price) || 0, // Use BOM's own price
+            purchasePrice: 0,
+            unit: bom.unit || "piece", // Use BOM's own unit
+            // Normalize BOM categories to IDs (same format as inventory items) for POS filtering
+            categories:
+              bom.categories?.map((bc) =>
+                bc.category ? bc.category.id : bc.categoryId ?? bc.id ?? bc,
+              ) ||
+              (outputItem ? outputItem.categories.map((c) => c.category?.id ?? c.categoryId ?? c) : []),
+            quantity: quantity,
+            autoProducible: autoProducible,
+            hasBom: true,
+            hasLinkedOutput: !!bom.outputItemId, // true = real warehouse stock, false = theoretical max
+            showInPos: outputItem
+              ? outputItem.showInPos !== false
+              : bom.outputItem
+                ? bom.outputItem.showInPos !== false
+                : true,
+          };
+        });
+
+      // ALSO: Include Non-BOM items? (e.g. Water, Soda that are just bought/sold)
+      // The user wants to see "BOMs", but we shouldn't hide pure retail items unless requested.
+      // Strategy: Merge BOM Products + Inventory Items that DO NOT have a BOM.
+      // inventoryItems.hasBom is based on backend check (bomOutputs.length > 0)
+      const nonBomProducts = inventoryItems.filter((item) => !item.hasBom);
+
+      const distinctProducts = [...bomProducts, ...nonBomProducts];
+
+      setProducts(distinctProducts);
 
       // Build categories from database with "All" option
       const allCategories = [
         { id: "All", name: "كل المنتجات" },
-        ...dbCategories.map((cat) => ({
-          id: cat.id,
-          name: cat.name,
-        })),
+        ...dbCategories
+          .filter((cat) => cat.showInPos !== false)
+          .map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+          })),
       ];
       setCategories(allCategories);
     } catch (error) {
       console.error("Failed to fetch products and categories", error);
+      toast.error("فشل تحميل المنتجات: " + (error.message || "Unknown error"));
     }
   };
 
@@ -222,18 +558,48 @@ const POSPage = () => {
   }, []);
 
   const filteredProducts = products.filter((product) => {
+    // Check if product is allowed in POS
+    if (product.showInPos === false) return false;
+
     // Check if product belongs to selected category (many-to-many)
     const matchesCategory =
       activeCategory === "All" ||
       (product.categories && product.categories.includes(activeCategory));
 
-    const productName = product.name ? product.name.toLowerCase() : "";
-    const matchesSearch = productName.includes(searchTerm.toLowerCase());
+    // Phase 6: Enhanced search — name, barcode, color, style code
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      !term ||
+      (product.name || "").toLowerCase().includes(term) ||
+      (product.barcode || "").toLowerCase().includes(term) ||
+      (product.colorCode || "").toLowerCase().includes(term) ||
+      (product.styleCode || "").toLowerCase().includes(term) ||
+      (product.sku || "").toLowerCase().includes(term);
     return matchesCategory && matchesSearch;
   });
 
   // Handle product clicks - check unit type and show appropriate selector
   const handleProductClick = (product) => {
+    // Check stock availability (include auto-producible for BOM items)
+    const totalAvailable = (product.quantity || 0) + (product.autoProducible || 0);
+    if (totalAvailable <= 0 && product.itemType !== "FABRIC") {
+      toast.error(`الكمية غير متوفرة! المتاح: ${product.quantity || 0}`);
+      return;
+    }
+
+    // Phase 6: Fabric items → open roll picker instead of quantity keypad
+    if (product.itemType === "FABRIC") {
+      const warehouseId = currentUser?.branch?.warehouseId || currentUser?.warehouseId;
+      setPendingFabricProduct(product);
+      setFabricPickerItem({
+        itemId: product.id,
+        warehouseId: warehouseId,
+        requestedLength: null,
+      });
+      setFabricPickerOpen(true);
+      return;
+    }
+
     const unit = product.unit?.toLowerCase();
 
     setSelectedProductForQuantity(product);
@@ -246,6 +612,94 @@ const POSPage = () => {
       // Show piece quantity selector inline
       setKeypadMode("piece");
     }
+    // Switch to cart tab on mobile to show keypad/cart
+    if (window.innerWidth < 768) {
+      setActiveMobileTab("cart");
+    }
+  };
+
+  // Phase 6: Fabric roll picker callback
+  const handleFabricRollsPicked = (selection) => {
+    if (!pendingFabricProduct || !selection || selection.length === 0) return;
+    const totalLength = selection.reduce((s, r) => s + r.allocated, 0);
+    const product = pendingFabricProduct;
+    const price = product.sellPrice || product.price || product.purchasePrice || 0;
+
+    const rollAllocations = selection.map((s) => ({
+      rollId: s.rollId,
+      rollNumber: s.rollNumber,
+      length: s.allocated,
+    }));
+
+    // For fabric: replace existing entry (roll allocations are specific)
+    const existingIndex = cartItems.findIndex((ci) => ci.id === product.id);
+    if (existingIndex >= 0) {
+      const updated = [...cartItems];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        quantity: totalLength,
+        total: totalLength * price,
+        rollAllocations,
+      };
+      setCartItems(updated);
+    } else {
+      setCartItems([
+        ...cartItems,
+        {
+          id: product.id,
+          name: product.name,
+          price,
+          originalPrice: price,
+          quantity: totalLength,
+          total: totalLength * price,
+          unit: product.unit || "م",
+          itemType: "FABRIC",
+          rollAllocations,
+        },
+      ]);
+    }
+
+    setFabricPickerOpen(false);
+    setPendingFabricProduct(null);
+    toast.success(`تمت إضافة ${totalLength} متر من ${product.name}`);
+  };
+
+  // Phase 6: Tier override
+  const handleTierOverrideConfirm = (tier, reason) => {
+    setTierOverride(tier);
+    setTierOverrideReason(reason);
+    setIsTierOverrideModalOpen(false);
+    if (tier) {
+      toast.success(`تم تغيير مستوى التسعير إلى ${tier === "WHOLESALE" ? "جملة" : "تجزئة"}`);
+    } else {
+      toast.success("تم إزالة تغيير مستوى التسعير");
+    }
+  };
+
+  // Phase 6: Price override
+  const handleOpenPriceOverride = (cartItem) => {
+    setPriceOverrideTarget(cartItem);
+    setPriceOverrideModalOpen(true);
+  };
+
+  const handlePriceOverrideConfirm = (newPrice, reason) => {
+    if (!priceOverrideTarget) return;
+    setCartItems((prev) =>
+      prev.map((ci) =>
+        ci.id === priceOverrideTarget.id
+          ? {
+              ...ci,
+              price: newPrice,
+              total: newPrice * ci.quantity,
+              priceOverrideReason: reason,
+              priceOverridden: Math.abs(newPrice - (ci.originalPrice || ci.price)) > 0.01,
+            }
+          : ci
+      )
+    );
+    setPriceOverrideModalOpen(false);
+    setPriceOverrideTarget(null);
+    toast.success("تم تعديل السعر");
   };
 
   // Handle custom input submission
@@ -257,7 +711,7 @@ const POSPage = () => {
     }
 
     if (keypadMode === "piece") {
-      handleQuantitySelected(value);
+      handleQuantitySelected(Math.round(value));
     } else if (keypadMode === "weight") {
       handleWeightSelected(value);
     }
@@ -278,16 +732,28 @@ const POSPage = () => {
     const existingQty = existingItem ? existingItem.quantity : 0;
     const totalRequested = existingQty + quantity;
 
-    if (totalRequested > currentStock) {
+    // Skip stock check for unlinked BOM items (auto-manufactured on demand)
+    const skipStockCheck = product.hasBom && !product.hasLinkedOutput;
+    // Linked BOM items can auto-produce from raw materials if stock is insufficient
+    const canAutoProduce = product.hasBom && product.hasLinkedOutput && (product.autoProducible || 0) > 0;
+
+    if (canAutoProduce) {
+      // For linked BOMs with auto-production, check against combined availability
+      const combinedAvailable = currentStock + (product.autoProducible || 0);
+      if (totalRequested > combinedAvailable) {
+        toast.error(`الكمية غير متوفرة! المتاح: ${combinedAvailable.toFixed(2)}`);
+        return false;
+      }
+    } else if (!skipStockCheck && totalRequested > currentStock) {
       toast.error(`الكمية غير متوفرة! المتاح: ${currentStock}`);
-      return false; // Return failure
+      return false;
     }
 
     // Warning for Reorder Point
     const reorderPoint = product.reorderPoint || 0;
     const remainingAfterSale = currentStock - totalRequested;
 
-    if (remainingAfterSale <= reorderPoint) {
+    if (!skipStockCheck && !canAutoProduce && remainingAfterSale <= reorderPoint) {
       toast(`تحذير: المخزون سيصبح منخفض (${remainingAfterSale})`, {
         icon: "⚠️",
       });
@@ -300,11 +766,11 @@ const POSPage = () => {
         return prevItems.map((item) =>
           item.id === product.id
             ? {
-              ...item,
-              quantity: item.quantity + quantity,
-              total: (item.quantity + quantity) * price,
-            }
-            : item
+                ...item,
+                quantity: item.quantity + quantity,
+                total: (item.quantity + quantity) * price,
+              }
+            : item,
         );
       } else {
         return [
@@ -312,8 +778,10 @@ const POSPage = () => {
           {
             ...product, // product from inventory has updated fields
             price: price, // Ensure price is set
+            originalPrice: price, // Phase 6: Store original for override comparison
             quantity: quantity,
             total: price * quantity,
+            itemType: product.itemType || "GENERIC", // Phase 6: Track item type
           },
         ];
       }
@@ -330,6 +798,14 @@ const POSPage = () => {
   const clearCart = () => {
     setCartItems([]);
     setSelectedItemId(null);
+    // Reset to cash customer instead of null
+    setSelectedClient(cashClientRef.current || null);
+    setIsWalkIn(false);
+    setClientSearchTerm("");
+    setDeliveryData(null);
+    // Phase 6: Reset tier override
+    setTierOverride(null);
+    setTierOverrideReason(null);
   };
 
   const handleItemClick = (id) => {
@@ -353,25 +829,147 @@ const POSPage = () => {
 
   // Calculations
   const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
-  const taxRate = 0.14;
+  // taxRate comes from state now
   const tax = subtotal * taxRate;
-  const total = subtotal + tax; // Total NEVER rounds - always exact decimals
+  const deliveryFee = deliveryData?.zoneFee
+    ? parseFloat(deliveryData.zoneFee)
+    : 0;
+  const total = subtotal + tax + deliveryFee; // Total includes delivery fee if set
 
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [shiftReportData, setShiftReportData] = useState(null);
+
+  // New multi-step end shift state
+  const [isEndShiftModalOpen, setIsEndShiftModalOpen] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [pendingShiftData, setPendingShiftData] = useState(null);
+
+  // Refund & History State
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [refundSaleId, setRefundSaleId] = useState(null); // Pre-fill sale ID for refund
+
+  const openRefundForSale = (saleNumber) => {
+    setRefundSaleId(saleNumber);
+    setIsHistoryModalOpen(false); // Close history
+    setIsRefundModalOpen(true); // Open refund
+  };
 
   const handleEndShift = async () => {
     if (!currentShiftId) {
       toast.error("لا توجد وردية مفتوحة حالياً");
       return;
     }
+    // Step 1: Open blind cash count modal
+    setIsEndShiftModalOpen(true);
+  };
+
+  // Step 2: Submit blind cash count
+  const handleBlindCashSubmit = async (actualCash) => {
     try {
+      // Call end shift with blind amount
+      const updatedShift = await shiftService.end({
+        shiftId: currentShiftId,
+        actualCash: actualCash,
+      });
+
+      console.log("Shift ended:", updatedShift);
+
+      // CHECK FOR DELIVERY WARNINGS (SUCCESS RESPONSE)
+      if (
+        updatedShift.deliveryWarnings &&
+        updatedShift.deliveryWarnings.length > 0
+      ) {
+        console.warn(
+          "⚠️ Delivery warnings detected:",
+          updatedShift.deliveryWarnings,
+        );
+
+        // Format warnings into pendingOrders format for the modal
+        const formattedWarnings = updatedShift.deliveryWarnings.map(
+          (warning) => ({
+            deliveryMan: warning.driverName,
+            orderCount: warning.orderCount,
+            amount: warning.totalAmount,
+          }),
+        );
+
+        // Show warning modal
+        setIsEndShiftModalOpen(false);
+
+        // Store shift data for verification after warning is dismissed
+        setPendingShiftData({
+          actualCash: updatedShift.actualCash,
+          systemExpectedCash: updatedShift.systemExpectedCash,
+          shortage: updatedShift.shortage,
+        });
+
+        setPendingDeliveries(formattedWarnings);
+        setIsPendingDeliveriesModalOpen(true);
+        toast.warning(
+          `تحذير: يوجد ${updatedShift.deliveryWarnings.length} طياريـن لديهم طلبات معلقة لم يتم تسويتها`,
+          { duration: 5000 },
+        );
+
+        return; // Show warning first, verification opens after
+      }
+
+      // Close blind count modal
+      setIsEndShiftModalOpen(false);
+
+      // Store shift data for manager verification display
+      setPendingShiftData({
+        actualCash: updatedShift.actualCash,
+        systemExpectedCash: updatedShift.systemExpectedCash,
+        shortage: updatedShift.shortage,
+      });
+
+      // Open manager verification modal (Step 2)
+      setIsVerificationModalOpen(true);
+    } catch (error) {
+      console.error("Failed to end shift:", error);
+
+      // Check for pending deliveries error
+      if (error.data?.pendingOrders) {
+        setIsEndShiftModalOpen(false); // Close the blind count modal
+        setPendingDeliveries(error.data?.pendingOrders);
+        setIsPendingDeliveriesModalOpen(true); // Open the blocking modal
+        return;
+      }
+
+      toast.error(error.message || "فشل إغلاق الوردية");
+    }
+  };
+
+  // Step 3: Manager verification and final approval
+  const handleManagerVerification = async (username, password) => {
+    try {
+      const approvedShift = await shiftService.approve({
+        shiftId: currentShiftId,
+        managerUsername: username,
+        managerPassword: password,
+      });
+
+      console.log("Shift approved and closed:", approvedShift);
+
+      // Success - show final report
       const report = await shiftService.getReport(currentShiftId);
       setShiftReportData(report);
+
+      // Clean up
+      setIsVerificationModalOpen(false);
+      setPendingShiftData(null);
+      setCurrentShiftId(null);
+
+      // Show report
       setIsReportOpen(true);
+      toast.success("تم إغلاق الوردية بنجاح");
     } catch (error) {
-      console.error("Failed to get shift report", error);
-      toast.error("فشل تحميل تقرير الوردية");
+      console.error("Manager verification failed:", error);
+      const errorMsg =
+        error.message || "فشلت المصادقة. تحقق من بيانات المدير";
+      toast.error(errorMsg);
+      throw error; // Re-throw to keep modal open
     }
   };
 
@@ -380,11 +978,11 @@ const POSPage = () => {
     if (selectedProductForQuantity) {
       const success = addToCartWithQuantity(
         selectedProductForQuantity,
-        quantity
+        quantity,
       );
       if (success) {
         toast.success(
-          `تمت إضافة ${quantity} ${selectedProductForQuantity.name} إلى السلة`
+          `تمت إضافة ${quantity} ${selectedProductForQuantity.name} إلى السلة`,
         );
       }
       setKeypadMode("default");
@@ -398,7 +996,7 @@ const POSPage = () => {
       const success = addToCartWithQuantity(selectedProductForQuantity, weight);
       if (success) {
         toast.success(
-          `تمت إضافة ${weight} كجم من ${selectedProductForQuantity.name} إلى السلة`
+          `تمت إضافة ${weight} كجم من ${selectedProductForQuantity.name} إلى السلة`,
         );
       }
       setKeypadMode("default");
@@ -437,7 +1035,7 @@ const POSPage = () => {
 
   // Handle payment method selection
   const handlePaymentSelected = (method) => {
-    toast.success(`تم اختيار الدفع ${method === "cash" ? "نقدي" : "بالبطاقة"}`);
+    toast.success(`تم اختيار الدفع ${method === "cash" ? "نقدي" : "انستاباي"}`);
     setKeypadMode("default");
     // Optionally clear cart after payment
     clearCart();
@@ -445,9 +1043,16 @@ const POSPage = () => {
 
   // Handle quick payment with confirmation
   const handleQuickPayment = (method) => {
-    if (!selectedClient) {
-      toast.error("يرجى اختيار العميل أولاً");
-      return;
+    if (!selectedClient && !isWalkIn) {
+      if (method === "cash") {
+        setIsWalkIn(true);
+      } else {
+        toast.error("يرجى اختيار العميل أولاً");
+        if (clientInputRef.current) {
+          clientInputRef.current.focus();
+        }
+        return;
+      }
     }
     if (cartItems.length === 0) {
       toast.error("السلة فارغة");
@@ -458,34 +1063,36 @@ const POSPage = () => {
     setIsPaymentConfirmOpen(true);
   };
 
-  const handleConfirmPayment = async () => {
-    const methodName = pendingPaymentMethod === "cash" ? "نقدي" : "بطاقة";
+  // Main sale completion function
+  const handleCompleteSale = async (
+    paymentMethod,
+    deliveryDataOverride = null,
+    paidAmount = null,
+    changeAmount = null,
+  ) => {
+    // Use override if provided, otherwise use state
+    const activeDeliveryData = deliveryDataOverride || deliveryData;
+    console.log("🛒 Processing Sale with Delivery Data:", activeDeliveryData);
 
-    // For cash, validate paid amount
-    if (pendingPaymentMethod === "cash") {
-      const paid = parseFloat(cashPaidAmount);
-      if (isNaN(paid) || paid < total) {
-        toast.error("المبلغ المدفوع أقل من الإجمالي");
-        return;
-      }
-    }
-
-    // Calculate final amounts with rounding for cash only
+    // Determine payment amounts
     let finalPaidAmount, finalChangeAmount;
-
-    if (pendingPaymentMethod === "cash") {
-      const paid = parseFloat(cashPaidAmount);
-      finalPaidAmount = Math.round(paid);
-      finalChangeAmount = Math.round(paid - total);
+    if (paidAmount !== null && changeAmount !== null) {
+      finalPaidAmount = paidAmount;
+      finalChangeAmount = changeAmount;
     } else {
+      // Auto-calculate for delivery orders (always CASH with exact amount)
       finalPaidAmount = parseFloat(total.toFixed(2));
       finalChangeAmount = 0;
     }
 
     // Prepare sale data for backend
-    // Normalize payment method: if not CASH, treat as CARD (covers VISA, MASTERCARD, etc.)
+    // Normalize payment method: CASH or INSTAPAY
     const normalizedPaymentMethod =
-      pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "CARD";
+      typeof paymentMethod === "string"
+        ? paymentMethod.toUpperCase() === "CASH"
+          ? "CASH"
+          : "INSTAPAY"
+        : "CASH"; // Default to CASH for delivery orders
 
     const currentUser = AuthService.getCurrentUser();
     const saleData = {
@@ -500,6 +1107,19 @@ const POSPage = () => {
       paidAmount: finalPaidAmount,
       changeAmount: finalChangeAmount,
       status: "COMPLETED",
+      deliveryManId: activeDeliveryData?.preparationOnly
+        ? null
+        : activeDeliveryData?.riderId,
+      deliveryZoneId: activeDeliveryData?.zoneId,
+      deliveryFee: activeDeliveryData?.zoneFee
+        ? parseFloat(activeDeliveryData.zoneFee)
+        : null,
+      deliveryAddress: activeDeliveryData?.address,
+      deliveryStatus: activeDeliveryData
+        ? activeDeliveryData.preparationOnly
+          ? "PENDING"
+          : "OUT_FOR_DELIVERY"
+        : null,
       items: cartItems.map((item) => ({
         itemId: item.id,
         quantity: item.quantity,
@@ -509,60 +1129,176 @@ const POSPage = () => {
     };
 
     try {
-      // Create sale via API
-      const createdSale = await salesService.create(saleData);
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+
+      let createdSale;
+
+      // Phase 6: Use POS endpoint for non-delivery sales
+      const isDeliveryOrder = !!activeDeliveryData;
+      if (!isDeliveryOrder) {
+        // Build Phase 6 POS payload
+        const posPayload = {
+          clientId: selectedClient ? selectedClient.id : null,
+          tierOverride: tierOverride || undefined,
+          tierOverrideReason: tierOverrideReason || undefined,
+          items: cartItems.map((ci) => ({
+            itemId: ci.id,
+            quantity: ci.quantity,
+            unitPrice: ci.priceOverridden ? ci.price : undefined,
+            priceOverrideReason: ci.priceOverrideReason || undefined,
+            rollAllocations:
+              ci.itemType === "FABRIC" && ci.rollAllocations
+                ? ci.rollAllocations.map((ra) => ({
+                    rollId: ra.rollId,
+                    length: ra.length,
+                  }))
+                : undefined,
+          })),
+          paymentMethod: normalizedPaymentMethod,
+          paidAmount: finalPaidAmount,
+          notes: saleData.notes || undefined,
+        };
+        createdSale = await salesService.createPOS(posPayload);
+      } else {
+        // Delivery orders use the legacy endpoint
+        createdSale = await salesService.create(saleData);
+      }
+
       console.log("✅ Sale created successfully:", createdSale);
 
+      // Determine method name for display
+      const methodName =
+        normalizedPaymentMethod === "CASH" ? "نقدي" : "InstaPay";
+
       toast.success(
-        `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`
+        `تم تأكيد الدفع ${methodName} - رقم الفاتورة: ${createdSale.saleNumber}`,
       );
       if (createdSale.warnings && createdSale.warnings.length > 0) {
-        createdSale.warnings.forEach((warning) =>
-          toast(warning, { icon: "⚠️", duration: 5000 })
-        );
+        createdSale.warnings.forEach((warning) => {
+          if (warning.startsWith("AUTO_PRODUCED:")) {
+            const parts = warning.split(":");
+            const name = parts[1];
+            const qty = parts[2];
+            toast.success(`تم إنتاج ${qty} وحدة من "${name}" تلقائياً من المواد الخام`, {
+              icon: "🏭",
+              duration: 5000,
+            });
+          } else {
+            toast(warning, { icon: "⚠️", duration: 5000 });
+          }
+        });
       }
 
       // REFRESH INVENTORY
       await loadInventory();
 
-      // Save for last sale printing
+      // Phase 6: Build receipt data from response (for non-delivery sales)
+      if (!isDeliveryOrder) {
+        setReceiptData({
+          companyName: companyName || "رامكس ستور",
+          taxNumber: companyTaxNumber || "",
+          taxEnabledOnSales,
+          branchName: createdSale.branch?.name || currentUser?.branch?.name || "",
+          branchAddress: createdSale.branch?.address || "",
+          saleNumber: createdSale.saleNumber,
+          date: createdSale.createdAt,
+          cashierName: createdSale.user?.name || currentUser?.name || "",
+          clientName: createdSale.client?.name || "عميل عام",
+          clientTier: createdSale.client?.tier || "RETAIL",
+          items: (createdSale.items || []).map((si) => ({
+            name: si.item?.name || "",
+            quantity: si.quantity,
+            unitPrice: si.unitPrice,
+            total: si.total,
+            unit: si.item?.unit || "",
+            rollCuts: (si.fabricRollCuts || []).map((rc) => ({
+              rollNumber: rc.fabricRoll?.rollNumber || "",
+              length: rc.lengthCut,
+            })),
+          })),
+          subtotal: createdSale.subtotal,
+          taxRate: createdSale.taxRate,
+          taxAmount: createdSale.taxAmount,
+          total: createdSale.total,
+          paymentMethod: createdSale.paymentMethod,
+          paidAmount: createdSale.paidAmount,
+          changeAmount: createdSale.changeAmount,
+        });
+      }
+
+      // Save for last sale printing (legacy receipt)
       setLastSale({
         ...saleData,
         id: createdSale.id,
         saleNumber: createdSale.saleNumber,
-        items: cartItems, // Use cartItems for rich display names
+        items: cartItems,
         clientName: selectedClient?.name || "عميل نقدي",
         branchName: currentUser?.branch?.name || "الفرع الرئيسي",
         employeeName: currentUser?.name || currentUser?.username,
         date: new Date().toLocaleString("ar-EG"),
+        riderName: activeDeliveryData?.riderName,
+        zoneName: activeDeliveryData?.zoneName,
+        deliveryFee: activeDeliveryData?.zoneFee,
+        deliveryAddress: activeDeliveryData?.address,
       });
 
       setIsPaymentConfirmOpen(false);
       setPendingPaymentMethod(null);
       setCashPaidAmount("");
+      setCashPaidAmount("");
       clearCart();
       setSelectedClient(null);
+      setSelectedDeliveryMan(null);
+      setDeliveryData(null);
 
       // Auto-print after successful payment
       setTimeout(() => {
         window.print();
       }, 500);
+
+      setIsSubmitting(false);
     } catch (error) {
+      setIsSubmitting(false);
       console.error("❌ Error creating sale:", error);
-      let errorMessage = "حدث خطأ أثناء حفظ الفاتورة";
-
-      if (error.response?.data) {
-        errorMessage =
-          error.response.data.error ||
-          error.response.data.message ||
-          error.response.data.details ||
-          errorMessage;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      toast.error(errorMessage);
+      const errMsg = error.response?.data?.error || error.message || "حدث خطأ أثناء حفظ الفاتورة";
+      toast.error(errMsg);
     }
+  };
+
+  // Wrapper for payment confirmation (original flow)
+  const handleConfirmPayment = async () => {
+    const methodName = pendingPaymentMethod === "cash" ? "نقدي" : "InstaPay";
+
+    // For cash, validate paid amount
+    if (pendingPaymentMethod === "cash") {
+      const paid = parseFloat(cashPaidAmount);
+      if (isNaN(paid) || paid < total) {
+        toast.error("المبلغ المدفوع أقل من الإجمالي");
+        return;
+      }
+    }
+
+    // Calculate final amounts with rounding for cash only
+    let finalPaidAmount, finalChangeAmount;
+    if (pendingPaymentMethod === "cash") {
+      const paid = parseFloat(cashPaidAmount);
+      finalPaidAmount = Math.round(paid);
+      finalChangeAmount = Math.round(paid - total);
+    } else {
+      finalPaidAmount = parseFloat(total.toFixed(2));
+      finalChangeAmount = 0;
+    }
+
+    // Call main completion function
+    const normalizedPaymentMethod =
+      pendingPaymentMethod.toUpperCase() === "CASH" ? "CASH" : "INSTAPAY";
+    await handleCompleteSale(
+      normalizedPaymentMethod,
+      null,
+      finalPaidAmount,
+      finalChangeAmount,
+    );
   };
 
   const handleConfirmShift = async () => {
@@ -578,22 +1314,25 @@ const POSPage = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to end shift", error);
-      toast.error("فشل إغلاق الوردية");
+      toast.error(error.message || "فشل إغلاق الوردية");
     }
   };
 
   const handleSaveClient = async (formData) => {
     try {
-      const savedClient = await clientService.create(formData, { checkIfExists: true });
+      const savedClient = await clientService.create(formData, {
+        checkIfExists: true,
+      });
       setIsClientModalOpen(false);
 
       // Auto-select the client
       handleSelectClient(savedClient);
 
       // Determine message based on whether it was created or found
-      // We can infer it was found if We sent checkIfExists and got a result. 
+      // We can infer it was found if We sent checkIfExists and got a result.
       // The backend adds _isExisting flag if found.
-      const isExisting = savedClient.id && clients.find(c => c.id === savedClient.id);
+      const isExisting =
+        savedClient.id && clients.find((c) => c.id === savedClient.id);
 
       // Note: Since we fetch all clients on mount/modal open, if it was just created it won't be in 'clients' state yet unless we update it.
       // But we just want to show a relevant toast.
@@ -603,12 +1342,11 @@ const POSPage = () => {
       } else {
         toast.success("تم إضافة العميل واختياره بنجاح");
         // Add to local list so it appears in search immediately without refetch
-        setClients(prev => [...prev, savedClient]);
+        setClients((prev) => [...prev, savedClient]);
       }
-
     } catch (error) {
       console.error("Failed to save client", error);
-      toast.error("حدث خطأ أثناء حفظ العميل");
+      toast.error(error.message || "حدث خطأ أثناء حفظ العميل");
     }
   };
 
@@ -620,6 +1358,8 @@ const POSPage = () => {
     const newHeldCart = {
       id: Date.now(),
       items: cartItems,
+      // Save full client object so it can be restored on retrieve
+      clientData: selectedClient || null,
       customerName: selectedClient ? selectedClient.name : "عميل نقدي",
       timestamp: new Date().toLocaleTimeString("ar-EG"),
       total: total.toFixed(2),
@@ -627,7 +1367,13 @@ const POSPage = () => {
     };
     setHeldCarts((prev) => [newHeldCart, ...prev]);
     setCartItems([]);
-    setSelectedClient(null);
+
+    // Reset to default client "عميل عام"
+    const defaultClient = clients.find((c) => c.name.includes("عميل عام"));
+    setSelectedClient(defaultClient || null);
+    setClientSearchTerm("");
+    setDeliveryData(null);
+
     toast.success("تم تعليق الفاتورة بنجاح");
   };
 
@@ -636,7 +1382,35 @@ const POSPage = () => {
     if (!cartToRetrieve) return;
 
     const proceedRetrieval = () => {
-      setCartItems(cartToRetrieve.items);
+      // Revalidate stock for held cart items before restoring
+      const revalidated = cartToRetrieve.items.map((item) => {
+        const currentProduct = products.find((p) => p.itemId === item.id);
+        if (currentProduct) {
+          const availableQty = currentProduct.quantity || 0;
+          if (item.quantity > availableQty) {
+            if (availableQty <= 0) {
+              toast.error(`"${item.name}" لم يعد متاحاً في المخزون — تمت إزالته`);
+              return null; // remove from cart
+            }
+            toast.warn(`"${item.name}" الكمية المتاحة ${availableQty} فقط — تم تعديل الكمية`);
+            return { ...item, quantity: availableQty };
+          }
+        }
+        return item;
+      }).filter(Boolean);
+
+      setCartItems(revalidated);
+      // Restore full client data if saved (backwards-compat: fall back to search by name)
+      if (cartToRetrieve.clientData) {
+        setSelectedClient(cartToRetrieve.clientData);
+        setClientSearchTerm(cartToRetrieve.clientData.name || "");
+      } else if (cartToRetrieve.customerName && cartToRetrieve.customerName !== "عميل نقدي") {
+        const found = clients.find((c) => c.name === cartToRetrieve.customerName);
+        if (found) {
+          setSelectedClient(found);
+          setClientSearchTerm(found.name);
+        }
+      }
       setHeldCarts((prev) => prev.filter((c) => c.id !== cartId));
       setIsHeldCartsModalOpen(false);
       toast.success("تم استرجاع الفاتورة");
@@ -645,7 +1419,7 @@ const POSPage = () => {
     if (cartItems.length > 0) {
       confirmAction(
         "يوجد أصناف في السلة الحالية. هل تريد استبدالها بالفاتورة المعلقة؟",
-        proceedRetrieval
+        proceedRetrieval,
       );
     } else {
       proceedRetrieval();
@@ -666,19 +1440,21 @@ const POSPage = () => {
       {shiftReportData && (
         <POSReportModal
           isOpen={isReportOpen}
-          onClose={() => setIsReportOpen(false)}
-          onConfirm={handleConfirmShift}
+          onClose={() => { setIsReportOpen(false); navigate("/dashboard"); }}
+          onConfirm={() => { setIsReportOpen(false); navigate("/dashboard"); }}
           reportData={shiftReportData}
+          autoPrint
         />
       )}
 
       <Modal
         isOpen={isClientModalOpen}
-        onClose={() => setIsClientModalOpen(false)}
+        onClose={() => { setIsClientModalOpen(false); setNewClientInitialData(null); }}
         title="تكويد عميل جديد">
         <ClientForm
           data={clients}
-          onClose={() => setIsClientModalOpen(false)}
+          initialData={newClientInitialData}
+          onClose={() => { setIsClientModalOpen(false); setNewClientInitialData(null); }}
           onSave={handleSaveClient}
         />
       </Modal>
@@ -693,7 +1469,25 @@ const POSPage = () => {
               لا توجد فواتير معلقة
             </p>
           ) : (
-            heldCarts.map((cart) => (
+            <>
+            {/* Clear All Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  confirmAction(
+                    `هل تريد مسح جميع الفواتير المعلقة؟ (${heldCarts.length} فاتورة)`,
+                    () => {
+                      setHeldCarts([]);
+                      toast.success("تم مسح جميع الفواتير المعلقة");
+                    }
+                  );
+                }}
+                className="flex items-center gap-1.5 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg font-bold text-sm transition-all">
+                <span className="material-symbols-outlined text-[18px]">delete_sweep</span>
+                مسح الكل
+              </button>
+            </div>
+            {heldCarts.map((cart) => (
               <div
                 key={cart.id}
                 className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 flex justify-between items-center group hover:border-primary/50 transition-colors">
@@ -725,12 +1519,117 @@ const POSPage = () => {
                     className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all">
                     استرجاع
                   </button>
+                  <button
+                    onClick={() => {
+                      confirmAction(
+                        "هل تريد حذف هذه الفاتورة المعلقة؟",
+                        () => {
+                          setHeldCarts((prev) => prev.filter((c) => c.id !== cart.id));
+                          toast.success("تم حذف الفاتورة المعلقة");
+                        }
+                      );
+                    }}
+                    className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-all"
+                    title="إلغاء الفاتورة المعلقة">
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
                 </div>
               </div>
-            ))
+            ))}
+            </>
           )}
         </div>
       </Modal>
+
+      {/* End Shift Modal (Step 1: Blind Count) */}
+      <EndShiftModal
+        isOpen={isEndShiftModalOpen}
+        onClose={() => setIsEndShiftModalOpen(false)}
+        onSubmit={handleBlindCashSubmit}
+        systemExpectedCash={0} // Hidden in blind count
+      />
+
+      {/* Pending Deliveries Blocking Modal */}
+      <PendingDeliveriesModal
+        isOpen={isPendingDeliveriesModalOpen}
+        onClose={() => {
+          setIsPendingDeliveriesModalOpen(false);
+          setIsVerificationModalOpen(true);
+        }}
+        pendingOrders={pendingDeliveries}
+      />
+
+      {/* Manager Verification Modal (Step 2) */}
+      <ShiftVerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        onVerify={handleManagerVerification}
+        branchId={currentUser?.branch?.id}
+        shiftData={pendingShiftData}
+      />
+
+      {/* Refund Modal */}
+      <RefundModal
+        isOpen={isRefundModalOpen}
+        onClose={() => {
+          setIsRefundModalOpen(false);
+          setRefundSaleId(null);
+        }}
+        branchId={currentUser?.branch?.id}
+        initialSaleId={refundSaleId}
+        shiftId={currentShiftId}
+      />
+
+      {/* Orders History Modal */}
+      <OrdersHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        shiftId={currentShiftId}
+        onRefundClick={openRefundForSale}
+      />
+
+      {/* Phase 6: Tier Override Modal */}
+      <TierOverrideModal
+        isOpen={isTierOverrideModalOpen}
+        onClose={() => setIsTierOverrideModalOpen(false)}
+        currentTier={tierOverride || selectedClient?.tier || "RETAIL"}
+        onConfirm={handleTierOverrideConfirm}
+      />
+
+      {/* Phase 6: Fabric Roll Picker Modal */}
+      {fabricPickerOpen && fabricPickerItem && (
+        <FabricRollPickerModal
+          isOpen={fabricPickerOpen}
+          onClose={() => {
+            setFabricPickerOpen(false);
+            setPendingFabricProduct(null);
+          }}
+          itemId={fabricPickerItem.itemId}
+          warehouseId={fabricPickerItem.warehouseId}
+          requestedLength={fabricPickerItem.requestedLength}
+          onPick={handleFabricRollsPicked}
+        />
+      )}
+
+      {/* Phase 6: Price Override Modal */}
+      <PriceOverrideModal
+        isOpen={priceOverrideModalOpen}
+        onClose={() => {
+          setPriceOverrideModalOpen(false);
+          setPriceOverrideTarget(null);
+        }}
+        itemName={priceOverrideTarget?.name || ""}
+        currentPrice={priceOverrideTarget?.price || 0}
+        resolvedPrice={priceOverrideTarget?.originalPrice || priceOverrideTarget?.price || 0}
+        onConfirm={handlePriceOverrideConfirm}
+      />
+
+      {/* Phase 6: Receipt Print Template (hidden on screen, visible when printing) */}
+      {receiptData && (
+        <div className="hidden print:block">
+          <ReceiptPrintTemplate ref={receiptRef} data={receiptData} />
+        </div>
+      )}
 
       {/* Payment Confirmation Modal */}
       <Modal
@@ -745,14 +1644,17 @@ const POSPage = () => {
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`material-symbols-outlined text-3xl ${pendingPaymentMethod === "cash"
+                  className={`material-symbols-outlined text-3xl ${
+                    pendingPaymentMethod === "cash"
                       ? "text-green-500"
-                      : "text-blue-500"
-                    }`}>
-                  {pendingPaymentMethod === "cash" ? "payments" : "credit_card"}
+                      : "text-[#4c096e]"
+                  }`}>
+                  {pendingPaymentMethod === "cash"
+                    ? "payments"
+                    : "account_balance_wallet"}
                 </span>
                 <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-                  {pendingPaymentMethod === "cash" ? "نقدي" : "بطاقة"}
+                  {pendingPaymentMethod === "cash" ? "نقدي" : "InstaPay"}
                 </span>
               </div>
             </div>
@@ -789,8 +1691,8 @@ const POSPage = () => {
                 </label>
                 <div className="w-full px-4 py-3 text-xl font-bold text-center bg-gray-100 dark:bg-zinc-800 text-green-600 dark:text-green-400 border-2 border-gray-300 dark:border-zinc-600 rounded-lg">
                   {cashPaidAmount &&
-                    !isNaN(parseFloat(cashPaidAmount)) &&
-                    parseFloat(cashPaidAmount) >= total
+                  !isNaN(parseFloat(cashPaidAmount)) &&
+                  parseFloat(cashPaidAmount) >= total
                     ? Math.round(parseFloat(cashPaidAmount) - total)
                     : 0}{" "}
                   ج.م
@@ -822,41 +1724,93 @@ const POSPage = () => {
             </button>
             <button
               onClick={handleConfirmPayment}
-              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${pendingPaymentMethod === "cash"
+              disabled={isSubmitting}
+              className={`flex-1 px-6 py-3 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                pendingPaymentMethod === "cash"
                   ? "bg-green-500 hover:bg-green-600"
-                  : "bg-blue-500 hover:bg-blue-600"
-                }`}>
+                  : "bg-[#4c096e] hover:bg-[#3a0654]"
+              }`}>
               <span className="material-symbols-outlined">check_circle</span>
-              <span>تأكيد الدفع</span>
+              <span>{isSubmitting ? "جاري المعالجة..." : "تأكيد الدفع"}</span>
             </button>
           </div>
         </div>
       </Modal>
 
+      {/* Delivery Modal */}
+      <DeliveryModal
+        isOpen={isDeliveryModalOpen}
+        onClose={() => setIsDeliveryModalOpen(false)}
+        onConfirm={async (data) => {
+          // Save delivery data first
+          setDeliveryData(data);
+
+          // Auto-complete sale with CASH payment method
+          try {
+            await handleCompleteSale("CASH", data);
+            setIsDeliveryModalOpen(false);
+            if (data.preparationOnly) {
+              toast.success(`تم إرسال الطلب لقسم التجهيز — ${data.zoneName}`, {
+                icon: "🍽️",
+                duration: 4000,
+              });
+            } else {
+              toast.success(
+                `تم تأكيد طلب التوصيل: ${data.zoneName} - ${data.riderName}`,
+              );
+            }
+          } catch (error) {
+            console.error("Failed to save delivery order:", error);
+            toast.error(error.message || "فشل حفظ طلب التوصيل");
+          }
+        }}
+        selectedClient={selectedClient}
+        deliveryMen={deliveryMen}
+        currentShiftId={currentShiftId}
+        branchId={currentUser?.branch?.id}
+      />
+
+      <DeliveryDebtsModal
+        isOpen={isDeliveryDebtsModalOpen}
+        onClose={() => setIsDeliveryDebtsModalOpen(false)}
+        branchId={currentUser?.branch?.id}
+        currentShiftId={currentShiftId}
+      />
+
+      <PreparationQueueModal
+        isOpen={isPreparationQueueOpen}
+        onClose={() => setIsPreparationQueueOpen(false)}
+        deliveryMen={deliveryMen}
+      />
+
       {/* Header */}
-      <div className="bg-primary dark:bg-primary text-white px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
+      <div className="bg-primary dark:bg-primary text-white px-3 md:px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
+        <div className="flex items-center gap-3 md:gap-6">
+          <div className="flex items-center gap-1 md:gap-2">
             <span className="material-symbols-outlined text-lg">person</span>
-            <span className="font-bold">اسم الموظف:</span>
-            <span>{currentUser?.name || currentUser?.username || "Guest"}</span>
+            <span className="font-bold hidden md:inline">اسم الموظف:</span>
+            <span className="text-sm md:text-base">
+              {currentUser?.name || currentUser?.username || "Guest"}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">store</span>
             <span className="font-bold">اسم الفرع:</span>
             <span>{currentUser?.branch?.name || "غير محدد"}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             <span className="material-symbols-outlined text-lg">schedule</span>
-            <span className="font-bold">الوردية:</span>
+            <span className="font-bold hidden md:inline">الوردية:</span>
             <div className="flex flex-col leading-tight">
-              <span>{currentShift}</span>
-              <span className="text-xs font-mono opacity-80" dir="ltr">
+              <span className="text-sm md:text-base">{currentShift}</span>
+              <span
+                className="text-[10px] md:text-xs font-mono opacity-80 hidden md:block"
+                dir="ltr">
                 {currentTime}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">
               calendar_today
             </span>
@@ -864,20 +1818,92 @@ const POSPage = () => {
             <span>{currentDate}</span>
           </div>
         </div>
-        <button
-          onClick={handleEndShift}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-          <span className="material-symbols-outlined text-sm">logout</span>
-          <span>إنهاء الوردية</span>
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* Refund & History Buttons */}
+          <button
+            onClick={() => setIsHistoryModalOpen(true)}
+            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+            <FaHistory />
+            <span className="hidden md:inline">سجل الفواتير</span>
+          </button>
+
+          <button
+            onClick={() => setIsPreparationQueueOpen(true)}
+            className="flex items-center gap-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-sm">kitchen</span>
+            <span className="hidden md:inline">قسم التجهيز</span>
+          </button>
+
+          <button
+            onClick={() => setIsDeliveryDebtsModalOpen(true)}
+            className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-sm">
+              account_balance_wallet
+            </span>
+            <span className="hidden md:inline">ديون الطيارين</span>
+          </button>
+
+          <button
+            onClick={() => setIsRefundModalOpen(true)}
+            className="flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+            <FaRedo />
+            <span className="hidden md:inline">مرتجع</span>
+          </button>
+
+          <div className="h-6 w-px bg-white/20 mx-1"></div>
+
+          <button
+            onClick={handleEndShift}
+            className="flex items-center gap-1 md:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 md:px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-sm">logout</span>
+            <span className="hidden md:inline">إنهاء الوردية</span>
+            <span className="md:hidden">إنهاء</span>
+          </button>
+        </div>
       </div>
 
+      {/* Blocking Modal - appears if another user has active shift */}
+      <ShiftBlockedModal
+        isOpen={isShiftBlocked}
+        blockerInfo={blockingShiftDetails}
+      />
+
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden print:hidden">
-        {/* Product Grid Area */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden print:hidden relative">
+        {/* Mobile Tab Navigation */}
+        <div className="md:hidden bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 flex text-xs font-bold shrink-0 z-50 order-last">
+          <button
+            onClick={() => setActiveMobileTab("products")}
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
+              activeMobileTab === "products"
+                ? "text-primary bg-primary/5 border-t-2 border-primary"
+                : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+            }`}>
+            <span className="material-symbols-outlined">grid_view</span>
+            <span>المنتجات</span>
+          </button>
+          <button
+            onClick={() => setActiveMobileTab("cart")}
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors relative ${
+              activeMobileTab === "cart"
+                ? "text-primary bg-primary/5 border-t-2 border-primary"
+                : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+            }`}>
+            <span className="material-symbols-outlined">shopping_cart</span>
+            <span>السلة ({cartItems.length})</span>
+            {cartItems.length > 0 && (
+              <span className="absolute top-2 left-[55%] h-2 w-2 rounded-full bg-red-500"></span>
+            )}
+          </button>
+        </div>
+        {/* Product Grid Area - Hidden on mobile if tab is 'cart' */}
+        <div
+          className={`flex-1 flex flex-col overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700 ${
+            activeMobileTab === "cart" ? "hidden md:flex" : "flex"
+          }`}>
           {/* Top Bar */}
-          <div className="flex items-center justify-between p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0">
+          <div className="flex items-center justify-between p-3 md:p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0 gap-2">
             <div className="flex items-center text-gray-500 dark:text-gray-400 gap-2">
               <button
                 onClick={() => navigate(-1)}
@@ -886,26 +1912,27 @@ const POSPage = () => {
               </button>
               <button
                 onClick={() => navigate("/dashboard")}
-                className="hover:text-primary transition-colors flex items-center">
+                className="hover:text-primary transition-colors flex items-center hidden md:flex">
                 <span className="material-symbols-outlined">home</span>
               </button>
-              <span className="mx-2 text-gray-300">/</span>
+              <span className="mx-2 text-gray-300 hidden md:inline">/</span>
               <a
-                className="flex items-center hover:text-primary transition-colors"
+                className="flex items-center hover:text-primary transition-colors hidden md:flex"
                 href="#">
                 <span className="material-symbols-outlined ml-1">apps</span>
                 <span className="font-medium">كل المنتجات</span>
               </a>
             </div>
-            <div className="relative">
+            <div className="relative flex-1 md:flex-none">
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                 <span className="material-symbols-outlined text-lg">
                   search
                 </span>
               </span>
               <input
-                className="pr-10 pl-4 py-2 w-64 md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
-                placeholder="بحث عن منتج..."
+                className="pr-10 pl-4 py-2 w-full md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
+                ref={searchInputRef}
+                placeholder="بحث بالاسم أو الباركود أو اللون..."
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -939,10 +1966,11 @@ const POSPage = () => {
                   <div
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${activeCategory === cat.id
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg shadow-sm cursor-pointer text-sm font-bold transition-all duration-200 ${
+                      activeCategory === cat.id
                         ? "bg-primary text-white shadow-md"
                         : "bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                      }`}>
+                    }`}>
                     {cat.name}
                   </div>
                 ))}
@@ -963,25 +1991,33 @@ const POSPage = () => {
             </div>
 
             {/* Product Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="bg-card-light dark:bg-card-dark rounded shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-24 group relative active:scale-95 transition-transform"
+                  className="bg-card-light dark:bg-card-dark rounded-lg shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden hover:shadow-md cursor-pointer flex flex-col min-h-[6rem] group relative active:scale-[0.97] transition-all duration-150"
                   onClick={() => handleProductClick(product)}>
-                  <span className="absolute top-1 left-1 text-gray-300 hover:text-gray-500 dark:text-gray-500 cursor-help">
+                  <span className="absolute top-1 left-1 text-gray-300 hover:text-gray-500 dark:text-gray-500 cursor-help z-10">
                     <span className="material-symbols-outlined text-sm">
                       info
                     </span>
                   </span>
-                  <div className="p-3 flex flex-col flex-1 justify-between h-full">
-                    <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-1 line-clamp-2 leading-tight">
+                  <div className="p-2 md:p-3 flex flex-col flex-1 justify-between">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 text-xs md:text-sm mb-0.5 md:mb-1 line-clamp-2 leading-tight pl-4">
                       {product.name}
                     </h3>
+                    <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mb-0.5 md:mb-1 font-medium leading-snug">
+                      <span>المتاح: {Number(product.quantity || 0)} {getArabicUnit(product.unit)}</span>
+                      {product.autoProducible > 0 && (
+                        <span className="block text-emerald-600 dark:text-emerald-400 text-[10px]">
+                          (+{Math.floor(product.autoProducible)} إنتاج تلقائي)
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-auto">
-                      <span className="block text-primary dark:text-primary/90 font-bold text-base">
+                      <span className="block text-primary dark:text-primary/90 font-bold text-sm md:text-base leading-tight">
                         {Number(
-                          product.sellPrice || product.price || 0
+                          product.sellPrice || product.price || 0,
                         ).toFixed(2)}{" "}
                         ج.م
                         {product.unit && (
@@ -998,8 +2034,11 @@ const POSPage = () => {
           </div>
         </div>
 
-        {/* Cart/Sidebar Area */}
-        <div className="w-[600px] flex flex-col h-full bg-card-light dark:bg-card-dark shadow-xl z-20 shrink-0">
+        {/* Cart/Sidebar Area - Hidden on mobile if tab is 'products', full width on mobile */}
+        <div
+          className={`w-full md:w-[600px] flex flex-col flex-1 md:flex-none bg-card-light dark:bg-card-dark shadow-xl z-20 ${
+            activeMobileTab === "products" ? "hidden md:flex" : "flex"
+          }`}>
           {/* Client Selection */}
           <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-card-dark shrink-0 z-20 relative">
             <div className="relative">
@@ -1009,6 +2048,7 @@ const POSPage = () => {
                   !isClientDropdownOpen && setIsClientDropdownOpen(true)
                 }>
                 <input
+                  ref={clientInputRef}
                   type="text"
                   className="w-full bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 rounded-lg py-2.5 pr-10 pl-10 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-sm font-bold placeholder-gray-400"
                   placeholder="بحث عن عميل (الاسم أو الرقم)..."
@@ -1036,6 +2076,36 @@ const POSPage = () => {
                 </span>
               </div>
 
+              {/* Display Address if selected */}
+              {selectedClient && (
+                <div className="mt-3 px-1">
+                  {selectedClient.address ? (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-3 flex items-start gap-3 transition-all animate-fade-in">
+                      <span className="material-symbols-outlined text-blue-500 text-lg mt-0.5">
+                        location_on
+                      </span>
+                      <div>
+                        <div className="text-xs text-blue-400 font-bold mb-0.5">
+                          العنوان
+                        </div>
+                        <div className="text-sm text-gray-700 dark:text-gray-200 leading-snug">
+                          {selectedClient.address}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 dark:bg-zinc-800 border-2 border-dashed border-gray-200 dark:border-zinc-700 rounded-lg p-3 flex items-center justify-center gap-2 text-gray-400 transition-all">
+                      <span className="material-symbols-outlined text-lg">
+                        location_off
+                      </span>
+                      <span className="text-xs font-medium">
+                        لا يوجد عنوان مسجل
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {isClientDropdownOpen && (
                 <>
                   <div
@@ -1044,7 +2114,7 @@ const POSPage = () => {
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
                     <div
                       className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-zinc-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-zinc-700/50 font-bold"
-                      onClick={() => handleSelectClient(null)}>
+                      onClick={() => handleSelectClient(cashClientRef.current || null)}>
                       عميل نقدي (Walk-in)
                     </div>
                     {filteredClients.length > 0 ? (
@@ -1063,8 +2133,32 @@ const POSPage = () => {
                         </div>
                       ))
                     ) : (
-                      <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-sm">
-                        لا توجد نتائج
+                      <div className="flex flex-col items-center gap-2 px-4 py-3">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          لا توجد نتائج
+                        </span>
+                        <button
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setIsClientDropdownOpen(false);
+                            setNewClientInitialData(
+                              clientSearchTerm
+                                ? { phone: clientSearchTerm }
+                                : null
+                            );
+                            setIsClientModalOpen(true);
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-lg transition-colors">
+                          <span className="material-symbols-outlined text-[18px]">
+                            person_add
+                          </span>
+                          إضافة عميل جديد
+                          {clientSearchTerm && (
+                            <span className="text-xs opacity-80">
+                              ({clientSearchTerm})
+                            </span>
+                          )}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1073,9 +2167,40 @@ const POSPage = () => {
             </div>
           </div>
 
+          {/* Phase 6: Tier badge + override button */}
+          {selectedClient && selectedClient.id !== 1 && (
+            <div className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 dark:border-zinc-700 bg-gray-50/50 dark:bg-zinc-800/50">
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  (tierOverride || selectedClient.tier) === "WHOLESALE"
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                }`}
+              >
+                {(tierOverride || selectedClient.tier) === "WHOLESALE"
+                  ? "جملة"
+                  : "تجزئة"}
+                {tierOverride && " ↻"}
+              </span>
+              <button
+                onClick={() => setIsTierOverrideModalOpen(true)}
+                className="text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 underline flex items-center gap-1"
+              >
+                <FaTags className="text-[10px]" />
+                تغيير
+              </button>
+              {tierOverride && (
+                <span className="text-[10px] text-gray-400">
+                  ({tierOverrideReason})
+                </span>
+              )}
+            </div>
+          )}
+
           <div
-            className={`${keypadMode === "default" ? "flex-1" : "h-[45%]"
-              } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
+            className={`${
+              keypadMode === "default" ? "flex-1" : "h-[45%]"
+            } overflow-y-auto p-0 flex flex-col transition-all duration-300`}>
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 h-64">
@@ -1089,10 +2214,11 @@ const POSPage = () => {
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
-                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${selectedItemId === item.id
+                    className={`p-3 border-b border-gray-100 dark:border-zinc-700 cursor-pointer transition-colors flex items-center gap-2 ${
+                      selectedItemId === item.id
                         ? "bg-primary/10 border-r-4 border-r-primary dark:border-r-primary"
                         : "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
-                      }`}>
+                    }`}>
                     {/* Delete icon - appears when selected */}
                     {selectedItemId === item.id ? (
                       <button
@@ -1119,9 +2245,39 @@ const POSPage = () => {
                           {item.total.toFixed(2)} ج.م
                         </span>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {item.quantity.toFixed(2)} وحدة x{" "}
-                        {item.price.toFixed(2)} ج.م / وحدة
+                      {/* Phase 6: Fabric roll info */}
+                      {item.itemType === "FABRIC" && item.rollAllocations && (
+                        <div className="text-[10px] text-purple-600 dark:text-purple-400 mb-0.5">
+                          {item.rollAllocations.length === 1
+                            ? `من لفة ${item.rollAllocations[0].rollNumber}`
+                            : `من ${item.rollAllocations.length} لفات`}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                        <span>
+                          {["kg", "kilo", "kilogram"].includes(item.unit?.toLowerCase())
+                            ? item.quantity.toFixed(3)
+                            : Math.round(item.quantity)
+                          } {getArabicUnit(item.unit) || "وحدة"} x{" "}
+                        </span>
+                        {/* Phase 6: Clickable price with override indicator */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenPriceOverride({
+                              ...item,
+                              originalPrice: item.originalPrice || item.price,
+                            });
+                          }}
+                          className={`hover:underline ${
+                            item.priceOverridden
+                              ? "text-amber-600 dark:text-amber-400 font-bold"
+                              : ""
+                          }`}
+                        >
+                          {item.price.toFixed(2)} ج.م
+                          {item.priceOverridden && " ✏"}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1135,16 +2291,8 @@ const POSPage = () => {
                 {keypadMode === "default" && (
                   <div className="grid grid-cols-3 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
                     <button
-                      onClick={handlePrintClick}
-                      className="flex flex-col items-center justify-center p-3 bg-[#6F4E37] hover:bg-[#5D4030] text-white transition-all duration-300 border-l border-white/10 group">
-                      <span className="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">
-                        print
-                      </span>
-                      <span className="font-bold">طباعة</span>
-                    </button>
-                    <button
                       onClick={() => handleQuickPayment("cash")}
-                      className="flex flex-col items-center justify-center p-3 bg-green-500 hover:bg-green-600 text-white transition-colors">
+                      className="flex flex-col items-center justify-center p-3 bg-green-500 hover:bg-green-600 text-white transition-colors border-l border-white/10">
                       <span className="material-symbols-outlined mb-1">
                         payments
                       </span>
@@ -1152,11 +2300,33 @@ const POSPage = () => {
                     </button>
                     <button
                       onClick={() => handleQuickPayment("visa")}
-                      className="flex flex-col items-center justify-center p-3 bg-blue-500 hover:bg-blue-600 text-white transition-colors">
+                      className="flex flex-col items-center justify-center p-3 bg-[#4c096e] hover:bg-[#3a0654] text-white transition-colors border-l border-white/10">
                       <span className="material-symbols-outlined mb-1">
-                        credit_card
+                        account_balance_wallet
                       </span>
-                      <span className="font-bold">بطاقة</span>
+                      <span className="font-bold">InstaPay</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Check if no client selected OR if it's the default "General Customer"
+                        if (
+                          !selectedClient ||
+                          selectedClient.name.includes("عميل عام")
+                        ) {
+                          toast.error("يرجى اختيار عميل محدد للتوصيل");
+                          setIsClientDropdownOpen(true); // Open the dropdown
+                          if (clientInputRef.current) {
+                            clientInputRef.current.focus();
+                          }
+                          return;
+                        }
+                        setIsDeliveryModalOpen(true);
+                      }}
+                      className="flex flex-col items-center justify-center p-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors">
+                      <span className="material-symbols-outlined mb-1">
+                        local_shipping
+                      </span>
+                      <span className="font-bold">توصيل</span>
                     </button>
                   </div>
                 )}
@@ -1174,18 +2344,24 @@ const POSPage = () => {
                     الضريبة ({(taxRate * 100).toFixed(0)}%): {tax.toFixed(2)}{" "}
                     ج.م
                   </div>
+                  {deliveryData && (
+                    <div className="flex justify-end text-xs text-orange-600 dark:text-orange-400 mt-1 font-medium">
+                      رسوم التوصيل ({deliveryData.zoneName}):{" "}
+                      {parseFloat(deliveryData.zoneFee).toFixed(2)} ج.م
+                    </div>
+                  )}
                   <div className="flex justify-end text-xs text-gray-500 dark:text-gray-400 mt-1">
                     المجموع الفرعي: {subtotal.toFixed(2)} ج.م
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-0 border-b border-gray-200 dark:border-zinc-700 text-sm">
                   <button
-                    onClick={() => setIsClientModalOpen(true)}
+                    onClick={handlePrintClick}
                     className="flex flex-col items-center justify-center p-2 text-primary dark:text-primary-dark hover:bg-gray-100 dark:hover:bg-zinc-700 border-l border-gray-200 dark:border-zinc-700">
                     <span className="material-symbols-outlined mb-1">
-                      person_add
+                      print
                     </span>
-                    <span>تكويد عميل جديد</span>
+                    <span>طباعة</span>
                   </button>
                   <button
                     onClick={clearCart}
@@ -1207,7 +2383,9 @@ const POSPage = () => {
                     <span className="material-symbols-outlined mb-1">
                       {cartItems.length > 0 ? "pause_circle" : "history"}
                     </span>
-                    <span>{cartItems.length > 0 ? "تعليق" : "استرجاع"}</span>
+                    <span>
+                      {cartItems.length > 0 ? "تعليق" : "فواتير معلقة"}
+                    </span>
                     {heldCarts.length > 0 && cartItems.length > 0 && (
                       <span className="absolute top-1 right-1 flex h-3 w-3">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -1225,12 +2403,13 @@ const POSPage = () => {
             <div className="h-[55%] flex flex-col bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 transition-all duration-300">
               {/* Dynamic Keypad Area - Changes based on mode */}
               <div
-                className={`grid h-full bg-white dark:bg-zinc-800 ${keypadMode === "piece"
+                className={`grid h-full bg-white dark:bg-zinc-800 ${
+                  keypadMode === "piece"
                     ? "grid-cols-3 grid-rows-[auto_1fr_1fr_1fr_1fr_1fr]"
                     : keypadMode === "weight"
                       ? "grid-cols-2 grid-rows-[auto_1fr_1fr_1fr_1fr]"
                       : "grid-cols-5"
-                  }`}
+                }`}
                 dir="ltr">
                 {/* PIECE QUANTITY SELECTOR MODE */}
                 {keypadMode === "piece" && selectedProductForQuantity && (
@@ -1273,8 +2452,8 @@ const POSPage = () => {
                         }
                         placeholder="كمية"
                         className="w-full bg-transparent text-center text-lg font-bold text-gray-800 dark:text-gray-200 outline-none"
-                        min="0"
-                        step="any"
+                        min="1"
+                        step="1"
                       />
                     </div>
 
@@ -1402,11 +2581,11 @@ const POSPage = () => {
 
                     <button
                       onClick={() => handlePaymentSelected("visa")}
-                      className="col-span-5 row-span-2 bg-blue-500 hover:bg-blue-600 text-white font-bold text-xl transition-all flex flex-col items-center justify-center gap-2 border border-gray-200 dark:border-zinc-700">
+                      className="col-span-5 row-span-2 bg-[#4c096e] hover:bg-[#3a0654] text-white font-bold text-xl transition-all flex flex-col items-center justify-center gap-2 border border-gray-200 dark:border-zinc-700">
                       <span className="material-icons-round text-4xl">
-                        credit_card
+                        account_balance_wallet
                       </span>
-                      <span>بطاقة (Visa)</span>
+                      <span>InstaPay</span>
                     </button>
                   </>
                 )}
@@ -1415,88 +2594,140 @@ const POSPage = () => {
           )}
         </div>
       </div>
-      {/* Thermal Receipt Template - Invisible on screen, visible on print */}
-      <div id="thermal-receipt" className="hidden print:block">
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-bold uppercase tracking-wider">
-            {currentUser?.branch?.name || "Elghonemy ERP"}
+      {/* Thermal Receipt — Xprinter XP-Q80I (80mm). Hidden on screen, printed only. Phase 6 receipt takes priority when available. */}
+      <div id="thermal-receipt" className={`hidden ${!receiptData ? 'print:block' : ''}`}>
+
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: "4px" }}>
+          <img
+            src="/assets/logo.png"
+            alt="Logo"
+            style={{ maxWidth: "44mm", margin: "0 auto 3px auto", display: "block" }}
+          />
+          <h2 style={{ fontSize: "14px", fontWeight: "bold", margin: "2px 0" }}>
+            {companyName || currentUser?.branch?.name || "رامكس ستور"}
           </h2>
-          <p className="text-xs opacity-80">
+          <p style={{ fontSize: "10px", margin: "1px 0" }}>
             {lastSale?.date || new Date().toLocaleString("ar-EG")}
           </p>
-          <div className="border-b border-dashed border-black my-2"></div>
+          {companyTaxNumber && (
+            <p style={{ fontSize: "10px", margin: "1px 0" }}>
+              الرقم الضريبي: {companyTaxNumber}
+            </p>
+          )}
         </div>
 
-        <div className="text-xs mb-3 space-y-1">
-          <div className="flex justify-between">
+        <div className="divider-dashed"></div>
+
+        {/* Invoice meta */}
+        <div style={{ fontSize: "10px", marginBottom: "3px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>رقم الفاتورة:</span>
-            <span className="font-mono">{lastSale?.saleNumber || "Draft"}</span>
+            <span style={{ fontWeight: "bold" }}>{lastSale?.saleNumber || "Draft"}</span>
           </div>
-          <div className="flex justify-between">
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>العميل:</span>
-            <span>
-              {selectedClient?.name || lastSale?.clientName || "عميل نقدي"}
-            </span>
+            <span>{selectedClient?.name || lastSale?.clientName || "عميل نقدي"}</span>
           </div>
-          <div className="flex justify-between">
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>البائع:</span>
-            <span>
-              {currentUser?.name || lastSale?.employeeName || "System"}
-            </span>
+            <span>{currentUser?.name || lastSale?.employeeName || "System"}</span>
           </div>
         </div>
 
-        <div className="border-b border-gray-300 my-2"></div>
+        {/* Delivery section */}
+        {(deliveryData || lastSale?.deliveryAddress) && (
+          <>
+            <div className="divider-dashed"></div>
+            <div className="delivery-section">
+              <div style={{ fontWeight: "bold", marginBottom: "2px" }}>معلومات التوصيل</div>
+              {(deliveryData?.riderName || lastSale?.riderName) && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>الطيار:</span>
+                  <span style={{ fontWeight: "bold" }}>
+                    {deliveryData?.riderName || lastSale?.riderName}
+                  </span>
+                </div>
+              )}
+              {(deliveryData?.zoneName || lastSale?.zoneName) && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>المنطقة:</span>
+                  <span>{deliveryData?.zoneName || lastSale?.zoneName}</span>
+                </div>
+              )}
+              {(deliveryData?.address || lastSale?.deliveryAddress) && (
+                <div style={{ marginTop: "2px" }}>
+                  <span style={{ fontWeight: "bold" }}>العنوان: </span>
+                  <span>{deliveryData?.address || lastSale?.deliveryAddress}</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
-        <table className="w-full text-xs text-right">
+        <div className="divider-solid"></div>
+
+        {/* Items table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="py-1">الصنف</th>
-              <th className="py-1 text-center">ك</th>
-              <th className="py-1 text-left">ق</th>
+            <tr>
+              <th style={{ textAlign: "right", padding: "2px 1px", borderBottom: "1px solid #000" }}>الصنف</th>
+              <th style={{ textAlign: "center", padding: "2px 1px", borderBottom: "1px solid #000", whiteSpace: "nowrap" }}>كمية</th>
+              <th style={{ textAlign: "left", padding: "2px 1px", borderBottom: "1px solid #000", whiteSpace: "nowrap" }}>سعر</th>
             </tr>
           </thead>
           <tbody>
             {(cartItems.length > 0 ? cartItems : lastSale?.items || []).map(
               (item, idx) => (
-                <tr key={idx} className="border-b border-gray-50">
-                  <td className="py-2">{item.name}</td>
-                  <td className="py-2 text-center">{item.quantity}</td>
-                  <td className="py-2 text-left">{item.total.toFixed(2)}</td>
+                <tr key={idx}>
+                  <td style={{ textAlign: "right", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{item.name}</td>
+                  <td style={{ textAlign: "center", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{["kg", "kilo", "kilogram"].includes(item.unit?.toLowerCase()) ? item.quantity.toFixed(3) : Math.round(item.quantity)}</td>
+                  <td style={{ textAlign: "left", padding: "2px 1px", borderBottom: "1px dashed #999", whiteSpace: "nowrap" }}>{item.total.toFixed(2)}</td>
                 </tr>
-              )
+              ),
             )}
           </tbody>
         </table>
 
-        <div className="mt-4 space-y-1 text-xs">
-          <div className="flex justify-between font-bold text-sm">
-            <span>الإجمالي</span>
-            <span>
-              {(cartItems.length > 0 ? total : lastSale?.total || 0).toFixed(2)}{" "}
-              ج.م
-            </span>
+        {/* Sub-totals */}
+        <div style={{ marginTop: "4px", fontSize: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>ضريبة</span>
+            <span>{(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(2)} ج.م</span>
           </div>
-          <div className="flex justify-between opacity-80">
-            <span>قيمة الضريبة</span>
-            <span>
-              {(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(
-                2
-              )}{" "}
-              ج.م
-            </span>
-          </div>
-          <div className="flex justify-between opacity-80">
-            <span>طريقة الدفع</span>
-            <span>{lastSale?.paymentMethod === "CASH" ? "نقدي" : "بطاقة"}</span>
+          {(deliveryData?.zoneFee || lastSale?.deliveryFee) && (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>توصيل</span>
+              <span>{parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0).toFixed(2)} ج.م</span>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>الدفع</span>
+            <span>{lastSale?.paymentMethod === "CASH" ? "نقدي" : "انستاباي"}</span>
           </div>
         </div>
 
-        <div className="border-t border-dashed border-black mt-6 mb-2"></div>
-        <div className="text-center">
-          <p className="text-xs font-bold italic">نأمل رؤيتكم مرة أخرى</p>
-          <p className="text-[10px] mt-1">Elghonemy ERP System</p>
+        <div className="divider-solid"></div>
+
+        {/* Grand total */}
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "bold", margin: "3px 0" }}>
+          <span>الإجمالي</span>
+          <span>
+            {(
+              (cartItems.length > 0 ? total : parseFloat(lastSale?.total || 0)) +
+              parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0)
+            ).toFixed(2)} ج.م
+          </span>
         </div>
+
+        <div className="divider-dashed"></div>
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", fontSize: "10px", marginTop: "4px" }}>
+          <p style={{ fontWeight: "bold", margin: "1px 0" }}>نأمل رؤيتكم مرة أخرى</p>
+          <p style={{ margin: "1px 0" }}>{companyName || "رامكس ستور"}</p>
+        </div>
+
       </div>
     </div>
   );

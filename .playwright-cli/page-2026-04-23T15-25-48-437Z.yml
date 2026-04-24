@@ -1,0 +1,603 @@
+- generic [ref=e49]:
+  - complementary [ref=e50]:
+    - img "Ramex Store Logo" [ref=e616]
+    - navigation [ref=e617]:
+      - link "people Users" [ref=e618] [cursor=pointer]:
+        - /url: /superadmin/users
+        - generic [ref=e619]: people
+        - generic [ref=e620]: Users
+      - link "badge Roles & Permissions" [ref=e621] [cursor=pointer]:
+        - /url: /superadmin/roles
+        - generic [ref=e622]: badge
+        - generic [ref=e623]: Roles & Permissions
+      - link "history Audit Logs" [ref=e624] [cursor=pointer]:
+        - /url: /superadmin/audit-logs
+        - generic [ref=e625]: history
+        - generic [ref=e626]: Audit Logs
+      - link "delete_sweep Database Reset" [ref=e627] [cursor=pointer]:
+        - /url: /superadmin/reset-database
+        - generic [ref=e628]: delete_sweep
+        - generic [ref=e629]: Database Reset
+    - generic [ref=e630]:
+      - generic [ref=e631]:
+        - generic [ref=e633]: person
+        - generic [ref=e634]:
+          - paragraph [ref=e635]: Superadmin
+          - paragraph [ref=e636]: "@superadmin"
+      - button "logout Sign Out" [ref=e637]:
+        - generic [ref=e638]: logout
+        - text: Sign Out
+  - main [ref=e76]:
+    - button "arrow_forward رجوع" [ref=e78]:
+      - generic [ref=e79]: arrow_forward
+      - generic [ref=e80]: رجوع
+    - generic [ref=e639]:
+      - generic [ref=e640]:
+        - heading "Audit Trail" [level=1] [ref=e641]
+        - paragraph [ref=e642]: Immutable, HMAC-protected log of all system mutations. View-only.
+      - generic [ref=e644]:
+        - textbox "Search entity / ID…" [ref=e646]
+        - combobox [ref=e647]:
+          - option "All Actions" [selected]
+          - option "Created"
+          - option "Updated"
+          - option "Deleted"
+          - option "Approved"
+          - option "Returned"
+          - option "Paid"
+          - option "Settled"
+          - option "Shift Started"
+          - option "Shift Ended"
+          - option "System Login"
+          - option "System Logout"
+          - option "Login Failed"
+          - option "Account Locked"
+        - combobox [ref=e648]:
+          - option "All Entities" [selected]
+          - option "Sale"
+          - option "Shift"
+          - option "Deposit"
+          - option "Withdrawal"
+          - option "Purchase"
+          - option "Purchase Return"
+          - option "Stock Transfer"
+          - option "Employee"
+          - option "Supplier Account"
+          - option "Delivery Man"
+          - option "Delivery Zone"
+          - option "Delivery"
+          - option "Treasury"
+          - option "Expense"
+          - option "Client"
+          - option "Supplier"
+          - option "Item"
+          - option "Category"
+          - option "Warehouse"
+          - option "Branch"
+          - option "BOM"
+          - option "Auth"
+          - option "User"
+          - option "Settings"
+          - option "Superadmin"
+          - option "Data Import"
+          - option "Role"
+        - textbox [ref=e649]
+        - textbox [ref=e650]
+        - button "Clear" [ref=e651]
+      - generic [ref=e652]:
+        - generic [ref=e653]: 171 records
+        - generic [ref=e654]: ·
+        - generic [ref=e655]: Page 1 of 4
+      - table [ref=e658]:
+        - rowgroup [ref=e659]:
+          - row "Timestamp User Event Action TXN ID" [ref=e660]:
+            - columnheader "Timestamp" [ref=e661]
+            - columnheader "User" [ref=e662]
+            - columnheader "Event" [ref=e663]
+            - columnheader "Action" [ref=e664]
+            - columnheader "TXN ID" [ref=e665]
+        - rowgroup [ref=e666]:
+          - row "23 Apr 2026 17:18:42.410 Superadmin superadmin ::1 Superadmin logged in to system System Login TXN-00000171" [ref=e667] [cursor=pointer]:
+            - cell "23 Apr 2026 17:18:42.410" [ref=e668]
+            - cell "Superadmin superadmin ::1" [ref=e669]:
+              - generic [ref=e670]: Superadmin
+              - generic [ref=e671]: superadmin
+              - generic [ref=e672]: ::1
+            - cell "Superadmin logged in to system" [ref=e673]
+            - cell "System Login" [ref=e674]:
+              - generic [ref=e675]: System Login
+            - cell "TXN-00000171" [ref=e676]
+          - row "23 Apr 2026 17:16:44.322 System ::1 Failed login attempt for \"wrong.user\" Login Failed TXN-00000170" [ref=e677] [cursor=pointer]:
+            - cell "23 Apr 2026 17:16:44.322" [ref=e678]
+            - cell "System ::1" [ref=e679]:
+              - generic [ref=e680]: System
+              - generic [ref=e681]: ::1
+            - cell "Failed login attempt for \"wrong.user\"" [ref=e682]
+            - cell "Login Failed" [ref=e683]:
+              - generic [ref=e684]: Login Failed
+            - cell "TXN-00000170" [ref=e685]
+          - row "23 Apr 2026 17:08:21.998 المالك owner ::1 المالك logged in to system System Login TXN-00000169" [ref=e686] [cursor=pointer]:
+            - cell "23 Apr 2026 17:08:21.998" [ref=e687]
+            - cell "المالك owner ::1" [ref=e688]:
+              - generic [ref=e689]: المالك
+              - generic [ref=e690]: owner
+              - generic [ref=e691]: ::1
+            - cell "المالك logged in to system" [ref=e692]
+            - cell "System Login" [ref=e693]:
+              - generic [ref=e694]: System Login
+            - cell "TXN-00000169" [ref=e695]
+          - row "23 Apr 2026 17:07:42.700 كاشير رامو cashier.ramo ::1 كاشير رامو logged in to system System Login TXN-00000168" [ref=e696] [cursor=pointer]:
+            - cell "23 Apr 2026 17:07:42.700" [ref=e697]
+            - cell "كاشير رامو cashier.ramo ::1" [ref=e698]:
+              - generic [ref=e699]: كاشير رامو
+              - generic [ref=e700]: cashier.ramo
+              - generic [ref=e701]: ::1
+            - cell "كاشير رامو logged in to system" [ref=e702]
+            - cell "System Login" [ref=e703]:
+              - generic [ref=e704]: System Login
+            - cell "TXN-00000168" [ref=e705]
+          - row "23 Apr 2026 17:07:42.614 مدير فرع رامو manager.ramo ::1 مدير فرع رامو logged in to system System Login TXN-00000167" [ref=e706] [cursor=pointer]:
+            - cell "23 Apr 2026 17:07:42.614" [ref=e707]
+            - cell "مدير فرع رامو manager.ramo ::1" [ref=e708]:
+              - generic [ref=e709]: مدير فرع رامو
+              - generic [ref=e710]: manager.ramo
+              - generic [ref=e711]: ::1
+            - cell "مدير فرع رامو logged in to system" [ref=e712]
+            - cell "System Login" [ref=e713]:
+              - generic [ref=e714]: System Login
+            - cell "TXN-00000167" [ref=e715]
+          - row "23 Apr 2026 17:07:42.508 المالك owner ::1 Failed login attempt for \"owner\" Login Failed TXN-00000166" [ref=e716] [cursor=pointer]:
+            - cell "23 Apr 2026 17:07:42.508" [ref=e717]
+            - cell "المالك owner ::1" [ref=e718]:
+              - generic [ref=e719]: المالك
+              - generic [ref=e720]: owner
+              - generic [ref=e721]: ::1
+            - cell "Failed login attempt for \"owner\"" [ref=e722]
+            - cell "Login Failed" [ref=e723]:
+              - generic [ref=e724]: Login Failed
+            - cell "TXN-00000166" [ref=e725]
+          - row "23 Apr 2026 17:03:56.217 المحاسب accountant ::1 المحاسب logged in to system System Login TXN-00000165" [ref=e726] [cursor=pointer]:
+            - cell "23 Apr 2026 17:03:56.217" [ref=e727]
+            - cell "المحاسب accountant ::1" [ref=e728]:
+              - generic [ref=e729]: المحاسب
+              - generic [ref=e730]: accountant
+              - generic [ref=e731]: ::1
+            - cell "المحاسب logged in to system" [ref=e732]
+            - cell "System Login" [ref=e733]:
+              - generic [ref=e734]: System Login
+            - cell "TXN-00000165" [ref=e735]
+          - row "23 Apr 2026 17:03:56.152 أمين المخزن warehouse.keeper ::1 أمين المخزن logged in to system System Login TXN-00000164" [ref=e736] [cursor=pointer]:
+            - cell "23 Apr 2026 17:03:56.152" [ref=e737]
+            - cell "أمين المخزن warehouse.keeper ::1" [ref=e738]:
+              - generic [ref=e739]: أمين المخزن
+              - generic [ref=e740]: warehouse.keeper
+              - generic [ref=e741]: ::1
+            - cell "أمين المخزن logged in to system" [ref=e742]
+            - cell "System Login" [ref=e743]:
+              - generic [ref=e744]: System Login
+            - cell "TXN-00000164" [ref=e745]
+          - row "23 Apr 2026 17:03:56.084 كاشير جسر السويس cashier.gasr ::1 كاشير جسر السويس logged in to system System Login TXN-00000163" [ref=e746] [cursor=pointer]:
+            - cell "23 Apr 2026 17:03:56.084" [ref=e747]
+            - cell "كاشير جسر السويس cashier.gasr ::1" [ref=e748]:
+              - generic [ref=e749]: كاشير جسر السويس
+              - generic [ref=e750]: cashier.gasr
+              - generic [ref=e751]: ::1
+            - cell "كاشير جسر السويس logged in to system" [ref=e752]
+            - cell "System Login" [ref=e753]:
+              - generic [ref=e754]: System Login
+            - cell "TXN-00000163" [ref=e755]
+          - row "23 Apr 2026 17:03:55.991 مدير فرع جسر السويس manager.gasr ::1 مدير فرع جسر السويس logged in to system System Login TXN-00000162" [ref=e756] [cursor=pointer]:
+            - cell "23 Apr 2026 17:03:55.991" [ref=e757]
+            - cell "مدير فرع جسر السويس manager.gasr ::1" [ref=e758]:
+              - generic [ref=e759]: مدير فرع جسر السويس
+              - generic [ref=e760]: manager.gasr
+              - generic [ref=e761]: ::1
+            - cell "مدير فرع جسر السويس logged in to system" [ref=e762]
+            - cell "System Login" [ref=e763]:
+              - generic [ref=e764]: System Login
+            - cell "TXN-00000162" [ref=e765]
+          - row "23 Apr 2026 17:03:55.906 المالك owner ::1 Failed login attempt for \"owner\" Login Failed TXN-00000161" [ref=e766] [cursor=pointer]:
+            - cell "23 Apr 2026 17:03:55.906" [ref=e767]
+            - cell "المالك owner ::1" [ref=e768]:
+              - generic [ref=e769]: المالك
+              - generic [ref=e770]: owner
+              - generic [ref=e771]: ::1
+            - cell "Failed login attempt for \"owner\"" [ref=e772]
+            - cell "Login Failed" [ref=e773]:
+              - generic [ref=e774]: Login Failed
+            - cell "TXN-00000161" [ref=e775]
+          - row "23 Apr 2026 17:03:55.827 Superadmin superadmin ::1 Superadmin logged in to system System Login TXN-00000160" [ref=e776] [cursor=pointer]:
+            - cell "23 Apr 2026 17:03:55.827" [ref=e777]
+            - cell "Superadmin superadmin ::1" [ref=e778]:
+              - generic [ref=e779]: Superadmin
+              - generic [ref=e780]: superadmin
+              - generic [ref=e781]: ::1
+            - cell "Superadmin logged in to system" [ref=e782]
+            - cell "System Login" [ref=e783]:
+              - generic [ref=e784]: System Login
+            - cell "TXN-00000160" [ref=e785]
+          - row "23 Apr 2026 17:03:41.023 Superadmin superadmin ::1 Superadmin logged in to system System Login TXN-00000159" [ref=e786] [cursor=pointer]:
+            - cell "23 Apr 2026 17:03:41.023" [ref=e787]
+            - cell "Superadmin superadmin ::1" [ref=e788]:
+              - generic [ref=e789]: Superadmin
+              - generic [ref=e790]: superadmin
+              - generic [ref=e791]: ::1
+            - cell "Superadmin logged in to system" [ref=e792]
+            - cell "System Login" [ref=e793]:
+              - generic [ref=e794]: System Login
+            - cell "TXN-00000159" [ref=e795]
+          - row "21 Apr 2026 22:27:36.028 المالك owner ::1 New Auth created Created TXN-00000158" [ref=e796] [cursor=pointer]:
+            - cell "21 Apr 2026 22:27:36.028" [ref=e797]
+            - cell "المالك owner ::1" [ref=e798]:
+              - generic [ref=e799]: المالك
+              - generic [ref=e800]: owner
+              - generic [ref=e801]: ::1
+            - cell "New Auth created" [ref=e802]
+            - cell "Created" [ref=e803]:
+              - generic [ref=e804]: Created
+            - cell "TXN-00000158" [ref=e805]
+          - row "21 Apr 2026 22:25:56.701 المالك owner ::1 المالك logged in to system System Login TXN-00000157" [ref=e806] [cursor=pointer]:
+            - cell "21 Apr 2026 22:25:56.701" [ref=e807]
+            - cell "المالك owner ::1" [ref=e808]:
+              - generic [ref=e809]: المالك
+              - generic [ref=e810]: owner
+              - generic [ref=e811]: ::1
+            - cell "المالك logged in to system" [ref=e812]
+            - cell "System Login" [ref=e813]:
+              - generic [ref=e814]: System Login
+            - cell "TXN-00000157" [ref=e815]
+          - row "21 Apr 2026 22:25:51.280 System ::1 User logged out System Logout TXN-00000156" [ref=e816] [cursor=pointer]:
+            - cell "21 Apr 2026 22:25:51.280" [ref=e817]
+            - cell "System ::1" [ref=e818]:
+              - generic [ref=e819]: System
+              - generic [ref=e820]: ::1
+            - cell "User logged out" [ref=e821]
+            - cell "System Logout" [ref=e822]:
+              - generic [ref=e823]: System Logout
+            - cell "TXN-00000156" [ref=e824]
+          - 'row "21 Apr 2026 22:25:48.858 Superadmin superadmin ::1 Superadmin #6 updated Updated TXN-00000155" [ref=e825] [cursor=pointer]':
+            - cell "21 Apr 2026 22:25:48.858" [ref=e826]
+            - cell "Superadmin superadmin ::1" [ref=e827]:
+              - generic [ref=e828]: Superadmin
+              - generic [ref=e829]: superadmin
+              - generic [ref=e830]: ::1
+            - 'cell "Superadmin #6 updated" [ref=e831]'
+            - cell "Updated" [ref=e832]:
+              - generic [ref=e833]: Updated
+            - cell "TXN-00000155" [ref=e834]
+          - row "21 Apr 2026 22:25:16.724 Superadmin superadmin ::1 Superadmin logged in to system System Login TXN-00000154" [ref=e835] [cursor=pointer]:
+            - cell "21 Apr 2026 22:25:16.724" [ref=e836]
+            - cell "Superadmin superadmin ::1" [ref=e837]:
+              - generic [ref=e838]: Superadmin
+              - generic [ref=e839]: superadmin
+              - generic [ref=e840]: ::1
+            - cell "Superadmin logged in to system" [ref=e841]
+            - cell "System Login" [ref=e842]:
+              - generic [ref=e843]: System Login
+            - cell "TXN-00000154" [ref=e844]
+          - row "21 Apr 2026 21:32:13.506 System ::1 User logged out System Logout TXN-00000153" [ref=e845] [cursor=pointer]:
+            - cell "21 Apr 2026 21:32:13.506" [ref=e846]
+            - cell "System ::1" [ref=e847]:
+              - generic [ref=e848]: System
+              - generic [ref=e849]: ::1
+            - cell "User logged out" [ref=e850]
+            - cell "System Logout" [ref=e851]:
+              - generic [ref=e852]: System Logout
+            - cell "TXN-00000153" [ref=e853]
+          - row "21 Apr 2026 21:32:06.202 Superadmin superadmin ::1 Superadmin logged in to system System Login TXN-00000152" [ref=e854] [cursor=pointer]:
+            - cell "21 Apr 2026 21:32:06.202" [ref=e855]
+            - cell "Superadmin superadmin ::1" [ref=e856]:
+              - generic [ref=e857]: Superadmin
+              - generic [ref=e858]: superadmin
+              - generic [ref=e859]: ::1
+            - cell "Superadmin logged in to system" [ref=e860]
+            - cell "System Login" [ref=e861]:
+              - generic [ref=e862]: System Login
+            - cell "TXN-00000152" [ref=e863]
+          - row "21 Apr 2026 21:32:02.687 System ::1 User logged out System Logout TXN-00000151" [ref=e864] [cursor=pointer]:
+            - cell "21 Apr 2026 21:32:02.687" [ref=e865]
+            - cell "System ::1" [ref=e866]:
+              - generic [ref=e867]: System
+              - generic [ref=e868]: ::1
+            - cell "User logged out" [ref=e869]
+            - cell "System Logout" [ref=e870]:
+              - generic [ref=e871]: System Logout
+            - cell "TXN-00000151" [ref=e872]
+          - row "16 Apr 2026 16:09:19.279 admin kimo ::1 admin logged in to system System Login TXN-00000150" [ref=e873] [cursor=pointer]:
+            - cell "16 Apr 2026 16:09:19.279" [ref=e874]
+            - cell "admin kimo ::1" [ref=e875]:
+              - generic [ref=e876]: admin
+              - generic [ref=e877]: kimo
+              - generic [ref=e878]: ::1
+            - cell "admin logged in to system" [ref=e879]
+            - cell "System Login" [ref=e880]:
+              - generic [ref=e881]: System Login
+            - cell "TXN-00000150" [ref=e882]
+          - row "16 Apr 2026 16:09:15.840 System ::1 User logged out System Logout TXN-00000149" [ref=e883] [cursor=pointer]:
+            - cell "16 Apr 2026 16:09:15.840" [ref=e884]
+            - cell "System ::1" [ref=e885]:
+              - generic [ref=e886]: System
+              - generic [ref=e887]: ::1
+            - cell "User logged out" [ref=e888]
+            - cell "System Logout" [ref=e889]:
+              - generic [ref=e890]: System Logout
+            - cell "TXN-00000149" [ref=e891]
+          - 'row "13 Apr 2026 21:51:21.973 admin kimo ::1 New Sale created #12 Created TXN-00000148" [ref=e892] [cursor=pointer]':
+            - cell "13 Apr 2026 21:51:21.973" [ref=e893]
+            - cell "admin kimo ::1" [ref=e894]:
+              - generic [ref=e895]: admin
+              - generic [ref=e896]: kimo
+              - generic [ref=e897]: ::1
+            - 'cell "New Sale created #12" [ref=e898]'
+            - cell "Created" [ref=e899]:
+              - generic [ref=e900]: Created
+            - cell "TXN-00000148" [ref=e901]
+          - row "13 Apr 2026 21:50:57.762 admin kimo ::1 admin logged in to system System Login TXN-00000147" [ref=e902] [cursor=pointer]:
+            - cell "13 Apr 2026 21:50:57.762" [ref=e903]
+            - cell "admin kimo ::1" [ref=e904]:
+              - generic [ref=e905]: admin
+              - generic [ref=e906]: kimo
+              - generic [ref=e907]: ::1
+            - cell "admin logged in to system" [ref=e908]
+            - cell "System Login" [ref=e909]:
+              - generic [ref=e910]: System Login
+            - cell "TXN-00000147" [ref=e911]
+          - row "13 Apr 2026 21:50:55.707 System ::1 User logged out System Logout TXN-00000146" [ref=e912] [cursor=pointer]:
+            - cell "13 Apr 2026 21:50:55.707" [ref=e913]
+            - cell "System ::1" [ref=e914]:
+              - generic [ref=e915]: System
+              - generic [ref=e916]: ::1
+            - cell "User logged out" [ref=e917]
+            - cell "System Logout" [ref=e918]:
+              - generic [ref=e919]: System Logout
+            - cell "TXN-00000146" [ref=e920]
+          - row "13 Apr 2026 21:46:03.539 admin kimo ::1 admin logged in to system System Login TXN-00000145" [ref=e921] [cursor=pointer]:
+            - cell "13 Apr 2026 21:46:03.539" [ref=e922]
+            - cell "admin kimo ::1" [ref=e923]:
+              - generic [ref=e924]: admin
+              - generic [ref=e925]: kimo
+              - generic [ref=e926]: ::1
+            - cell "admin logged in to system" [ref=e927]
+            - cell "System Login" [ref=e928]:
+              - generic [ref=e929]: System Login
+            - cell "TXN-00000145" [ref=e930]
+          - row "13 Apr 2026 21:45:59.586 System ::1 User logged out System Logout TXN-00000144" [ref=e931] [cursor=pointer]:
+            - cell "13 Apr 2026 21:45:59.586" [ref=e932]
+            - cell "System ::1" [ref=e933]:
+              - generic [ref=e934]: System
+              - generic [ref=e935]: ::1
+            - cell "User logged out" [ref=e936]
+            - cell "System Logout" [ref=e937]:
+              - generic [ref=e938]: System Logout
+            - cell "TXN-00000144" [ref=e939]
+          - row "13 Apr 2026 19:38:22.045 Superadmin superadmin ::1 Superadmin logged in to system System Login TXN-00000143" [ref=e940] [cursor=pointer]:
+            - cell "13 Apr 2026 19:38:22.045" [ref=e941]
+            - cell "Superadmin superadmin ::1" [ref=e942]:
+              - generic [ref=e943]: Superadmin
+              - generic [ref=e944]: superadmin
+              - generic [ref=e945]: ::1
+            - cell "Superadmin logged in to system" [ref=e946]
+            - cell "System Login" [ref=e947]:
+              - generic [ref=e948]: System Login
+            - cell "TXN-00000143" [ref=e949]
+          - row "13 Apr 2026 19:37:58.072 System ::1 User logged out System Logout TXN-00000142" [ref=e950] [cursor=pointer]:
+            - cell "13 Apr 2026 19:37:58.072" [ref=e951]
+            - cell "System ::1" [ref=e952]:
+              - generic [ref=e953]: System
+              - generic [ref=e954]: ::1
+            - cell "User logged out" [ref=e955]
+            - cell "System Logout" [ref=e956]:
+              - generic [ref=e957]: System Logout
+            - cell "TXN-00000142" [ref=e958]
+          - row "13 Apr 2026 19:37:57.545 System ::1 User logged out System Logout TXN-00000141" [ref=e959] [cursor=pointer]:
+            - cell "13 Apr 2026 19:37:57.545" [ref=e960]
+            - cell "System ::1" [ref=e961]:
+              - generic [ref=e962]: System
+              - generic [ref=e963]: ::1
+            - cell "User logged out" [ref=e964]
+            - cell "System Logout" [ref=e965]:
+              - generic [ref=e966]: System Logout
+            - cell "TXN-00000141" [ref=e967]
+          - row "13 Apr 2026 19:21:32.498 admin kimo ::1 New Data Import created Created TXN-00000140" [ref=e968] [cursor=pointer]:
+            - cell "13 Apr 2026 19:21:32.498" [ref=e969]
+            - cell "admin kimo ::1" [ref=e970]:
+              - generic [ref=e971]: admin
+              - generic [ref=e972]: kimo
+              - generic [ref=e973]: ::1
+            - cell "New Data Import created" [ref=e974]
+            - cell "Created" [ref=e975]:
+              - generic [ref=e976]: Created
+            - cell "TXN-00000140" [ref=e977]
+          - row "13 Apr 2026 18:54:03.336 admin kimo ::1 New initial inventory created Created TXN-00000139" [ref=e978] [cursor=pointer]:
+            - cell "13 Apr 2026 18:54:03.336" [ref=e979]
+            - cell "admin kimo ::1" [ref=e980]:
+              - generic [ref=e981]: admin
+              - generic [ref=e982]: kimo
+              - generic [ref=e983]: ::1
+            - cell "New initial inventory created" [ref=e984]
+            - cell "Created" [ref=e985]:
+              - generic [ref=e986]: Created
+            - cell "TXN-00000139" [ref=e987]
+          - row "13 Apr 2026 18:40:16.576 admin kimo ::1 admin logged in to system System Login TXN-00000138" [ref=e988] [cursor=pointer]:
+            - cell "13 Apr 2026 18:40:16.576" [ref=e989]
+            - cell "admin kimo ::1" [ref=e990]:
+              - generic [ref=e991]: admin
+              - generic [ref=e992]: kimo
+              - generic [ref=e993]: ::1
+            - cell "admin logged in to system" [ref=e994]
+            - cell "System Login" [ref=e995]:
+              - generic [ref=e996]: System Login
+            - cell "TXN-00000138" [ref=e997]
+          - row "13 Apr 2026 18:40:11.823 System ::1 User logged out System Logout TXN-00000137" [ref=e998] [cursor=pointer]:
+            - cell "13 Apr 2026 18:40:11.823" [ref=e999]
+            - cell "System ::1" [ref=e1000]:
+              - generic [ref=e1001]: System
+              - generic [ref=e1002]: ::1
+            - cell "User logged out" [ref=e1003]
+            - cell "System Logout" [ref=e1004]:
+              - generic [ref=e1005]: System Logout
+            - cell "TXN-00000137" [ref=e1006]
+          - row "13 Apr 2026 17:50:42.773 admin kimo ::1 admin logged in to system System Login TXN-00000136" [ref=e1007] [cursor=pointer]:
+            - cell "13 Apr 2026 17:50:42.773" [ref=e1008]
+            - cell "admin kimo ::1" [ref=e1009]:
+              - generic [ref=e1010]: admin
+              - generic [ref=e1011]: kimo
+              - generic [ref=e1012]: ::1
+            - cell "admin logged in to system" [ref=e1013]
+            - cell "System Login" [ref=e1014]:
+              - generic [ref=e1015]: System Login
+            - cell "TXN-00000136" [ref=e1016]
+          - row "13 Apr 2026 17:50:40.123 System ::1 User logged out System Logout TXN-00000135" [ref=e1017] [cursor=pointer]:
+            - cell "13 Apr 2026 17:50:40.123" [ref=e1018]
+            - cell "System ::1" [ref=e1019]:
+              - generic [ref=e1020]: System
+              - generic [ref=e1021]: ::1
+            - cell "User logged out" [ref=e1022]
+            - cell "System Logout" [ref=e1023]:
+              - generic [ref=e1024]: System Logout
+            - cell "TXN-00000135" [ref=e1025]
+          - row "13 Apr 2026 17:23:28.756 Superadmin superadmin ::1 Superadmin logged in to system System Login TXN-00000134" [ref=e1026] [cursor=pointer]:
+            - cell "13 Apr 2026 17:23:28.756" [ref=e1027]
+            - cell "Superadmin superadmin ::1" [ref=e1028]:
+              - generic [ref=e1029]: Superadmin
+              - generic [ref=e1030]: superadmin
+              - generic [ref=e1031]: ::1
+            - cell "Superadmin logged in to system" [ref=e1032]
+            - cell "System Login" [ref=e1033]:
+              - generic [ref=e1034]: System Login
+            - cell "TXN-00000134" [ref=e1035]
+          - row "13 Apr 2026 17:23:17.872 System ::1 User logged out System Logout TXN-00000133" [ref=e1036] [cursor=pointer]:
+            - cell "13 Apr 2026 17:23:17.872" [ref=e1037]
+            - cell "System ::1" [ref=e1038]:
+              - generic [ref=e1039]: System
+              - generic [ref=e1040]: ::1
+            - cell "User logged out" [ref=e1041]
+            - cell "System Logout" [ref=e1042]:
+              - generic [ref=e1043]: System Logout
+            - cell "TXN-00000133" [ref=e1044]
+          - row "11 Apr 2026 20:11:59.088 admin kimo ::1 New Data Import created Created TXN-00000132" [ref=e1045] [cursor=pointer]:
+            - cell "11 Apr 2026 20:11:59.088" [ref=e1046]
+            - cell "admin kimo ::1" [ref=e1047]:
+              - generic [ref=e1048]: admin
+              - generic [ref=e1049]: kimo
+              - generic [ref=e1050]: ::1
+            - cell "New Data Import created" [ref=e1051]
+            - cell "Created" [ref=e1052]:
+              - generic [ref=e1053]: Created
+            - cell "TXN-00000132" [ref=e1054]
+          - row "11 Apr 2026 19:46:46.547 admin kimo ::1 admin logged in to system System Login TXN-00000131" [ref=e1055] [cursor=pointer]:
+            - cell "11 Apr 2026 19:46:46.547" [ref=e1056]
+            - cell "admin kimo ::1" [ref=e1057]:
+              - generic [ref=e1058]: admin
+              - generic [ref=e1059]: kimo
+              - generic [ref=e1060]: ::1
+            - cell "admin logged in to system" [ref=e1061]
+            - cell "System Login" [ref=e1062]:
+              - generic [ref=e1063]: System Login
+            - cell "TXN-00000131" [ref=e1064]
+          - 'row "02 Apr 2026 17:36:40.046 admin kimo ::1 New Sale created #11 Created TXN-00000130" [ref=e1065] [cursor=pointer]':
+            - cell "02 Apr 2026 17:36:40.046" [ref=e1066]
+            - cell "admin kimo ::1" [ref=e1067]:
+              - generic [ref=e1068]: admin
+              - generic [ref=e1069]: kimo
+              - generic [ref=e1070]: ::1
+            - 'cell "New Sale created #11" [ref=e1071]'
+            - cell "Created" [ref=e1072]:
+              - generic [ref=e1073]: Created
+            - cell "TXN-00000130" [ref=e1074]
+          - 'row "02 Apr 2026 17:15:53.195 admin kimo ::1 admin clocked in — Shift #4 started Shift Started TXN-00000129" [ref=e1075] [cursor=pointer]':
+            - cell "02 Apr 2026 17:15:53.195" [ref=e1076]
+            - cell "admin kimo ::1" [ref=e1077]:
+              - generic [ref=e1078]: admin
+              - generic [ref=e1079]: kimo
+              - generic [ref=e1080]: ::1
+            - 'cell "admin clocked in — Shift #4 started" [ref=e1081]'
+            - cell "Shift Started" [ref=e1082]:
+              - generic [ref=e1083]: Shift Started
+            - cell "TXN-00000129" [ref=e1084]
+          - 'row "02 Apr 2026 17:15:46.232 admin kimo ::1 Shift #3 approved Approved TXN-00000128" [ref=e1085] [cursor=pointer]':
+            - cell "02 Apr 2026 17:15:46.232" [ref=e1086]
+            - cell "admin kimo ::1" [ref=e1087]:
+              - generic [ref=e1088]: admin
+              - generic [ref=e1089]: kimo
+              - generic [ref=e1090]: ::1
+            - 'cell "Shift #3 approved" [ref=e1091]'
+            - cell "Approved" [ref=e1092]:
+              - generic [ref=e1093]: Approved
+            - cell "TXN-00000128" [ref=e1094]
+          - row "02 Apr 2026 17:15:38.423 admin kimo ::1 admin logged in to system System Login TXN-00000127" [ref=e1095] [cursor=pointer]:
+            - cell "02 Apr 2026 17:15:38.423" [ref=e1096]
+            - cell "admin kimo ::1" [ref=e1097]:
+              - generic [ref=e1098]: admin
+              - generic [ref=e1099]: kimo
+              - generic [ref=e1100]: ::1
+            - cell "admin logged in to system" [ref=e1101]
+            - cell "System Login" [ref=e1102]:
+              - generic [ref=e1103]: System Login
+            - cell "TXN-00000127" [ref=e1104]
+          - row "02 Apr 2026 17:15:35.991 System ::1 User logged out System Logout TXN-00000126" [ref=e1105] [cursor=pointer]:
+            - cell "02 Apr 2026 17:15:35.991" [ref=e1106]
+            - cell "System ::1" [ref=e1107]:
+              - generic [ref=e1108]: System
+              - generic [ref=e1109]: ::1
+            - cell "User logged out" [ref=e1110]
+            - cell "System Logout" [ref=e1111]:
+              - generic [ref=e1112]: System Logout
+            - cell "TXN-00000126" [ref=e1113]
+          - 'row "28 Mar 2026 15:44:40.459 employee employee ::1 employee clocked out — Shift #3 ended Shift Ended TXN-00000125" [ref=e1114] [cursor=pointer]':
+            - cell "28 Mar 2026 15:44:40.459" [ref=e1115]
+            - cell "employee employee ::1" [ref=e1116]:
+              - generic [ref=e1117]: employee
+              - generic [ref=e1118]: employee
+              - generic [ref=e1119]: ::1
+            - 'cell "employee clocked out — Shift #3 ended" [ref=e1120]'
+            - cell "Shift Ended" [ref=e1121]:
+              - generic [ref=e1122]: Shift Ended
+            - cell "TXN-00000125" [ref=e1123]
+          - 'row "28 Mar 2026 15:44:25.061 employee employee ::1 New Sale created #7 Created TXN-00000124" [ref=e1124] [cursor=pointer]':
+            - cell "28 Mar 2026 15:44:25.061" [ref=e1125]
+            - cell "employee employee ::1" [ref=e1126]:
+              - generic [ref=e1127]: employee
+              - generic [ref=e1128]: employee
+              - generic [ref=e1129]: ::1
+            - 'cell "New Sale created #7" [ref=e1130]'
+            - cell "Created" [ref=e1131]:
+              - generic [ref=e1132]: Created
+            - cell "TXN-00000124" [ref=e1133]
+          - row "28 Mar 2026 15:43:42.197 employee employee ::1 New Expense created Created TXN-00000123" [ref=e1134] [cursor=pointer]:
+            - cell "28 Mar 2026 15:43:42.197" [ref=e1135]
+            - cell "employee employee ::1" [ref=e1136]:
+              - generic [ref=e1137]: employee
+              - generic [ref=e1138]: employee
+              - generic [ref=e1139]: ::1
+            - cell "New Expense created" [ref=e1140]
+            - cell "Created" [ref=e1141]:
+              - generic [ref=e1142]: Created
+            - cell "TXN-00000123" [ref=e1143]
+          - 'row "28 Mar 2026 15:35:42.952 employee employee ::1 New Sale created #6 Created TXN-00000122" [ref=e1144] [cursor=pointer]':
+            - cell "28 Mar 2026 15:35:42.952" [ref=e1145]
+            - cell "employee employee ::1" [ref=e1146]:
+              - generic [ref=e1147]: employee
+              - generic [ref=e1148]: employee
+              - generic [ref=e1149]: ::1
+            - 'cell "New Sale created #6" [ref=e1150]'
+            - cell "Created" [ref=e1151]:
+              - generic [ref=e1152]: Created
+            - cell "TXN-00000122" [ref=e1153]
+      - generic [ref=e1154]:
+        - button "chevron_left" [disabled] [ref=e1155]:
+          - generic [ref=e1156]: chevron_left
+        - button "1" [ref=e1157]
+        - button "2" [ref=e1158]
+        - button "3" [ref=e1159]
+        - button "4" [ref=e1160]
+        - button "chevron_right" [ref=e1161]:
+          - generic [ref=e1162]: chevron_right
+    - generic [ref=e249]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e250] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e251]: code
+        - generic [ref=e252]: Developed by
+        - generic [ref=e253]: kiko-tech.com
+        - generic [ref=e254]: open_in_new
+      - paragraph [ref=e255]: © 2026 Ramex Store ERP. All rights reserved.

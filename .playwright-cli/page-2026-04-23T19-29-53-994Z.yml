@@ -1,0 +1,127 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - button "arrow_forward رجوع" [ref=e8]:
+          - generic [ref=e9]: arrow_forward
+          - generic [ref=e10]: رجوع
+        - link "home الصفحة الرئيسية" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e12]: home
+          - generic [ref=e13]: الصفحة الرئيسية
+      - link "رامكس ستور" [ref=e14] [cursor=pointer]:
+        - /url: /dashboard
+        - img "رامكس ستور" [ref=e15]
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: store
+          - generic [ref=e19]: الفرع الرئيسي
+        - link "help_outline" [ref=e20] [cursor=pointer]:
+          - /url: /manual
+          - generic [ref=e21]: help_outline
+        - button "المحاسب Accountant person" [ref=e23]:
+          - generic [ref=e24]:
+            - paragraph [ref=e25]: المحاسب
+            - paragraph [ref=e26]: Accountant
+          - generic [ref=e28]: person
+  - main [ref=e29]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e34]: bar_chart
+        - generic [ref=e35]:
+          - heading "التقارير والسجلات" [level=1] [ref=e36]
+          - paragraph [ref=e37]: اختر التقرير الذي تريد عرضه
+      - generic [ref=e38]:
+        - heading "point_of_sale المبيعات" [level=2] [ref=e39]:
+          - generic [ref=e40]: point_of_sale
+          - text: المبيعات
+        - generic [ref=e41]:
+          - link "show_chart المبيعات اليومية مبيعات مجمعة يومياً / أسبوعياً / شهرياً chevron_left" [ref=e42] [cursor=pointer]:
+            - /url: /reports/sales/daily
+            - generic [ref=e44]: show_chart
+            - generic [ref=e45]:
+              - heading "المبيعات اليومية" [level=3] [ref=e46]
+              - paragraph [ref=e47]: مبيعات مجمعة يومياً / أسبوعياً / شهرياً
+            - generic [ref=e48]: chevron_left
+          - link "pie_chart مبيعات حسب المحور تقسيم حسب الفرع / الشريحة / التصنيف / طريقة الدفع chevron_left" [ref=e49] [cursor=pointer]:
+            - /url: /reports/sales/by-dimension
+            - generic [ref=e51]: pie_chart
+            - generic [ref=e52]:
+              - heading "مبيعات حسب المحور" [level=3] [ref=e53]
+              - paragraph [ref=e54]: تقسيم حسب الفرع / الشريحة / التصنيف / طريقة الدفع
+            - generic [ref=e55]: chevron_left
+          - link "trending_up هامش الربح بالصنف الإيراد والتكلفة والهامش لكل صنف chevron_left" [ref=e56] [cursor=pointer]:
+            - /url: /reports/margin-by-sku
+            - generic [ref=e58]: trending_up
+            - generic [ref=e59]:
+              - heading "هامش الربح بالصنف" [level=3] [ref=e60]
+              - paragraph [ref=e61]: الإيراد والتكلفة والهامش لكل صنف
+            - generic [ref=e62]: chevron_left
+          - link "leaderboard الأكثر مبيعاً أعلى الأصناف إيراداً أو كمية chevron_left" [ref=e63] [cursor=pointer]:
+            - /url: /reports/top-movers
+            - generic [ref=e65]: leaderboard
+            - generic [ref=e66]:
+              - heading "الأكثر مبيعاً" [level=3] [ref=e67]
+              - paragraph [ref=e68]: أعلى الأصناف إيراداً أو كمية
+            - generic [ref=e69]: chevron_left
+      - generic [ref=e70]:
+        - heading "warehouse المخزون" [level=2] [ref=e71]:
+          - generic [ref=e72]: warehouse
+          - text: المخزون
+        - link "inventory المخزون الراكد أصناف لم تُباع خلال فترة محددة chevron_left" [ref=e74] [cursor=pointer]:
+          - /url: /reports/dead-stock
+          - generic [ref=e76]: inventory
+          - generic [ref=e77]:
+            - heading "المخزون الراكد" [level=3] [ref=e78]
+            - paragraph [ref=e79]: أصناف لم تُباع خلال فترة محددة
+          - generic [ref=e80]: chevron_left
+      - generic [ref=e81]:
+        - heading "texture الأقمشة" [level=2] [ref=e82]:
+          - generic [ref=e83]: texture
+          - text: الأقمشة
+        - generic [ref=e84]:
+          - link "straighten متبقي الأقمشة الأمتار المتبقية لكل صنف قماش chevron_left" [ref=e85] [cursor=pointer]:
+            - /url: /reports/fabric/remaining-meters
+            - generic [ref=e87]: straighten
+            - generic [ref=e88]:
+              - heading "متبقي الأقمشة" [level=3] [ref=e89]
+              - paragraph [ref=e90]: الأمتار المتبقية لكل صنف قماش
+            - generic [ref=e91]: chevron_left
+          - link "schedule لفات الأقمشة حسب العمر تصنيف اللفات حسب عمرها في المخزون chevron_left" [ref=e92] [cursor=pointer]:
+            - /url: /reports/fabric/rolls-by-age
+            - generic [ref=e94]: schedule
+            - generic [ref=e95]:
+              - heading "لفات الأقمشة حسب العمر" [level=3] [ref=e96]
+              - paragraph [ref=e97]: تصنيف اللفات حسب عمرها في المخزون
+            - generic [ref=e98]: chevron_left
+      - generic [ref=e99]:
+        - heading "manage_accounts الورديات" [level=2] [ref=e100]:
+          - generic [ref=e101]: manage_accounts
+          - text: الورديات
+        - link "account_balance_wallet تسوية الورديات مقارنة الرصيد المتوقع بالفعلي لكل وردية chevron_left" [ref=e103] [cursor=pointer]:
+          - /url: /reports/shift-reconciliation
+          - generic [ref=e105]: account_balance_wallet
+          - generic [ref=e106]:
+            - heading "تسوية الورديات" [level=3] [ref=e107]
+            - paragraph [ref=e108]: مقارنة الرصيد المتوقع بالفعلي لكل وردية
+          - generic [ref=e109]: chevron_left
+      - generic [ref=e110]:
+        - heading "history السجلات التفصيلية" [level=2] [ref=e111]:
+          - generic [ref=e112]: history
+          - text: السجلات التفصيلية
+        - link "table_view السجلات التفصيلية عمليات المشتريات والمبيعات والتحويلات والحضور chevron_left" [ref=e113] [cursor=pointer]:
+          - /url: /reports/detailed
+          - generic [ref=e115]: table_view
+          - generic [ref=e116]:
+            - heading "السجلات التفصيلية" [level=3] [ref=e117]
+            - paragraph [ref=e118]: عمليات المشتريات والمبيعات والتحويلات والحضور
+          - generic [ref=e119]: chevron_left
+  - contentinfo [ref=e120]:
+    - generic [ref=e122]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e123] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e124]: code
+        - generic [ref=e125]: Developed by
+        - generic [ref=e126]: kiko-tech.com
+        - generic [ref=e127]: open_in_new
+      - paragraph [ref=e128]: © 2026 Ramex Store ERP. All rights reserved.

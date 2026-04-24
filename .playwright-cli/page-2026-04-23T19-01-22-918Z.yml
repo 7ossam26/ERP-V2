@@ -1,0 +1,93 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - button "arrow_forward رجوع" [ref=e8]:
+          - generic [ref=e9]: arrow_forward
+          - generic [ref=e10]: رجوع
+        - link "home الصفحة الرئيسية" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e12]: home
+          - generic [ref=e13]: الصفحة الرئيسية
+      - link "رامكس ستور" [ref=e14] [cursor=pointer]:
+        - /url: /dashboard
+        - img "رامكس ستور" [ref=e15]
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: store
+          - generic [ref=e19]: الفرع الرئيسي
+        - link "help_outline" [ref=e20] [cursor=pointer]:
+          - /url: /manual
+          - generic [ref=e21]: help_outline
+        - button "المحاسب Accountant person" [ref=e23]:
+          - generic [ref=e24]:
+            - paragraph [ref=e25]: المحاسب
+            - paragraph [ref=e26]: Accountant
+          - generic [ref=e28]: person
+  - main [ref=e29]:
+    - generic [ref=e31]:
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - heading "سجل المراجعة" [level=4] [ref=e35]
+          - paragraph [ref=e36]: عرض فلترة، مقارنة قبل/بعد، وتصدير مباشر إلى Excel لأحداث النظام الحساسة.
+        - generic [ref=e37]:
+          - button "مسح الفلاتر" [ref=e38] [cursor=pointer]: مسح الفلاتر
+          - button "تصدير Excel" [ref=e39] [cursor=pointer]: تصدير Excel
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - generic [ref=e43]: من تاريخ
+            - generic [ref=e44]:
+              - textbox "من تاريخ" [ref=e45]
+              - group:
+                - generic: من تاريخ
+          - generic [ref=e46]:
+            - generic [ref=e47]: إلى تاريخ
+            - generic [ref=e48]:
+              - textbox "إلى تاريخ" [ref=e49]
+              - group:
+                - generic: إلى تاريخ
+          - generic [ref=e50]:
+            - generic: المستخدم
+            - generic [ref=e51]:
+              - combobox "المستخدم" [ref=e52] [cursor=pointer]
+              - textbox
+              - img
+              - group:
+                - generic: المستخدم
+          - generic [ref=e53]:
+            - generic: الوحدة
+            - generic [ref=e54]:
+              - combobox "الوحدة" [ref=e55] [cursor=pointer]
+              - textbox
+              - img
+              - group:
+                - generic: الوحدة
+          - generic [ref=e56]:
+            - generic: الإجراء
+            - generic [ref=e57]:
+              - combobox "الإجراء" [ref=e58] [cursor=pointer]
+              - textbox
+              - img
+              - group:
+                - generic: الإجراء
+        - button "تطبيق الفلاتر" [ref=e60] [cursor=pointer]: تطبيق الفلاتر
+      - generic [ref=e63]:
+        - progressbar [ref=e64]:
+          - img [ref=e65]
+        - generic [ref=e67]: جارٍ تحميل السجل...
+      - generic [ref=e68]:
+        - generic [ref=e69]: "إجمالي السجلات: 0"
+        - generic [ref=e70]:
+          - button "السابق" [disabled]
+          - generic [ref=e71]: صفحة 1 من 1
+          - button "التالي" [disabled]
+  - contentinfo [ref=e72]:
+    - generic [ref=e74]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e75] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e76]: code
+        - generic [ref=e77]: Developed by
+        - generic [ref=e78]: kiko-tech.com
+        - generic [ref=e79]: open_in_new
+      - paragraph [ref=e80]: © 2026 Ramex Store ERP. All rights reserved.

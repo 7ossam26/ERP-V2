@@ -9,21 +9,28 @@ router.use(authenticateToken, requirePermission("EXPENSES"));
 // GET all expenses
 router.get("/", async (req, res, next) => {
     try {
-        const branchId = await getUserBranchFilter(req.user.id);
+        const branchFilter = await getUserBranchFilter(req.user.id, req);
         const whereClause = {};
 
-        if (branchId) {
-            // Find the treasury associated with this branch
-            const branch = await prisma.branch.findUnique({
-                where: { id: branchId },
+        if (branchFilter) {
+            // Find the treasuries associated with these branches
+            const branches = await prisma.branch.findMany({
+                where: branchFilter,
                 select: { treasuryId: true }
             });
-            if (branch) {
-                whereClause.treasuryId = branch.treasuryId;
+
+            if (branches.length > 0) {
+                const treasuryIds = branches.map(b => b.treasuryId).filter(id => id != null);
+                whereClause.treasuryId = { in: treasuryIds };
+            } else {
+                // User has branch access but no branches found (shouldn't happen technically due to auth middleware but good for safety)
+                // or branches have no treasuries
+                // Make sure we return nothing if we can't find relevant treasuries
+                whereClause.treasuryId = -1;
             }
         }
 
-        console.log(`🔍 Fetching expenses with whereClause: ${JSON.stringify(whereClause)} (User ID: ${req.user.id}, Branch ID: ${branchId})`);
+        console.log(`🔍 Fetching expenses with whereClause: ${JSON.stringify(whereClause)} (User ID: ${req.user.id}, Branch Filter: ${JSON.stringify(branchFilter)})`);
 
         const expenses = await prisma.expense.findMany({
             where: whereClause,
@@ -56,14 +63,39 @@ router.post("/", async (req, res, next) => {
             });
 
             if (!treasury) {
-                throw new Error("Treasury not found");
+                const err = new Error("Treasury not found");
+                err.status = 404;
+                throw err;
             }
 
             if (Number(treasury.balance) < Number(amount)) {
-                throw new Error("Insufficient treasury balance");
+                const err = new Error("Insufficient treasury balance");
+                err.status = 400;
+                throw err;
             }
 
-            // 2. Deduct from treasury
+            // 2. Find the treasury's branch
+            const branch = treasury.branchId ? await tx.branch.findUnique({
+                where: { id: treasury.branchId }
+            }) : null;
+
+            // 3. Find active shift for this branch (if exists)
+            let shiftId = null;
+            if (branch) {
+                const activeShift = await tx.shift.findFirst({
+                    where: {
+                        branchId: branch.id,
+                        status: { in: ["OPEN", "PENDING_REVIEW"] }
+                    },
+                    orderBy: { startTime: "desc" }
+                });
+
+                if (activeShift) {
+                    shiftId = activeShift.id;
+                }
+            }
+
+            // 4. Deduct from treasury
             await tx.treasury.update({
                 where: { id: parseInt(treasuryId) },
                 data: {
@@ -71,7 +103,7 @@ router.post("/", async (req, res, next) => {
                 }
             });
 
-            // 3. Create Expense
+            // 5. Create Expense (with shift link if found)
             await tx.expense.create({
                 data: {
                     description,
@@ -79,6 +111,7 @@ router.post("/", async (req, res, next) => {
                     date: new Date(date || new Date()),
                     type: "MANUAL",
                     treasuryId: parseInt(treasuryId),
+                    shiftId: shiftId, // Link to shift if found
                     paymentMethod: paymentMethod || "CASH"
                 }
             });
@@ -123,11 +156,15 @@ router.put("/:id", async (req, res, next) => {
             });
 
             if (!currentTreasury) {
-                throw new Error("Target treasury not found");
+                const err = new Error("Target treasury not found");
+                err.status = 404;
+                throw err;
             }
 
             if (Number(currentTreasury.balance) < Number(amount)) {
-                throw new Error("Insufficient treasury balance for the new amount");
+                const err = new Error("Insufficient treasury balance for the new amount");
+                err.status = 400;
+                throw err;
             }
 
             // 3. Deduct new amount

@@ -1,0 +1,192 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - button "arrow_forward رجوع" [ref=e8]:
+          - generic [ref=e9]: arrow_forward
+          - generic [ref=e10]: رجوع
+        - link "home الصفحة الرئيسية" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e12]: home
+          - generic [ref=e13]: الصفحة الرئيسية
+      - link "رامكس ستور" [ref=e14] [cursor=pointer]:
+        - /url: /dashboard
+        - img "رامكس ستور" [ref=e15]
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: store
+          - generic [ref=e19]: الفرع الرئيسي
+        - link "help_outline" [ref=e20] [cursor=pointer]:
+          - /url: /manual
+          - generic [ref=e21]: help_outline
+        - button "المحاسب Accountant person" [ref=e23]:
+          - generic [ref=e24]:
+            - paragraph [ref=e25]: المحاسب
+            - paragraph [ref=e26]: Accountant
+          - generic [ref=e28]: person
+  - main [ref=e29]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - heading "receipt_long فاتورة مشتريات" [level=2] [ref=e34]:
+          - generic [ref=e35]: receipt_long
+          - text: فاتورة مشتريات
+        - generic [ref=e36]:
+          - button "receipt_long سجل المشتريات" [ref=e37]:
+            - generic [ref=e38]: receipt_long
+            - generic [ref=e39]: سجل المشتريات
+          - button "assignment_return مرتجع" [ref=e40]:
+            - generic [ref=e41]: assignment_return
+            - generic [ref=e42]: مرتجع
+          - button "pause_circle تعليق" [ref=e43]:
+            - generic [ref=e44]: pause_circle
+            - generic [ref=e45]: تعليق
+          - button "arrow_forward رجوع" [ref=e46]:
+            - generic [ref=e47]: arrow_forward
+            - generic [ref=e48]: رجوع
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]:
+            - generic [ref=e52]: الـ ID
+            - textbox [ref=e53]: "1"
+          - generic [ref=e54]:
+            - generic [ref=e55]: الخزينه
+            - combobox [ref=e57]:
+              - option "اختر الخزينة..." [selected]
+          - generic [ref=e58]:
+            - generic [ref=e59]: المخزن
+            - generic [ref=e60]:
+              - combobox [ref=e61]:
+                - option "اختر المخزن..."
+                - option "المخزن الرئيسي" [selected]
+                - option "معادي"
+                - option "مخزن فرع جسر السويس"
+                - option "مخزن فرع رامو"
+              - generic: expand_more
+          - generic [ref=e62]:
+            - generic [ref=e63]: رقم فاتورة المورد
+            - 'textbox "مثال: INV-2023-001" [ref=e64]'
+        - generic [ref=e65]:
+          - generic [ref=e66]: اسم المورد
+          - generic [ref=e67]:
+            - generic [ref=e68]:
+              - combobox [ref=e69]:
+                - option "اختر المورد..." [selected]
+                - option "مورد عام"
+              - generic: expand_more
+            - button "account_balance_wallet" [disabled] [ref=e70]:
+              - generic [ref=e71]: account_balance_wallet
+          - generic [ref=e72]:
+            - checkbox "فاتورة دولية" [ref=e73]
+            - generic [ref=e74] [cursor=pointer]: فاتورة دولية
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - heading "inventory_2 الأصناف" [level=3] [ref=e77]:
+            - generic [ref=e78]: inventory_2
+            - text: الأصناف
+          - button "qr_code_scanner تكويد سريع" [ref=e79]:
+            - generic [ref=e80]: qr_code_scanner
+            - generic [ref=e81]: تكويد سريع
+        - table [ref=e83]:
+          - rowgroup [ref=e84]:
+            - row "اسم الصنف الكمية سعر الشراء سعر البيع حذف" [ref=e85]:
+              - columnheader "اسم الصنف" [ref=e86]
+              - columnheader "الكمية" [ref=e87]
+              - columnheader "سعر الشراء" [ref=e88]
+              - columnheader "سعر البيع" [ref=e89]
+              - columnheader "حذف" [ref=e90]
+          - rowgroup [ref=e91]:
+            - row "search 1 قطعة delete" [ref=e92]:
+              - cell "search" [ref=e93]:
+                - generic [ref=e94]:
+                  - textbox "ابحث عن صنف..." [ref=e95]
+                  - generic: search
+              - cell "1 قطعة" [ref=e96]:
+                - generic [ref=e97]:
+                  - spinbutton [ref=e98]: "1"
+                  - generic [ref=e99]: قطعة
+              - cell [ref=e100]:
+                - spinbutton [ref=e101]
+              - cell [ref=e102]:
+                - spinbutton [ref=e103]
+              - cell "delete" [ref=e104]:
+                - button "delete" [ref=e105]:
+                  - generic [ref=e106]: delete
+        - button "add_circle إضافة صنف جديد" [disabled] [ref=e108]:
+          - generic [ref=e109]: add_circle
+          - generic [ref=e110]: إضافة صنف جديد
+      - generic [ref=e111]:
+        - generic [ref=e113]:
+          - generic [ref=e115]:
+            - generic [ref=e116]:
+              - generic [ref=e117]:
+                - generic [ref=e119]: local_offer
+                - generic [ref=e120]: الخصم الإضافي
+              - generic [ref=e121]:
+                - generic [ref=e122]:
+                  - radio "% نسبة" [checked] [ref=e123] [cursor=pointer]
+                  - generic [ref=e124] [cursor=pointer]: "% نسبة"
+                - generic [ref=e125]:
+                  - radio "قيمة نقدية" [ref=e126] [cursor=pointer]
+                  - generic [ref=e127] [cursor=pointer]: قيمة نقدية
+            - generic [ref=e129]:
+              - spinbutton [ref=e130]
+              - generic: "%"
+          - generic [ref=e131]:
+            - generic [ref=e132]:
+              - generic [ref=e133]:
+                - generic [ref=e134]: إجمالي الفاتورة
+                - textbox [ref=e135]: "0.00"
+              - generic [ref=e136]:
+                - generic [ref=e137]: بعد الخصم
+                - textbox [ref=e138]: "0.00"
+              - generic [ref=e139]:
+                - generic [ref=e140]: الضريبة
+                - textbox [ref=e141]: غير مفعلة
+            - generic [ref=e142]:
+              - generic [ref=e143]:
+                - generic [ref=e144]: إجمالي البيع
+                - textbox [ref=e145]: "0.00"
+              - generic [ref=e146]:
+                - generic [ref=e147]: المكسب
+                - textbox [ref=e148]: "0.00"
+              - generic [ref=e149]:
+                - generic [ref=e150]: صافي المستحق
+                - textbox [ref=e151]: "0.00"
+        - generic [ref=e152]:
+          - generic [ref=e154]:
+            - heading "payments طريقة الدفع" [level=3] [ref=e156]:
+              - generic [ref=e157]: payments
+              - text: طريقة الدفع
+            - generic [ref=e158]:
+              - generic [ref=e159] [cursor=pointer]:
+                - radio "نقد (Cash) monetization_on" [checked] [ref=e160]
+                - generic [ref=e161]:
+                  - generic [ref=e162]: نقد (Cash)
+                  - generic [ref=e163]: monetization_on
+              - generic [ref=e164] [cursor=pointer]:
+                - radio "كريدت/فيزا (Card) credit_card" [ref=e165]
+                - generic [ref=e166]:
+                  - generic [ref=e167]: كريدت/فيزا (Card)
+                  - generic [ref=e168]: credit_card
+              - generic [ref=e169] [cursor=pointer]:
+                - radio "آجل (Deferred) schedule" [ref=e170]
+                - generic [ref=e171]:
+                  - generic [ref=e172]: آجل (Deferred)
+                  - generic [ref=e173]: schedule
+              - generic [ref=e174] [cursor=pointer]:
+                - radio "متنوع (Mixed) account_balance" [ref=e175]
+                - generic [ref=e176]:
+                  - generic [ref=e177]: متنوع (Mixed)
+                  - generic [ref=e178]: account_balance
+          - button "print حفظ وطباعة" [ref=e180]:
+            - generic [ref=e181]: print
+            - generic [ref=e182]: حفظ وطباعة
+  - contentinfo [ref=e183]:
+    - generic [ref=e185]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e186] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e187]: code
+        - generic [ref=e188]: Developed by
+        - generic [ref=e189]: kiko-tech.com
+        - generic [ref=e190]: open_in_new
+      - paragraph [ref=e191]: © 2026 Ramex Store ERP. All rights reserved.

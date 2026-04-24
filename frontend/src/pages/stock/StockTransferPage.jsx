@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../components/ui/Modal";
+import KgQuantityInput from "../../components/ui/KgQuantityInput";
 import {
   inventoryService,
   warehouseService,
@@ -10,18 +11,19 @@ import {
   categoryService,
 } from "../../services/domainServices";
 import authService from "../../services/authService";
+import { canReadSystemSettings } from "../../utils/systemSettingsAccess";
 
 const StockTransferPage = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [lastTransfer, setLastTransfer] = useState(null);
 
   // Data states
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [allWarehouses, setAllWarehouses] = useState([]); // Store all for selection
   const [fromWarehouseId, setFromWarehouseId] = useState("");
-
 
   // Transfer state
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
@@ -33,14 +35,25 @@ const StockTransferPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch system settings to get main warehouse default
-        const settings = await settingsService.get();
         const warehousesList = await warehouseService.getAll();
         setAllWarehouses(warehousesList);
 
+        const user = authService.getCurrentUser();
+        let settings = null;
+
+        if (canReadSystemSettings(authService)) {
+          try {
+            settings = await settingsService.get();
+          } catch (settingsError) {
+            console.error("Failed to fetch settings", settingsError);
+          }
+        }
+
         let initialSourceId = "";
 
-        if (settings && settings.mainWarehouseId) {
+        if (user?.branch?.warehouseId) {
+          initialSourceId = user.branch.warehouseId.toString();
+        } else if (settings && settings.mainWarehouseId) {
           initialSourceId = settings.mainWarehouseId.toString();
         } else if (warehousesList.length > 0) {
           initialSourceId = warehousesList[0].id.toString();
@@ -63,7 +76,7 @@ const StockTransferPage = () => {
         ]);
       } catch (error) {
         console.error("Failed to fetch data", error);
-        toast.error("فشل في تحميل البيانات");
+        toast.error(error.message || "فشل في تحميل البيانات");
       }
     };
     fetchData();
@@ -100,33 +113,55 @@ const StockTransferPage = () => {
     setSelectedItems(selectedItems.filter((item) => item.id !== id));
   };
 
-  const handleQtyChange = (id, change) => {
+  const isDecimalUnit = (unit) => {
+    return unit && (unit.includes("كيلو") || unit.toLowerCase().includes("kg"));
+  };
+
+  const handleQtyChange = (id, direction) => {
     setSelectedItems(
       selectedItems.map((item) => {
         if (item.id === id) {
-          const newQty = Math.max(
-            1,
-            Math.min(item.quantity, (item.transferQty || 0) + change)
-          );
+          const isDecimal = isDecimalUnit(item.unit);
+          const step = isDecimal ? 0.25 : 1;
+          const change = direction * step;
+
+          let newQty = (item.transferQty || 0) + change;
+
+          // Ensure min quantity is at least the step size (e.g. 0.25) or 1
+          const minQty = isDecimal ? 0.25 : 1;
+          newQty = Math.max(minQty, Math.min(item.quantity, newQty));
+
+          // Fix floating point precision
+          if (isDecimal) {
+            newQty = parseFloat(newQty.toFixed(2));
+          }
+
           return { ...item, transferQty: newQty };
         }
         return item;
-      })
+      }),
     );
   };
 
   const handleManualQtyChange = (id, value) => {
-    const qty = parseInt(value) || 0;
     setSelectedItems(
       selectedItems.map((item) => {
         if (item.id === id) {
+          let qty;
+          if (isDecimalUnit(item.unit)) {
+            qty = parseFloat(value);
+            if (isNaN(qty)) qty = 0;
+          } else {
+            qty = parseInt(value) || 0;
+          }
+
           return {
             ...item,
             transferQty: Math.max(0, Math.min(item.quantity, qty)),
           };
         }
         return item;
-      })
+      }),
     );
   };
 
@@ -142,7 +177,7 @@ const StockTransferPage = () => {
         setProducts(inventoryItems);
       } catch (error) {
         console.error("Failed to update inventory", error);
-        toast.error("فشل تحديث المخزون");
+        toast.error(error.message || "فشل تحديث المخزون");
       }
     } else {
       try {
@@ -150,7 +185,7 @@ const StockTransferPage = () => {
         setProducts(inventoryItems);
       } catch (error) {
         console.error("Failed to fetch all inventory", error);
-        toast.error("فشل تحديث المخزون");
+        toast.error(error.message || "فشل تحديث المخزون");
       }
     }
   };
@@ -199,6 +234,16 @@ const StockTransferPage = () => {
 
       const result = await stockTransferService.create(transferData);
 
+      // T2: Save result for print and auto-print
+      const fromWh = allWarehouses.find((w) => w.id === parseInt(fromWarehouseId));
+      const toWh = allWarehouses.find((w) => w.id === parseInt(selectedWarehouse));
+      setLastTransfer({
+        ...result,
+        fromWarehouseName: fromWh?.name || "مخزن",
+        toWarehouseName: toWh?.name || "مخزن",
+        items: selectedItems.map((i) => ({ name: i.name, quantity: i.transferQty, unit: i.unit })),
+      });
+
       toast.success(`تم التحويل بنجاح - رقم: ${result.transferNumber}`);
 
       // Reset form
@@ -206,6 +251,9 @@ const StockTransferPage = () => {
       setSelectedWarehouse("");
       setNotes("");
       setIsConfirmModalOpen(false);
+
+      // T2: Trigger print
+      setTimeout(() => window.print(), 300);
 
       // Refresh inventory
       const inventoryItems = await inventoryService.getInventory({
@@ -223,15 +271,17 @@ const StockTransferPage = () => {
 
   // Calculations
   const totalItems = selectedItems.length;
-  const totalQuantity = selectedItems.reduce(
-    (sum, item) => sum + (item.transferQty || 0),
-    0
-  );
+  const quantityByUnit = selectedItems.reduce((acc, item) => {
+    const u = item.unit || "—";
+    acc[u] = (acc[u] || 0) + (item.transferQty || 0);
+    return acc;
+  }, {});
 
   return (
-    <div
-      className="flex h-[calc(100vh-6rem)] overflow-hidden bg-background-light dark:bg-background-dark text-sm"
-      dir="rtl">
+    <>
+      <div
+        className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-6rem)] overflow-y-auto lg:overflow-hidden bg-background-light dark:bg-background-dark text-sm print:hidden"
+        dir="rtl">
       {/* Confirmation Modal */}
       <Modal
         isOpen={isConfirmModalOpen}
@@ -245,7 +295,8 @@ const StockTransferPage = () => {
                   من المخزن:
                 </span>
                 <span className="font-bold text-gray-800 dark:text-gray-100">
-                  {allWarehouses.find(w => w.id === parseInt(fromWarehouseId))?.name || "..."}
+                  {allWarehouses.find((w) => w.id === parseInt(fromWarehouseId))
+                    ?.name || "..."}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -254,8 +305,9 @@ const StockTransferPage = () => {
                 </span>
                 <span className="font-bold text-primary">
                   {
-                    allWarehouses.find((w) => w.id === parseInt(selectedWarehouse))
-                      ?.name
+                    allWarehouses.find(
+                      (w) => w.id === parseInt(selectedWarehouse),
+                    )?.name
                   }
                 </span>
               </div>
@@ -267,14 +319,12 @@ const StockTransferPage = () => {
                   {totalItems}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">
-                  إجمالي الكميات:
-                </span>
-                <span className="font-bold text-gray-800 dark:text-gray-100">
-                  {totalQuantity}
-                </span>
-              </div>
+              {Object.entries(quantityByUnit).map(([unit, qty]) => (
+                <div key={unit} className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">إجمالي ({unit}):</span>
+                  <span className="font-bold text-gray-800 dark:text-gray-100">{qty % 1 === 0 ? qty : qty.toFixed(2)}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -294,32 +344,41 @@ const StockTransferPage = () => {
         </div>
       </Modal>
 
-      {/* Product Selection Area (Left Side) */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700">
+      {/* Product Selection Area (Center/Left) - Order 2 on Mobile, Order 1 on Desktop */}
+      <div className="order-2 lg:order-1 flex-1 flex flex-col h-[500px] lg:h-full overflow-hidden bg-background-light dark:bg-zinc-900 relative border-l border-gray-200 dark:border-zinc-700">
         {/* Top Bar */}
-        <div className="flex items-center justify-between p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0">
-          <div className="flex items-center text-gray-500 dark:text-gray-400 gap-2">
-            <button
-              onClick={() => navigate(-1)}
-              className="hover:text-primary transition-colors flex items-center p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
-              <span className="material-symbols-outlined">arrow_forward</span>
-            </button>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="hover:text-primary transition-colors flex items-center">
-              <span className="material-symbols-outlined">home</span>
-            </button>
-            <span className="mx-2 text-gray-300">/</span>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between p-4 bg-card-light dark:bg-card-dark shadow-sm z-10 shrink-0 gap-3 md:gap-0">
+          <div className="flex items-center justify-between md:justify-start text-gray-500 dark:text-gray-400 gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate(-1)}
+                className="hover:text-primary transition-colors flex items-center p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="hover:text-primary transition-colors flex items-center">
+                <span className="material-symbols-outlined">home</span>
+              </button>
+              <span className="mx-2 text-gray-300">/</span>
+            </div>
             <span className="font-bold text-lg text-primary dark:text-primary-dark">
               تحويل مخزني
             </span>
           </div>
-          <div className="relative">
+          {/* T1: Transfer history shortcut */}
+          <button
+            onClick={() => navigate("/reports/custom/stock-transfers")}
+            className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-600 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-bold transition-colors border border-gray-200 dark:border-zinc-600">
+            <span className="material-symbols-outlined text-lg">history</span>
+            سجل التحويلات
+          </button>
+          <div className="relative w-full md:w-auto">
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
               <span className="material-symbols-outlined text-lg">search</span>
             </span>
             <input
-              className="pr-10 pl-4 py-2 w-64 md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
+              className="pr-10 pl-4 py-2 w-full md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
               placeholder="بحث عن صنف..."
               type="text"
               value={searchQuery}
@@ -404,11 +463,15 @@ const StockTransferPage = () => {
                       </div>
 
                       {/* Show available branches if no source warehouse selected */}
-                      {!fromWarehouseId && product.warehouses && product.warehouses.length > 0 && (
-                        <div className="text-[10px] text-gray-400 mt-1 truncate" title={product.warehouses.join(", ")}>
-                          في: {product.warehouses.join("، ")}
-                        </div>
-                      )}
+                      {!fromWarehouseId &&
+                        product.warehouses &&
+                        product.warehouses.length > 0 && (
+                          <div
+                            className="text-[10px] text-gray-400 mt-1 truncate"
+                            title={product.warehouses.join(", ")}>
+                            في: {product.warehouses.join("، ")}
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -418,10 +481,10 @@ const StockTransferPage = () => {
         </div>
       </div>
 
-      {/* Transfer Details Sidebar (Right Side) */}
-      <div className="w-[450px] lg:w-[600px] flex flex-col h-full bg-card-light dark:bg-card-dark shadow-xl z-20 shrink-0 border-r border-gray-200 dark:border-zinc-700">
-        {/* Header Form */}
-        <div className="p-4 bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-200 dark:border-zinc-700">
+      {/* Transfer Details Sidebar (Right Side) - Wrapper behaves as contents on mobile to split children */}
+      <div className="contents lg:flex lg:flex-col lg:w-[450px] xl:w-[600px] lg:h-full lg:bg-card-light lg:dark:bg-card-dark lg:shadow-xl lg:z-20 lg:shrink-0 lg:border-r lg:border-gray-200 lg:dark:border-zinc-700 order-1 lg:order-2">
+        {/* Header Form - Order 1 on Mobile */}
+        <div className="order-1 lg:order-none p-4 bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-200 dark:border-zinc-700">
           <h2 className="text-lg font-bold text-primary dark:text-primary mb-3 flex items-center">
             <span className="material-symbols-outlined ml-2">
               local_shipping
@@ -455,7 +518,9 @@ const StockTransferPage = () => {
                 onChange={(e) => setSelectedWarehouse(e.target.value)}>
                 <option value="">-- اختر المخزن --</option>
                 {allWarehouses
-                  .filter(wh => wh.id.toString() !== fromWarehouseId.toString())
+                  .filter(
+                    (wh) => wh.id.toString() !== fromWarehouseId.toString(),
+                  )
                   .map((wh) => (
                     <option key={wh.id} value={wh.id}>
                       {wh.name}
@@ -478,115 +543,190 @@ const StockTransferPage = () => {
           </div>
         </div>
 
-        {/* List Header */}
-        <div className="px-4 py-2 bg-gray-100 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 text-xs font-bold text-gray-500 dark:text-gray-400 grid grid-cols-12 gap-2">
-          <div className="col-span-5">الصنف</div>
-          <div className="col-span-2 text-center">رصيد المصدر</div>
-          <div className="col-span-3 text-center">كمية التحويل</div>
-          <div className="col-span-2 text-center">الوحدة</div>
-        </div>
-
-        {/* Items List */}
-        <div className="flex-1 overflow-y-auto p-0 flex flex-col">
-          {selectedItems.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <span className="material-symbols-outlined text-6xl mb-2">
-                  inventory_2
-                </span>
-                <p>لم يتم اختيار أي أصناف بعد</p>
-              </div>
-            </div>
-          ) : (
-            selectedItems.map((item) => (
-              <div
-                key={item.id}
-                className="p-3 border-b border-gray-100 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700/50 group grid grid-cols-12 gap-2 items-center">
-                <div className="col-span-5">
-                  <div className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-                    {item.name}
-                  </div>
-                  <div className="text-[10px] text-gray-400">#{item.code}</div>
-                </div>
-                <div className="col-span-2 text-center">
-                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-zinc-700 px-2 py-1 rounded">
-                    {item.quantity}
-                  </span>
-                </div>
-                <div className="col-span-3 flex items-center justify-center gap-1">
-                  <button
-                    onClick={() => handleQtyChange(item.id, -1)}
-                    className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 rounded text-gray-600 dark:text-gray-200 font-bold">
-                    -
-                  </button>
-                  <input
-                    className="w-14 text-center border border-gray-300 dark:border-zinc-600 rounded py-1 px-1 text-sm font-bold bg-white dark:bg-zinc-800 focus:border-primary focus:ring-0"
-                    type="number"
-                    value={item.transferQty}
-                    onChange={(e) =>
-                      handleManualQtyChange(item.id, e.target.value)
-                    }
-                  />
-                  <button
-                    onClick={() => handleQtyChange(item.id, 1)}
-                    className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 rounded text-gray-600 dark:text-gray-200 font-bold">
-                    +
-                  </button>
-                </div>
-                <div className="col-span-2 flex items-center justify-between pl-2">
-                  <span className="text-xs font-medium text-gray-500">
-                    {item.unit}
-                  </span>
-                  <button
-                    onClick={() => handleRemoveItem(item.id)}
-                    className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="material-symbols-outlined text-lg">
-                      delete
-                    </span>
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Footer Summary & Actions */}
-        <div className="mt-auto bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 p-4 shadow-lg z-30">
-          <div className="flex justify-between items-center mb-4 px-2">
-            <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
-              عدد الأصناف:
-              <span className="text-gray-900 dark:text-white text-lg mr-1">
-                {totalItems}
-              </span>
-            </span>
-            <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
-              إجمالي الكميات:
-              <span className="text-gray-900 dark:text-white text-lg mr-1">
-                {totalQuantity}
-              </span>
-            </span>
+        {/* Details Wrapper - Order 3 on Mobile */}
+        <div className="order-3 lg:order-none flex flex-col lg:flex lg:flex-col lg:flex-1 lg:overflow-hidden bg-card-light dark:bg-card-dark">
+          {/* List Header */}
+          <div className="px-4 py-2 bg-gray-100 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 text-xs font-bold text-gray-500 dark:text-gray-400 grid grid-cols-12 gap-2">
+            <div className="col-span-5">الصنف</div>
+            <div className="col-span-2 text-center">رصيد المصدر</div>
+            <div className="col-span-3 text-center">كمية التحويل</div>
+            <div className="col-span-2 text-center">الوحدة</div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <button
-              onClick={() => {
-                setSelectedItems([]);
-                setSelectedWarehouse("");
-                setNotes("");
-              }}
-              className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 py-3 rounded-lg font-bold shadow-sm transition-colors">
-              <span className="material-symbols-outlined">cancel</span>
-              إلغاء
-            </button>
-            <button
-              onClick={handleConfirmTransfer}
-              className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold shadow-md transition-colors transform active:scale-95">
-              <span className="material-symbols-outlined">check_circle</span>
-              تأكيد التحويل
-            </button>
+
+          {/* Items List */}
+          <div className="flex-1 overflow-y-auto p-0 flex flex-col min-h-[200px] lg:min-h-0">
+            {selectedItems.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-gray-400 py-8 lg:py-0">
+                <div className="text-center">
+                  <span className="material-symbols-outlined text-6xl mb-2">
+                    inventory_2
+                  </span>
+                  <p>لم يتم اختيار أي أصناف بعد</p>
+                </div>
+              </div>
+            ) : (
+              selectedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3 border-b border-gray-100 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700/50 group grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-5">
+                    <div className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                      {item.name}
+                    </div>
+                    <div className="text-[10px] text-gray-400">
+                      #{item.code}
+                    </div>
+                  </div>
+                  <div className="col-span-2 text-center">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-zinc-700 px-2 py-1 rounded">
+                      {item.quantity}
+                    </span>
+                  </div>
+                  <div className="col-span-3 flex items-center justify-center gap-1">
+                    {isDecimalUnit(item.unit) ? (
+                      <KgQuantityInput
+                        value={item.transferQty || 0}
+                        onChange={(v) =>
+                          setSelectedItems((prev) =>
+                            prev.map((si) =>
+                              si.id === item.id
+                                ? { ...si, transferQty: Math.min(v, si.quantity) }
+                                : si,
+                            ),
+                          )
+                        }
+                        unit="kg"
+                        min={0}
+                      />
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleQtyChange(item.id, -1)}
+                          className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 rounded text-gray-600 dark:text-gray-200 font-bold">
+                          -
+                        </button>
+                        <input
+                          className="w-14 text-center border border-gray-300 dark:border-zinc-600 rounded py-1 px-1 text-sm font-bold bg-white dark:bg-zinc-800 focus:border-primary focus:ring-0"
+                          type="number"
+                          step="1"
+                          value={item.transferQty}
+                          onChange={(e) =>
+                            handleManualQtyChange(item.id, e.target.value)
+                          }
+                        />
+                        <button
+                          onClick={() => handleQtyChange(item.id, 1)}
+                          className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-zinc-700 rounded text-gray-600 dark:text-gray-200 font-bold">
+                          +
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between pl-2">
+                    <span className="text-xs font-medium text-gray-500">
+                      {item.unit}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="text-red-400 hover:text-red-600 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="material-symbols-outlined text-lg">
+                        delete
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Footer Summary & Actions */}
+          <div className="mt-auto bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700 p-4 shadow-lg z-30 sticky bottom-0 lg:static">
+            <div className="flex justify-between items-center mb-4 px-2">
+              <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
+                عدد الأصناف:
+                <span className="text-gray-900 dark:text-white text-lg mr-1">
+                  {totalItems}
+                </span>
+              </span>
+              {Object.entries(quantityByUnit).map(([unit, qty]) => (
+                <span key={unit} className="text-sm font-bold text-gray-600 dark:text-gray-400">
+                  إجمالي ({unit}):
+                  <span className="text-gray-900 dark:text-white text-lg mr-1">{qty % 1 === 0 ? qty : qty.toFixed(2)}</span>
+                </span>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  setSelectedItems([]);
+                  setSelectedWarehouse("");
+                  setNotes("");
+                }}
+                className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 py-3 rounded-lg font-bold shadow-sm transition-colors">
+                <span className="material-symbols-outlined">cancel</span>
+                إلغاء
+              </button>
+              <button
+                onClick={handleConfirmTransfer}
+                className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold shadow-md transition-colors transform active:scale-95">
+                <span className="material-symbols-outlined">check_circle</span>
+                تأكيد التحويل
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+      {/* T2: Print receipt — hidden on screen, shown only when printing */}
+      {lastTransfer && (
+        <div className="hidden print:block p-8 font-cairo" dir="rtl">
+          <style>{`@media print { @page { size: A4; margin: 15mm; } }`}</style>
+          <div className="text-center border-b-2 border-gray-800 pb-4 mb-4">
+            <h1 className="text-2xl font-bold">إيصال تحويل مخزني</h1>
+            <p className="text-gray-600 mt-1">
+              رقم التحويل: {lastTransfer.transferNumber}
+            </p>
+            <p className="text-gray-600 text-sm">
+              {new Date(lastTransfer.createdAt || Date.now()).toLocaleString("ar-EG")}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+            <div>
+              <span className="text-gray-500">من مخزن:</span>
+              <span className="font-bold mr-2">{lastTransfer.fromWarehouseName}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">إلى مخزن:</span>
+              <span className="font-bold mr-2">{lastTransfer.toWarehouseName}</span>
+            </div>
+          </div>
+          <table className="w-full text-sm border-collapse mb-4">
+            <thead>
+              <tr className="border-b-2 border-gray-800">
+                <th className="text-right py-2">الصنف</th>
+                <th className="text-center py-2">الكمية</th>
+                <th className="text-center py-2">الوحدة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lastTransfer.items?.map((item, i) => (
+                <tr key={i} className="border-b border-gray-300">
+                  <td className="py-2">{item.name}</td>
+                  <td className="py-2 text-center">{item.quantity}</td>
+                  <td className="py-2 text-center">{item.unit || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {lastTransfer.notes && (
+            <p className="text-sm text-gray-600">
+              ملاحظات: {lastTransfer.notes}
+            </p>
+          )}
+        </div>
+      )}
+    </>
   );
 };
 

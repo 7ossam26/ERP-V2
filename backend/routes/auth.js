@@ -3,24 +3,30 @@ const router = express.Router();
 const prisma = require("../config/database");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { writeAudit } = require("../utils/auditLogger");
 const rateLimit = require("express-rate-limit");
+const {
+  getOrCreateSystemConfiguration,
+  describePasswordPolicy,
+  validatePasswordAgainstPolicy,
+} = require("../lib/systemConfiguration");
 
 const { body, validationResult } = require("express-validator");
 
 // Ensure JWT_SECRET is set (security requirement)
 if (!process.env.JWT_SECRET) {
   throw new Error(
-    "FATAL: JWT_SECRET environment variable is required but not set!"
+    "FATAL: JWT_SECRET environment variable is required but not set!",
   );
 }
 const JWT_SECRET = process.env.JWT_SECRET;
-const ACCESS_TOKEN_EXPIRY = "30m";
-const REFRESH_TOKEN_EXPIRY = "7d";
+const ACCESS_TOKEN_EXPIRY = process.env.JWT_EXPIRES_IN || "12h";
+// Refresh tokens removed
 
 // Rate limiter for login endpoint (prevents brute force attacks)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Maximum 10 login attempts per 15 minutes
+  max: 100, // Maximum 100 login attempts per 15 minutes
   message:
     "Too many login attempts from this IP, please try again after 15 minutes",
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
@@ -45,7 +51,7 @@ const loginValidation = [
 ];
 
 // LOGIN
-router.post("/login", loginLimiter, loginValidation, async (req, res) => {
+router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
   try {
     // Check validation errors
     const errors = validationResult(req);
@@ -55,11 +61,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
 
     const { username, password } = req.body;
 
-    console.log("🔐 Login attempt:");
-    console.log(`   Username received: "${username}"`);
-
     // Find user
-    console.log(`   Searching for user: "${username}"`);
     const user = await prisma.user.findUnique({
       where: { username },
       include: {
@@ -69,37 +71,29 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
           },
         },
         branch: true,
+        accessibleBranches: {
+          select: { id: true, name: true },
+        },
       },
     });
 
     if (!user) {
-      console.log(`❌ User not found: "${username}"`);
+      writeAudit({ action: "LOGIN_FAILED", targetEntity: "auth", targetId: null, userId: null, branchId: null, newValues: { username }, oldValues: null, ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null }).catch(() => {});
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    console.log(`✅ User found: ${user.username} (ID: ${user.id})`);
-
     if (!user.isActive) {
-      console.log(`❌ User is inactive: ${user.username}`);
       return res
         .status(403)
         .json({ error: "Account is inactive. Please contact administrator." });
     }
 
-    console.log(`   User is active, checking password...`);
-
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      console.log(`❌ Invalid password for user: ${user.username}`);
-
       // Track failed login attempts
       const attempts = (failedLoginAttempts.get(username) || 0) + 1;
       failedLoginAttempts.set(username, attempts);
-
-      console.log(
-        `   Failed login attempts for ${username}: ${attempts}/${MAX_FAILED_ATTEMPTS}`
-      );
 
       // Deactivate account after MAX_FAILED_ATTEMPTS
       if (attempts >= MAX_FAILED_ATTEMPTS) {
@@ -109,28 +103,23 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
         });
 
         failedLoginAttempts.delete(username); // Reset counter
-        console.log(
-          `🔒 Account deactivated due to ${MAX_FAILED_ATTEMPTS} failed login attempts: ${username}`
-        );
-
+        writeAudit({ action: "ACCOUNT_LOCKED", targetEntity: "auth", targetId: String(user.id), userId: user.id, branchId: user.branchId ?? null, newValues: { reason: "max_failed_attempts", username }, oldValues: null, ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null }).catch(() => {});
         return res.status(403).json({
           error:
             "Account has been locked due to multiple failed login attempts. Please contact administrator.",
         });
       }
 
+      writeAudit({ action: "LOGIN_FAILED", targetEntity: "auth", targetId: String(user.id), userId: user.id, branchId: user.branchId ?? null, newValues: { username, attemptCount: attempts }, oldValues: null, ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null }).catch(() => {});
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     // Reset failed attempts on successful login
     if (failedLoginAttempts.has(username)) {
       failedLoginAttempts.delete(username);
-      console.log(`   Cleared failed login attempts for ${username}`);
     }
 
-    console.log(`✅ Password valid for user: ${user.username}`);
-
-    // Generate access token (short-lived)
+    // Generate access token (long-lived now)
     const accessToken = jwt.sign(
       {
         id: user.id,
@@ -139,24 +128,8 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
         hasSensitiveAccess: user.hasSensitiveAccess,
       },
       JWT_SECRET,
-      { expiresIn: ACCESS_TOKEN_EXPIRY }
+      { expiresIn: ACCESS_TOKEN_EXPIRY },
     );
-
-    // Generate refresh token (long-lived)
-    const refreshToken = jwt.sign(
-      { id: user.id, type: "refresh" },
-      JWT_SECRET,
-      { expiresIn: REFRESH_TOKEN_EXPIRY }
-    );
-
-    // Store refresh token in database
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-    });
 
     // Transform permissions to simplified structure
     const permissions = {};
@@ -166,11 +139,8 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
       });
     }
 
-    console.log(`🔐 Login successful: ${user.username} (${user.role.name})`);
-
     res.json({
       token: accessToken,
-      refreshToken: refreshToken,
       user: {
         id: user.id,
         name: user.name,
@@ -178,8 +148,10 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
         role: user.role.name,
         roleId: user.roleId,
         branch: user.branch,
+        accessibleBranches: user.accessibleBranches || [],
         permissions: permissions,
         hasSensitiveAccess: user.hasSensitiveAccess,
+        mustChangePassword: user.mustChangePassword ?? false,
       },
     });
   } catch (error) {
@@ -188,81 +160,13 @@ router.post("/login", loginLimiter, loginValidation, async (req, res) => {
   }
 });
 
-// REFRESH TOKEN
-router.post("/refresh", async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return res.status(401).json({ error: "Refresh token required" });
-    }
-
-    // Verify refresh token
-    const decoded = jwt.verify(refreshToken, JWT_SECRET);
-
-    if (decoded.type !== "refresh") {
-      return res.status(401).json({ error: "Invalid token type" });
-    }
-
-    // Check if refresh token exists in database and is not expired
-    const storedToken = await prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
-      include: {
-        user: {
-          include: {
-            role: { include: { permissions: true } },
-            branch: true,
-          },
-        },
-      },
-    });
-
-    if (!storedToken || storedToken.expiresAt < new Date()) {
-      return res
-        .status(401)
-        .json({ error: "Invalid or expired refresh token" });
-    }
-
-    // Generate new access token
-    const newAccessToken = jwt.sign(
-      {
-        id: storedToken.user.id,
-        username: storedToken.user.username,
-        role: storedToken.user.role.name,
-        hasSensitiveAccess: storedToken.user.hasSensitiveAccess,
-      },
-      JWT_SECRET,
-      { expiresIn: ACCESS_TOKEN_EXPIRY }
-    );
-
-    res.json({ token: newAccessToken });
-  } catch (error) {
-    next(error);
-  }
-});
+// REFRESH TOKEN ROUTE REMOVED (permanently disabled session extensions via refresh token)
 
 // LOGOUT
 router.post("/logout", async (req, res) => {
   try {
     // If we have a user context (from auth middleware), use it
-    const token = req.headers.authorization?.split(" ")[1];
-    if (token) {
-      // Decode without verification if expired, just to get user ID
-      const decoded = jwt.decode(token);
-      if (decoded && decoded.id) {
-        // Delete all refresh tokens for this user
-        await prisma.refreshToken.deleteMany({
-          where: { userId: decoded.id },
-        });
-      }
-    }
-    // Also try to delete by refresh token if provided in body
-    if (req.body.refreshToken) {
-      await prisma.refreshToken.deleteMany({
-        where: { token: req.body.refreshToken },
-      });
-    }
-
+    // Clear out session details on logout, no refresh tokens to delete
     res.json({ message: "Logged out successfully" });
   } catch (error) {
     // Even if error, we consider logout successful from client perspective
@@ -272,7 +176,7 @@ router.post("/logout", async (req, res) => {
 
 // GET CURRENT USER (Protected)
 const { authenticateToken } = require("../middleware/auth");
-router.get("/me", authenticateToken, async (req, res) => {
+router.get("/me", authenticateToken, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
@@ -283,6 +187,9 @@ router.get("/me", authenticateToken, async (req, res) => {
           },
         },
         branch: true,
+        accessibleBranches: {
+          select: { id: true, name: true },
+        },
       },
     });
 
@@ -305,9 +212,49 @@ router.get("/me", authenticateToken, async (req, res) => {
       role: user.role.name,
       roleId: user.roleId,
       branch: user.branch,
+      accessibleBranches: user.accessibleBranches || [],
       permissions: permissions,
       hasSensitiveAccess: user.hasSensitiveAccess,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// CHANGE PASSWORD (Protected)
+router.post("/change-password", authenticateToken, async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+    const config = await getOrCreateSystemConfiguration();
+    const passwordPolicy = describePasswordPolicy(config);
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ error: "جميع الحقول مطلوبة" });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: "كلمة المرور الجديدة وتأكيدها غير متطابقتين" });
+    }
+    const passwordError = validatePasswordAgainstPolicy(
+      newPassword,
+      passwordPolicy,
+    );
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+    const valid = await bcrypt.compare(oldPassword, user.password);
+    if (!valid) return res.status(401).json({ error: "كلمة المرور الحالية غير صحيحة" });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashed, mustChangePassword: false },
+    });
+
+    res.json({ message: "تم تغيير كلمة المرور بنجاح" });
   } catch (error) {
     next(error);
   }

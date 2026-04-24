@@ -6,9 +6,12 @@
         "node": ">=20.0.0"
     },
     "scripts": {
-        "build": "cd frontend && npm install --include=dev && npm run build",
-        "start": "node backend/index.js",
-        "postinstall": "cd  backend && npm install && npx prisma generate"
+    "build": "cd frontend && npm install --include=dev && npm run build",
+    "manuals:pdf": "node docs/manuals/generate-pdfs.js",
+    "start": "cd backend && npx prisma migrate deploy && node index.js",
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev --prefix frontend\"",
+        "dev:backend": "cd backend && cross-env NODE_ENV=development nodemon index.js",
+        "postinstall": "cd backend && npm install && npx prisma generate && cd ../frontend && npm install --include=dev && npm run build"
     },
     "dependencies": {
         "@prisma/client": "^5.18.0",
@@ -24,10 +27,13 @@
         "prisma": "^5.18.0"
     },
     "devDependencies": {
+        "@playwright/test": "^1.58.2",
         "@types/node": "^25.0.3",
+        "concurrently": "^8.2.2",
+        "cross-env": "^10.1.0",
         "fs": "^0.0.1-security",
         "nodemon": "^3.1.11",
-        "typescript": "^5.9.3",
-        "concurrently": "^8.2.2"
+        "pdfkit": "^0.18.0",
+        "typescript": "^5.9.3"
     }
 }

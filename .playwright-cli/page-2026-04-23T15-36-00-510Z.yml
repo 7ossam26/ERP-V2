@@ -1,0 +1,9 @@
+- generic [ref=e2]:
+  - status [ref=e41]: Welcome back, cashier.gasr!
+  - generic [ref=e43]:
+    - generic [ref=e46]: gpp_bad
+    - heading "403 Access Denied" [level=1] [ref=e47]
+    - paragraph [ref=e48]: You do not have permission to access this page. Please contact your administrator if you believe this is a mistake.
+    - generic [ref=e49]:
+      - button "Go Back" [ref=e50]
+      - button "Go to Dashboard" [ref=e51]

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     supplierAccountService,
     treasuryService,
@@ -10,6 +10,7 @@ import Modal from "../../components/ui/Modal";
 import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
 
 const SupplierAccountsPage = () => {
+    const [searchParams] = useSearchParams();
     const [accounts, setAccounts] = useState([]);
     const [selectedAccount, setSelectedAccount] = useState(null);
     const [payments, setPayments] = useState([]);
@@ -32,9 +33,24 @@ const SupplierAccountsPage = () => {
     });
 
     useEffect(() => {
-        fetchAccounts();
-        fetchTreasuries();
-    }, []);
+        const initPage = async () => {
+            await fetchTreasuries();
+            const fetchedAccounts = await fetchAccounts();
+
+            // Check for supplierId in query params
+            const supplierIdParam = searchParams.get("supplierId");
+            if (supplierIdParam && fetchedAccounts.length > 0) {
+                const targetAccount = fetchedAccounts.find(
+                    (acc) => acc.supplierId === parseInt(supplierIdParam)
+                );
+                if (targetAccount) {
+                    handleAccountClick(targetAccount);
+                }
+            }
+        };
+
+        initPage();
+    }, [searchParams]);
 
     const fetchAccounts = async () => {
         try {
@@ -44,7 +60,7 @@ const SupplierAccountsPage = () => {
             return data; // Return the fresh data
         } catch (error) {
             console.error("Failed to fetch supplier accounts:", error);
-            toast.error("فشل تحميل حسابات الموردين");
+            toast.error(error.message || "فشل تحميل حسابات الموردين");
             return []; // Return empty array on error
         } finally {
             setIsLoading(false);
@@ -74,7 +90,7 @@ const SupplierAccountsPage = () => {
             setPurchases(purchasesData);
         } catch (error) {
             console.error("Failed to fetch account details:", error);
-            toast.error("فشل تحميل تفاصيل الحساب");
+            toast.error(error.message || "فشل تحميل تفاصيل الحساب");
         }
     };
 
@@ -96,7 +112,7 @@ const SupplierAccountsPage = () => {
             setIsDetailsModalOpen(true);
         } catch (error) {
             console.error("Failed to fetch purchase details:", error);
-            toast.error("فشل تحميل تفاصيل الفاتورة");
+            toast.error(error.message || "فشل تحميل تفاصيل الفاتورة");
         }
     };
 
@@ -141,9 +157,7 @@ const SupplierAccountsPage = () => {
             }
         } catch (error) {
             console.error("Failed to process payment:", error);
-            const errorMessage =
-                error.response?.data?.message || "فشل تسجيل الدفعة";
-            toast.error(errorMessage);
+            toast.error(error.message || "فشل تسجيل الدفعة");
         }
     };
 
@@ -334,13 +348,17 @@ const SupplierAccountsPage = () => {
                                                                         ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
                                                                         : purchase.paymentStatus === "PARTIALLY_PAID"
                                                                             ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-                                                                            : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                                                            : purchase.paymentStatus === "RETURNED"
+                                                                                ? "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
+                                                                                : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
                                                                         }`}>
                                                                     {purchase.paymentStatus === "PAID"
                                                                         ? "مدفوع"
                                                                         : purchase.paymentStatus === "PARTIALLY_PAID"
                                                                             ? "غير مدفوع بالكامل"
-                                                                            : "غير مدفوع"}
+                                                                            : purchase.paymentStatus === "RETURNED"
+                                                                                ? "مرتجع"
+                                                                                : "غير مدفوع"}
                                                                 </span>
                                                             </td>
                                                             <td className="px-4 py-3">
@@ -428,25 +446,24 @@ const SupplierAccountsPage = () => {
                 title="سداد دفعة">
                 <form onSubmit={handlePaymentSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">المبلغ *</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max={selectedAccount?.balance || 0}
-                            value={paymentData.amount}
+                        <label className="block text-sm font-medium mb-1">
+                            ربط بفاتورة محددة (اختياري)
+                        </label>
+                        <select
+                            value={paymentData.purchaseId}
                             onChange={(e) =>
-                                setPaymentData({ ...paymentData, amount: e.target.value })
+                                setPaymentData({ ...paymentData, purchaseId: e.target.value })
                             }
-                            className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5"
-                            placeholder="0.00"
-                            required
-                        />
-                        {selectedAccount && (
-                            <p className="text-xs text-text-muted mt-1">
-                                الحد الأقصى: {Number(selectedAccount.balance).toFixed(2)} EGP
-                            </p>
-                        )}
+                            className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5">
+                            <option value="">الكل</option>
+                            {purchases.filter(
+                                (p) => p.paymentStatus !== "PAID" && p.paymentStatus !== "RETURNED"
+                            ).map((purchase) => (
+                                <option key={purchase.id} value={purchase.id}>
+                                    #{purchase.id} - {Number(purchase.remaining).toFixed(2)} EGP
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>
@@ -468,24 +485,25 @@ const SupplierAccountsPage = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">
-                            ربط بفاتورة محددة (اختياري)
-                        </label>
-                        <select
-                            value={paymentData.purchaseId}
+                        <label className="block text-sm font-medium mb-1">المبلغ *</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={selectedAccount?.balance || 0}
+                            value={paymentData.amount}
                             onChange={(e) =>
-                                setPaymentData({ ...paymentData, purchaseId: e.target.value })
+                                setPaymentData({ ...paymentData, amount: e.target.value })
                             }
-                            className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5">
-                            <option value="">الكل</option>
-                            {purchases.filter(
-                                (p) => p.paymentStatus !== "PAID"
-                            ).map((purchase) => (
-                                <option key={purchase.id} value={purchase.id}>
-                                    #{purchase.id} - {Number(purchase.remaining).toFixed(2)} EGP
-                                </option>
-                            ))}
-                        </select>
+                            className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5"
+                            placeholder="0.00"
+                            required
+                        />
+                        {selectedAccount && (
+                            <p className="text-xs text-text-muted mt-1">
+                                الحد الأقصى: {Number(selectedAccount.balance).toFixed(2)} EGP
+                            </p>
+                        )}
                     </div>
 
                     <div>

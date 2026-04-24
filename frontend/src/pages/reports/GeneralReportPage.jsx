@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Chart as ChartJS,
@@ -16,7 +16,7 @@ import { Line, Doughnut } from "react-chartjs-2";
 import { reportService, branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import BranchFilterHelper from "../../utils/BranchFilterHelper";
-import toast from "react-hot-toast";
+import { useSystemSettings } from "../../contexts/SystemSettingsContext";
 
 ChartJS.register(
   CategoryScale,
@@ -27,76 +27,74 @@ ChartJS.register(
   Tooltip,
   Legend,
   ArcElement,
-  Filler
+  Filler,
 );
+
+const getLocalToday = () => {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date - offset).toISOString().slice(0, 10);
+};
+
+const hexToRgba = (hex, alpha) => {
+  const normalized = hex.replace("#", "");
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((character) => character + character)
+          .join("")
+      : normalized;
+
+  const value = Number.parseInt(expanded, 16);
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+};
 
 const GeneralReportPage = () => {
   const currentUser = AuthService.getCurrentUser();
-  console.log("Logged In User:", currentUser); // DEBUG USER ROLE
+  const { activeTheme } = useSystemSettings();
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
   const [error, setError] = useState(null);
   const [branches, setBranches] = useState([]);
   const [filters, setFilters] = useState({
-    startDate: "",
-    endDate: "",
-    period: "today",
+    startDate: getLocalToday(),
+    endDate: getLocalToday(),
     branchId: BranchFilterHelper.getDefaultBranchId(currentUser),
   });
 
-  // Fetch branches on mount
-  useEffect(() => {
-    const loadBranches = async () => {
-      try {
-        const data = await branchService.getAll();
-        const available = BranchFilterHelper.getAvailableBranches(
-          data,
-          currentUser
-        );
-        setBranches(available || []);
-      } catch (err) {
-        console.error("Failed to load branches", err);
-      }
-    };
-    loadBranches();
-  }, [currentUser?.id]);
+  const loadBranches = useCallback(async () => {
+    try {
+      const data = await branchService.getAll();
+      const available = BranchFilterHelper.getAvailableBranches(
+        data,
+        currentUser,
+      );
+      const filteredBranches = available.filter(
+        (branch) =>
+          branch.name !== "Main Branch" && branch.name !== "All Branches",
+      );
+      setBranches(filteredBranches || []);
+    } catch (err) {
+      console.error("Failed to load branches", err);
+    }
+  }, [currentUser]);
 
-  const fetchReport = async () => {
+  useEffect(() => {
+    loadBranches();
+  }, [loadBranches]);
+
+  const fetchReport = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Calc dates based on period
-      let startDate = new Date();
-      let endDate = new Date(); // Defaults to now
-
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
-
-      if (filters.period === "yesterday") {
-        startDate.setDate(startDate.getDate() - 1);
-        endDate.setDate(endDate.getDate() - 1);
-        endDate.setHours(23, 59, 59, 999);
-      } else if (filters.period === "week") {
-        startDate.setDate(startDate.getDate() - 7);
-      } else if (filters.period === "month") {
-        startDate.setDate(1);
-      }
-
-      const toLocalISOString = (date) => {
-        const offset = date.getTimezoneOffset() * 60000;
-        const localISOTime = new Date(date - offset).toISOString().slice(0, 10);
-        return localISOTime;
-      };
-
-      const formattedStart = toLocalISOString(startDate);
-      const formattedEnd = toLocalISOString(endDate);
-
-      console.log("Fetching report with:", {
-        formattedStart,
-        formattedEnd,
-        branchId: filters.branchId,
-      });
+      const formattedStart = filters.startDate;
+      const formattedEnd = filters.endDate;
 
       const data = await reportService.getGeneralReport({
         startDate: formattedStart,
@@ -116,11 +114,21 @@ const GeneralReportPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
     fetchReport();
-  }, [filters]);
+  }, [fetchReport]);
+
+  const primaryColor = activeTheme?.mui?.primary || "#325163";
+  const secondaryColor = activeTheme?.mui?.secondary || "#4E7A98";
+  const chartPalette = [
+    primaryColor,
+    secondaryColor,
+    "#4F7BC9",
+    "#E97132",
+    "#34907D",
+  ];
 
   // --- Chart Config ---
   // Ensure valid data structure even if reportData is null during transitions
@@ -130,12 +138,12 @@ const GeneralReportPage = () => {
       {
         label: "المبيعات (ر.س)",
         data: reportData?.charts?.salesOverTime?.data || [],
-        borderColor: "#6F4E37",
-        backgroundColor: "rgba(111, 78, 55, 0.1)",
+        borderColor: primaryColor,
+        backgroundColor: hexToRgba(primaryColor, 0.12),
         tension: 0.4,
         fill: true,
         pointBackgroundColor: "#FFFFFF",
-        pointBorderColor: "#6F4E37",
+        pointBorderColor: primaryColor,
         pointBorderWidth: 2,
         pointRadius: 4,
       },
@@ -166,13 +174,7 @@ const GeneralReportPage = () => {
     datasets: [
       {
         data: reportData?.charts?.salesByItem?.data || [],
-        backgroundColor: [
-          "#6F4E37",
-          "#A1887F",
-          "#D7CCC8",
-          "#8D6E63",
-          "#5D4037",
-        ],
+        backgroundColor: chartPalette,
         borderWidth: 0,
         hoverOffset: 4,
       },
@@ -226,24 +228,39 @@ const GeneralReportPage = () => {
       {/* Filters Section */}
       <div className="bg-surface-light dark:bg-surface-dark p-4 rounded-2xl shadow-sm border border-border-light dark:border-border-dark mb-8">
         <div className="flex flex-wrap items-end gap-4">
-          <div className="w-full sm:w-auto flex-1 min-w-[200px]">
+          <div className="w-full sm:w-auto flex-1 min-w-[150px]">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              الفترة الزمنية
+              من تاريخ
             </label>
             <div className="relative">
-              <select
-                value={filters.period}
+              <input
+                type="date"
+                value={filters.startDate}
                 onChange={(e) =>
-                  setFilters({ ...filters, period: e.target.value })
+                  setFilters({ ...filters, startDate: e.target.value })
                 }
-                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
-                <option value="today">اليوم</option>
-                <option value="yesterday">أمس</option>
-                <option value="week">آخر 7 أيام</option>
-                <option value="month">هذا الشهر</option>
-              </select>
+                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-surface-dark py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm"
+              />
               <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
-                calendar_today
+                event
+              </span>
+            </div>
+          </div>
+          <div className="w-full sm:w-auto flex-1 min-w-[150px]">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              إلى تاريخ
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) =>
+                  setFilters({ ...filters, endDate: e.target.value })
+                }
+                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-surface-dark py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm"
+              />
+              <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
+                event
               </span>
             </div>
           </div>
@@ -257,10 +274,7 @@ const GeneralReportPage = () => {
                 onChange={(e) =>
                   setFilters({ ...filters, branchId: e.target.value })
                 }
-                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
-                {BranchFilterHelper.canSeeAllBranches(currentUser) && (
-                  <option value="all">الكل</option>
-                )}
+                className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-surface-dark py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
@@ -277,8 +291,9 @@ const GeneralReportPage = () => {
               onClick={fetchReport}
               className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors font-medium shadow-md shadow-primary/20 flex items-center justify-center gap-2">
               <span
-                className={`material-icons-round text-lg ${loading ? "animate-spin" : ""
-                  }`}>
+                className={`material-icons-round text-lg ${
+                  loading ? "animate-spin" : ""
+                }`}>
                 refresh
               </span>
               تحديث التقرير
@@ -314,7 +329,7 @@ const GeneralReportPage = () => {
           </div>
         </div>
         <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-2 h-full bg-success group-hover:w-3 transition-all"></div>
+          <div className="absolute top-0 right-0 w-2 h-full bg-emerald-500 group-hover:w-3 transition-all"></div>
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -324,8 +339,8 @@ const GeneralReportPage = () => {
                 {reportData?.summary?.netProfit?.toLocaleString()} ج.م
               </h3>
             </div>
-            <div className="p-2 bg-success/10 rounded-lg">
-              <span className="material-icons-round text-success text-xl">
+            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+              <span className="material-icons-round text-emerald-600 dark:text-emerald-400 text-xl">
                 savings
               </span>
             </div>
@@ -350,7 +365,7 @@ const GeneralReportPage = () => {
           </div>
         </div>
         <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-2 h-full bg-warning group-hover:w-3 transition-all"></div>
+          <div className="absolute top-0 right-0 w-2 h-full bg-amber-500 group-hover:w-3 transition-all"></div>
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -360,8 +375,8 @@ const GeneralReportPage = () => {
                 {reportData?.summary?.stockAlerts} أصناف
               </h3>
             </div>
-            <div className="p-2 bg-warning/10 rounded-lg">
-              <span className="material-icons-round text-warning text-xl">
+            <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+              <span className="material-icons-round text-amber-600 dark:text-amber-400 text-xl">
                 inventory_2
               </span>
             </div>
@@ -418,7 +433,7 @@ const GeneralReportPage = () => {
 
       {/* Sales by Branch Table */}
       <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8 overflow-hidden">
-        <div className="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-[#3E332F]/50">
+        <div className="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-background-dark/60">
           <h3 className="text-lg font-bold text-primary flex items-center gap-2">
             <span className="material-icons-round">store</span>
             تفاصيل المبيعات حسب الفرع
@@ -426,7 +441,7 @@ const GeneralReportPage = () => {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-right">
-            <thead className="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+            <thead className="bg-gray-50 dark:bg-background-dark/80 text-gray-500 dark:text-gray-400 font-medium">
               <tr>
                 <th className="px-6 py-3">اسم الفرع</th>
                 <th className="px-6 py-3">المبيعات (ج.م)</th>
@@ -439,9 +454,9 @@ const GeneralReportPage = () => {
               {reportData?.tables?.salesByBranch?.map((branch, index) => (
                 <tr
                   key={index}
-                  className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+                  className="hover:bg-gray-50 dark:hover:bg-surface-dark transition-colors group">
                   <td className="px-6 py-4 font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#6F4E37]/10 flex items-center justify-center text-[#6F4E37]">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                       <span className="material-icons-round text-sm">
                         apartment
                       </span>
@@ -458,7 +473,7 @@ const GeneralReportPage = () => {
                       </span>
                       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                         <div
-                          className="bg-[#6F4E37] h-2 rounded-full"
+                          className="bg-primary h-2 rounded-full"
                           style={{ width: `${branch.percentage}%` }}></div>
                       </div>
                     </div>
@@ -478,7 +493,7 @@ const GeneralReportPage = () => {
 
       {/* Inventory Alerts List */}
       <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8 overflow-hidden">
-        <div className="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-[#3E332F]/50">
+        <div className="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-background-dark/60">
           <h3 className="text-lg font-bold text-primary flex items-center gap-2">
             <span className="material-icons-round">warning</span>
             تنبيهات المخزون (أقل من حد الطلب)
@@ -486,7 +501,7 @@ const GeneralReportPage = () => {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-right">
-            <thead className="bg-gray-50 dark:bg-[#2C2522] text-gray-500 dark:text-gray-400 font-medium">
+            <thead className="bg-gray-50 dark:bg-background-dark/80 text-gray-500 dark:text-gray-400 font-medium">
               <tr>
                 <th className="px-6 py-3">الصنف</th>
                 <th className="px-6 py-3">الكمية الحالية</th>
@@ -498,11 +513,11 @@ const GeneralReportPage = () => {
               {reportData?.tables?.stockAlertsList?.map((item, index) => (
                 <tr
                   key={index}
-                  className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
+                  className="hover:bg-gray-50 dark:hover:bg-surface-dark transition-colors group">
                   <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">
                     {item.itemName}
                   </td>
-                  <td className="px-6 py-4 font-bold text-danger">
+                  <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">
                     {item.quantity}
                   </td>
                   <td className="px-6 py-4 text-gray-600">
@@ -517,14 +532,14 @@ const GeneralReportPage = () => {
               ))}
               {(!reportData?.tables?.stockAlertsList ||
                 reportData.tables.stockAlertsList.length === 0) && (
-                  <tr>
-                    <td
-                      colSpan="4"
-                      className="px-6 py-8 text-center text-gray-500">
-                      لا توجد تنبيهات مخزون حالياً
-                    </td>
-                  </tr>
-                )}
+                <tr>
+                  <td
+                    colSpan="4"
+                    className="px-6 py-8 text-center text-gray-500">
+                    لا توجد تنبيهات مخزون حالياً
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -13,7 +13,9 @@ import UserManagement from "./pages/superadmin/UserManagement";
 import RoleManagement from "./pages/superadmin/RoleManagement";
 import PermissionConfig from "./pages/superadmin/PermissionConfig";
 import AuditLogs from "./pages/superadmin/AuditLogs";
+import DatabaseReset from "./pages/superadmin/DatabaseReset";
 import LoginPage from "./pages/LoginPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import MainDashboard from "./pages/MainDashboard";
 import CreatesDashboard from "./pages/CreatesDashboard";
 import WarehouseManager from "./pages/warehouses/WarehouseManager";
@@ -29,6 +31,7 @@ import POSPage from "./pages/pos/POSPage";
 import StockTransferPage from "./pages/stock/StockTransferPage";
 import CashierTransferPage from "./pages/treasuries/CashierTransferPage";
 import BranchesSalesPage from "./pages/sales/BranchesSalesPage";
+import BranchBalancesPage from "./pages/branches/BranchBalancesPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import HRPage from "./pages/hr/HRPage";
@@ -45,14 +48,47 @@ import PurchaseHistory from "./pages/reports/history/PurchaseHistory";
 import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 import SettingsPage from "./pages/settings/SettingsPage";
 import TransferManagementPage from "./pages/treasuries/TransferManagementPage";
+import ShiftManagementPage from "./pages/shifts/ShiftManagementPage";
 import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
+import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
+import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
+import DeliverySettlementPage from "./pages/delivery-settlement/DeliverySettlementPage";
+import BOMManager from "./pages/bom/BOMManager";
+import ProductionHistory from "./pages/bom/ProductionHistory";
+import FabricRollsListPage from "./pages/fabric-rolls/FabricRollsListPage";
+import FabricRollFormPage from "./pages/fabric-rolls/FabricRollFormPage";
+import FabricRollDetailPage from "./pages/fabric-rolls/FabricRollDetailPage";
+import InventoryAdjustmentsListPage from "./pages/inventory-adjustments/InventoryAdjustmentsListPage";
+import InventoryAdjustmentFormPage from "./pages/inventory-adjustments/InventoryAdjustmentFormPage";
+import InventoryAdjustmentDetailPage from "./pages/inventory-adjustments/InventoryAdjustmentDetailPage";
+import InventoryCountListPage from "./pages/inventory-counts/InventoryCountListPage";
+import InventoryCountStartPage from "./pages/inventory-counts/InventoryCountStartPage";
+import InventoryCountSessionPage from "./pages/inventory-counts/InventoryCountSessionPage";
+import ReorderAlertsPage from "./pages/inventory/ReorderAlertsPage";
+import DeadStockPage from "./pages/inventory/DeadStockPage";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import UserManualPage from "./pages/manual/UserManualPage";
+import DataImportPage from "./pages/import/DataImportPage";
+import ImportHomePage from "./pages/import/ImportHomePage";
+import ImportWizardPage from "./pages/import/ImportWizardPage";
+import OwnerDashboard from "./pages/reports/OwnerDashboard";
+import ReportsIndexPage from "./pages/reports/ReportsIndexPage";
+import DailySalesReport from "./pages/reports/DailySalesReport";
+import SalesByDimensionReport from "./pages/reports/SalesByDimensionReport";
+import MarginBySKUReport from "./pages/reports/MarginBySKUReport";
+import TopMoversReport from "./pages/reports/TopMoversReport";
+import DeadStockReport from "./pages/reports/DeadStockReport";
+import FabricRemainingMetersReport from "./pages/reports/FabricRemainingMetersReport";
+import FabricRollsByAgeReport from "./pages/reports/FabricRollsByAgeReport";
+import ShiftReconciliationReport from "./pages/reports/ShiftReconciliationReport";
+import AuditLogPage from "./pages/audit/AuditLogPage";
 
 // import { HRPage } from "./pages/ModulePlaceholders"; // Removed as implemented
 
+import { BranchProvider } from "./contexts/BranchContext";
 import { seedData } from "./services/seedData";
-import SessionTimeoutWarning from "./components/SessionTimeoutWarning";
+
 
 function App() {
   useEffect(() => {
@@ -67,12 +103,16 @@ function App() {
 
   return (
     <Router>
-      <Toaster position="top-center" reverseOrder={false} />
-      <SessionTimeoutWarning />
+      <BranchProvider>
+      <div className="no-print">
+        <Toaster position="top-center" reverseOrder={false} />
+      </div>
       <Routes>
         {/* Public Route: Login */}
         <Route path="/" element={<LoginPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
+        <Route path="/manual" element={<UserManualPage />} />
 
         {/* Standalone Route: POS (No MainLayout) */}
         <Route
@@ -96,6 +136,7 @@ function App() {
           <Route path="roles" element={<RoleManagement />} />
           <Route path="roles/:id/permissions" element={<PermissionConfig />} />
           <Route path="audit-logs" element={<AuditLogs />} />
+          <Route path="reset-database" element={<DatabaseReset />} />
         </Route>
 
         {/* Protected Routes: Wrapped in MainLayout */}
@@ -109,6 +150,31 @@ function App() {
           }>
           <Route path="/dashboard" element={<MainDashboard />} />
           <Route path="/creates" element={<CreatesDashboard />} />
+          <Route path="/data-import" element={<DataImportPage />} />
+          <Route
+            path="/import"
+            element={
+              <ProtectedRoute requiredPermission="INITIAL_INVENTORY">
+                <ImportHomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/import/:type"
+            element={
+              <ProtectedRoute requiredPermission="INITIAL_INVENTORY">
+                <ImportWizardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/owner"
+            element={
+              <ProtectedRoute requiredPermission="OWNER_DASHBOARD">
+                <OwnerDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Modules under Creates */}
           <Route
@@ -226,6 +292,14 @@ function App() {
             }
           />
           <Route
+            path="/branches/balances"
+            element={
+              <ProtectedRoute requiredPermission="BRANCHES">
+                <BranchBalancesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/inventory"
             element={
               <ProtectedRoute requiredPermission="INVENTORY_COUNT">
@@ -238,7 +312,7 @@ function App() {
             path="/reports"
             element={
               <ProtectedRoute requiredPermission="REPORTS">
-                <ReportsPage />
+                <ReportsIndexPage />
               </ProtectedRoute>
             }
           />
@@ -255,6 +329,86 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="REPORTS">
                 <DetailedReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/analytics"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <ReportsIndexPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/sales/daily"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <DailySalesReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/sales/by-dimension"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <SalesByDimensionReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/margin-by-sku"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <MarginBySKUReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/top-movers"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <TopMoversReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/dead-stock"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <DeadStockReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/fabric/remaining-meters"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <FabricRemainingMetersReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/fabric/rolls-by-age"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <FabricRollsByAgeReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/shift-reconciliation"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <ShiftReconciliationReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/audit"
+            element={
+              <ProtectedRoute requiredPermission="AUDIT">
+                <AuditLogPage />
               </ProtectedRoute>
             }
           />
@@ -357,11 +511,176 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/shifts"
+            element={
+              <ProtectedRoute requiredPermission="SHIFTS">
+                <ShiftManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-men"
+            element={
+              <ProtectedRoute requiredPermission="CREATES_DELIVERY_MEN">
+                <DeliveryMenPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-zones"
+            element={
+              <ProtectedRoute requiredPermission="CREATES_DELIVERY_ZONES">
+                <DeliveryZonesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-settlement"
+            element={
+              <ProtectedRoute requiredPermission="DELIVERY_SETTLEMENT">
+                <DeliverySettlementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bom"
+            element={
+              <ProtectedRoute
+                requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
+                <BOMManager />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bom/production-history"
+            element={
+              <ProtectedRoute
+                requiredPermission={["PRODUCTION", "CREATES_PRODUCTION"]}>
+                <ProductionHistory />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fabric Rolls */}
+          <Route
+            path="/fabric-rolls"
+            element={
+              <ProtectedRoute requiredPermission="FABRIC_ROLLS">
+                <FabricRollsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fabric-rolls/new"
+            element={
+              <ProtectedRoute
+                requiredPermission={["FABRIC_ROLLS", "CREATES_FABRIC_ROLLS"]}>
+                <FabricRollFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fabric-rolls/:id"
+            element={
+              <ProtectedRoute requiredPermission="FABRIC_ROLLS">
+                <FabricRollDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fabric-rolls/:id/edit"
+            element={
+              <ProtectedRoute
+                requiredPermission={["FABRIC_ROLLS", "CREATES_FABRIC_ROLLS"]}>
+                <FabricRollFormPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Inventory Adjustments */}
+          <Route
+            path="/inventory-adjustments"
+            element={
+              <ProtectedRoute requiredPermission={["ADJUSTMENTS", "INVENTORY"]}>
+                <InventoryAdjustmentsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-adjustments/new"
+            element={
+              <ProtectedRoute requiredPermission="ADJUSTMENTS">
+                <InventoryAdjustmentFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-adjustments/:id"
+            element={
+              <ProtectedRoute requiredPermission={["ADJUSTMENTS", "INVENTORY"]}>
+                <InventoryAdjustmentDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Inventory Counts */}
+          <Route
+            path="/inventory-counts"
+            element={
+              <ProtectedRoute requiredPermission={["COUNTS", "INVENTORY_COUNT"]}>
+                <InventoryCountListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-counts/new"
+            element={
+              <ProtectedRoute requiredPermission="COUNTS">
+                <InventoryCountStartPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-counts/:id"
+            element={
+              <ProtectedRoute requiredPermission={["COUNTS", "INVENTORY_COUNT"]}>
+                <InventoryCountSessionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory-counts/:id/session"
+            element={
+              <ProtectedRoute requiredPermission="COUNTS">
+                <InventoryCountSessionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Inventory Sub-pages */}
+          <Route
+            path="/inventory/alerts"
+            element={
+              <ProtectedRoute requiredPermission={["INVENTORY", "INVENTORY_COUNT"]}>
+                <ReorderAlertsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory/dead-stock"
+            element={
+              <ProtectedRoute requiredPermission={["INVENTORY", "INVENTORY_COUNT"]}>
+                <DeadStockPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
         {/* 404 Catch-All Route */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </BranchProvider>
     </Router>
   );
 }

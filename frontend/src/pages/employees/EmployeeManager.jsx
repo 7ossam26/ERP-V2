@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { employeeService, branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import { validateEgyptianPhone } from "../../utils/validationUtils";
 
-const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
+const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   // Calculate next ID if creating new employee
   const nextId =
     data && data.length > 0
@@ -11,6 +12,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
       : 1;
 
   const [branches, setBranches] = useState([]);
+  const _rawHours = parseFloat(initialData?.workHours || "8");
   const [formData, setFormData] = useState({
     id: initialData?.id || nextId,
     name: initialData?.name || "",
@@ -18,11 +20,13 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     phone: initialData?.phone || "",
     nationalId: initialData?.nationalId || "",
     workDays: initialData?.workDays || "26",
-    workHours: initialData?.workHours || "8",
+    workHours: Math.floor(_rawHours).toString(),
+    workMinutes: Math.round((_rawHours % 1) * 60).toString(),
     weekend: initialData?.weekend || "الجمعة",
     salary: initialData?.salary || "",
     title: initialData?.title || "",
   });
+  const [keepOpen, setKeepOpen] = useState(false);
 
   React.useEffect(() => {
     const fetchBranches = async () => {
@@ -44,14 +48,50 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
+    // Phone validation
+    const phoneValidation = validateEgyptianPhone(formData.phone);
+    if (!phoneValidation.isValid) {
+      if (showToast) {
+        showToast(phoneValidation.message, "error");
+      }
+      return;
+    }
+
+    // Combine hours + minutes into decimal before saving
+    const combinedHours = (
+      parseInt(formData.workHours || "0") +
+      parseInt(formData.workMinutes || "0") / 60
+    ).toFixed(4);
+    await onSave({ ...formData, workHours: combinedHours }, !keepOpen);
+
+    if (keepOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        id: parseInt(prev.id) + 1,
+        name: "",
+        phone: "",
+        nationalId: "",
+        salary: "",
+        // Keep branch, title, workDays, workHours, workMinutes, weekend as sticky
+      }));
+    }
   };
 
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -77,7 +117,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
         </label>
         <div className="relative">
           <select
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-10 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
             name="branchId"
             value={formData.branchId}
             onChange={handleChange}
@@ -92,7 +132,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             store
           </span>
-          <span className="material-icons-round absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
             expand_more
           </span>
         </div>
@@ -111,6 +151,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
             placeholder="أدخل اسم الموظف"
             type="text"
             required
+            maxLength={100}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             badge
@@ -131,6 +172,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
             placeholder="مثال: محاسب، باريستا"
             type="text"
             required
+            maxLength={100}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             work
@@ -148,8 +190,11 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
             name="nationalId"
             value={formData.nationalId}
             onChange={handleChange}
-            placeholder="رقم البطاقة"
+            placeholder="14 رقم"
             type="text"
+            maxLength={14}
+            inputMode="numeric"
+            pattern="[0-9]*"
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             fingerprint
@@ -169,6 +214,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
             dir="ltr"
             placeholder="01xxxxxxxxx"
             type="tel"
+            maxLength={14}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             call
@@ -188,6 +234,9 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
             onChange={handleChange}
             placeholder="26"
             type="number"
+            min={1}
+            max={31}
+            step={1}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             calendar_today
@@ -198,18 +247,41 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
           عدد ساعات العمل
         </label>
-        <div className="relative">
-          <input
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
-            name="workHours"
-            value={formData.workHours}
-            onChange={handleChange}
-            placeholder="8"
-            type="number"
-          />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            schedule
-          </span>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-3 pl-10 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
+              name="workHours"
+              value={formData.workHours}
+              onChange={handleChange}
+              placeholder="8"
+              type="number"
+              min={0}
+              max={23}
+              step={1}
+            />
+            <span className="material-icons-round absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-base">
+              schedule
+            </span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">ساعة</span>
+          </div>
+          <div className="relative flex-1">
+            <input
+              className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-3 pl-10 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow text-center"
+              name="workMinutes"
+              value={formData.workMinutes}
+              onChange={handleChange}
+              placeholder="0"
+              type="number"
+              min={0}
+              max={59}
+              step={1}
+            />
+            <span className="material-icons-round absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-base">
+              timer
+            </span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">دقيقة</span>
+          </div>
         </div>
       </div>
 
@@ -219,7 +291,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
         </label>
         <div className="relative">
           <select
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-10 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
             name="weekend"
             value={formData.weekend}
             onChange={handleChange}>
@@ -230,7 +302,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             weekend
           </span>
-          <span className="material-icons-round absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
             expand_more
           </span>
         </div>
@@ -249,6 +321,8 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
             placeholder="0.00"
             type="number"
             step="0.01"
+            min={0}
+            max={9999999}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             attach_money
@@ -256,7 +330,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
         </div>
       </div>
 
-      <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <button
           type="button"
           onClick={onClose}
@@ -264,8 +338,21 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed">
           إلغاء
         </button>
+
+        {!initialData && (
+          <button
+            type="submit"
+            onClick={() => setKeepOpen(true)}
+            disabled={isSaving}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span className="material-icons-round text-lg">playlist_add</span>
+            <span>حفظ وإضافة آخر</span>
+          </button>
+        )}
+
         <button
           type="submit"
+          onClick={() => setKeepOpen(false)}
           disabled={isSaving}
           className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSaving ? (
@@ -278,7 +365,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data }) => {
           ) : (
             <>
               <span className="material-icons-round text-lg">save</span>
-              <span>حفظ التغييرات</span>
+              <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
             </>
           )}
         </button>
@@ -353,11 +440,16 @@ const EmployeeManager = () => {
     {
       header: "ساعات العمل",
       accessor: "workHours",
-      render: (item) => (
-        <span className="text-gray-700 dark:text-gray-300">
-          {item.workHours} ساعة
-        </span>
-      ),
+      render: (item) => {
+        const total = parseFloat(item.workHours || 0);
+        const h = Math.floor(total);
+        const m = Math.round((total % 1) * 60);
+        return (
+          <span className="text-gray-700 dark:text-gray-300">
+            {h} ساعات{m > 0 ? ` ${m} دقيقة` : ""}
+          </span>
+        );
+      },
     },
     {
       header: "الاجازة",

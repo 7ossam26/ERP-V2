@@ -36,6 +36,12 @@ router.get("/users", async (req, res) => {
             name: true,
           },
         },
+        accessibleBranches: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },
@@ -64,10 +70,22 @@ router.post("/users", createUserValidation, async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, username, password, roleId, branchId } = req.body;
 
-    if (!branchId) {
-      return res.status(400).json({ error: "Branch is required" });
+    const { name, username, password, roleId, branchId, accessibleBranchIds } = req.body;
+
+    // Get role to determine permissions and validation
+    const role = await prisma.role.findUnique({
+      where: { id: parseInt(roleId) },
+    });
+
+    if (!role) {
+      return res.status(400).json({ error: "Invalid role selected" });
+    }
+
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role.name);
+
+    if (!isGlobalRole && !branchId) {
+      return res.status(400).json({ error: "Branch is required for this role" });
     }
 
     // Check if username exists
@@ -78,16 +96,17 @@ router.post("/users", createUserValidation, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Get role to determine default hasSensitiveAccess
-    const role = await prisma.role.findUnique({
-      where: { id: parseInt(roleId) },
-    });
-
     // Determine hasSensitiveAccess value
     let hasSensitiveAccess =
       req.body.hasSensitiveAccess !== undefined
         ? req.body.hasSensitiveAccess
-        : ["Superadmin", "Admin", "Manager"].includes(role?.name);
+        : ["Superadmin", "Admin", "Manager", "General Manager"].includes(role.name);
+
+    // Prepare accessible branches connect
+    const accessibleBranchesConnect =
+      Array.isArray(accessibleBranchIds) && accessibleBranchIds.length > 0
+        ? accessibleBranchIds.map(id => ({ id: parseInt(id) }))
+        : [];
 
     const newUser = await prisma.user.create({
       data: {
@@ -95,12 +114,16 @@ router.post("/users", createUserValidation, async (req, res) => {
         username,
         password: hashedPassword,
         roleId: parseInt(roleId),
-        branchId: parseInt(branchId),
+        branchId: branchId ? parseInt(branchId) : null,
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
         hasSensitiveAccess: hasSensitiveAccess,
+        accessibleBranches: {
+          connect: accessibleBranchesConnect
+        }
       },
       include: {
         role: true,
+        accessibleBranches: true
       },
     });
 
@@ -118,13 +141,36 @@ router.post("/users", createUserValidation, async (req, res) => {
 router.put("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, username, roleId, branchId, password } = req.body;
+    const { name, username, roleId, branchId, password, accessibleBranchIds } = req.body;
+
+    // Get role information if it's being updated or checking current role
+    let roleToCheckId = roleId;
+    if (!roleToCheckId) {
+      const user = await prisma.user.findUnique({ where: { id: parseInt(id) }, select: { roleId: true } });
+      if (user) roleToCheckId = user.roleId;
+    }
+
+    const role = await prisma.role.findUnique({
+      where: { id: parseInt(roleToCheckId) }
+    });
+
+    const isGlobalRole = ["Superadmin", "Admin", "General Manager"].includes(role?.name);
+
+    // Validate Branch requirement
+    if (!branchId && !isGlobalRole && roleId) { // Only enforce if role is explicitly being set/checked
+      // If branchId is not provided, we need to check if it's an update where branch is optional or not.
+      // But for simplicity, if role is changing to a non-global one, branch is required.
+      return res.status(400).json({ error: "Branch is required for this role" });
+    }
 
     const data = {
       name,
       username,
-      roleId: parseInt(roleId),
-      branchId: branchId ? parseInt(branchId) : undefined,
+      roleId: roleId ? parseInt(roleId) : undefined,
+      // If global role, allow branchId to be null. If not global, strict parse.
+      // If branchId is explicitly passed as null/empty string and it's a global role, we should set it to null in DB.
+      // If it's undefined (not passed), we leave it alone (handled by delete undefined keys).
+      branchId: branchId ? parseInt(branchId) : (isGlobalRole && branchId !== undefined ? null : undefined),
       isActive: req.body.isActive !== undefined ? req.body.isActive : undefined,
       hasSensitiveAccess:
         req.body.hasSensitiveAccess !== undefined
@@ -141,6 +187,17 @@ router.put("/users/:id", async (req, res) => {
       data.password = await bcrypt.hash(password, 10);
     }
 
+    // Handle accessible branches update if provided
+    if (accessibleBranchIds !== undefined) {
+      const branchesToConnect = Array.isArray(accessibleBranchIds)
+        ? accessibleBranchIds.map(bid => ({ id: parseInt(bid) }))
+        : [];
+
+      data.accessibleBranches = {
+        set: branchesToConnect // Replace existing with new list
+      };
+    }
+
     // Prevent deactivating self
     if (req.body.isActive === false && parseInt(id) === req.user.id) {
       return res
@@ -151,6 +208,7 @@ router.put("/users/:id", async (req, res) => {
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(id) },
       data,
+      include: { accessibleBranches: true } // Include in response
     });
 
     res.json(updatedUser);
@@ -206,6 +264,11 @@ router.delete("/users/:id", async (req, res) => {
     });
     res.status(204).send();
   } catch (error) {
+    if (error.code === 'P2003') {
+      return res.status(400).json({ 
+        error: "Cannot delete this user because they have associated records (sales, transfers, etc.). Please deactivate the user instead." 
+      });
+    }
     res
       .status(500)
       .json({ error: "Failed to delete user", details: error.message });
@@ -382,6 +445,219 @@ router.put("/roles/:id/permissions", async (req, res) => {
     res
       .status(500)
       .json({ error: "Failed to update permissions", details: error.message });
+  }
+});
+
+// ============================================
+// Database Reset
+// ============================================
+
+// Helper: verify manager credentials before any reset
+async function verifyManager(managerUsername, managerPassword) {
+  if (!managerUsername || !managerPassword) {
+    const err = new Error("Manager credentials are required");
+    err.status = 400;
+    throw err;
+  }
+  const manager = await prisma.user.findUnique({
+    where: { username: managerUsername },
+    include: { role: { select: { name: true } } },
+  });
+  if (!manager || !manager.isActive) {
+    const err = new Error("Invalid manager credentials");
+    err.status = 401;
+    throw err;
+  }
+  const valid = await bcrypt.compare(managerPassword, manager.password);
+  if (!valid) {
+    const err = new Error("Invalid manager credentials");
+    err.status = 401;
+    throw err;
+  }
+  const roleName = manager.role?.name;
+  const hasSensitive =
+    manager.hasSensitiveAccess ||
+    ["Superadmin", "Admin"].includes(roleName);
+  if (!hasSensitive) {
+    const err = new Error("Manager does not have sufficient access for this operation");
+    err.status = 403;
+    throw err;
+  }
+}
+
+router.post("/reset/:category", async (req, res) => {
+  const { category } = req.params;
+  const { managerUsername, managerPassword } = req.body;
+
+  try {
+    await verifyManager(managerUsername, managerPassword);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message });
+  }
+
+  try {
+    switch (category) {
+      case "all-transactions":
+        // Delete all transactional data in FK-safe order
+        await prisma.$transaction([
+          prisma.saleItem.deleteMany({}),
+          prisma.sale.deleteMany({}),
+          prisma.purchaseReturnItem.deleteMany({}),
+          prisma.purchaseReturn.deleteMany({}),
+          prisma.purchaseItem.deleteMany({}),
+          prisma.purchase.deleteMany({}),
+          prisma.stockTransferItem.deleteMany({}),
+          prisma.stockTransfer.deleteMany({}),
+          prisma.payroll.deleteMany({}),
+          prisma.employeeTransaction.deleteMany({}),
+          prisma.expense.deleteMany({}),
+          prisma.shift.deleteMany({}),
+          prisma.cashTransfer.deleteMany({}),
+          prisma.deposit.deleteMany({}),
+          prisma.withdrawal.deleteMany({}),
+          prisma.deliveryManTransaction.deleteMany({}),
+          // Reset balances
+          prisma.treasury.updateMany({ data: { balance: 0 } }),
+          prisma.supplierAccount.updateMany({ data: { balance: 0 } }),
+          prisma.inventory.updateMany({ data: { quantity: 0 } }),
+        ]);
+        break;
+
+      case "sales":
+        await prisma.$transaction([
+          prisma.saleItem.deleteMany({}),
+          prisma.sale.deleteMany({}),
+        ]);
+        break;
+
+      case "purchases":
+        await prisma.$transaction([
+          prisma.purchaseReturnItem.deleteMany({}),
+          prisma.purchaseReturn.deleteMany({}),
+          prisma.purchaseItem.deleteMany({}),
+          prisma.purchase.deleteMany({}),
+        ]);
+        break;
+
+      case "treasury":
+        await prisma.$transaction([
+          prisma.expense.deleteMany({}),
+          prisma.cashTransfer.deleteMany({}),
+          prisma.deposit.deleteMany({}),
+          prisma.withdrawal.deleteMany({}),
+          // Reset treasury balances
+          prisma.treasury.updateMany({ data: { balance: 0 } }),
+        ]);
+        break;
+
+      case "cash-transfers":
+        await prisma.cashTransfer.deleteMany({});
+        break;
+
+      case "deposits":
+        await prisma.deposit.deleteMany({});
+        break;
+
+      case "inventory-movements":
+        await prisma.$transaction([
+          prisma.stockTransferItem.deleteMany({}),
+          prisma.stockTransfer.deleteMany({}),
+        ]);
+        break;
+
+      case "inventory-quantities":
+        await prisma.inventory.updateMany({ data: { quantity: 0 } });
+        break;
+
+      case "hr":
+        await prisma.employeeTransaction.deleteMany({});
+        break;
+
+      case "payroll":
+        await prisma.payroll.deleteMany({});
+        break;
+
+      case "advances":
+        await prisma.employeeTransaction.deleteMany({ where: { type: "ADVANCE" } });
+        break;
+
+      case "shifts":
+        // Sale references shift with onDelete: Restrict — null it out first
+        await prisma.sale.updateMany({ data: { shiftId: null } });
+        await prisma.shift.deleteMany({});
+        break;
+
+      case "items": {
+        // Check for transaction references before deleting master data
+        const salesCount = await prisma.sale.count();
+        const purchasesCount = await prisma.purchase.count();
+        if (salesCount > 0 || purchasesCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete items while sales or purchases exist. Clear transactions first.",
+          });
+        }
+        await prisma.$transaction([
+          prisma.bomItem.deleteMany({}),
+          prisma.bOM.deleteMany({}),
+          prisma.itemSupplier.deleteMany({}),
+          prisma.itemCategory.deleteMany({}),
+          prisma.inventory.deleteMany({}),
+          prisma.item.deleteMany({}),
+          prisma.category.deleteMany({}),
+        ]);
+        break;
+      }
+
+      case "clients": {
+        const salesCount = await prisma.sale.count();
+        if (salesCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete clients while sales exist. Clear sales first.",
+          });
+        }
+        await prisma.client.deleteMany({});
+        break;
+      }
+
+      case "suppliers": {
+        const purchasesCount = await prisma.purchase.count();
+        if (purchasesCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete suppliers while purchases exist. Clear purchases first.",
+          });
+        }
+        await prisma.$transaction([
+          prisma.supplierPayment.deleteMany({}),
+          prisma.supplierAccount.deleteMany({}),
+          prisma.itemSupplier.deleteMany({}),
+          prisma.supplier.deleteMany({}),
+        ]);
+        break;
+      }
+
+      case "employees": {
+        const salesCount = await prisma.sale.count();
+        if (salesCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete employees while sales exist. Clear sales first.",
+          });
+        }
+        await prisma.$transaction([
+          prisma.payroll.deleteMany({}),
+          prisma.employeeTransaction.deleteMany({}),
+          prisma.employee.deleteMany({}),
+        ]);
+        break;
+      }
+
+      default:
+        return res.status(400).json({ error: "Unknown reset category" });
+    }
+
+    res.json({ message: "Reset completed successfully" });
+  } catch (error) {
+    console.error(`Reset error [${category}]:`, error);
+    res.status(500).json({ error: "Reset failed", details: error.message });
   }
 });
 

@@ -14,7 +14,12 @@ const AdvancePaymentsHistory = () => {
     const fetchBranches = async () => {
       try {
         const data = await branchService.getAll();
-        setBranches(data);
+        // Filter out "Main Branch" and "All Branches" as requested
+        const filteredBranches = data.filter(
+          (branch) =>
+            branch.name !== "Main Branch" && branch.name !== "All Branches",
+        );
+        setBranches(filteredBranches);
       } catch (error) {
         console.error("Failed to fetch branches", error);
       }

@@ -170,4 +170,24 @@ export const purchaseService = {
     await api.delete(`${PURCHASES_URL}/${id}`);
     return true;
   },
+
+  /**
+   * Search purchases by ID, supplier invoice number, or supplier name
+   * @param {string} query
+   * @returns {Promise<Array>}
+   */
+  async search(query) {
+    const data = await api.get(`${PURCHASES_URL}/search?q=${encodeURIComponent(query)}`);
+    return data.map(toFrontend);
+  },
+
+  /**
+   * Create a purchase return (مرتجع مشتريات)
+   * @param {number} purchaseId
+   * @param {{ items, managerUsername, managerPassword, notes }} payload
+   * @returns {Promise<Object>}
+   */
+  async returnPurchase(purchaseId, payload) {
+    return api.post(`${PURCHASES_URL}/${purchaseId}/return`, payload);
+  },
 };

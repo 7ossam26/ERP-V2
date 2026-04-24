@@ -6,10 +6,38 @@ const { authenticateToken, requirePermission, requireCreatePermission, getUserBr
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// GET all branches - Accessible to all auth users, no filter (for transfers etc)
+// GET all branches
 router.get("/", async (req, res, next) => {
   try {
+    // Determine visibility based on user role/branch assignment
+    // Fetch user with role to check if they should see all branches
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { role: true },
+    });
+
+    // Build query
     const where = { isActive: true };
+
+    // General Manager and Superadmin see ALL branches
+    const canSeeAllBranches =
+      user.role.name === "Superadmin" ||
+      user.role.name === "Admin" ||
+      user.role.name === "General Manager";
+
+    // Apply branch filter only for non-global roles
+    if (!canSeeAllBranches) {
+      const branchFilter = await getUserBranchFilter(req.user.id, req);
+      if (branchFilter) {
+        if (branchFilter.id.in) {
+          // Multi-branch user
+          where.id = { in: branchFilter.id.in };
+        } else {
+          // Single-branch user
+          where.id = branchFilter.id;
+        }
+      }
+    }
 
     const branches = await prisma.branch.findMany({
       where,
@@ -19,21 +47,6 @@ router.get("/", async (req, res, next) => {
       },
       orderBy: { createdAt: "asc" },
     });
-
-    // Check if user is allowed to see "All Branches"
-    // Superadmins OR Users assigned to "All Branches" can see it.
-    // Others should not see the "All Branches" option in dropdowns.
-    if (req.user.role !== "Superadmin") {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        include: { branch: true },
-      });
-
-      if (!user || !user.branch?.isAllBranches) {
-        // Filter out "All Branches" (isAllBranches: true)
-        return res.json(branches.filter((b) => !b.isAllBranches));
-      }
-    }
 
     res.json(branches);
   } catch (error) {
@@ -108,6 +121,73 @@ router.get("/summary", async (req, res, next) => {
       percentageChange: percentageChange.toFixed(1), // Returns string "12.5"
       netChange,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET branch balances — Cash treasury + today's INSTAPAY sales per branch (BR1)
+router.get("/balances", async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { role: true },
+    });
+
+    const canSeeAllBranches =
+      user.role.name === "Superadmin" ||
+      user.role.name === "Admin" ||
+      user.role.name === "General Manager";
+
+    const where = { isActive: true };
+    if (!canSeeAllBranches) {
+      const branchFilter = await getUserBranchFilter(req.user.id, req);
+      if (branchFilter) {
+        where.id = branchFilter.id.in ? { in: branchFilter.id.in } : branchFilter.id;
+      }
+    }
+
+    const branches = await prisma.branch.findMany({
+      where,
+      include: {
+        treasury: { select: { balance: true, name: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // Today's range
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Aggregate INSTAPAY sales per branch for today
+    const instapaySales = await prisma.sale.groupBy({
+      by: ["branchId"],
+      where: {
+        paymentMethod: "INSTAPAY",
+        status: "COMPLETED",
+        createdAt: { gte: todayStart, lte: todayEnd },
+        branchId: { in: branches.map((b) => b.id) },
+      },
+      _sum: { total: true },
+    });
+
+    const instapayMap = {};
+    instapaySales.forEach((row) => {
+      instapayMap[row.branchId] = Number(row._sum.total || 0);
+    });
+
+    const result = branches.map((branch) => ({
+      id: branch.id,
+      name: branch.name,
+      address: branch.address,
+      cashBalance: Number(branch.treasury?.balance || 0),
+      treasuryName: branch.treasury?.name || "الخزينة",
+      instapayToday: instapayMap[branch.id] || 0,
+    }));
+
+    res.json(result);
   } catch (error) {
     next(error);
   }

@@ -43,7 +43,7 @@ router.get("/:id", requirePermission("CLIENTS"), async (req, res) => {
 // POST create new client
 router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) => {
   try {
-    const { name, phoneNumber, checkIfExists } = req.body;
+    const { name, phoneNumber, address, checkIfExists } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
@@ -67,6 +67,7 @@ router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) =>
       data: {
         name,
         phoneNumber: phoneNumber || "",
+        address: address || null,
       },
     });
     res.status(201).json(client);
@@ -77,18 +78,24 @@ router.post("/", requireCreatePermission("CREATES_CLIENTS"), async (req, res) =>
   }
 });
 
-// PUT update client
-// PUT update client
 // PUT update client - Requires SENSITIVE ACCESS
-router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS"]), requireSensitiveAccess, async (req, res) => {
+router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS", "POS", "SALES"]), async (req, res) => {
   try {
-    const { name, phoneNumber } = req.body;
+    const clientId = parseInt(req.params.id);
 
+    // Walk-in client guard
+    const existing = await prisma.client.findUnique({ where: { id: clientId }, select: { isWalkIn: true } });
+    if (existing && existing.isWalkIn) {
+      return res.status(403).json({ error: "لا يمكن تعديل العميل النقدي" });
+    }
+
+    const { name, phoneNumber, address } = req.body;
     const client = await prisma.client.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id: clientId },
       data: {
         name,
         phoneNumber,
+        address: address !== undefined ? address : undefined,
       },
     });
     res.json(client);
@@ -96,27 +103,28 @@ router.put("/:id", requireAnyPermission(["CLIENTS", "CREATES_CLIENTS"]), require
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Client not found" });
     }
-    res
-      .status(500)
-      .json({ error: "Failed to update client", message: error.message });
+    res.status(500).json({ error: "Failed to update client", message: error.message });
   }
 });
 
-// DELETE client
 // DELETE client - Requires SENSITIVE ACCESS
 router.delete("/:id", requirePermission("CLIENTS"), requireSensitiveAccess, async (req, res) => {
   try {
-    await prisma.client.delete({
-      where: { id: parseInt(req.params.id) },
-    });
+    const clientId = parseInt(req.params.id);
+
+    // Walk-in client guard
+    const existing = await prisma.client.findUnique({ where: { id: clientId }, select: { isWalkIn: true } });
+    if (existing && existing.isWalkIn) {
+      return res.status(403).json({ error: "لا يمكن حذف العميل النقدي" });
+    }
+
+    await prisma.client.delete({ where: { id: clientId } });
     res.status(204).send();
   } catch (error) {
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Client not found" });
     }
-    res
-      .status(500)
-      .json({ error: "Failed to delete client", message: error.message });
+    res.status(500).json({ error: "Failed to delete client", message: error.message });
   }
 });
 

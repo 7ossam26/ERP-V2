@@ -65,6 +65,12 @@ async function main() {
             "CREATES_TREASURIES",
             "CREATES_BRANCHES",
             "CREATES_DEPOSITS",
+            "DELIVERY_MEN",
+            "CREATES_DELIVERY_MEN",
+            "DELIVERY_ZONES",
+            "CREATES_DELIVERY_ZONES",
+            "DELIVERY_SETTLEMENT",
+            "CREATES_PRODUCTION",
           ];
 
           for (const module of modules) {
@@ -111,12 +117,12 @@ async function main() {
     // Create initial infrastructure (Warehouse, Treasury, Branch)
     console.log("   [DEBUG] Checking/Creating initial warehouse...");
     let warehouse = await prisma.warehouse.findFirst({
-      where: { name: "Main Warehouse" },
+      where: { name: "المخزن الرئيسي" },
     });
     if (!warehouse) {
       warehouse = await prisma.warehouse.create({
         data: {
-          name: "Main Warehouse",
+          name: "المخزن الرئيسي",
         },
       });
       console.log(`   [DEBUG] Warehouse created: ID ${warehouse.id}`);
@@ -126,12 +132,12 @@ async function main() {
 
     console.log("   [DEBUG] Checking/Creating initial treasury...");
     let treasury = await prisma.treasury.findFirst({
-      where: { name: "Main Treasury" },
+      where: { name: "الخزنة الرئيسية" },
     });
     if (!treasury) {
       treasury = await prisma.treasury.create({
         data: {
-          name: "Main Treasury",
+          name: "الخزنة الرئيسية",
           balance: 0,
         },
       });
@@ -142,70 +148,20 @@ async function main() {
 
     console.log("   [DEBUG] Checking/Creating main branch...");
     let branch = await prisma.branch.findFirst({
-      where: { name: "Main Branch" },
+      where: { name: "الفرع الرئيسي" },
     });
     if (!branch) {
       branch = await prisma.branch.create({
         data: {
-          name: "Main Branch",
+          name: "الفرع الرئيسي",
           address: "Headquarters",
           warehouseId: warehouse.id,
           treasuryId: treasury.id,
-          isAllBranches: false,
         },
       });
       console.log(`   [DEBUG] Branch created: ID ${branch.id}`);
     } else {
       console.log(`   [DEBUG] Main Branch already exists: ID ${branch.id}`);
-    }
-
-    // Create "All Branches" special branch for users who can see all branch data
-    console.log("   [DEBUG] Checking/Creating All Branches infrastructure...");
-
-    // 1. Warehouse
-    let allBranchesWarehouse = await prisma.warehouse.findFirst({
-      where: { name: "All Branches Warehouse" }
-    });
-    if (!allBranchesWarehouse) {
-      allBranchesWarehouse = await prisma.warehouse.create({
-        data: { name: "All Branches Warehouse" }
-      });
-      console.log(`   [DEBUG] All Branches Warehouse created: ${allBranchesWarehouse.id}`);
-    } else {
-      console.log(`   [DEBUG] All Branches Warehouse exists: ${allBranchesWarehouse.id}`);
-    }
-
-    // 2. Treasury
-    let allBranchesTreasury = await prisma.treasury.findFirst({
-      where: { name: "All Branches Treasury" }
-    });
-    if (!allBranchesTreasury) {
-      allBranchesTreasury = await prisma.treasury.create({
-        data: { name: "All Branches Treasury", balance: 0 }
-      });
-      console.log(`   [DEBUG] All Branches Treasury created: ${allBranchesTreasury.id}`);
-    } else {
-      console.log(`   [DEBUG] All Branches Treasury exists: ${allBranchesTreasury.id}`);
-    }
-
-    // 3. Branch
-    let allBranchesBranch = await prisma.branch.findFirst({
-      where: { isAllBranches: true }
-    });
-
-    if (!allBranchesBranch) {
-      allBranchesBranch = await prisma.branch.create({
-        data: {
-          name: "All Branches",
-          address: "N/A - Special Branch for Multi-Branch Access",
-          warehouseId: allBranchesWarehouse.id,
-          treasuryId: allBranchesTreasury.id,
-          isAllBranches: true,
-        },
-      });
-      console.log(`   [DEBUG] All Branches branch created: ID ${allBranchesBranch.id}`);
-    } else {
-      console.log(`   [DEBUG] All Branches branch exists: ID ${allBranchesBranch.id}`);
     }
 
     console.log("   [DEBUG] Creating/Updating superadmin user...");

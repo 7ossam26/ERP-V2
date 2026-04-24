@@ -1,0 +1,56 @@
+- generic [ref=e2]:
+  - status [ref=e41]: Welcome back, warehouse.keeper!
+  - generic [ref=e42]:
+    - generic [ref=e45]:
+      - banner [ref=e46]:
+        - img "رامكس ستور" [ref=e47]
+        - generic [ref=e48]:
+          - heading "تغيير كلمة المرور" [level=1] [ref=e49]
+          - paragraph [ref=e50]: يجب تحديث كلمة المرور قبل متابعة استخدام النظام.
+          - paragraph [ref=e51]: Ramex Store
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - generic [ref=e54]: كلمة المرور الحالية
+          - generic [ref=e55]:
+            - generic:
+              - generic: lock
+            - textbox "كلمة المرور الحالية" [ref=e56]:
+              - /placeholder: أدخل كلمة المرور الحالية
+            - button "إظهار كلمة المرور الحالية" [ref=e57]:
+              - generic [ref=e58]: visibility
+        - generic [ref=e59]:
+          - generic [ref=e60]: كلمة المرور الجديدة
+          - generic [ref=e61]:
+            - generic:
+              - generic: lock_open
+            - textbox "كلمة المرور الجديدة" [ref=e62]:
+              - /placeholder: أدخل كلمة مرور جديدة (8+ أحرف)
+            - button "إظهار كلمة المرور الجديدة" [ref=e63]:
+              - generic [ref=e64]: visibility
+          - generic [ref=e65]:
+            - paragraph [ref=e66]: متطلبات كلمة المرور
+            - list [ref=e67]:
+              - listitem [ref=e68]: • 8 أحرف على الأقل
+              - listitem [ref=e69]: • حرف إنجليزي كبير واحد على الأقل
+              - listitem [ref=e70]: • حرف إنجليزي صغير واحد على الأقل
+              - listitem [ref=e71]: • رقم واحد على الأقل
+              - listitem [ref=e72]: • رمز خاص واحد على الأقل
+        - generic [ref=e73]:
+          - generic [ref=e74]: تأكيد كلمة المرور الجديدة
+          - generic [ref=e75]:
+            - generic:
+              - generic: task_alt
+            - textbox "تأكيد كلمة المرور الجديدة" [ref=e76]:
+              - /placeholder: أعد إدخال كلمة المرور الجديدة
+        - button "تغيير كلمة المرور check_circle" [ref=e77]:
+          - generic [ref=e78]: تغيير كلمة المرور
+          - generic [ref=e79]: check_circle
+    - contentinfo [ref=e80]:
+      - generic [ref=e82]:
+        - link "code Developed by kiko-tech.com open_in_new" [ref=e83] [cursor=pointer]:
+          - /url: https://kiko-tech.com
+          - generic [ref=e84]: code
+          - generic [ref=e85]: Developed by
+          - generic [ref=e86]: kiko-tech.com
+          - generic [ref=e87]: open_in_new
+        - paragraph [ref=e88]: © 2026 Ramex Store ERP. All rights reserved.

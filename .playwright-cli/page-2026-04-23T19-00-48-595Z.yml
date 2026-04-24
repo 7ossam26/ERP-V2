@@ -1,0 +1,72 @@
+- generic [ref=e2]:
+  - status [ref=e94]: تم تغيير كلمة المرور بنجاح
+  - generic [ref=e95]:
+    - navigation [ref=e96]:
+      - generic [ref=e98]:
+        - generic [ref=e99]:
+          - button "arrow_forward رجوع" [ref=e100]:
+            - generic [ref=e101]: arrow_forward
+            - generic [ref=e102]: رجوع
+          - link "home الصفحة الرئيسية" [ref=e103] [cursor=pointer]:
+            - /url: /dashboard
+            - generic [ref=e104]: home
+            - generic [ref=e105]: الصفحة الرئيسية
+        - link "رامكس ستور" [ref=e106] [cursor=pointer]:
+          - /url: /dashboard
+          - img "رامكس ستور" [ref=e107]
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - generic [ref=e110]: store
+            - generic [ref=e111]: الفرع الرئيسي
+          - link "help_outline" [ref=e112] [cursor=pointer]:
+            - /url: /manual
+            - generic [ref=e113]: help_outline
+          - button "المحاسب Accountant person" [ref=e115]:
+            - generic [ref=e116]:
+              - paragraph [ref=e117]: المحاسب
+              - paragraph [ref=e118]: Accountant
+            - generic [ref=e120]: person
+    - main [ref=e121]:
+      - generic [ref=e123]:
+        - generic:
+          - generic: local_cafe
+          - generic: coffee_maker
+        - heading "الصفحة الرئيسية" [level=2] [ref=e125]
+        - generic [ref=e127]:
+          - button "shopping_cart مشتريات إدارة التوريد" [ref=e128] [cursor=pointer]:
+            - generic [ref=e130]: shopping_cart
+            - heading "مشتريات" [level=3] [ref=e131]
+            - paragraph [ref=e132]: إدارة التوريد
+          - button "account_balance_wallet تحويلات الخزائن النقدية والسيولة" [ref=e133] [cursor=pointer]:
+            - generic [ref=e135]: account_balance_wallet
+            - heading "تحويلات الخزائن" [level=3] [ref=e136]
+            - paragraph [ref=e137]: النقدية والسيولة
+          - button "account_balance_wallet حسابات الموردين إدارة حسابات الموردين والمدفوعات" [ref=e138] [cursor=pointer]:
+            - generic [ref=e140]: account_balance_wallet
+            - heading "حسابات الموردين" [level=3] [ref=e141]
+            - paragraph [ref=e142]: إدارة حسابات الموردين والمدفوعات
+          - button "bar_chart التقارير والسجلات تحليل البيانات" [ref=e143] [cursor=pointer]:
+            - generic [ref=e145]: bar_chart
+            - heading "التقارير والسجلات" [level=3] [ref=e146]
+            - paragraph [ref=e147]: تحليل البيانات
+          - button "receipt_long مصروفات إدارة المصروفات والفواتير" [ref=e148] [cursor=pointer]:
+            - generic [ref=e150]: receipt_long
+            - heading "مصروفات" [level=3] [ref=e151]
+            - paragraph [ref=e152]: إدارة المصروفات والفواتير
+          - button "account_balance الإيداعات والمسحوبات إدارة الإيداعات والمسحوبات" [ref=e153] [cursor=pointer]:
+            - generic [ref=e155]: account_balance
+            - heading "الإيداعات والمسحوبات" [level=3] [ref=e156]
+            - paragraph [ref=e157]: إدارة الإيداعات والمسحوبات
+          - button "manage_accounts إدارة تحويلات الخزائن قبول ورفض التحويلات" [ref=e158] [cursor=pointer]:
+            - generic [ref=e160]: manage_accounts
+            - heading "إدارة تحويلات الخزائن" [level=3] [ref=e161]
+            - paragraph [ref=e162]: قبول ورفض التحويلات
+    - contentinfo [ref=e163]:
+      - generic [ref=e165]:
+        - link "code Developed by kiko-tech.com open_in_new" [ref=e166] [cursor=pointer]:
+          - /url: https://kiko-tech.com
+          - generic [ref=e167]: code
+          - generic [ref=e168]: Developed by
+          - generic [ref=e169]: kiko-tech.com
+          - generic [ref=e170]: open_in_new
+        - paragraph [ref=e171]: © 2026 Ramex Store ERP. All rights reserved.

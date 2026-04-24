@@ -6,6 +6,7 @@ const SALES_URL = "/sales";
 const mapPaymentMethod = (backendMethod) => {
   const mapping = {
     CASH: "cash",
+    INSTAPAY: "instapay",
     CREDIT: "credit",
     MIXED: "mixed",
   };
@@ -16,6 +17,8 @@ const mapPaymentMethod = (backendMethod) => {
 const mapPaymentMethodToBackend = (frontendMethod) => {
   const mapping = {
     cash: "CASH",
+    instapay: "INSTAPAY",
+    visa: "INSTAPAY",
     credit: "CREDIT",
     mixed: "MIXED",
   };
@@ -32,8 +35,24 @@ export const salesService = {
     return await api.get(`${SALES_URL}/${id}`);
   },
 
+  async getBySaleNumber(saleNumber) {
+    return await api.get(`${SALES_URL}/number/${saleNumber}`);
+  },
+
+  async search(query) {
+    return await api.get(`${SALES_URL}/search`, { params: { query } });
+  },
+
   async create(saleData) {
     return await api.post(SALES_URL, saleData);
+  },
+
+  async createPOS(saleData) {
+    return await api.post(`${SALES_URL}/pos`, saleData);
+  },
+
+  async getReceipt(saleId) {
+    return await api.get(`${SALES_URL}/${saleId}/receipt`);
   },
 
   async update(id, updates) {
@@ -43,5 +62,31 @@ export const salesService = {
   async delete(id) {
     await api.delete(`${SALES_URL}/${id}`);
     return true;
+  },
+
+  async refund(refundData) {
+    return await api.post(`${SALES_URL}/refund`, refundData);
+  },
+
+  async getShiftRefunds(shiftId) {
+    return await api.get(`${SALES_URL}/refunds`, { params: { shiftId } });
+  },
+
+  async markDelivered(saleId) {
+    return await api.patch(`${SALES_URL}/${saleId}/mark-delivered`);
+  },
+
+  async getRecent(limit = 50) {
+    return await api.get(`${SALES_URL}/recent`, { params: { limit } });
+  },
+
+  async getPreparationQueue() {
+    return await api.get(`${SALES_URL}/preparation-queue`);
+  },
+
+  async dispatchDelivery(saleId, deliveryManId) {
+    return await api.patch(`${SALES_URL}/${saleId}/dispatch-delivery`, {
+      deliveryManId,
+    });
   },
 };

@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -12,48 +13,42 @@ datasource db {
 // ============================================
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  username  String   @unique
-  password  String
-  roleId    Int      @map("role_id")
-  isActive  Boolean  @default(true) @map("is_active")
-  hasSensitiveAccess Boolean @default(false) @map("has_sensitive_access")
-  branchId  Int      @map("branch_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                 Int      @id @default(autoincrement())
+  name               String
+  username           String   @unique
+  password           String
+  roleId             Int      @map("role_id")
+  isActive           Boolean  @default(true) @map("is_active")
+  hasSensitiveAccess  Boolean  @default(false) @map("has_sensitive_access")
+  mustChangePassword  Boolean  @default(false) @map("must_change_password")
+  branchId            Int?     @map("branch_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   // Relations
-  role           Role            @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  sales          Sale[]
-  auditLogs      AuditLog[]
-  stockTransfers StockTransfer[]
-  createdTransfers  CashTransfer[] @relation("TransferCreator")
-  acceptedTransfers CashTransfer[] @relation("TransferAccepter")
+  role                Role                  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  branch              Branch?               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  accessibleBranches  Branch[]              @relation("AccessibleBranches")
+  sales               Sale[]
+  auditLogs           AuditLog[]
+  stockTransfers      StockTransfer[]
+  createdTransfers    CashTransfer[]        @relation("TransferCreator")
+  acceptedTransfers   CashTransfer[]        @relation("TransferAccepter")
   createdTransactions EmployeeTransaction[] @relation("TransactionCreator")
   createdPayrolls     Payroll[]             @relation("PayrollCreator")
-  shifts         Shift[]
-  refreshTokens  RefreshToken[]
-  deposits       Deposit[]      @relation("DepositCreator")
+  shifts              Shift[]
+  reviewedShifts      Shift[]               @relation("ShiftReviewer")
+  deposits            Deposit[]             @relation("DepositCreator")
+  withdrawals         Withdrawal[]          @relation("WithdrawalCreator")
+  createdDeliveryTransactions DeliveryManTransaction[]
+  createdProductionOrders     ProductionOrder[]          @relation("ProductionOrderCreator")
+  adjustments                 InventoryAdjustment[]      @relation("AdjustmentCreator")
+  inventoryCounts             InventoryCount[]           @relation("CountCreator")
 
   @@map("users")
 }
 
-model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  userId    Int      @map("user_id")
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([token])
-  @@map("refresh_tokens")
-}
+
 
 model Role {
   id          Int      @id @default(autoincrement())
@@ -92,7 +87,9 @@ enum Module {
   WAREHOUSES
   SETTINGS
   EXPENSES
-  
+  SHIFTS
+  DELIVERY_SETTLEMENT
+
   // Creation Permissions (CREATES)
   CREATES_WAREHOUSES
   CREATES_EMPLOYEES
@@ -105,6 +102,76 @@ enum Module {
 
   DEPOSITS
   CREATES_DEPOSITS
+  WITHDRAWALS
+  CREATES_WITHDRAWALS
+  DELIVERY_MEN
+  CREATES_DELIVERY_MEN
+  DELIVERY_ZONES
+  CREATES_DELIVERY_ZONES
+  CREATES_PRODUCTION
+  PRODUCTION
+
+  // Ramex Store Modules
+  FABRIC_ROLLS
+  CREATES_FABRIC_ROLLS
+  ADJUSTMENTS
+  COUNTS
+  OWNER_DASHBOARD
+  INITIAL_INVENTORY
+  AUDIT
+}
+
+// ============================================
+// Ramex Store Enums
+// ============================================
+
+enum ItemType {
+  FABRIC
+  CLOTHES
+  ACCESSORY
+  GENERIC
+}
+
+enum FabricRollStatus {
+  AVAILABLE
+  PARTIALLY_CUT
+  DEPLETED
+  DAMAGED
+  RESERVED
+  SOLD
+  RETURNED
+}
+
+enum LandedCostAllocation {
+  NONE
+  BY_VALUE
+  BY_QUANTITY
+  MANUAL
+}
+
+enum AdjustmentReason {
+  DAMAGE
+  THEFT
+  CORRECTION
+  RETURN
+  COUNT_VARIANCE
+  OTHER
+}
+
+enum AdjustmentDirection {
+  IN
+  OUT
+}
+
+enum CountStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ClientTier {
+  RETAIL
+  WHOLESALE
 }
 
 model Permission {
@@ -123,16 +190,24 @@ model Permission {
 model AuditLog {
   id           Int      @id @default(autoincrement())
   userId       Int?     @map("user_id")
-  action       String
-  targetEntity String   @map("target_entity")
-  targetId     String?  @map("target_id")
+  action       String   @db.VarChar(20)
+  targetEntity String   @map("target_entity") @db.VarChar(60)
+  targetId     String?  @map("target_id") @db.VarChar(40)
   details      Json?
-  ipAddress    String?  @map("ip_address")
+  oldValues    Json?    @map("old_values")
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  branchId     Int?     @map("branch_id")
+  rowHash      String?  @map("row_hash") @db.Char(64)
   createdAt    DateTime @default(now()) @map("created_at")
 
   // Relations
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([targetEntity, targetId])
+  @@index([branchId, createdAt])
   @@map("audit_logs")
 }
 
@@ -164,14 +239,14 @@ model Employee {
 }
 
 model EmployeeTransaction {
-  id         Int             @id @default(autoincrement())
-  employeeId Int             @map("employee_id")
-  type       TransactionType
-  amount     Decimal         @db.Decimal(10, 2)
-  reason     String?         @db.Text
-  date       DateTime        @default(now())
-  createdById Int?           @map("created_by_id")
-  createdAt  DateTime        @default(now()) @map("created_at")
+  id          Int             @id @default(autoincrement())
+  employeeId  Int             @map("employee_id")
+  type        TransactionType
+  amount      Decimal         @db.Decimal(10, 2)
+  reason      String?         @db.Text
+  date        DateTime        @default(now())
+  createdById Int?            @map("created_by_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
 
   // Relations
   employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -228,8 +303,13 @@ model Warehouse {
   purchases              Purchase[]
   sales                  Sale[]
   inventory              Inventory[]
-  outgoingStockTransfers StockTransfer[] @relation("StockTransferFrom")
-  incomingStockTransfers StockTransfer[] @relation("StockTransferTo")
+  outgoingStockTransfers StockTransfer[]   @relation("StockTransferFrom")
+  incomingStockTransfers StockTransfer[]   @relation("StockTransferTo")
+  sourceProductionOrders ProductionOrder[] @relation("SourceWarehouse")
+  destProductionOrders   ProductionOrder[] @relation("DestWarehouse")
+  fabricRolls            FabricRoll[]
+  adjustments            InventoryAdjustment[]
+  counts                 InventoryCount[]  @relation("CountWarehouse")
 
   // Config Relations
   systemConfigAsMain SystemConfiguration[]
@@ -258,6 +338,7 @@ model Treasury {
   transfersIn      CashTransfer[]    @relation("TransfersTo")
   supplierPayments SupplierPayment[]
   deposits         Deposit[]
+  withdrawals      Withdrawal[]
 
   // Config Relations
   systemConfigAsMain SystemConfiguration[] @relation("ConfigMainTreasury")
@@ -276,18 +357,23 @@ model Branch {
   address       String
   warehouseId   Int      @unique @map("warehouse_id")
   treasuryId    Int      @unique @map("treasury_id")
-  isAllBranches Boolean  @default(false) @map("is_all_branches")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   isActive      Boolean  @default(true) @map("is_active")
 
   // Relations
-  warehouse Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  treasury  Treasury   @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  employees Employee[]
-  users     User[]
-  sales     Sale[]
-  shifts    Shift[]
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  treasury      Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  employees     Employee[]
+  users         User[] // Main branch users (employees, branch managers)
+  accessibleUsers User[] @relation("AccessibleBranches") // Users who have access to this branch (e.g. Area Managers)
+  sales         Sale[]
+  shifts        Shift[]
+  DeliveryMan   DeliveryMan[]
+  deliveryZones DeliveryZone[]
+  auditLogs     AuditLog[]
+  adjustments   InventoryAdjustment[]
+  inventoryCounts InventoryCount[]
 
   @@map("branches")
 }
@@ -297,11 +383,14 @@ model Branch {
 // ============================================
 
 model Client {
-  id          Int      @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   name        String
-  phoneNumber String   @map("phone_number")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  phoneNumber String     @map("phone_number")
+  address     String?    @db.Text
+  isWalkIn    Boolean    @default(false) @map("is_walk_in")
+  tier        ClientTier @default(RETAIL)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
 
   // Relations
   sales Sale[]
@@ -317,6 +406,7 @@ model Supplier {
   id          Int              @id @default(autoincrement())
   name        String
   phoneNumber String           @map("phone_number")
+  taxNumber   String           @default("") @map("tax_number")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
   items       ItemSupplier[]
@@ -332,10 +422,12 @@ model Supplier {
 
 model Category {
   id        Int            @id @default(autoincrement())
-  name      String
+  name      String         @unique
+  showInPos Boolean        @default(true) @map("show_in_pos")
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
   items     ItemCategory[]
+  boms      BOMCategory[]
 
   @@map("categories")
 }
@@ -346,20 +438,32 @@ model Category {
 
 model Item {
   id           Int      @id @default(autoincrement())
-  name         String
+  name         String   @unique
   price        Decimal  @db.Decimal(10, 2)
+  costPrice    Decimal  @default(0) @map("cost_price") @db.Decimal(10, 2)
   unit         String
   reorderPoint Int      @default(10) @map("reorder_point")
+  showInPos    Boolean  @default(true) @map("show_in_pos")
+  isBom        Boolean  @default(false) @map("is_bom")
+  itemType     ItemType @default(GENERIC) @map("item_type")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  suppliers          ItemSupplier[]
-  categories         ItemCategory[]
-  purchaseItems      PurchaseItem[]
-  saleItems          SaleItem[]
-  inventory          Inventory[]
-  stockTransferItems StockTransferItem[]
+  suppliers            ItemSupplier[]
+  categories           ItemCategory[]
+  purchaseItems        PurchaseItem[]
+  purchaseReturnItems  PurchaseReturnItem[]
+  saleItems            SaleItem[]
+  inventory            Inventory[]
+  stockTransferItems   StockTransferItem[]
+  bomOutputs           BOM[]                  @relation("BOMOutput")
+  bomItems             BOMItem[]
+  productionOrderItems ProductionOrderItem[]
+  priceTiers           PriceTier[]
+  fabricRolls          FabricRoll[]
+  adjustmentItems      InventoryAdjustmentItem[]
+  countItems           InventoryCountItem[]
 
   @@map("items")
 }
@@ -367,7 +471,7 @@ model Item {
 model Inventory {
   itemId      Int      @map("item_id")
   warehouseId Int      @map("warehouse_id")
-  quantity    Decimal  @default(0) @db.Decimal(10, 2)
+  quantity    Decimal  @default(0) @db.Decimal(10, 6)
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
@@ -398,15 +502,25 @@ model ItemCategory {
   @@map("item_categories")
 }
 
+model BOMCategory {
+  bom        BOM      @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  bomId      Int      @map("bom_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId Int      @map("category_id")
+
+  @@id([bomId, categoryId])
+  @@map("bom_categories")
+}
+
 // ============================================
 // Purchase Management
 // ============================================
 
 enum PaymentMethod {
-  CASH     // نقد - pay with cash now
-  CREDIT   // كريدت/فيزا - pay with card now
+  CASH // نقد - pay with cash now
+  CREDIT // كريدت/فيزا - pay with card now
   DEFERRED // آجل - pay later
-  MIXED    // متنوع - partial payment
+  MIXED // متنوع - partial payment
 }
 
 enum DiscountType {
@@ -418,6 +532,7 @@ enum PaymentStatus {
   PAID
   PARTIALLY_PAID
   UNPAID
+  RETURNED
 }
 
 model Purchase {
@@ -435,6 +550,13 @@ model Purchase {
   netTotal          Decimal       @map("net_total") @db.Decimal(10, 2)
   paidAmount        Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
   remaining         Decimal       @default(0) @db.Decimal(10, 2)
+  isInternational   Boolean       @default(false) @map("is_international")
+  shippingCost      Decimal       @default(0) @map("shipping_cost") @db.Decimal(10, 2)
+  customsDuty       Decimal       @default(0) @map("customs_duty") @db.Decimal(10, 2)
+  otherLandingCosts Decimal       @default(0) @map("other_landing_costs") @db.Decimal(10, 2)
+  clearanceCost         Decimal              @default(0) @map("clearance_cost") @db.Decimal(10, 2)
+  landedCostEnabled     Boolean              @default(false) @map("landed_cost_enabled")
+  landedCostAllocation  LandedCostAllocation @default(NONE) @map("landed_cost_allocation")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
@@ -443,6 +565,7 @@ model Purchase {
   treasury         Treasury          @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   warehouse        Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   items            PurchaseItem[]
+  returns          PurchaseReturn[]
   expense          Expense?
   supplierPayments SupplierPayment[]
 
@@ -452,17 +575,48 @@ model Purchase {
 model PurchaseItem {
   purchaseId    Int     @map("purchase_id")
   itemId        Int     @map("item_id")
-  quantity      Decimal @db.Decimal(10, 2)
+  quantity      Decimal @db.Decimal(10, 4)
   purchasePrice Decimal @map("purchase_price") @db.Decimal(10, 2)
   sellPrice     Decimal @map("sell_price") @db.Decimal(10, 2)
   total         Decimal @db.Decimal(10, 2)
+  allocatedLandedCost Decimal @default(0) @map("allocated_landed_cost") @db.Decimal(10, 2)
+  finalUnitCost       Decimal @default(0) @map("final_unit_cost") @db.Decimal(10, 2)
 
   // Relations
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   item     Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@id([purchaseId, itemId])
+  @@index([itemId, purchaseId])
   @@map("purchase_items")
+}
+
+model PurchaseReturn {
+  id           Int                  @id @default(autoincrement())
+  purchaseId   Int                  @map("purchase_id")
+  returnNumber String               @unique @map("return_number")
+  notes        String?              @db.VarChar(500)
+  totalAmount  Decimal              @map("total_amount") @db.Decimal(10, 2)
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  purchase Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  items    PurchaseReturnItem[]
+
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id               Int            @id @default(autoincrement())
+  purchaseReturnId Int            @map("purchase_return_id")
+  itemId           Int            @map("item_id")
+  quantity         Decimal        @db.Decimal(10, 4)
+  purchasePrice    Decimal        @map("purchase_price") @db.Decimal(10, 2)
+  total            Decimal        @db.Decimal(10, 2)
+
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  item           Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@map("purchase_return_items")
 }
 
 // ============================================
@@ -470,31 +624,45 @@ model PurchaseItem {
 // ============================================
 
 model Shift {
-  id           Int         @id @default(autoincrement())
-  userId       Int         @map("user_id")
-  branchId     Int         @map("branch_id")
-  startTime    DateTime    @default(now()) @map("start_time")
-  endTime      DateTime?   @map("end_time")
-  startCash    Decimal     @default(0) @db.Decimal(10, 2) @map("start_cash")
-  endCash      Decimal?    @db.Decimal(10, 2) @map("end_cash")
-  status       ShiftStatus @default(OPEN)
-  
+  id                 Int         @id @default(autoincrement())
+  userId             Int         @map("user_id")
+  branchId           Int         @map("branch_id")
+  type               ShiftType   @default(MORNING)
+  startTime          DateTime    @default(now()) @map("start_time")
+  endTime            DateTime?   @map("end_time")
+  startCash          Decimal     @default(0) @map("start_cash") @db.Decimal(10, 2)
+  endCash            Decimal?    @map("end_cash") @db.Decimal(10, 2)
+  systemExpectedCash Decimal?    @map("system_expected_cash") @db.Decimal(10, 2)
+  actualCash         Decimal?    @map("actual_cash") @db.Decimal(10, 2)
+  shortage           Decimal?    @db.Decimal(10, 2)
+  status             ShiftStatus @default(OPEN)
+  reviewedById       Int?        @map("reviewed_by_id")
+  reviewedAt         DateTime?   @map("reviewed_at")
+
   // Relations
-  user         User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  branch       Branch      @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  sales        Sale[]
+  user       User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  reviewedBy User?     @relation("ShiftReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  sales      Sale[]
+  expenses   Expense[]
 
   @@map("shifts")
 }
 
+enum ShiftType {
+  MORNING
+  EVENING
+}
+
 enum ShiftStatus {
   OPEN
+  PENDING_REVIEW
   CLOSED
 }
 
 enum SalePaymentMethod {
   CASH
-  CARD
+  INSTAPAY
 }
 
 enum SaleStatus {
@@ -503,53 +671,74 @@ enum SaleStatus {
   CANCELLED
 }
 
+enum DeliveryStatus {
+  PENDING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RETURNED
+  CANCELED
+}
+
 model Sale {
-  id            Int               @id @default(autoincrement())
-  saleNumber    String            @unique @map("sale_number")
-  clientId      Int               @map("client_id")
-  employeeId    Int?              @map("employee_id")
-  userId        Int?              @map("user_id")
-  branchId      Int               @map("branch_id")
-  treasuryId    Int               @map("treasury_id")
-  warehouseId   Int?              @map("warehouse_id")
-  shiftId       Int?              @map("shift_id")
-  subtotal      Decimal           @db.Decimal(10, 2)
-  taxRate       Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
-  taxAmount     Decimal           @map("tax_amount") @db.Decimal(10, 2)
-  total         Decimal           @db.Decimal(10, 2)
-  paymentMethod SalePaymentMethod @default(CASH) @map("payment_method")
-  paidAmount    Decimal           @map("paid_amount") @db.Decimal(10, 2)
-  changeAmount  Decimal           @default(0) @map("change_amount") @db.Decimal(10, 2)
-  status        SaleStatus        @default(COMPLETED)
-  notes         String?           @db.Text
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
+  id              Int               @id @default(autoincrement())
+  saleNumber      String            @unique @map("sale_number")
+  clientId        Int               @map("client_id")
+  employeeId      Int?              @map("employee_id")
+  userId          Int?              @map("user_id")
+  branchId        Int               @map("branch_id")
+  treasuryId      Int               @map("treasury_id")
+  warehouseId     Int?              @map("warehouse_id")
+  shiftId         Int?              @map("shift_id")
+  deliveryManId   Int?              @map("delivery_man_id")
+  deliveryZoneId  Int?              @map("delivery_zone_id")
+  deliveryFee     Decimal?          @map("delivery_fee") @db.Decimal(10, 2)
+  deliveryDriverShare Decimal?      @map("delivery_driver_share") @db.Decimal(10, 2)
+  deliveryAddress String?           @map("delivery_address") @db.Text
+  deliveryStatus  DeliveryStatus?   @map("delivery_status")
+  subtotal        Decimal           @db.Decimal(10, 2)
+  taxRate         Decimal           @default(0.14) @map("tax_rate") @db.Decimal(5, 4)
+  taxAmount       Decimal           @map("tax_amount") @db.Decimal(10, 2)
+  total           Decimal           @db.Decimal(10, 2)
+  paymentMethod   SalePaymentMethod @default(CASH) @map("payment_method")
+  paidAmount      Decimal           @map("paid_amount") @db.Decimal(10, 2)
+  changeAmount    Decimal           @default(0) @map("change_amount") @db.Decimal(10, 2)
+  status          SaleStatus        @default(COMPLETED)
+  notes           String?           @db.Text
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  client    Client     @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  employee  Employee?  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  user      User?      @relation(fields: [userId], references: [id], onDelete: Restrict)
-  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  treasury  Treasury   @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  shift     Shift?     @relation(fields: [shiftId], references: [id], onDelete: Restrict)
-  items     SaleItem[]
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  employee     Employee?     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  treasury     Treasury      @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  warehouse    Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  shift        Shift?        @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  deliveryMan  DeliveryMan?  @relation(fields: [deliveryManId], references: [id], onDelete: SetNull)
+  deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  items        SaleItem[]
 
+  @@index([createdAt, branchId])
   @@map("sales")
 }
 
 model SaleItem {
   id        Int     @id @default(autoincrement())
   saleId    Int     @map("sale_id")
-  itemId    Int     @map("item_id")
-  quantity  Decimal @db.Decimal(10, 2)
+  itemId    Int?    @map("item_id")
+  bomId     Int?    @map("bom_id")
+  quantity  Decimal @db.Decimal(10, 4)
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
   total     Decimal @db.Decimal(10, 2)
 
   // Relations
-  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  sale           Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  item           Item?           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  bom            BOM?            @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  fabricRollCuts FabricRollCut[]
 
+  @@index([itemId, saleId])
   @@map("sale_items")
 }
 
@@ -588,8 +777,14 @@ enum TransferStatus {
 // ============================================
 
 model SystemConfiguration {
-  id          Int    @id @default(1)
-  companyName String @default("ERP System") @map("company_name")
+  id                 Int    @id @default(1)
+  companyName        String @default("رامكس ستور") @map("company_name")
+  companyNameEnglish String @default("Ramex Store") @map("company_name_english")
+  taxNumber          String @default("") @map("tax_number")
+  address            String @default("") @db.Text
+  phone              String @default("") @map("phone_number")
+  logoUrl            String @default("") @map("logo_url")
+  themeKey           String @default("ramex-store") @map("theme_key")
 
   // Operational Defaults
   mainWarehouseId Int? @map("main_warehouse_id")
@@ -597,13 +792,31 @@ model SystemConfiguration {
   bankTreasuryId  Int? @map("bank_treasury_id")
 
   // Financial Defaults
-  taxRate Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
+  taxRate                 Decimal @default(14.0) @map("tax_rate") @db.Decimal(5, 2)
+  taxEnabledOnSales       Boolean @default(true) @map("tax_enabled_on_sales")
+  taxEnabledOnPurchases   Boolean @default(false) @map("tax_enabled_on_purchases")
+  taxEnabledOnExpenses    Boolean @default(false) @map("tax_enabled_on_expenses")
+  landedCostFeatureEnabled Boolean @default(false) @map("landed_cost_feature_enabled")
 
   // HR Defaults
   salaryStartDay Int    @default(1) @map("salary_start_day")
   salaryEndDay   Int    @default(30) @map("salary_end_day")
   shiftStartTime String @default("09:00") @map("shift_start_time")
   shiftEndTime   String @default("17:00") @map("shift_end_time")
+
+  // Shift Time Configuration
+  morningShiftStart String @default("09:00") @map("morning_shift_start")
+  morningShiftEnd   String @default("17:00") @map("morning_shift_end")
+  eveningShiftStart String @default("17:00") @map("evening_shift_start")
+  eveningShiftEnd   String @default("01:00") @map("evening_shift_end")
+
+  // Security Defaults
+  sessionTimeoutMinutes      Int     @default(720) @map("session_timeout_minutes")
+  passwordMinLength          Int     @default(8) @map("password_min_length")
+  passwordRequireUppercase   Boolean @default(true) @map("password_require_uppercase")
+  passwordRequireLowercase   Boolean @default(true) @map("password_require_lowercase")
+  passwordRequireNumber      Boolean @default(true) @map("password_require_number")
+  passwordRequireSpecialChar Boolean @default(true) @map("password_require_special_char")
 
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -643,7 +856,7 @@ model StockTransferItem {
   id              Int     @id @default(autoincrement())
   stockTransferId Int     @map("stock_transfer_id")
   itemId          Int     @map("item_id")
-  quantity        Decimal @db.Decimal(10, 2)
+  quantity        Decimal @db.Decimal(10, 4)
 
   // Relations
   stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
@@ -710,20 +923,22 @@ enum ExpensePaymentMethod {
 }
 
 model Expense {
-  id            Int                    @id @default(autoincrement())
+  id            Int                  @id @default(autoincrement())
   description   String
-  amount        Decimal                @db.Decimal(10, 2)
-  date          DateTime               @db.Date
-  type          ExpenseType            @default(MANUAL)
-  treasuryId    Int                    @map("treasury_id")
-  purchaseId    Int?                   @unique @map("purchase_id")
-  paymentMethod ExpensePaymentMethod   @default(CASH) @map("payment_method")
-  createdAt     DateTime               @default(now()) @map("created_at")
-  updatedAt     DateTime               @updatedAt @map("updated_at")
+  amount        Decimal              @db.Decimal(10, 2)
+  date          DateTime             @db.Date
+  type          ExpenseType          @default(MANUAL)
+  treasuryId    Int                  @map("treasury_id")
+  purchaseId    Int?                 @unique @map("purchase_id")
+  shiftId       Int?                 @map("shift_id")
+  paymentMethod ExpensePaymentMethod @default(CASH) @map("payment_method")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
 
   // Relations
   treasury Treasury  @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  shift    Shift?    @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@map("expenses")
 }
@@ -747,4 +962,328 @@ model Deposit {
   createdBy User     @relation("DepositCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
   @@map("deposits")
+}
+
+// ============================================
+// Withdrawal Management
+// ============================================
+
+model Withdrawal {
+  id          Int      @id @default(autoincrement())
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?  @db.Text
+  date        DateTime @default(now()) @db.DateTime(0)
+  treasuryId  Int      @map("treasury_id")
+  createdById Int      @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  treasury  Treasury @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  createdBy User     @relation("WithdrawalCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("withdrawals")
+}
+
+// ============================================
+// Delivery Management
+// ============================================
+
+model DeliveryMan {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phone       String
+  nationalId  String?  @map("national_id")
+  vehicleType String?  @map("vehicle_type") // motorcycle, car, van, etc.
+  branchId    Int      @map("branch_id")
+  walletBalance Decimal @default(0) @map("wallet_balance") @db.Decimal(10, 2)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sales  Sale[]
+  transactions DeliveryManTransaction[]
+
+  @@map("delivery_men")
+}
+
+model DeliveryManTransaction {
+  id            Int      @id @default(autoincrement())
+  deliveryManId Int      @map("delivery_man_id")
+  amount        Decimal  @db.Decimal(10, 2)
+  type          String   // "DEBT_ACCRUED" (Order), "PAYMENT" (Settlement)
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdById   Int?     @map("created_by_id")
+
+  // Relations
+  deliveryMan DeliveryMan @relation(fields: [deliveryManId], references: [id], onDelete: Cascade)
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@map("delivery_man_transactions")
+}
+
+model DeliveryZone {
+  id        Int      @id @default(autoincrement())
+  name      String
+  fee       Decimal  @db.Decimal(10, 2)
+  driverShare Decimal @default(0) @map("driver_share") @db.Decimal(10, 2)
+  branchId  Int?     @map("branch_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sales    Sale[]
+
+  @@unique([branchId, name])
+  @@map("delivery_zones")
+}
+
+// ============================================
+// Production & BOM Management
+// ============================================
+
+model BOM {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  outputItemId   Int?     @map("output_item_id")
+  outputQuantity Decimal  @default(1) @map("output_quantity") @db.Decimal(10, 2)
+  price          Decimal  @default(0) @db.Decimal(10, 2)
+  unit           String   @default("piece")
+  isActive       Boolean  @default(true) @map("is_active")
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  outputItem       Item?             @relation("BOMOutput", fields: [outputItemId], references: [id], onDelete: Restrict)
+  items            BOMItem[]
+  saleItems        SaleItem[]
+  categories       BOMCategory[]
+  productionOrders ProductionOrder[]
+
+  @@map("bom")
+}
+
+model BOMItem {
+  id       Int     @id @default(autoincrement())
+  bomId    Int     @map("bom_id")
+  itemId   Int     @map("item_id")
+  quantity Decimal @db.Decimal(10, 4)
+  notes    String? @db.Text
+
+  // Relations
+  bom  BOM  @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([bomId, itemId])
+  @@map("bom_items")
+}
+
+// ============================================
+// Production Orders
+// ============================================
+
+model ProductionOrder {
+  id                Int      @id @default(autoincrement())
+  bomId             Int      @map("bom_id")
+  sourceWarehouseId Int      @map("source_warehouse_id")
+  destWarehouseId   Int?     @map("dest_warehouse_id")
+  targetOutputQty   Decimal  @map("target_output_qty") @db.Decimal(10, 4)
+  actualOutputQty   Decimal  @map("actual_output_qty")  @db.Decimal(10, 4)
+  outputWasteQty    Decimal  @default(0) @map("output_waste_qty") @db.Decimal(10, 4)
+  totalCost         Decimal  @default(0) @map("total_cost") @db.Decimal(10, 2)
+  notes             String?  @db.Text
+  createdById       Int      @map("created_by_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bom             BOM       @relation(fields: [bomId], references: [id], onDelete: Restrict)
+  sourceWarehouse Warehouse  @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
+  destWarehouse   Warehouse? @relation("DestWarehouse", fields: [destWarehouseId], references: [id], onDelete: Restrict)
+  createdBy       User       @relation("ProductionOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  items           ProductionOrderItem[]
+
+  @@map("production_orders")
+}
+
+model ProductionOrderItem {
+  id                Int     @id @default(autoincrement())
+  productionOrderId Int     @map("production_order_id")
+  itemId            Int     @map("item_id")
+  quantityUsed      Decimal @map("quantity_used") @db.Decimal(10, 6)
+
+  // Relations
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  item            Item            @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@map("production_order_items")
+}
+
+// ============================================
+// Ramex Store: Tier Pricing
+// ============================================
+
+model PriceTier {
+  id        Int      @id @default(autoincrement())
+  itemId    Int      @map("item_id")
+  tierName  String   @map("tier_name") @db.VarChar(100)
+  minQty    Decimal  @map("min_qty") @db.Decimal(10, 4)
+  price     Decimal  @db.Decimal(10, 2)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, tierName])
+  @@map("price_tiers")
+}
+
+// ============================================
+// Ramex Store: Fabric Rolls
+// ============================================
+
+model RollNumberSequence {
+  yearMonth String @id @map("year_month") @db.Char(6)
+  lastSeq   Int    @default(0) @map("last_seq")
+
+  @@map("roll_number_sequences")
+}
+
+model FabricRoll {
+  id              Int              @id @default(autoincrement())
+  itemId          Int              @map("item_id")
+  rollNumber      String           @unique @map("roll_number") @db.VarChar(50)
+  lengthMeters    Decimal          @map("length_meters") @db.Decimal(10, 2)
+  originalLength  Decimal          @map("original_length") @db.Decimal(10, 4)
+  remainingLength Decimal          @map("remaining_length") @db.Decimal(10, 4)
+  unitCost        Decimal          @default(0) @map("unit_cost") @db.Decimal(10, 2)
+  widthCm         Decimal?         @map("width_cm") @db.Decimal(10, 2)
+  weightKg        Decimal?         @map("weight_kg") @db.Decimal(10, 3)
+  colorCode       String?          @map("color_code") @db.VarChar(50)
+  barcode         String?          @unique @map("barcode") @db.VarChar(100)
+  status          FabricRollStatus @default(AVAILABLE)
+  warehouseId     Int              @map("warehouse_id")
+  purchaseItemId  Int?             @map("purchase_item_id")
+  notes           String?          @db.Text
+  lastCutAt       DateTime?        @map("last_cut_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  item      Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  cuts      FabricRollCut[]
+
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("fabric_rolls")
+}
+
+model FabricRollCut {
+  id               Int      @id @default(autoincrement())
+  fabricRollId     Int      @map("fabric_roll_id")
+  lengthCut        Decimal  @map("length_cut") @db.Decimal(10, 4)
+  saleItemId       Int?     @map("sale_item_id")
+  adjustmentItemId Int?     @map("adjustment_item_id")
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  fabricRoll     FabricRoll              @relation(fields: [fabricRollId], references: [id], onDelete: Cascade)
+  saleItem       SaleItem?               @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
+  adjustmentItem InventoryAdjustmentItem? @relation(fields: [adjustmentItemId], references: [id], onDelete: SetNull)
+
+  @@index([fabricRollId])
+  @@map("fabric_roll_cuts")
+}
+
+// ============================================
+// Ramex Store: Inventory Adjustments
+// ============================================
+
+model InventoryAdjustment {
+  id               Int                 @id @default(autoincrement())
+  adjustmentNumber String              @unique @map("adjustment_number") @db.VarChar(20)
+  warehouseId      Int                 @map("warehouse_id")
+  direction        AdjustmentDirection
+  reasonCode       AdjustmentReason    @map("reason_code")
+  reasonNote       String?             @map("reason_note") @db.Text
+  notes            String?             @db.Text
+  userId           Int                 @map("user_id")
+  branchId         Int                 @map("branch_id")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  warehouse      Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  user           User                     @relation("AdjustmentCreator", fields: [userId], references: [id], onDelete: Restrict)
+  branch         Branch                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  items          InventoryAdjustmentItem[]
+  inventoryCount InventoryCount?
+
+  @@index([warehouseId])
+  @@index([branchId, createdAt])
+  @@map("inventory_adjustments")
+}
+
+model InventoryAdjustmentItem {
+  id             Int     @id @default(autoincrement())
+  adjustmentId   Int     @map("adjustment_id")
+  itemId         Int     @map("item_id")
+  quantity       Decimal @db.Decimal(10, 6)
+  unitCostAtTime Decimal @default(0) @map("unit_cost_at_time") @db.Decimal(10, 2)
+
+  adjustment     InventoryAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  item           Item                @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  fabricRollCuts FabricRollCut[]
+
+  @@index([adjustmentId])
+  @@index([itemId])
+  @@map("inventory_adjustment_items")
+}
+
+// ============================================
+// Ramex Store: Inventory Counts
+// ============================================
+
+model InventoryCount {
+  id           Int         @id @default(autoincrement())
+  countNumber  String      @unique @map("count_number") @db.VarChar(20)
+  warehouseId  Int         @map("warehouse_id")
+  status       CountStatus @default(IN_PROGRESS)
+  userId       Int         @map("user_id")
+  branchId     Int         @map("branch_id")
+  adjustmentId Int?        @unique @map("adjustment_id")
+  countDate    DateTime    @default(now()) @map("count_date")
+  notes        String?     @db.Text
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  warehouse  Warehouse            @relation("CountWarehouse", fields: [warehouseId], references: [id], onDelete: Restrict)
+  user       User                 @relation("CountCreator", fields: [userId], references: [id], onDelete: Restrict)
+  branch     Branch               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  adjustment InventoryAdjustment? @relation(fields: [adjustmentId], references: [id], onDelete: SetNull)
+  items      InventoryCountItem[]
+
+  @@index([warehouseId])
+  @@index([branchId, countDate])
+  @@map("inventory_counts")
+}
+
+model InventoryCountItem {
+  id               Int     @id @default(autoincrement())
+  inventoryCountId Int     @map("inventory_count_id")
+  itemId           Int     @map("item_id")
+  expectedQty      Decimal @map("expected_qty") @db.Decimal(10, 6)
+  actualQty        Decimal @map("actual_qty") @db.Decimal(10, 6)
+  difference       Decimal @db.Decimal(10, 6)
+
+  inventoryCount InventoryCount @relation(fields: [inventoryCountId], references: [id], onDelete: Cascade)
+  item           Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([inventoryCountId, itemId])
+  @@map("inventory_count_items")
 }

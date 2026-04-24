@@ -24,7 +24,7 @@ const TransferManagementPage = () => {
       setTransfers(data);
     } catch (error) {
       console.error("Failed to load transfers:", error);
-      toast.error("فشل في تحميل التحويلات");
+      toast.error(error.message || "فشل في تحميل التحويلات");
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ const TransferManagementPage = () => {
       fetchTransfers();
     } catch (error) {
       console.error("Failed to approve transfer:", error);
-      toast.error("فشل في قبول التحويل");
+      toast.error(error.message || "فشل في قبول التحويل");
     } finally {
       setActionLoading(null);
     }
@@ -60,7 +60,7 @@ const TransferManagementPage = () => {
       fetchTransfers();
     } catch (error) {
       console.error("Failed to reject transfer:", error);
-      toast.error("فشل في رفض التحويل");
+      toast.error(error.message || "فشل في رفض التحويل");
     } finally {
       setActionLoading(null);
     }
@@ -119,7 +119,7 @@ const TransferManagementPage = () => {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-text-primary dark:text-text-dark mb-2">
-          إدارة التحويلات
+          إدارة تحويلات الخزائن
         </h1>
         <p className="text-text-secondary dark:text-gray-400">
           عرض وإدارة جميع تحويلات الخزائن
@@ -137,11 +137,10 @@ const TransferManagementPage = () => {
           <button
             key={filter.key}
             onClick={() => setActiveFilter(filter.key)}
-            className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${
-              activeFilter === filter.key
+            className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeFilter === filter.key
                 ? "bg-primary text-white shadow-lg"
                 : "bg-surface-light dark:bg-surface-dark text-text-primary dark:text-text-dark hover:bg-accent/20"
-            }`}>
+              }`}>
             {filter.label}
           </button>
         ))}

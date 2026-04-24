@@ -10,6 +10,7 @@ const AddDepositModal = ({ onClose, onAdd }) => {
         treasuryId: "",
     });
     const [treasuries, setTreasuries] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         const fetchTreasuries = async () => {
@@ -36,9 +37,13 @@ const AddDepositModal = ({ onClose, onAdd }) => {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = () => {
-        onAdd(formData);
-        onClose();
+    const handleSubmit = async () => {
+        setIsLoading(true);
+        try {
+            await onAdd(formData);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -86,6 +91,7 @@ const AddDepositModal = ({ onClose, onAdd }) => {
                                 onChange={handleChange}
                                 className="w-full bg-background-light border border-border-light rounded-lg px-4 py-2.5 text-text-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-numbers transition-all cursor-pointer"
                                 type="date"
+                                max={new Date().toISOString().split("T")[0]}
                             />
                         </div>
                     </div>
@@ -130,11 +136,12 @@ const AddDepositModal = ({ onClose, onAdd }) => {
                     </button>
                     <button
                         onClick={handleSubmit}
-                        className="px-6 py-2.5 rounded-lg bg-primary text-text-dark hover:bg-primary-hover shadow-md hover:shadow-lg font-bold transition-all flex items-center gap-2">
+                        disabled={isLoading}
+                        className="px-6 py-2.5 rounded-lg bg-primary text-text-dark hover:bg-primary-hover shadow-md hover:shadow-lg font-bold transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                         <span className="material-symbols-outlined text-[20px]">
-                            check
+                            {isLoading ? "hourglass_empty" : "check"}
                         </span>
-                        <span>إضافة</span>
+                        <span>{isLoading ? "جاري الإضافة..." : "إضافة"}</span>
                     </button>
                 </div>
             </div>

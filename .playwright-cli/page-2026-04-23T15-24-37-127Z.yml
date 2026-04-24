@@ -1,0 +1,167 @@
+- generic [ref=e49]:
+  - complementary [ref=e50]:
+    - img "Ramex Store Logo" [ref=e258]
+    - navigation [ref=e259]:
+      - link "people Users" [ref=e260] [cursor=pointer]:
+        - /url: /superadmin/users
+        - generic [ref=e261]: people
+        - generic [ref=e262]: Users
+      - link "badge Roles & Permissions" [ref=e263] [cursor=pointer]:
+        - /url: /superadmin/roles
+        - generic [ref=e264]: badge
+        - generic [ref=e265]: Roles & Permissions
+      - link "history Audit Logs" [ref=e266] [cursor=pointer]:
+        - /url: /superadmin/audit-logs
+        - generic [ref=e267]: history
+        - generic [ref=e268]: Audit Logs
+      - link "delete_sweep Database Reset" [ref=e269] [cursor=pointer]:
+        - /url: /superadmin/reset-database
+        - generic [ref=e270]: delete_sweep
+        - generic [ref=e271]: Database Reset
+    - generic [ref=e272]:
+      - generic [ref=e273]:
+        - generic [ref=e275]: person
+        - generic [ref=e276]:
+          - paragraph [ref=e277]: Superadmin
+          - paragraph [ref=e278]: "@superadmin"
+      - button "logout Sign Out" [ref=e279]:
+        - generic [ref=e280]: logout
+        - text: Sign Out
+  - main [ref=e76]:
+    - button "arrow_forward رجوع" [ref=e78]:
+      - generic [ref=e79]: arrow_forward
+      - generic [ref=e80]: رجوع
+    - generic [ref=e281]:
+      - generic [ref=e282]:
+        - generic [ref=e283]:
+          - heading "Role Management" [level=1] [ref=e284]
+          - paragraph [ref=e285]: Define user roles and associated permissions
+        - button "add Create Role" [ref=e286]:
+          - generic [ref=e287]: add
+          - generic [ref=e288]: Create Role
+      - generic [ref=e289]:
+        - generic [ref=e290]:
+          - generic [ref=e291]:
+            - generic [ref=e293]: badge
+            - generic [ref=e294]: 1 Users
+          - heading "Superadmin" [level=3] [ref=e295]
+          - paragraph [ref=e296]: سوبر أدمن — وصول كامل للنظام
+          - generic [ref=e297]:
+            - link "settings Permissions" [ref=e298] [cursor=pointer]:
+              - /url: /superadmin/roles/1/permissions
+              - generic [ref=e299]: settings
+              - text: Permissions
+            - button "delete" [ref=e300]:
+              - generic [ref=e301]: delete
+        - generic [ref=e302]:
+          - generic [ref=e303]:
+            - generic [ref=e305]: badge
+            - generic [ref=e306]: 1 Users
+          - heading "Admin" [level=3] [ref=e307]
+          - paragraph [ref=e308]: Administrative access
+          - generic [ref=e309]:
+            - link "settings Permissions" [ref=e310] [cursor=pointer]:
+              - /url: /superadmin/roles/2/permissions
+              - generic [ref=e311]: settings
+              - text: Permissions
+            - button "delete" [ref=e312]:
+              - generic [ref=e313]: delete
+        - generic [ref=e314]:
+          - generic [ref=e315]:
+            - generic [ref=e317]: badge
+            - generic [ref=e318]: 1 Users
+          - heading "Manager" [level=3] [ref=e319]
+          - paragraph [ref=e320]: Department manager
+          - generic [ref=e321]:
+            - link "settings Permissions" [ref=e322] [cursor=pointer]:
+              - /url: /superadmin/roles/3/permissions
+              - generic [ref=e323]: settings
+              - text: Permissions
+            - button "delete" [ref=e324]:
+              - generic [ref=e325]: delete
+        - generic [ref=e326]:
+          - generic [ref=e327]:
+            - generic [ref=e329]: badge
+            - generic [ref=e330]: 1 Users
+          - heading "Employee" [level=3] [ref=e331]
+          - paragraph [ref=e332]: Standard employee
+          - generic [ref=e333]:
+            - link "settings Permissions" [ref=e334] [cursor=pointer]:
+              - /url: /superadmin/roles/4/permissions
+              - generic [ref=e335]: settings
+              - text: Permissions
+            - button "delete" [ref=e336]:
+              - generic [ref=e337]: delete
+        - generic [ref=e338]:
+          - generic [ref=e339]:
+            - generic [ref=e341]: badge
+            - generic [ref=e342]: 1 Users
+          - heading "Owner" [level=3] [ref=e343]
+          - paragraph [ref=e344]: مالك — وصول كامل على جميع الفروع
+          - generic [ref=e345]:
+            - link "settings Permissions" [ref=e346] [cursor=pointer]:
+              - /url: /superadmin/roles/10/permissions
+              - generic [ref=e347]: settings
+              - text: Permissions
+            - button "delete" [ref=e348]:
+              - generic [ref=e349]: delete
+        - generic [ref=e350]:
+          - generic [ref=e351]:
+            - generic [ref=e353]: badge
+            - generic [ref=e354]: 2 Users
+          - heading "BranchManager" [level=3] [ref=e355]
+          - paragraph [ref=e356]: مدير فرع — وصول كامل داخل الفرع ما عدا الإعدادات العامة
+          - generic [ref=e357]:
+            - link "settings Permissions" [ref=e358] [cursor=pointer]:
+              - /url: /superadmin/roles/11/permissions
+              - generic [ref=e359]: settings
+              - text: Permissions
+            - button "delete" [ref=e360]:
+              - generic [ref=e361]: delete
+        - generic [ref=e362]:
+          - generic [ref=e363]:
+            - generic [ref=e365]: badge
+            - generic [ref=e366]: 2 Users
+          - heading "Cashier" [level=3] [ref=e367]
+          - paragraph [ref=e368]: كاشير — نقطة البيع والمناوبات وإنشاء العملاء
+          - generic [ref=e369]:
+            - link "settings Permissions" [ref=e370] [cursor=pointer]:
+              - /url: /superadmin/roles/12/permissions
+              - generic [ref=e371]: settings
+              - text: Permissions
+            - button "delete" [ref=e372]:
+              - generic [ref=e373]: delete
+        - generic [ref=e374]:
+          - generic [ref=e375]:
+            - generic [ref=e377]: badge
+            - generic [ref=e378]: 1 Users
+          - heading "WarehouseKeeper" [level=3] [ref=e379]
+          - paragraph [ref=e380]: أمين مخزن — المخزون والمشتريات ورولات الأقمشة والتعديلات والجرد
+          - generic [ref=e381]:
+            - link "settings Permissions" [ref=e382] [cursor=pointer]:
+              - /url: /superadmin/roles/13/permissions
+              - generic [ref=e383]: settings
+              - text: Permissions
+            - button "delete" [ref=e384]:
+              - generic [ref=e385]: delete
+        - generic [ref=e386]:
+          - generic [ref=e387]:
+            - generic [ref=e389]: badge
+            - generic [ref=e390]: 1 Users
+          - heading "Accountant" [level=3] [ref=e391]
+          - paragraph [ref=e392]: محاسب — قراءة شاملة وكتابة الخزينة والمصروفات والموردين
+          - generic [ref=e393]:
+            - link "settings Permissions" [ref=e394] [cursor=pointer]:
+              - /url: /superadmin/roles/14/permissions
+              - generic [ref=e395]: settings
+              - text: Permissions
+            - button "delete" [ref=e396]:
+              - generic [ref=e397]: delete
+    - generic [ref=e249]:
+      - link "code Developed by kiko-tech.com open_in_new" [ref=e250] [cursor=pointer]:
+        - /url: https://kiko-tech.com
+        - generic [ref=e251]: code
+        - generic [ref=e252]: Developed by
+        - generic [ref=e253]: kiko-tech.com
+        - generic [ref=e254]: open_in_new
+      - paragraph [ref=e255]: © 2026 Ramex Store ERP. All rights reserved.

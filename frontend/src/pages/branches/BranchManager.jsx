@@ -4,7 +4,7 @@ import { branchService, treasuryService } from "../../services/domainServices";
 import { warehouseService } from "../../services/warehouseService";
 import AuthService from "../../services/authService";
 
-const BranchForm = ({ initialData, onClose, onSave, data }) => {
+const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
   // Calculate next ID if creating new branch
   const nextId =
     data && data.length > 0
@@ -20,6 +20,7 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
   });
   const [warehouses, setWarehouses] = useState([]);
   const [treasuries, setTreasuries] = useState([]);
+  const [keepOpen, setKeepOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,14 +42,34 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+
+    // Manual HTML5 Validation Check
+    if (!e.target.checkValidity()) {
+      if (showToast) {
+        showToast("برجاء ملء جميع الحقول المطلوبة بشكل صحيح", "error");
+      }
+      return;
+    }
+
+    await onSave(formData, !keepOpen);
+
+    if (keepOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        id: parseInt(prev.id) + 1,
+        name: "",
+        address: "",
+        // Keep warehouse and treasury sticky
+      }));
+    }
   };
 
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -81,6 +102,7 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
             placeholder="أدخل اسم الفرع"
             type="text"
             required
+            maxLength={100}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             storefront
@@ -100,6 +122,7 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
             onChange={handleChange}
             placeholder="عنوان الفرع"
             type="text"
+            maxLength={200}
           />
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             location_on
@@ -113,7 +136,7 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
         </label>
         <div className="relative">
           <select
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-10 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
             name="warehouseId"
             value={formData.warehouseId}
             onChange={handleChange}
@@ -128,7 +151,7 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             warehouse
           </span>
-          <span className="material-icons-round absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
             expand_more
           </span>
         </div>
@@ -140,7 +163,7 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
         </label>
         <div className="relative">
           <select
-            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-4 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
+            className="w-full bg-background-light dark:bg-background-dark border-gray-200 dark:border-gray-600 rounded-xl py-2.5 pr-10 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow appearance-none"
             name="treasuryId"
             value={formData.treasuryId}
             onChange={handleChange}
@@ -155,24 +178,36 @@ const BranchForm = ({ initialData, onClose, onSave, data }) => {
           <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
             savings
           </span>
-          <span className="material-icons-round absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
             expand_more
           </span>
         </div>
       </div>
 
-      <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <button
           type="button"
           onClick={onClose}
-          className="px-6 py-2.5 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all">
+          className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-bold text-sm hover:bg-background-light dark:hover:bg-background-dark transition-all min-h-touch">
           إلغاء
         </button>
+
+        {!initialData && (
+          <button
+            type="submit"
+            onClick={() => setKeepOpen(true)}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20">
+            <span className="material-icons-round text-lg">playlist_add</span>
+            <span>حفظ وإضافة آخر</span>
+          </button>
+        )}
+
         <button
           type="submit"
-          className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+          onClick={() => setKeepOpen(false)}
+          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 min-h-touch">
           <span className="material-icons-round text-lg">save</span>
-          <span>حفظ التغييرات</span>
+          <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
         </button>
       </div>
     </form>
