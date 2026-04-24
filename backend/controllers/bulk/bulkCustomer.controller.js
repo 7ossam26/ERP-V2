@@ -22,7 +22,7 @@ function parseCreditLimit(raw) {
 // GET /api/bulk/customers?search=foo&active=true
 exports.list = async (req, res, next) => {
   try {
-    const { search, active } = req.query;
+    const { search, active, includeBalance } = req.query;
     const where = {};
     if (active === "true") where.isActive = true;
     if (active === "false") where.isActive = false;
@@ -52,7 +52,40 @@ exports.list = async (req, res, next) => {
         createdAt: true,
       },
     });
-    res.json(customers);
+
+    if (includeBalance !== "true") {
+      return res.json(customers);
+    }
+
+    // Compute open balance per customer in two bulk queries.
+    // openBalance = ordersDebit - paymentCredit
+    const [orderTotals, paymentTotals] = await Promise.all([
+      prisma.bulkOrder.groupBy({
+        by: ["customerId"],
+        where: { status: { in: ["CONFIRMED", "PARTIALLY_PAID"] } },
+        _sum: { balanceDue: true },
+      }),
+      // negative-amount payments (old debts) are included — their negative amount
+      // REDUCES the sum, which INCREASES the effective balance (debt owed)
+      prisma.bulkPayment.groupBy({
+        by: ["customerId"],
+        where: { voidedAt: null, orderId: null }, // floating old-debt entries
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const orderMap   = new Map(orderTotals.map((r) => [r.customerId, Number(r._sum.balanceDue || 0)]));
+    const debtMap    = new Map(paymentTotals.map((r) => [r.customerId, Number(r._sum.amount || 0)]));
+
+    const result = customers.map((c) => {
+      // ordersDebit + abs(old debts) = total open balance
+      const ordersDebit = orderMap.get(c.id) ?? 0;
+      const oldDebtSum  = debtMap.get(c.id) ?? 0; // these are negative amounts
+      const openBalance = Math.round((ordersDebit - oldDebtSum) * 100) / 100;
+      return { ...c, openBalance };
+    });
+
+    res.json(result);
   } catch (err) {
     next(err);
   }

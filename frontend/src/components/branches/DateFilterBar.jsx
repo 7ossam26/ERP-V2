@@ -41,8 +41,7 @@ const DateFilterBar = ({ value, onChange }) => {
   const selectPreset = (key) => {
     if (key === "custom") {
       setCustomOpen(true);
-      onChange({ preset: "custom", from: customFrom, to: customTo });
-      return;
+      return; // wait for user to pick dates and click تطبيق
     }
     setCustomOpen(false);
     const range = computePresetRange(key);

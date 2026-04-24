@@ -142,11 +142,18 @@ async function voidPayment(prisma, paymentId, reason, actorUserId) {
   return prisma.$transaction(async (tx) => {
     const payment = await tx.bulkPayment.findUnique({
       where: { id: paymentId },
-      include: { order: { select: { id: true, total: true, paidAt: true } } },
+      select: { id: true, orderId: true, customerId: true, method: true, amount: true,
+                treasuryId: true, voidedAt: true, voidReason: true },
     });
     if (!payment) throw Object.assign(new Error("Payment not found"), { status: 404 });
     if (payment.voidedAt) {
       throw Object.assign(new Error("Payment already voided"), { status: 409 });
+    }
+    if (payment.orderId == null) {
+      throw Object.assign(
+        new Error("Old-debt entries cannot be voided — use the delete endpoint instead"),
+        { status: 400 },
+      );
     }
 
     await tx.bulkPayment.update({
@@ -166,4 +173,153 @@ async function voidPayment(prisma, paymentId, reason, actorUserId) {
   });
 }
 
-module.exports = { createPayment, voidPayment, recomputeOrderBalance };
+/**
+ * Record a general customer payment distributed across oldest unpaid orders.
+ * Creates one BulkPayment row per order touched. Updates treasury once.
+ *
+ * @param {object} prisma  Prisma client
+ * @param {number} customerId
+ * @param {{ amount, treasuryId, notes? }} data
+ * @param {number} actorUserId
+ * @returns {Promise<object[]>} created BulkPayment rows
+ */
+async function createCustomerPayment(prisma, customerId, data, actorUserId) {
+  const { amount, treasuryId, notes } = data;
+  if (!amount || Number(amount) <= 0) {
+    throw Object.assign(new Error("amount must be a positive number"), { status: 400 });
+  }
+  if (!treasuryId) {
+    throw Object.assign(new Error("treasuryId is required"), { status: 400 });
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const customer = await tx.bulkCustomer.findUnique({ where: { id: customerId } });
+    if (!customer) throw Object.assign(new Error("Customer not found"), { status: 404 });
+
+    const treasury = await tx.treasury.findUnique({ where: { id: parseInt(treasuryId, 10) } });
+    if (!treasury) throw Object.assign(new Error("Treasury not found"), { status: 404 });
+
+    // Customer is paying us — add amount to treasury
+    await tx.treasury.update({
+      where: { id: parseInt(treasuryId, 10) },
+      data: { balance: { increment: Number(amount) } },
+    });
+
+    // Distribute across oldest unpaid / partially-paid orders
+    const unpaidOrders = await tx.bulkOrder.findMany({
+      where: {
+        customerId,
+        status: { in: ["CONFIRMED", "PARTIALLY_PAID"] },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    let remaining = round2(Number(amount));
+    const payments = [];
+
+    for (const order of unpaidOrders) {
+      if (remaining <= 0) break;
+      const due = round2(Number(order.balanceDue));
+      if (due <= 0) continue;
+      const apply = round2(Math.min(remaining, due));
+
+      const payment = await tx.bulkPayment.create({
+        data: {
+          orderId: order.id,
+          customerId,
+          treasuryId: parseInt(treasuryId, 10),
+          method: "CASH",
+          amount: apply,
+          createdByUserId: actorUserId,
+          notes: notes || null,
+        },
+        include: {
+          createdBy: { select: { id: true, name: true } },
+          treasury: { select: { id: true, name: true } },
+          order: { select: { id: true, orderNumber: true } },
+        },
+      });
+
+      await recomputeOrderBalance(tx, order.id);
+      payments.push(payment);
+      remaining = round2(remaining - apply);
+    }
+
+    // If no orders to apply against, create a floating payment (orderId = null)
+    if (payments.length === 0) {
+      const payment = await tx.bulkPayment.create({
+        data: {
+          orderId: null,
+          customerId,
+          treasuryId: parseInt(treasuryId, 10),
+          method: "CASH",
+          amount: round2(Number(amount)),
+          createdByUserId: actorUserId,
+          notes: notes || null,
+        },
+        include: {
+          createdBy: { select: { id: true, name: true } },
+          treasury: { select: { id: true, name: true } },
+        },
+      });
+      payments.push(payment);
+    }
+
+    return payments;
+  });
+}
+
+/**
+ * Record an old/pre-existing debt for a customer (no linked order, no treasury touch).
+ * Stored as a BulkPayment with negative amount and orderId = null.
+ *
+ * @param {object} prisma  Prisma client
+ * @param {number} customerId
+ * @param {{ amount, notes?, date? }} data
+ * @param {number} actorUserId
+ * @returns {Promise<object>} created BulkPayment row
+ */
+async function createOldDebtPayment(prisma, customerId, data, actorUserId) {
+  const { amount, notes, date } = data;
+  if (!amount || Number(amount) <= 0) {
+    throw Object.assign(new Error("amount must be a positive number"), { status: 400 });
+  }
+
+  const customer = await prisma.bulkCustomer.findUnique({ where: { id: customerId } });
+  if (!customer) throw Object.assign(new Error("Customer not found"), { status: 404 });
+
+  return prisma.bulkPayment.create({
+    data: {
+      orderId: null,
+      customerId,
+      treasuryId: null,
+      method: "CREDIT",
+      amount: -Math.abs(Number(amount)), // negative = debt added
+      receivedAt: date ? new Date(date) : new Date(),
+      createdByUserId: actorUserId,
+      notes: `[رصيد أولي] ${notes || ""}`.trim(),
+    },
+    include: {
+      createdBy: { select: { id: true, name: true } },
+    },
+  });
+}
+
+/**
+ * Delete an old-debt payment (negative-amount, orderId=null).
+ * Validates ownership and type before removing.
+ */
+async function deleteOldDebtPayment(prisma, customerId, paymentId) {
+  const payment = await prisma.bulkPayment.findUnique({ where: { id: paymentId } });
+  if (!payment) throw Object.assign(new Error("Payment not found"), { status: 404 });
+  if (payment.customerId !== customerId) {
+    throw Object.assign(new Error("Payment does not belong to this customer"), { status: 403 });
+  }
+  if (payment.orderId !== null || Number(payment.amount) >= 0) {
+    throw Object.assign(new Error("Only old-debt entries can be deleted this way"), { status: 400 });
+  }
+
+  await prisma.bulkPayment.delete({ where: { id: paymentId } });
+}
+
+module.exports = { createPayment, voidPayment, recomputeOrderBalance, createCustomerPayment, createOldDebtPayment, deleteOldDebtPayment };

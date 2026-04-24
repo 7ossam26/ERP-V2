@@ -51,6 +51,7 @@ export default function BulkOrderDetailPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [settingsTaxRate, setSettingsTaxRate] = useState(0.14);
+  const [settings, setSettings] = useState(null);
   const statusMenuRef = useRef(null);
 
   const [prompt, PromptDialog] = usePrompt();
@@ -71,6 +72,7 @@ export default function BulkOrderDetailPage() {
     try {
       const [ord, cfg] = await Promise.all([bulkService.getOrder(id), settingsService.get()]);
       setOrder(ord);
+      setSettings(cfg || null);
       if (cfg?.taxRate != null) setSettingsTaxRate(Number(cfg.taxRate) / 100);
     } catch (err) {
       toast.error(err?.data?.error || "تعذر تحميل الطلب");
@@ -144,7 +146,7 @@ export default function BulkOrderDetailPage() {
   const printInvoiceHandler = async (doc) => {
     if (!order) return;
     try {
-      printInvoice(order, doc || null);
+      printInvoice(order, doc || null, { settings });
     } catch (err) {
       console.error("[Print]", err);
       toast.error("تعذر فتح نافذة الطباعة");

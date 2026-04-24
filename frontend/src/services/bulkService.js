@@ -39,7 +39,10 @@ export const bulkService = {
   voidPayment: (paymentId, reason) => api.post(`/bulk/payments/${paymentId}/void`, { reason }),
   listCustomerPayments: (customerId) => api.get(`/bulk/customers/${customerId}/payments`),
 
-  // Reports
+  // Customer-level payments and old-debt management
+  createCustomerPayment: (customerId, data) => api.post(`/bulk/customers/${customerId}/payments`, data),
+  addCustomerOldDebt: (customerId, data) => api.post(`/bulk/customers/${customerId}/old-debt`, data),
+// Reports
   reportSalesByCustomer: (params) => api.get(`/bulk/reports/sales-by-customer${qs(params)}`),
   reportArAging: (params) => api.get(`/bulk/reports/ar-aging${qs(params)}`),
   reportStatement: (params) => api.get(`/bulk/reports/statement${qs(params)}`),

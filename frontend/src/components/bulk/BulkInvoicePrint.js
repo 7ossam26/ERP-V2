@@ -11,6 +11,7 @@ const DOC_TITLES = {
 };
 
 const h = React.createElement;
+const R = INVOICE_PRINT_ROOT_CLASS;
 
 export function getBulkInvoicePrintTitle(type) {
   return DOC_TITLES[type] || "مستند";
@@ -27,11 +28,11 @@ function buildBulkInvoicePrintStyles() {
       font-family: "ERP Invoice Cairo";
       src: local("Cairo"), url("/fonts/Cairo-Regular.woff2") format("woff2");
       font-style: normal;
-      font-weight: 400 800;
+      font-weight: 400 900;
       font-display: swap;
     }
 
-    .${INVOICE_PRINT_ROOT_CLASS} {
+    .${R} {
       position: fixed;
       top: 0;
       left: 0;
@@ -41,39 +42,10 @@ function buildBulkInvoicePrintStyles() {
       z-index: -1;
     }
 
-    .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-sheet {
-      font-family: "ERP Invoice Cairo", "Cairo", "Tajawal", sans-serif;
-      direction: rtl;
-    }
-
-    .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-
-    .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-table th,
-    .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-table td {
-      border-bottom: 1px solid #e2e8f0;
-      padding: 0.75rem;
-      vertical-align: top;
-    }
-
-    .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-table th {
-      color: #475569;
-      font-size: 0.8rem;
-      font-weight: 700;
-      background: #f8fafc;
-    }
-
-    .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-table tbody tr:last-child td {
-      border-bottom: 0;
-    }
-
     @media print {
       @page {
         size: A4;
-        margin: 14mm;
+        margin: 16mm 14mm 18mm 14mm;
       }
 
       body {
@@ -82,16 +54,10 @@ function buildBulkInvoicePrintStyles() {
         background: #ffffff !important;
       }
 
-      body * {
-        visibility: hidden !important;
-      }
+      body * { visibility: hidden !important; }
+      .${R}, .${R} * { visibility: visible !important; }
 
-      .${INVOICE_PRINT_ROOT_CLASS},
-      .${INVOICE_PRINT_ROOT_CLASS} * {
-        visibility: visible !important;
-      }
-
-      .${INVOICE_PRINT_ROOT_CLASS} {
+      .${R} {
         position: absolute;
         inset: 0;
         width: auto;
@@ -100,312 +66,454 @@ function buildBulkInvoicePrintStyles() {
         z-index: auto;
       }
 
-      .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-sheet {
-        max-width: none !important;
-        margin: 0 !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        background: #ffffff !important;
-        color: #000000 !important;
+      .${R} .sheet {
+        font-family: "ERP Invoice Cairo", "Cairo", "Segoe UI", sans-serif;
+        direction: rtl;
+        color: #0c0706;
+        background: #ffffff;
+        padding: 0;
+        margin: 0;
+        font-feature-settings: "kern", "liga", "calt";
       }
 
-      .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-card,
-      .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-table-wrap,
-      .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-summary {
-        break-inside: avoid;
+      .${R} .eyebrow {
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: #6b4423;
+      }
+
+      .${R} .display {
+        font-weight: 900;
+        font-size: 34px;
+        line-height: 1.05;
+        color: #0c0706;
+        letter-spacing: -0.01em;
+        margin: 6px 0 4px;
+      }
+
+      .${R} .caption {
+        font-size: 10px;
+        color: #6b4423;
+        letter-spacing: 0.02em;
+      }
+
+      .${R} .label {
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: #6b4423;
+        margin-bottom: 4px;
+      }
+
+      .${R} .num {
+        font-variant-numeric: tabular-nums;
+        direction: ltr;
+        unicode-bidi: isolate;
+      }
+
+      .${R} .masthead {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+        padding-bottom: 14px;
+        border-bottom: 3px solid #0c0706;
+      }
+
+      .${R} .masthead-accent {
+        height: 1px;
+        background: #0c0706;
+        margin-top: 3px;
+        margin-bottom: 20px;
+      }
+
+      .${R} .masthead-left {
+        flex: 1;
+      }
+
+      .${R} .masthead-right {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+      }
+
+      .${R} .brand-logo {
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+        flex-shrink: 0;
+        image-rendering: -webkit-optimize-contrast;
+      }
+
+      .${R} .meta {
+        text-align: start;
+        min-width: 120px;
+      }
+
+      .${R} .meta-value {
+        font-size: 12px;
+        font-weight: 600;
+        color: #0c0706;
+        margin-bottom: 8px;
+      }
+
+      .${R} .info-band {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr;
+        gap: 0;
+        border-bottom: 1px solid rgba(12, 7, 6, 0.18);
+        padding: 0 0 18px;
+        margin-bottom: 20px;
+      }
+
+      .${R} .info-cell {
+        padding: 0 18px;
+        border-inline-start: 1px solid rgba(12, 7, 6, 0.18);
+      }
+
+      .${R} .info-cell:first-child {
+        border-inline-start: 0;
+        padding-inline-start: 0;
+      }
+
+      .${R} .info-cell:last-child {
+        padding-inline-end: 0;
+      }
+
+      .${R} .info-cell .primary {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0c0706;
+        line-height: 1.3;
+      }
+
+      .${R} .info-cell .secondary {
+        font-size: 10px;
+        color: #6b4423;
+        margin-top: 2px;
+      }
+
+      .${R} .items {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 22px;
+      }
+
+      .${R} .items thead th {
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: #6b4423;
+        padding: 10px 6px;
+        border-bottom: 2px solid #0c0706;
+      }
+
+      .${R} .items thead th.col-name { text-align: right; width: 44%; }
+      .${R} .items thead th.col-qty  { text-align: right; width: 18%; }
+      .${R} .items thead th.col-rate { text-align: right; width: 19%; }
+      .${R} .items thead th.col-sum  { text-align: right; width: 19%; }
+
+      .${R} .items tbody td {
+        padding: 10px 6px;
+        border-bottom: 1px solid rgba(12, 7, 6, 0.10);
+        font-size: 11px;
+        vertical-align: top;
+      }
+
+      .${R} .items tbody tr:last-child td {
+        border-bottom: 2px solid #0c0706;
+      }
+
+      .${R} .items .item-name {
+        font-weight: 600;
+        color: #0c0706;
+      }
+
+      .${R} .items .item-unit {
+        color: #6b4423;
+        font-size: 9.5px;
+        margin-inline-start: 4px;
+      }
+
+      .${R} .totals-wrap {
+        display: flex;
+        justify-content: flex-start;
+        position: relative;
+        margin-bottom: 26px;
+      }
+
+      .${R} .totals {
+        width: 58%;
+        min-width: 260px;
+      }
+
+      .${R} .totals .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 6px 0;
+        font-size: 11px;
+        color: #2a1a12;
+      }
+
+      .${R} .totals .row.muted {
+        color: #6b4423;
+      }
+
+      .${R} .totals .grand {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 11px 0 8px;
+        border-top: 2px solid #0c0706;
+        border-bottom: 0.5px solid #0c0706;
+        margin-top: 6px;
+        margin-bottom: 4px;
+      }
+
+      .${R} .totals .grand-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: #0c0706;
+      }
+
+      .${R} .totals .grand-value {
+        font-size: 22px;
+        font-weight: 900;
+        color: #7B2D1F;
+        font-variant-numeric: tabular-nums;
+        direction: ltr;
+      }
+
+      .${R} .stamp {
+        position: absolute;
+        top: -6px;
+        inset-inline-end: 12mm;
+        transform: rotate(-14deg);
+        border: 3px double #7B2D1F;
+        color: #7B2D1F;
+        padding: 7px 22px;
+        font-size: 20px;
+        font-weight: 900;
+        letter-spacing: 0.2em;
+        opacity: 0.82;
+        pointer-events: none;
+        background: rgba(255, 255, 255, 0.4);
+      }
+
+      .${R} .stamp::after {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        border: 1px solid rgba(123, 45, 31, 0.6);
+      }
+
+      .${R} .footer {
+        margin-top: 10px;
+        text-align: center;
+      }
+
+      .${R} .perforation {
+        height: 12px;
+        background-image: radial-gradient(
+          circle at center,
+          rgba(12, 7, 6, 0.45) 1.3px,
+          transparent 1.5px
+        );
+        background-size: 9px 12px;
+        background-repeat: repeat-x;
+        background-position: 0 50%;
+        margin-bottom: 12px;
+      }
+
+      .${R} .footer-note {
+        font-size: 10px;
+        color: #6b4423;
+        letter-spacing: 0.08em;
+        margin-bottom: 6px;
+      }
+
+      .${R} .footer-mark {
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        color: #0c0706;
+      }
+
+      .${R} thead { display: table-header-group; }
+      .${R} tr,
+      .${R} .info-band,
+      .${R} .totals-wrap,
+      .${R} .footer {
         page-break-inside: avoid;
-      }
-
-      .${INVOICE_PRINT_ROOT_CLASS} thead {
-        display: table-header-group;
-      }
-
-      .${INVOICE_PRINT_ROOT_CLASS} tr {
         break-inside: avoid;
-        page-break-inside: avoid;
-      }
-
-      .${INVOICE_PRINT_ROOT_CLASS} .invoice-print-muted {
-        color: #475569 !important;
       }
     }
   `;
 }
 
-function compact(children) {
-  return children.filter(Boolean);
-}
+function itemRow(line, index) {
+  const quantity = `${formatNumber(line?.quantity)}`;
+  const unit = line?.item?.unit;
 
-function createCard(title, children, key) {
   return h(
-    "section",
-    {
-      key,
-      className:
-        "invoice-print-card rounded-2xl border border-slate-200 bg-slate-50/80 p-4",
-    },
+    "tr",
+    { key: line?.id ?? index },
     [
       h(
-        "div",
-        {
-          key: "title",
-          className: "invoice-print-muted mb-2 text-xs font-semibold tracking-wide",
-        },
-        title
+        "td",
+        { key: "name", className: "item-name", style: { textAlign: "right" } },
+        line?.item?.name || "—"
       ),
-      h("div", { key: "content", className: "space-y-1 text-sm text-slate-900" }, children),
+      h(
+        "td",
+        { key: "qty", style: { textAlign: "right" } },
+        [
+          h("span", { key: "n", className: "num" }, quantity),
+          unit ? h("span", { key: "u", className: "item-unit" }, unit) : null,
+        ].filter(Boolean)
+      ),
+      h(
+        "td",
+        { key: "rate", className: "num", style: { textAlign: "right" } },
+        formatEGP(line?.unitPrice)
+      ),
+      h(
+        "td",
+        { key: "sum", className: "num", style: { textAlign: "right" } },
+        formatEGP(line?.lineTotal)
+      ),
     ]
   );
 }
 
-function createSummaryRow(label, value, key, bold = false) {
+function totalsRow(label, value, key, muted = false) {
   return h(
     "div",
-    {
-      key,
-      className: `flex items-center justify-between gap-4 border-b border-slate-200 py-2 text-sm ${
-        bold ? "font-bold text-slate-900" : "text-slate-700"
-      }`,
-    },
+    { key, className: `row${muted ? " muted" : ""}` },
     [
-      h("span", { key: "label" }, label),
-      h("span", { key: "value", className: "text-left" }, value),
+      h("span", { key: "l" }, label),
+      h("span", { key: "v", className: "num" }, value),
     ]
   );
 }
 
-function createTableCell(tagName, className, content, key) {
-  return h(tagName, { key, className }, content);
-}
-
-function createItemsTable(items) {
-  return h(
-    "section",
-    {
-      className:
-        "invoice-print-table-wrap overflow-hidden rounded-2xl border border-slate-200 bg-white",
-    },
-    [
-      h(
-        "div",
-        {
-          key: "header",
-          className: "border-b border-slate-200 bg-slate-50 px-4 py-3",
-        },
-        h("h2", { className: "text-sm font-bold text-slate-900" }, "الأصناف")
-      ),
-      h(
-        "table",
-        { key: "table", className: "invoice-print-table text-sm text-slate-900" },
-        [
-          h("thead", { key: "head" }, [
-            h("tr", { key: "row" }, [
-              createTableCell("th", "w-[40%] text-right", "الصنف", "name"),
-              createTableCell("th", "w-[20%] text-right", "الكمية", "qty"),
-              createTableCell("th", "w-[20%] text-right", "سعر الوحدة", "unitPrice"),
-              createTableCell("th", "w-[20%] text-right", "الإجمالي", "lineTotal"),
-            ]),
-          ]),
-          h(
-            "tbody",
-            { key: "body" },
-            (items || []).map((line, index) =>
-              h(
-                "tr",
-                {
-                  key: line.id ?? index,
-                  className: index % 2 === 1 ? "bg-slate-50/60" : undefined,
-                },
-                [
-                  createTableCell(
-                    "td",
-                    "text-right font-medium",
-                    line.item?.name || "—",
-                    "name"
-                  ),
-                  createTableCell(
-                    "td",
-                    "text-right",
-                    `${formatNumber(line.quantity)} ${line.item?.unit || ""}`.trim(),
-                    "qty"
-                  ),
-                  createTableCell(
-                    "td",
-                    "whitespace-nowrap text-right",
-                    formatEGP(line.unitPrice),
-                    "unitPrice"
-                  ),
-                  createTableCell(
-                    "td",
-                    "whitespace-nowrap text-right",
-                    formatEGP(line.lineTotal),
-                    "lineTotal"
-                  ),
-                ]
-              )
-            )
-          ),
-        ]
-      ),
-    ]
-  );
-}
-
-export default function BulkInvoicePrint({ order, doc }) {
+export default function BulkInvoicePrint({ order, doc, settings }) {
   const title = getBulkInvoicePrintTitle(doc?.type);
   const issueDate = formatBulkInvoicePrintDate(order?.confirmedAt || order?.createdAt);
-  const taxRate = Math.round((Number(order?.taxRate) || 0.14) * 100);
+  const settingsTaxPct = settings?.taxRate != null ? Math.round(Number(settings.taxRate)) : 14;
+  const taxPct = order?.taxRate != null ? Math.round(Number(order.taxRate) * 100) : settingsTaxPct;
+  const orderRef = order?.orderNumber || `#${order?.id ?? ""}`;
+  const docNumber = doc?.documentNumber;
+  const balanceDue = Number(order?.balanceDue) || 0;
+  const total = Number(order?.total) || 0;
+  const isPaid = total > 0 && balanceDue <= 0.005;
+
+  const customerName = order?.customer?.companyName || "—";
+  const customerTaxNumber = order?.customer?.taxNumber;
+  const phone = order?.customer?.primaryContactPhone;
+  const warehouseName = order?.warehouse?.name || "—";
+  const createdByName = order?.createdBy?.name || "—";
+
+  const companyName = settings?.companyName?.trim() || "Elghonemy · Coffee";
+  const companyTaxNumber = settings?.taxNumber?.trim() || "";
+  const logoSrc = "/assets/logo.png";
 
   return h(React.Fragment, null, [
     h("style", { key: "styles" }, buildBulkInvoicePrintStyles()),
     h(
       "div",
-      {
-        key: "root",
-        className: INVOICE_PRINT_ROOT_CLASS,
-        dir: "rtl",
-        lang: "ar",
-      },
-      h(
-        "article",
-        {
-          className:
-            "invoice-print-sheet mx-auto max-w-5xl rounded-[28px] border border-slate-200 bg-white p-8 text-slate-900 shadow-2xl sm:p-10",
-        },
-        compact([
-          h(
-            "header",
-            {
-              key: "header",
-              className:
-                "mb-6 flex flex-col gap-4 border-b-2 border-slate-900 pb-5 sm:flex-row sm:items-start sm:justify-between",
-            },
-            [
-              h("div", { key: "title-block", className: "space-y-2" }, [
-                h(
-                  "div",
-                  {
-                    key: "eyebrow",
-                    className:
-                      "text-xs font-semibold uppercase tracking-[0.35em] text-slate-500",
-                  },
-                  "Bulk POS"
-                ),
-                h(
-                  "h1",
-                  { key: "title", className: "text-3xl font-black text-slate-900" },
-                  title
-                ),
-                doc?.documentNumber
-                  ? h(
-                      "div",
-                      {
-                        key: "doc-number",
-                        className: "invoice-print-muted text-sm font-medium",
-                      },
-                      `رقم المستند: ${doc.documentNumber}`
-                    )
-                  : null,
-              ]),
-              h("div", { key: "meta", className: "space-y-2 text-sm text-slate-700" }, [
-                h(
-                  "div",
-                  {
-                    key: "order-number",
-                    className: "font-semibold text-slate-900",
-                  },
-                  `رقم الطلب: ${order?.orderNumber || `#${order?.id}`}`
-                ),
-                h(
-                  "div",
-                  { key: "issue-date", className: "invoice-print-muted" },
-                  `التاريخ: ${issueDate}`
-                ),
-              ]),
-            ]
+      { key: "root", className: R, dir: "rtl", lang: "ar" },
+      h("article", { className: "sheet" }, [
+        h("header", { key: "masthead", className: "masthead" }, [
+          h("div", { key: "left", className: "masthead-left" }, [
+            h("div", { key: "eyebrow", className: "eyebrow" }, companyName),
+            h("h1", { key: "title", className: "display" }, title),
+            docNumber
+              ? h("div", { key: "doc", className: "caption" }, `رقم المستند · ${docNumber}`)
+              : null,
+            companyTaxNumber
+              ? h("div", { key: "co-tax", className: "caption" }, `الرقم الضريبي للبائع · ${companyTaxNumber}`)
+              : null,
+          ].filter(Boolean)),
+          h("div", { key: "right", className: "masthead-right" }, [
+            h("div", { key: "meta", className: "meta" }, [
+              h("div", { key: "l1", className: "label" }, "رقم الطلب"),
+              h("div", { key: "v1", className: "meta-value num" }, orderRef),
+              h("div", { key: "l2", className: "label" }, "التاريخ"),
+              h("div", { key: "v2", className: "meta-value" }, issueDate),
+            ]),
+            h("img", {
+              key: "logo",
+              className: "brand-logo",
+              src: logoSrc,
+              alt: companyName,
+            }),
+          ]),
+        ]),
+
+        h("div", { key: "accent", className: "masthead-accent" }),
+
+        h("section", { key: "info", className: "info-band" }, [
+          h("div", { key: "customer", className: "info-cell" }, [
+            h("div", { key: "l", className: "label" }, "العميل"),
+            h("div", { key: "name", className: "primary" }, customerName),
+            customerTaxNumber
+              ? h("div", { key: "tax", className: "secondary" }, `ر. ضريبي · ${customerTaxNumber}`)
+              : null,
+            phone
+              ? h("div", { key: "phone", className: "secondary num" }, phone)
+              : null,
+          ].filter(Boolean)),
+          h("div", { key: "warehouse", className: "info-cell" }, [
+            h("div", { key: "l", className: "label" }, "المخزن"),
+            h("div", { key: "name", className: "primary" }, warehouseName),
+          ]),
+          h("div", { key: "createdBy", className: "info-cell" }, [
+            h("div", { key: "l", className: "label" }, "أصدر بواسطة"),
+            h("div", { key: "name", className: "primary" }, createdByName),
+          ]),
+        ]),
+
+        h("table", { key: "items", className: "items" }, [
+          h("thead", { key: "head" },
+            h("tr", null, [
+              h("th", { key: "n", className: "col-name" }, "الصنف"),
+              h("th", { key: "q", className: "col-qty" }, "الكمية"),
+              h("th", { key: "r", className: "col-rate" }, "سعر الوحدة"),
+              h("th", { key: "s", className: "col-sum" }, "الإجمالي"),
+            ])
           ),
-          h(
-            "section",
-            {
-              key: "info-grid",
-              className: "mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
-            },
-            [
-              createCard(
-                "العميل",
-                compact([
-                  h(
-                    "div",
-                    { key: "company", className: "font-bold text-slate-900" },
-                    order?.customer?.companyName || "—"
-                  ),
-                  order?.customer?.taxNumber
-                    ? h(
-                        "div",
-                        { key: "tax", className: "invoice-print-muted text-xs" },
-                        `الرقم الضريبي: ${order.customer.taxNumber}`
-                      )
-                    : null,
-                  order?.customer?.primaryContactPhone
-                    ? h(
-                        "div",
-                        { key: "phone", className: "invoice-print-muted text-xs" },
-                        `الهاتف: ${order.customer.primaryContactPhone}`
-                      )
-                    : null,
-                ]),
-                "customer"
-              ),
-              createCard(
-                "المخزن",
-                [h("div", { key: "warehouse" }, order?.warehouse?.name || "—")],
-                "warehouse"
-              ),
-              createCard(
-                "أُنشئ بواسطة",
-                [h("div", { key: "createdBy" }, order?.createdBy?.name || "—")],
-                "createdBy"
-              ),
-            ]
-          ),
-          h("div", { key: "items", className: "mb-6" }, createItemsTable(order?.items)),
-          h(
-            "section",
-            {
-              key: "summary-wrap",
-              className:
-                "invoice-print-summary ms-auto max-w-xl rounded-2xl border border-slate-200 bg-slate-50/70 p-5",
-            },
-            [
-              h(
-                "h2",
-                { key: "summary-title", className: "mb-3 text-sm font-bold text-slate-900" },
-                "الإجماليات"
-              ),
-              createSummaryRow("الصافي قبل الضريبة", formatEGP(order?.netAmount), "net"),
-              createSummaryRow(`الضريبة (${taxRate}%)`, formatEGP(order?.taxAmount), "tax"),
-              createSummaryRow(
-                "الإجمالي شامل الضريبة",
-                formatEGP(order?.total),
-                "total",
-                true
-              ),
-              createSummaryRow("المدفوع", formatEGP(order?.paidAmount), "paid"),
-              createSummaryRow("المتبقي", formatEGP(order?.balanceDue), "balance", true),
-            ]
-          ),
-          h(
-            "footer",
-            {
-              key: "footer",
-              className:
-                "mt-8 border-t border-slate-200 pt-4 text-center text-xs text-slate-500",
-            },
-            "شكرًا لتعاملكم معنا"
-          ),
-        ])
-      )
+          h("tbody", { key: "body" }, (order?.items || []).map(itemRow)),
+        ]),
+
+        h("section", { key: "totals", className: "totals-wrap" }, [
+          isPaid ? h("div", { key: "stamp", className: "stamp" }, "مدفوع") : null,
+          h("div", { key: "t", className: "totals" }, [
+            totalsRow("الصافي قبل الضريبة", formatEGP(order?.netAmount), "net", true),
+            totalsRow(`الضريبة · ${taxPct}%`, formatEGP(order?.taxAmount), "tax", true),
+            h("div", { key: "grand", className: "grand" }, [
+              h("span", { key: "l", className: "grand-label" }, "الإجمالي شامل الضريبة"),
+              h("span", { key: "v", className: "grand-value" }, formatEGP(order?.total)),
+            ]),
+            totalsRow("المدفوع", formatEGP(order?.paidAmount), "paid"),
+            totalsRow("المتبقي", formatEGP(order?.balanceDue), "balance"),
+          ]),
+        ].filter(Boolean)),
+
+        h("footer", { key: "footer", className: "footer" }, [
+          h("div", { key: "perf", className: "perforation" }),
+          h("div", { key: "note", className: "footer-note" }, "شكرًا لتعاملكم معنا"),
+          h("div", { key: "mark", className: "footer-mark" }, companyName),
+        ]),
+      ])
     ),
   ]);
 }

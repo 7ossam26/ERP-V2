@@ -27,7 +27,7 @@ async function run() {
 
   const payments = await prisma.bulkPayment.groupBy({
     by: ["orderId"],
-    where: { voidedAt: null },
+    where: { voidedAt: null, orderId: { not: null } },
     _sum: { amount: true },
   });
 

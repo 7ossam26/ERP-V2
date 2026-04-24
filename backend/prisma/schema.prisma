@@ -1373,7 +1373,7 @@ model BulkNumberSequence {
 
 model BulkPayment {
   id              Int               @id @default(autoincrement())
-  orderId         Int               @map("order_id")
+  orderId         Int?              @map("order_id")
   customerId      Int               @map("customer_id")
   treasuryId      Int?              @map("treasury_id")
   method          BulkPaymentMethod
@@ -1391,7 +1391,7 @@ model BulkPayment {
 
   notes String? @db.Text
 
-  order     BulkOrder    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  order     BulkOrder?   @relation(fields: [orderId], references: [id], onDelete: Restrict)
   customer  BulkCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
   treasury  Treasury?    @relation("BulkPaymentTreasury", fields: [treasuryId], references: [id], onDelete: Restrict)
   createdBy User         @relation("BulkPaymentCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)

@@ -18,6 +18,7 @@ function getPrintInvoiceTitle(order, doc) {
  */
 export function printInvoice(order, doc = null, options = {}) {
   const component = options.component ?? BulkInvoicePrint;
+  const settings = options.settings ?? null;
   const createRootFn = options.createRootFn ?? createRoot;
   const documentApi = options.documentApi ?? document;
   const browserWindow = options.browserWindow ?? window;
@@ -60,6 +61,7 @@ export function printInvoice(order, doc = null, options = {}) {
       React.createElement(component, {
         order,
         doc,
+        settings,
       })
     );
   } catch (error) {

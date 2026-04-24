@@ -1,59 +1,254 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
+import { treasuryService } from "../../services/treasuryService";
 import { formatEGP } from "../../utils/bulkMoney";
 import BulkSectionTabs from "../../components/bulk/BulkSectionTabs";
-import BulkPaymentModal from "../../components/bulk/BulkPaymentModal";
 import StatusChip from "../../components/bulk/StatusChip";
-import SummaryCard from "../../components/bulk/SummaryCard";
 
 const TYPE_BADGE = {
-  ORDER: { label: "مبيعات", cls: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400" },
-  PAYMENT: { label: "دفعة", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" },
-  REFUND: { label: "مرتجع", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" },
+  ORDER:   { label: "مبيعات",  cls: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400" },
+  PAYMENT: { label: "دفعة",    cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" },
+  REFUND:  { label: "مرتجع",   cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" },
+  OLD_DEBT:{ label: "رصيد أولي", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400" },
 };
 
-export default function BulkCollectionsPage() {
-  const [agingRows, setAgingRows] = useState([]);
-  const [agingLoading, setAgingLoading] = useState(true);
-  const [search, setSearch] = useState("");
+const METHOD_BADGE = {
+  CASH:          { label: "نقدي",        cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" },
+  BANK_TRANSFER: { label: "تحويل بنكي",  cls: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400" },
+  CHEQUE:        { label: "شيك",         cls: "bg-violet-100 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400" },
+  CREDIT:        { label: "دين",         cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400" },
+};
 
-  const [selectedId, setSelectedId] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [statement, setStatement] = useState(null);
-  const [pendingOrders, setPendingOrders] = useState([]);
-  const [activeTab, setActiveTab] = useState("orders");
-  const [payOrder, setPayOrder] = useState(null);
+// ─── modals ──────────────────────────────────────────────────────────────────
 
-  const loadAging = () => {
-    setAgingLoading(true);
-    bulkService
-      .reportArAging()
-      .then((r) => setAgingRows(r.rows || []))
-      .catch(() => toast.error("تعذر تحميل بيانات التحصيل"))
-      .finally(() => setAgingLoading(false));
+function PayDebtModal({ customer, openBalance, onSuccess, onClose }) {
+  const [amount, setAmount]         = useState(openBalance > 0 ? String(openBalance.toFixed(2)) : "");
+  const [treasuryId, setTreasuryId] = useState("");
+  const [notes, setNotes]           = useState("");
+  const [treasuries, setTreasuries] = useState([]);
+  const [loading, setLoading]       = useState(false);
+
+  useEffect(() => {
+    treasuryService.getAll().then((list) => {
+      const active = list.filter((t) => t.isActive !== false);
+      setTreasuries(active);
+      if (active.length > 0) setTreasuryId(String(active[0].id));
+    });
+  }, []);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const amt = Number(amount);
+    if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
+    if (!treasuryId) return toast.error("اختر خزينة");
+    setLoading(true);
+    try {
+      await bulkService.createCustomerPayment(customer.id, { amount: amt, treasuryId: Number(treasuryId), notes });
+      toast.success("تم تسجيل الدفعة");
+      onSuccess();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || "تعذر تسجيل الدفعة");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadAging(); }, []);
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
+      <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex justify-between items-center p-4 border-b border-border-light dark:border-border-dark">
+          <h3 className="font-bold text-text-light dark:text-text-dark">سداد دفعة</h3>
+          <button onClick={onClose} className="text-text-light/50 hover:text-text-light dark:text-text-dark/50 dark:hover:text-text-dark">
+            <span className="material-icons-round text-xl">close</span>
+          </button>
+        </div>
+        <form onSubmit={submit} className="p-4 space-y-4">
+          <p className="text-sm text-text-light/70 dark:text-text-dark/70">
+            العميل: <strong className="text-text-light dark:text-text-dark">{customer.companyName}</strong>
+            {openBalance > 0 && (
+              <> · الرصيد المستحق: <strong className="text-red-600">{formatEGP(openBalance)}</strong></>
+            )}
+          </p>
 
-  const loadDetail = (customerId) => {
-    if (!customerId) { setStatement(null); setPendingOrders([]); return; }
+          <div>
+            <label className="block text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-1">المبلغ</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full border border-border-light dark:border-border-dark rounded-xl p-2 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-1">الخزينة</label>
+            <select
+              value={treasuryId}
+              onChange={(e) => setTreasuryId(e.target.value)}
+              className="w-full border border-border-light dark:border-border-dark rounded-xl p-2 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              {treasuries.map((t) => (
+                <option key={t.id} value={String(t.id)}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-1">ملاحظات (اختياري)</label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full border border-border-light dark:border-border-dark rounded-xl p-2 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-border-light dark:border-border-dark rounded-xl hover:bg-accent/20 dark:hover:bg-primary/10 transition-colors">
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2 text-sm bg-primary hover:bg-primary-hover text-white rounded-xl transition-colors disabled:opacity-60"
+            >
+              {loading ? "جارٍ التسجيل..." : "تسجيل الدفعة"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function OldDebtModal({ customer, onSuccess, onClose }) {
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes]   = useState("");
+  const [date, setDate]     = useState(new Date().toISOString().slice(0, 10));
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const amt = Number(amount);
+    if (!amt || amt <= 0) return toast.error("أدخل مبلغ صحيح");
+    setLoading(true);
+    try {
+      await bulkService.addCustomerOldDebt(customer.id, { amount: amt, notes, date });
+      toast.success("تم إضافة الدين القديم");
+      onSuccess();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || "تعذر إضافة الدين القديم");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
+      <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex justify-between items-center p-4 border-b border-border-light dark:border-border-dark">
+          <h3 className="font-bold text-text-light dark:text-text-dark">إضافة دين قديم</h3>
+          <button onClick={onClose} className="text-text-light/50 hover:text-text-light dark:text-text-dark/50 dark:hover:text-text-dark">
+            <span className="material-icons-round text-xl">close</span>
+          </button>
+        </div>
+        <form onSubmit={submit} className="p-4 space-y-4">
+          <p className="text-sm text-text-light/70 dark:text-text-dark/70">
+            العميل: <strong className="text-text-light dark:text-text-dark">{customer.companyName}</strong>
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-1">المبلغ</label>
+            <input
+              type="number" step="0.01" min="0.01" value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full border border-border-light dark:border-border-dark rounded-xl p-2 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-1">التاريخ</label>
+            <input
+              type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="w-full border border-border-light dark:border-border-dark rounded-xl p-2 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-1">ملاحظات (اختياري)</label>
+            <input
+              type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="w-full border border-border-light dark:border-border-dark rounded-xl p-2 bg-surface-light dark:bg-surface-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-border-light dark:border-border-dark rounded-xl hover:bg-accent/20 dark:hover:bg-primary/10 transition-colors">
+              إلغاء
+            </button>
+            <button
+              type="submit" disabled={loading}
+              className="px-5 py-2 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition-colors disabled:opacity-60"
+            >
+              {loading ? "جارٍ الحفظ..." : "إضافة الدين"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── main page ────────────────────────────────────────────────────────────────
+
+export default function BulkCollectionsPage() {
+  const [customers, setCustomers]       = useState([]);
+  const [customersLoading, setCustomersLoading] = useState(true);
+  const [search, setSearch]             = useState("");
+
+  const [selectedId, setSelectedId]     = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [orders, setOrders]             = useState([]);
+  const [payments, setPayments]         = useState([]);
+  const [activeTab, setActiveTab]       = useState("orders");
+
+  const [payModal, setPayModal]         = useState(null);   // customer obj
+  const [debtModal, setDebtModal]       = useState(null);   // customer obj
+
+  const loadCustomers = useCallback(() => {
+    setCustomersLoading(true);
+    bulkService
+      .listCustomers({ includeBalance: "true" })
+      .then((res) => setCustomers(Array.isArray(res) ? res : (res.data || [])))
+      .catch(() => toast.error("تعذر تحميل العملاء"))
+      .finally(() => setCustomersLoading(false));
+  }, []);
+
+  useEffect(() => { loadCustomers(); }, [loadCustomers]);
+
+  const loadDetail = useCallback((customerId) => {
+    if (!customerId) { setOrders([]); setPayments([]); return; }
     setDetailLoading(true);
     Promise.all([
-      bulkService.reportStatement({ customerId }),
       bulkService.listOrders({ customerId, status: "CONFIRMED" }),
       bulkService.listOrders({ customerId, status: "PARTIALLY_PAID" }),
+      bulkService.listCustomerPayments(customerId),
     ])
-      .then(([stmt, confirmed, partial]) => {
-        setStatement(stmt);
+      .then(([confirmed, partial, pmts]) => {
         const combined = [...confirmed, ...partial];
         combined.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        setPendingOrders(combined);
+        setOrders(combined);
+        setPayments(Array.isArray(pmts) ? pmts : []);
       })
       .catch(() => toast.error("تعذر تحميل تفاصيل العميل"))
       .finally(() => setDetailLoading(false));
-  };
+  }, []);
 
   const selectCustomer = (id) => {
     setSelectedId(id);
@@ -61,18 +256,29 @@ export default function BulkCollectionsPage() {
     loadDetail(id);
   };
 
-  const afterPayment = () => {
-    setPayOrder(null);
-    loadAging();
-    loadDetail(selectedId);
+  const afterAction = () => {
+    setPayModal(null);
+    setDebtModal(null);
+    loadCustomers();
+    if (selectedId) loadDetail(selectedId);
   };
 
-  const filteredRows = agingRows.filter((r) =>
+const selectedCustomer = customers.find((c) => c.id === selectedId);
+  const openBalance = Number(selectedCustomer?.openBalance ?? 0);
+
+  const filteredCustomers = customers.filter((c) =>
     !search.trim() ||
-    (r.companyName || "").toLowerCase().includes(search.trim().toLowerCase())
+    (c.companyName || "").toLowerCase().includes(search.trim().toLowerCase()) ||
+    (c.tradeName || "").toLowerCase().includes(search.trim().toLowerCase())
   );
 
-  const selectedRow = agingRows.find((r) => r.customerId === selectedId);
+  // Sort: customers with balance first, then alphabetical
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    const balA = Number(a.openBalance ?? a.creditExposure ?? 0);
+    const balB = Number(b.openBalance ?? b.creditExposure ?? 0);
+    if (balB !== balA) return balB - balA;
+    return (a.companyName || "").localeCompare(b.companyName || "", "ar");
+  });
 
   return (
     <div className="p-3 sm:p-4" dir="rtl">
@@ -88,7 +294,7 @@ export default function BulkCollectionsPage() {
         <div className="lg:col-span-1 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-soft dark:shadow-soft-dark overflow-hidden flex flex-col">
           <div className="p-3 border-b border-border-light dark:border-border-dark bg-accent/5 dark:bg-primary/5">
             <div className="text-sm font-bold text-text-light dark:text-text-dark mb-2">
-              العملاء المديونون ({filteredRows.length})
+              العملاء ({sortedCustomers.length})
             </div>
             <input
               type="search"
@@ -100,39 +306,46 @@ export default function BulkCollectionsPage() {
           </div>
 
           <div className="overflow-y-auto flex-1 max-h-[65vh]">
-            {agingLoading ? (
+            {customersLoading ? (
               <div className="p-8 text-center text-text-light/40 dark:text-text-dark/40 text-sm">جارٍ التحميل...</div>
-            ) : filteredRows.length === 0 ? (
-              <div className="p-8 text-center text-text-light/40 dark:text-text-dark/40 text-sm">
-                {search ? "لا توجد نتائج" : "لا يوجد عملاء مديونون"}
-              </div>
+            ) : sortedCustomers.length === 0 ? (
+              <div className="p-8 text-center text-text-light/40 dark:text-text-dark/40 text-sm">لا يوجد عملاء</div>
             ) : (
-              filteredRows.map((row) => (
-                <button
-                  key={row.customerId}
-                  onClick={() => selectCustomer(row.customerId)}
-                  className={`w-full text-right p-3 border-b border-border-light dark:border-border-dark transition-colors duration-150 ${
-                    selectedId === row.customerId
-                      ? "bg-primary/10 dark:bg-primary/20"
-                      : "hover:bg-accent/20 dark:hover:bg-primary/10"
-                  }`}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm text-text-light dark:text-text-dark truncate">
-                        {row.companyName}
+              sortedCustomers.map((customer) => {
+                const bal = Number(customer.openBalance ?? customer.creditExposure ?? 0);
+                return (
+                  <button
+                    key={customer.id}
+                    onClick={() => selectCustomer(customer.id)}
+                    className={`w-full text-right p-3 border-b border-border-light dark:border-border-dark transition-colors duration-150 ${
+                      selectedId === customer.id
+                        ? "bg-primary/10 dark:bg-primary/20"
+                        : "hover:bg-accent/20 dark:hover:bg-primary/10"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm text-text-light dark:text-text-dark truncate">
+                          {customer.companyName}
+                        </div>
+                        {customer.tradeName && (
+                          <div className="text-xs text-text-light/50 dark:text-text-dark/50 truncate">{customer.tradeName}</div>
+                        )}
                       </div>
-                      {row.tradeName && (
-                        <div className="text-xs text-text-light/50 dark:text-text-dark/50 truncate">{row.tradeName}</div>
-                      )}
+                      <div className="text-right flex-shrink-0">
+                        {bal > 0 ? (
+                          <>
+                            <div className="text-sm font-bold text-red-600 dark:text-red-400">{formatEGP(bal)}</div>
+                            <div className="text-[10px] text-text-light/40 dark:text-text-dark/40">مستحق</div>
+                          </>
+                        ) : (
+                          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">مسدد</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-sm font-bold text-red-600 dark:text-red-400">{formatEGP(row.total)}</div>
-                      <div className="text-[10px] text-text-light/40 dark:text-text-dark/40">مستحق</div>
-                    </div>
-                  </div>
-                </button>
-              ))
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
@@ -151,47 +364,46 @@ export default function BulkCollectionsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                   <div>
                     <h2 className="text-xl font-bold text-text-light dark:text-text-dark">
-                      {selectedRow?.companyName}
+                      {selectedCustomer?.companyName}
                     </h2>
-                    {selectedRow?.tradeName && (
-                      <div className="text-sm text-text-light/50 dark:text-text-dark/50">{selectedRow.tradeName}</div>
+                    {selectedCustomer?.tradeName && (
+                      <div className="text-sm text-text-light/50 dark:text-text-dark/50">{selectedCustomer.tradeName}</div>
                     )}
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatEGP(selectedRow?.total)}</div>
-                    <div className="text-xs text-text-light/50 dark:text-text-dark/50">إجمالي المستحق</div>
-                  </div>
+                  {openBalance > 0 && (
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatEGP(openBalance)}</div>
+                      <div className="text-xs text-text-light/50 dark:text-text-dark/50">إجمالي المستحق</div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Aging buckets */}
-                {selectedRow && (
-                  <div className="grid grid-cols-4 gap-2 mb-4">
-                    {[
-                      { label: "0-30 يوم", val: selectedRow.b0_30 },
-                      { label: "31-60 يوم", val: selectedRow.b31_60 },
-                      { label: "61-90 يوم", val: selectedRow.b61_90 },
-                      { label: "+90 يوم", val: selectedRow.b90plus },
-                    ].map(({ label, val }) => (
-                      <div key={label} className="bg-accent/10 dark:bg-primary/10 rounded-xl p-2 text-center">
-                        <div className="text-xs text-text-light/50 dark:text-text-dark/50">{label}</div>
-                        <div className={`text-sm font-bold mt-0.5 ${val > 0 ? "text-red-600 dark:text-red-400" : "text-text-light/40 dark:text-text-dark/40"}`}>
-                          {val > 0 ? formatEGP(val) : "—"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {openBalance > 0 && (
+                    <button
+                      onClick={() => setPayModal(selectedCustomer)}
+                      className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5"
+                    >
+                      <span className="material-icons-round text-[16px]">payments</span>
+                      سداد دفعة
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setDebtModal(selectedCustomer)}
+                    className="border border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5"
+                  >
+                    <span className="material-icons-round text-[16px]">add_circle_outline</span>
+                    إضافة دين قديم
+                  </button>
                   <Link
                     to={`/bulk/customers/${selectedId}`}
-                    className="border border-primary/30 text-primary hover:bg-primary/5 px-3 py-2 rounded-xl text-sm transition-colors"
+                    className="border border-border-light dark:border-border-dark text-text-light/70 dark:text-text-dark/70 hover:bg-accent/20 dark:hover:bg-primary/10 px-4 py-2 rounded-xl text-sm transition-colors"
                   >
                     ملف العميل
                   </Link>
                   <Link
                     to={`/bulk/pos?customerId=${selectedId}`}
-                    className="border border-primary/30 text-primary hover:bg-primary/5 px-3 py-2 rounded-xl text-sm transition-colors"
+                    className="border border-border-light dark:border-border-dark text-text-light/70 dark:text-text-dark/70 hover:bg-accent/20 dark:hover:bg-primary/10 px-4 py-2 rounded-xl text-sm transition-colors"
                   >
                     فاتورة جديدة
                   </Link>
@@ -201,8 +413,8 @@ export default function BulkCollectionsPage() {
               {/* Tabs */}
               <div className="flex gap-1 border-b border-border-light dark:border-border-dark">
                 {[
-                  { key: "orders", label: `الطلبات المعلقة (${pendingOrders.length})` },
-                  { key: "statement", label: "كشف الحساب" },
+                  { key: "orders",   label: `الطلبات المعلقة (${orders.length})` },
+                  { key: "payments", label: "سجل الدفعات" },
                 ].map((t) => (
                   <button
                     key={t.key}
@@ -222,11 +434,9 @@ export default function BulkCollectionsPage() {
                 <div className="p-8 text-center text-text-light/40 dark:text-text-dark/40 text-sm">جارٍ التحميل...</div>
               ) : (
                 <>
-                  {activeTab === "orders" && (
-                    <PendingOrdersTab orders={pendingOrders} onPay={setPayOrder} />
-                  )}
-                  {activeTab === "statement" && statement && (
-                    <StatementTab statement={statement} />
+                  {activeTab === "orders" && <PendingOrdersTab orders={orders} />}
+                  {activeTab === "payments" && (
+                    <PaymentsTab payments={payments} />
                   )}
                 </>
               )}
@@ -235,22 +445,32 @@ export default function BulkCollectionsPage() {
         </div>
       </div>
 
-      {payOrder && (
-        <BulkPaymentModal
-          order={payOrder}
-          onSuccess={afterPayment}
-          onClose={() => setPayOrder(null)}
+      {payModal && (
+        <PayDebtModal
+          customer={payModal}
+          openBalance={openBalance}
+          onSuccess={afterAction}
+          onClose={() => setPayModal(null)}
+        />
+      )}
+      {debtModal && (
+        <OldDebtModal
+          customer={debtModal}
+          onSuccess={afterAction}
+          onClose={() => setDebtModal(null)}
         />
       )}
     </div>
   );
 }
 
-function PendingOrdersTab({ orders, onPay }) {
+// ─── sub-components ───────────────────────────────────────────────────────────
+
+function PendingOrdersTab({ orders }) {
   if (orders.length === 0) {
     return (
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-8 text-center text-sm text-text-light/40 dark:text-text-dark/40">
-        لا يوجد طلبات معلقة التحصيل.
+        لا يوجد طلبات معلقة.
       </div>
     );
   }
@@ -265,16 +485,14 @@ function PendingOrdersTab({ orders, onPay }) {
             <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الإجمالي</th>
             <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">المتبقي</th>
             <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الحالة</th>
-            <th className="p-3"></th>
+            <th className="p-3 w-10"></th>
           </tr>
         </thead>
         <tbody>
           {orders.map((o) => (
             <tr key={o.id} className="border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10 transition-colors">
               <td className="p-3">
-                <Link to={`/bulk/orders/${o.id}`} className="text-primary hover:text-primary-hover font-semibold transition-colors">
-                  {o.orderNumber || `#${o.id}`}
-                </Link>
+                <span className="font-semibold text-text-light dark:text-text-dark">{o.orderNumber || `#${o.id}`}</span>
               </td>
               <td className="p-3 ltr-numbers text-text-light/70 dark:text-text-dark/70">
                 {new Date(o.createdAt).toLocaleDateString("ar-EG")}
@@ -283,12 +501,13 @@ function PendingOrdersTab({ orders, onPay }) {
               <td className="p-3 font-bold text-red-600 dark:text-red-400">{formatEGP(o.balanceDue)}</td>
               <td className="p-3"><StatusChip status={o.status} /></td>
               <td className="p-3">
-                <button
-                  onClick={() => onPay(o)}
-                  className="bg-primary hover:bg-primary-hover text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+                <Link
+                  to={`/bulk/orders/${o.id}`}
+                  className="text-primary hover:text-primary-hover transition-colors"
+                  title="عرض الطلب"
                 >
-                  تحصيل
-                </button>
+                  <span className="material-icons-round text-[20px]">visibility</span>
+                </Link>
               </td>
             </tr>
           ))}
@@ -298,86 +517,90 @@ function PendingOrdersTab({ orders, onPay }) {
   );
 }
 
-function StatementTab({ statement }) {
-  const { summary, entries } = statement;
+function PaymentsTab({ payments }) {
+  if (payments.length === 0) {
+    return (
+      <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-8 text-center text-sm text-text-light/40 dark:text-text-dark/40">
+        لا يوجد حركات مالية.
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-3">
-        <SummaryCard label="إجمالي المبيعات" value={formatEGP(summary.totalDebit)} />
-        <SummaryCard label="إجمالي المدفوع" value={formatEGP(summary.totalCredit)} tone="success" />
-        <SummaryCard
-          label="الرصيد المفتوح"
-          value={formatEGP(summary.closingBalance)}
-          tone={summary.closingBalance > 0 ? "danger" : "default"}
-        />
-      </div>
-
-      <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-soft dark:shadow-soft-dark overflow-hidden">
-        {entries.length === 0 ? (
-          <div className="p-8 text-center text-sm text-text-light/40 dark:text-text-dark/40">لا يوجد حركات.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-accent/30 dark:bg-primary/10">
-                <tr>
-                  <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
-                  <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">النوع</th>
-                  <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">المرجع</th>
-                  <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">مدين</th>
-                  <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">دائن</th>
-                  <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الرصيد</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((e, i) => {
-                  const badge = TYPE_BADGE[e.type] || TYPE_BADGE.PAYMENT;
-                  return (
-                    <tr key={i} className="border-t border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/10">
-                      <td className="p-2 ltr-numbers text-text-light/70 dark:text-text-dark/70 whitespace-nowrap">
-                        {new Date(e.date).toLocaleDateString("ar-EG")}
-                      </td>
-                      <td className="p-2">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${badge.cls}`}>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td className="p-2">
-                        {e.type === "ORDER" ? (
-                          <Link to={`/bulk/orders/${e.orderId}`} className="text-primary hover:text-primary-hover transition-colors font-medium">
-                            {e.ref}
-                          </Link>
-                        ) : (
-                          <span className="text-text-light/60 dark:text-text-dark/60 text-xs">{e.ref}</span>
-                        )}
-                      </td>
-                      <td className="p-2 text-left ltr-numbers font-medium text-red-600 dark:text-red-400">
-                        {e.debit > 0 ? formatEGP(e.debit) : "—"}
-                      </td>
-                      <td className="p-2 text-left ltr-numbers font-medium text-emerald-600 dark:text-emerald-400">
-                        {e.credit > 0 ? formatEGP(e.credit) : "—"}
-                      </td>
-                      <td className={`p-2 text-left ltr-numbers font-bold ${e.balance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
-                        {formatEGP(e.balance)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="border-t-2 border-border-light dark:border-border-dark bg-accent/20 dark:bg-primary/10">
-                <tr>
-                  <td colSpan={3} className="p-2 font-bold text-text-light dark:text-text-dark text-sm">الإجمالي</td>
-                  <td className="p-2 text-left ltr-numbers font-bold text-red-600 dark:text-red-400">{formatEGP(summary.totalDebit)}</td>
-                  <td className="p-2 text-left ltr-numbers font-bold text-emerald-600 dark:text-emerald-400">{formatEGP(summary.totalCredit)}</td>
-                  <td className={`p-2 text-left ltr-numbers font-bold ${summary.closingBalance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
-                    {formatEGP(summary.closingBalance)}
+    <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-soft dark:shadow-soft-dark overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-accent/30 dark:bg-primary/10">
+            <tr>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">النوع</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">طريقة الدفع</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الطلب</th>
+              <th className="text-left p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">المبلغ</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.map((p) => {
+              const isOldDebt = p.orderId == null && Number(p.amount) < 0;
+              const isVoided  = !!p.voidedAt;
+              const methodBadge = METHOD_BADGE[p.method] || METHOD_BADGE.CASH;
+              return (
+                <tr
+                  key={p.id}
+                  className={`border-t border-border-light dark:border-border-dark transition-colors ${
+                    isVoided
+                      ? "opacity-40"
+                      : isOldDebt
+                      ? "bg-red-50/60 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      : "hover:bg-accent/20 dark:hover:bg-primary/10"
+                  }`}
+                >
+                  <td className="p-3 ltr-numbers text-text-light/70 dark:text-text-dark/70 whitespace-nowrap">
+                    {new Date(p.receivedAt).toLocaleDateString("ar-EG")}
+                  </td>
+                  <td className="p-3">
+                    {isOldDebt ? (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${TYPE_BADGE.OLD_DEBT.cls}`}>
+                        {TYPE_BADGE.OLD_DEBT.label}
+                      </span>
+                    ) : (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${TYPE_BADGE.PAYMENT.cls}`}>
+                        {isVoided ? "ملغى" : TYPE_BADGE.PAYMENT.label}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {isOldDebt ? (
+                      <span className="text-text-light/30 dark:text-text-dark/30 text-xs">—</span>
+                    ) : (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${methodBadge.cls}`}>
+                        {methodBadge.label}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {p.order ? (
+                      <Link to={`/bulk/orders/${p.orderId}`} className="text-primary hover:text-primary-hover transition-colors font-medium text-xs">
+                        {p.order.orderNumber || `#${p.orderId}`}
+                      </Link>
+                    ) : (
+                      <span className="text-text-light/40 dark:text-text-dark/40 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className={`p-3 text-left ltr-numbers font-bold ${isOldDebt ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {formatEGP(Math.abs(Number(p.amount)))}
+                  </td>
+                  <td className="p-3 text-xs text-text-light/50 dark:text-text-dark/50 max-w-[160px] truncate">
+                    {p.notes || "—"}
                   </td>
                 </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
+

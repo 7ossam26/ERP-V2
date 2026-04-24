@@ -8,7 +8,7 @@ CREATE TABLE `discount_reasons` (
   `customer_label_ar` VARCHAR(128) NOT NULL,
   `is_active`         TINYINT(1)   NOT NULL DEFAULT 1,
   PRIMARY KEY (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 2. Seed with the canonical reason codes.
 --    Any existing free-text discount_reason values MUST match one of these codes
