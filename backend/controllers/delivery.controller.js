@@ -131,6 +131,7 @@ exports.getDeliveryStats = async (req, res) => {
         branchId: parseInt(branchId),
         isActive: true,
       },
+      select: { id: true, name: true, phone: true, vehicleType: true },
     });
 
     console.log(`✅ Found ${deliveryMen.length} delivery men`);
@@ -155,11 +156,18 @@ exports.getDeliveryStats = async (req, res) => {
       },
       select: {
         id: true,
-        total: true, // Decimal
-        deliveryFee: true, // Decimal?
+        saleNumber: true,
+        total: true,
+        deliveryFee: true,
         deliveryManId: true,
-        paymentMethod: true, // Need this to calculate totalCash correctly
+        paymentMethod: true,
+        deliveryAddress: true,
+        createdAt: true,
+        client: { select: { id: true, name: true, phoneNumber: true } },
+        deliveryZone: { select: { id: true, name: true } },
+        items: { select: { id: true, quantity: true } },
       },
+      orderBy: { createdAt: "desc" },
     });
 
     console.log(`📦 Found ${sales.length} pending sales (all methods)`);
@@ -180,15 +188,28 @@ exports.getDeliveryStats = async (req, res) => {
         return sum;
       }, 0);
 
+      const totalAmount = manSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+
       return {
         id: man.id,
         name: man.name,
+        phone: man.phone,
+        vehicleType: man.vehicleType,
         totalCash: totalCash,
+        totalAmount,
         orderCount: manSales.length,
         orders: manSales.map((sale) => ({
           id: sale.id,
+          saleNumber: sale.saleNumber,
           total: sale.total,
           deliveryFee: sale.deliveryFee,
+          paymentMethod: sale.paymentMethod,
+          createdAt: sale.createdAt,
+          deliveryAddress: sale.deliveryAddress,
+          clientName: sale.client?.name || null,
+          clientPhone: sale.client?.phoneNumber || null,
+          zoneName: sale.deliveryZone?.name || null,
+          itemsCount: Array.isArray(sale.items) ? sale.items.length : 0,
         })),
       };
     });

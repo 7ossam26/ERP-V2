@@ -30,6 +30,7 @@ import { useBranch } from "../../contexts/BranchContext";
 import { confirmAction } from "../../utils/toastUtils";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 import NotificationBell from "../../components/orders/NotificationBell";
+import { useRealtimeNotifications } from "../../contexts/RealtimeNotificationsContext";
 import DiscountPanel, {
   DEFAULT_DISCOUNT_REASONS,
   reasonLabel,
@@ -244,6 +245,14 @@ const POSPage = () => {
   const [isDeliveryDebtsModalOpen, setIsDeliveryDebtsModalOpen] =
     useState(false);
   const [isPreparationQueueOpen, setIsPreparationQueueOpen] = useState(false);
+
+  // Live count of unclaimed call-center orders (NEW). Notifications are server-
+  // marked-read on PREPARING/CANCELLED, so unread NEW_CALL_CENTER_ORDER ≈ NEW
+  // queue count without an extra fetch.
+  const { notifications: liveNotifications } = useRealtimeNotifications();
+  const newOrdersCount = liveNotifications.filter(
+    (n) => n.type === "NEW_CALL_CENTER_ORDER" && !n.readAt,
+  ).length;
 
   useEffect(() => {
     const fetchDeliveryMen = async () => {
@@ -1587,9 +1596,14 @@ const POSPage = () => {
 
           <button
             onClick={() => setIsPreparationQueueOpen(true)}
-            className="flex items-center gap-1.5 h-8 px-3 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+            className="relative flex items-center gap-1.5 h-8 px-3 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[16px]">kitchen</span>
             <span className="hidden md:inline">قسم التجهيز</span>
+            {newOrdersCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] bg-red-500 text-white text-[11px] font-black rounded-full flex items-center justify-center px-1 leading-none ring-2 ring-blue-700 animate-pulse">
+                {newOrdersCount > 99 ? "99+" : newOrdersCount}
+              </span>
+            )}
           </button>
 
           <button
