@@ -128,7 +128,7 @@ router.get("/summary", async (req, res, next) => {
   }
 });
 
-// GET branch balances — Cash treasury + today's INSTAPAY/VISA sales per branch + bank account balance
+// GET branch balances — CASH/INSTAPAY/VISA sales per branch for the requested date window
 router.get("/balances", async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
@@ -177,21 +177,22 @@ router.get("/balances", async (req, res, next) => {
 
     const branchIds = branches.map((b) => b.id);
 
-    // Aggregate digital sales per branch per method for the requested window
-    const digitalSales = await prisma.sale.groupBy({
+    // Aggregate sales per branch per method for the requested window
+    const salesByMethod = await prisma.sale.groupBy({
       by: ["branchId", "paymentMethod"],
       where: {
-        paymentMethod: { in: ["INSTAPAY", "VISA"] },
+        paymentMethod: { in: ["CASH", "INSTAPAY", "VISA"] },
         status: "COMPLETED",
         createdAt: { gte: rangeStart, lte: rangeEnd },
         branchId: { in: branchIds },
       },
       _sum: { total: true },
     });
-    const instapaySales = digitalSales.filter(
+    const instapaySales = salesByMethod.filter(
       (r) => r.paymentMethod === "INSTAPAY",
     );
-    const visaSales = digitalSales.filter((r) => r.paymentMethod === "VISA");
+    const visaSales = salesByMethod.filter((r) => r.paymentMethod === "VISA");
+    const cashSales = salesByMethod.filter((r) => r.paymentMethod === "CASH");
 
     // Get Visa + Instapay treasury running balances from system config
     const sysConfig = await prisma.systemConfiguration.findFirst({
@@ -224,8 +225,13 @@ router.get("/balances", async (req, res, next) => {
       visaMap[row.branchId] = Number(row._sum.total || 0);
     });
 
+    const cashMap = {};
+    cashSales.forEach((row) => {
+      cashMap[row.branchId] = Number(row._sum.total || 0);
+    });
+
     const result = branches.map((branch) => {
-      const cashBalance = Number(branch.treasury?.balance || 0);
+      const cashBalance = cashMap[branch.id] || 0;
       const visa = visaMap[branch.id] || 0;
       const instapay = instapayMap[branch.id] || 0;
       return {

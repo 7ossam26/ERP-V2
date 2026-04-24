@@ -29,7 +29,6 @@ import AuthService from "../../services/authService";
 import { useBranch } from "../../contexts/BranchContext";
 import { confirmAction } from "../../utils/toastUtils";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
-import IncomingOrderTray from "../../components/orders/IncomingOrderTray";
 import NotificationBell from "../../components/orders/NotificationBell";
 import DiscountPanel, {
   DEFAULT_DISCOUNT_REASONS,
@@ -1537,12 +1536,7 @@ const POSPage = () => {
         isOpen={isPreparationQueueOpen}
         onClose={() => setIsPreparationQueueOpen(false)}
         deliveryMen={deliveryMen}
-      />
-
-      {/* Call-center incoming-orders tray (Phase 2) */}
-      <IncomingOrderTray
         branchId={activeBranchId || currentUser?.branch?.id}
-        deliveryMen={deliveryMen}
       />
 
       {/* Header */}
@@ -1583,43 +1577,41 @@ const POSPage = () => {
 
         <div className="flex items-center gap-2">
           <NotificationBell />
-          {/* Refund & History Buttons */}
+          {/* Action buttons — all identical h-8 px-3 sizing */}
           <button
             onClick={() => setIsHistoryModalOpen(true)}
-            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <FaHistory />
+            className="flex items-center gap-1.5 h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-[16px]">history</span>
             <span className="hidden md:inline">سجل الفواتير</span>
           </button>
 
           <button
             onClick={() => setIsPreparationQueueOpen(true)}
-            className="flex items-center gap-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <span className="material-symbols-outlined text-sm">kitchen</span>
+            className="flex items-center gap-1.5 h-8 px-3 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-[16px]">kitchen</span>
             <span className="hidden md:inline">قسم التجهيز</span>
           </button>
 
           <button
             onClick={() => setIsDeliveryDebtsModalOpen(true)}
-            className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <span className="material-symbols-outlined text-sm">
-              account_balance_wallet
-            </span>
+            className="flex items-center gap-1.5 h-8 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
             <span className="hidden md:inline">ديون الطيارين</span>
           </button>
 
           <button
             onClick={() => setIsRefundModalOpen(true)}
-            className="flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <FaRedo />
+            className="flex items-center gap-1.5 h-8 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-[16px]">replay</span>
             <span className="hidden md:inline">مرتجع</span>
           </button>
 
-          <div className="h-6 w-px bg-white/20 mx-1"></div>
+          <div className="h-6 w-px bg-white/20 mx-1" />
 
           <button
             onClick={handleEndShift}
-            className="flex items-center gap-1 md:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 md:px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <span className="material-symbols-outlined text-sm">logout</span>
+            className="flex items-center gap-1.5 h-8 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+            <span className="material-symbols-outlined text-[16px]">logout</span>
             <span className="hidden md:inline">إنهاء الوردية</span>
             <span className="md:hidden">إنهاء</span>
           </button>

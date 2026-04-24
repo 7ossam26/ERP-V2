@@ -1,14 +1,41 @@
 // components/orders/NotificationBell.jsx
-// Small bell icon with unread count + dropdown history + "Enable alerts" gate.
-// Mounts inside any header where a logged-in user can benefit from seeing it
-// (POS, main dashboard). Consumes the RealtimeNotificationsContext.
-
 import React, { useState } from "react";
 import { useRealtimeNotifications } from "../../contexts/RealtimeNotificationsContext";
 
-const typeLabel = {
-  NEW_CALL_CENTER_ORDER: "طلب كول سنتر جديد",
-  ORDER_STATUS_CHANGED: "تحديث حالة طلب",
+const TYPE_META = {
+  NEW_CALL_CENTER_ORDER: {
+    label: "طلب كول سنتر جديد",
+    icon: "support_agent",
+    color: "text-red-500",
+    border: "border-r-red-500",
+    bg: "bg-red-50 dark:bg-red-900/10",
+  },
+  ORDER_STATUS_CHANGED: {
+    label: "تحديث حالة طلب",
+    icon: "sync_alt",
+    color: "text-blue-500",
+    border: "border-r-blue-500",
+    bg: "bg-blue-50 dark:bg-blue-900/10",
+  },
+};
+
+const DEFAULT_META = {
+  label: "إشعار",
+  icon: "notifications",
+  color: "text-gray-400",
+  border: "border-r-gray-300",
+  bg: "",
+};
+
+const STATUS_DOT = {
+  open: "bg-emerald-400",
+  connecting: "bg-amber-400 animate-pulse",
+  closed: "bg-gray-400",
+};
+const STATUS_LABEL = {
+  open: "متصل",
+  connecting: "جارٍ الاتصال",
+  closed: "غير متصل",
 };
 
 const NotificationBell = ({ className = "" }) => {
@@ -26,116 +53,155 @@ const NotificationBell = ({ className = "" }) => {
 
   return (
     <div className={`relative ${className}`} dir="rtl">
+      {/* Bell button */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded"
+        className="relative flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
         title="الإشعارات">
-        <span className="material-symbols-outlined text-lg">notifications</span>
+        <span className="material-symbols-outlined text-[20px]">notifications</span>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -left-1 bg-red-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 leading-none">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute top-full mt-2 left-0 w-[340px] max-h-[70vh] bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col z-50 text-gray-900 dark:text-gray-100">
-          <div className="flex items-center justify-between p-3 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center gap-2">
-              <span className="font-bold">الإشعارات</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  connectionStatus === "open"
-                    ? "bg-green-100 text-green-700"
-                    : connectionStatus === "connecting"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-gray-200 text-gray-700"
-                }`}>
-                {connectionStatus === "open"
-                  ? "متصل"
-                  : connectionStatus === "connecting"
-                    ? "جارٍ الاتصال"
-                    : "غير متصل"}
-              </span>
-            </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
-              <span className="material-symbols-outlined text-base">close</span>
-            </button>
-          </div>
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setOpen(false)}
+          />
 
-          {!alertsEnabled && (
-            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border-b dark:border-gray-700 text-xs">
-              <div className="font-bold mb-1">تنبيهات الصوت معطلة</div>
-              <div className="text-gray-600 dark:text-gray-300 mb-2">
-                اضغط لتفعيل الصوت والإشعارات المنبثقة.
+          {/* Panel */}
+          <div
+            className="absolute top-full mt-2 left-0 w-[380px] max-h-[75vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col z-50"
+            dir="rtl">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <span className="font-black text-gray-800 dark:text-gray-100 text-sm">الإشعارات</span>
+                {unreadCount > 0 && (
+                  <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                    {unreadCount} جديد
+                  </span>
+                )}
               </div>
-              <button
-                onClick={enableAlerts}
-                className="px-3 py-1 bg-primary text-white rounded text-xs hover:opacity-90">
-                تفعيل التنبيهات
-              </button>
-            </div>
-          )}
-          {alertsEnabled && (
-            <div className="px-3 py-1 text-[11px] text-gray-500 flex justify-between items-center border-b dark:border-gray-700">
-              <span>التنبيهات مفعلة</span>
-              <button onClick={disableAlerts} className="text-red-500 hover:underline">
-                إيقاف
-              </button>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between px-3 py-1 border-b dark:border-gray-700 text-xs">
-            <span className="text-gray-500">{unreadCount} غير مقروء</span>
-            <button
-              onClick={markAllRead}
-              disabled={unreadCount === 0}
-              className="text-primary hover:underline disabled:opacity-40 disabled:no-underline">
-              تعليم الكل كمقروء
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="p-4 text-center text-sm text-gray-500">لا توجد إشعارات</div>
-            ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id || `${n.type}-${n.createdAt}`}
-                  className={`p-3 border-b dark:border-gray-700 text-sm ${
-                    n.readAt ? "opacity-60" : ""
-                  }`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="font-bold text-xs">{typeLabel[n.type] || n.type}</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
-                        {n.payload?.clientName || "-"} —{" "}
-                        {Number(n.payload?.total || 0).toFixed(2)}
-                      </div>
-                      {n.payload?.saleNumber && (
-                        <div className="text-[11px] text-gray-500 mt-0.5">
-                          #{n.payload.saleNumber}
-                        </div>
-                      )}
-                      <div className="text-[10px] text-gray-400 mt-0.5">
-                        {n.createdAt ? new Date(n.createdAt).toLocaleString("ar-EG") : ""}
-                      </div>
-                    </div>
-                    {!n.readAt && n.id && (
-                      <button
-                        onClick={() => markRead(n.id)}
-                        className="text-[11px] text-primary hover:underline whitespace-nowrap ml-2">
-                        تعليم كمقروء
-                      </button>
-                    )}
-                  </div>
+              <div className="flex items-center gap-2">
+                {/* Connection dot */}
+                <div className="flex items-center gap-1.5" title={STATUS_LABEL[connectionStatus] || ""}>
+                  <span
+                    className={`w-2 h-2 rounded-full ${STATUS_DOT[connectionStatus] || "bg-gray-400"}`}
+                  />
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {STATUS_LABEL[connectionStatus] || connectionStatus}
+                  </span>
                 </div>
-              ))
+                <button
+                  onClick={() => setOpen(false)}
+                  className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Alerts enable/disable strip */}
+            {!alertsEnabled ? (
+              <div className="flex items-center justify-between px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-900/30">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-500 text-[18px]">volume_off</span>
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400">تنبيهات الصوت معطلة</span>
+                </div>
+                <button
+                  onClick={enableAlerts}
+                  className="text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1 rounded-lg transition-colors">
+                  تفعيل
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+                  <span className="material-symbols-outlined text-[14px]">volume_up</span>
+                  <span className="font-bold">التنبيهات مفعلة</span>
+                </div>
+                <button
+                  onClick={disableAlerts}
+                  className="text-[11px] text-gray-400 hover:text-red-500 transition-colors">
+                  إيقاف الصوت
+                </button>
+              </div>
             )}
+
+            {/* Mark all read */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 dark:border-gray-800">
+              <span className="text-[11px] text-gray-400">{notifications.length} إشعار</span>
+              <button
+                onClick={markAllRead}
+                disabled={unreadCount === 0}
+                className="text-[11px] font-bold text-primary hover:underline disabled:opacity-30 disabled:no-underline transition-opacity">
+                تعليم الكل كمقروء
+              </button>
+            </div>
+
+            {/* Notification list */}
+            <div className="flex-1 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2 text-gray-300 dark:text-gray-600">
+                  <span className="material-symbols-outlined text-4xl">notifications_off</span>
+                  <p className="text-xs">لا توجد إشعارات</p>
+                </div>
+              ) : (
+                notifications.map((n) => {
+                  const meta = TYPE_META[n.type] || DEFAULT_META;
+                  return (
+                    <div
+                      key={n.id || `${n.type}-${n.createdAt}`}
+                      className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-800 border-r-2 ${meta.border} ${
+                        n.readAt ? "opacity-50" : meta.bg
+                      } transition-opacity`}>
+                      {/* Icon */}
+                      <div className={`mt-0.5 flex-shrink-0 ${meta.color}`}>
+                        <span className="material-symbols-outlined text-[20px]">{meta.icon}</span>
+                      </div>
+
+                      {/* Body */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-bold ${meta.color}`}>{meta.label}</p>
+                        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate mt-0.5">
+                          {n.payload?.clientName || "—"}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {n.payload?.saleNumber && (
+                            <span className="text-[11px] text-gray-400 font-mono">#{n.payload.saleNumber}</span>
+                          )}
+                          {n.payload?.total != null && (
+                            <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300">
+                              {Number(n.payload.total).toFixed(2)} ج.م
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-1">
+                          {n.createdAt ? new Date(n.createdAt).toLocaleString("ar-EG") : ""}
+                        </p>
+                      </div>
+
+                      {/* Mark read */}
+                      {!n.readAt && n.id && (
+                        <button
+                          onClick={() => markRead(n.id)}
+                          className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/10 transition-colors mt-0.5"
+                          title="تعليم كمقروء"
+                        />
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
