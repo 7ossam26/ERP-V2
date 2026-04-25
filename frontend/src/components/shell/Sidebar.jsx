@@ -54,19 +54,14 @@ export default function Sidebar({ pinned: pinnedProp, onPinnedChange, onHoverCha
     try { return localStorage.getItem(PIN_KEY) === "true"; } catch { return false; }
   });
   const [expandedGroups, setExpandedGroups] = useState(defaultExpanded);
-
-  const sidebarExpanded = pinned || hoverOpen;
-
   const pinned = typeof pinnedProp === "boolean" ? pinnedProp : pinnedState;
+  const sidebarExpanded = pinned || hoverOpen;
 
   const setPinned = (value) => {
     const resolved = typeof value === "function" ? value(pinned) : value;
     setPinnedState(resolved);
     onPinnedChange?.(resolved);
   };
-  const [expandedGroups, setExpandedGroups] = useState(defaultExpanded);
-
-  const sidebarExpanded = pinned || hoverOpen;
 
   useEffect(() => {
     try { localStorage.setItem(PIN_KEY, String(pinned)); } catch {}
