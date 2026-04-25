@@ -67,15 +67,41 @@ export default function MainDashboard() {
     { perm: "STOCK_TRANSFER", icon: "swap_horiz", label: "تحويل مخزني", path: "/stock-transfer" },
     { perm: "EXPENSES", icon: "receipt_long", label: "مصروفات", path: "/expenses" },
   ].filter((a) => AuthService.hasPermission(a.perm));
+  const todayLabel = new Date().toLocaleDateString("ar-EG", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const entranceStats = [
+    {
+      label: "الوظائف المتاحة",
+      value: quickActions.length.toLocaleString("ar-EG"),
+      percent: Math.min(100, Math.round((quickActions.length / 6) * 100)),
+      color: "bg-accent",
+    },
+    {
+      label: "مؤشرات الأداء",
+      value: hasOwnerDashboard ? "4" : "0",
+      percent: hasOwnerDashboard ? 100 : 0,
+      color: "bg-success",
+    },
+    {
+      label: "وصول التقارير",
+      value: AuthService.hasPermission("REPORTS") ? "مفعل" : "غير مفعل",
+      percent: AuthService.hasPermission("REPORTS") ? 100 : 30,
+      color: "bg-warning",
+    },
+  ];
 
   return (
     <div className="w-full max-w-content mx-auto">
       {/* Welcome */}
-      <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
+      <div className="flex flex-col items-center justify-center text-center gap-4 mb-8">
+        <div className="w-full">
+          <div className="flex items-center justify-center gap-3 mb-2">
             <RmxLogo className="text-accent" />
-            <span className="text-xs uppercase tracking-widest text-muted dark:text-muted-dark font-bold">
+            <span className="text-xs uppercase tracking-widest text-muted dark:text-muted-dark font-bold mx-auto">
               لوحة التحكم
             </span>
           </div>
@@ -85,6 +111,22 @@ export default function MainDashboard() {
           <p className="text-sm text-muted dark:text-muted-dark mt-1">
             نظرة سريعة على حالة المتجر — استخدم القائمة الجانبية للتنقل بين الأقسام.
           </p>
+          <p className="text-xs text-muted dark:text-muted-dark mt-2">{todayLabel}</p>
+        </div>
+        <div className="w-full bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-md p-4 sm:p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {entranceStats.map((item) => (
+              <div key={item.label} className="text-right">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-muted dark:text-muted-dark">{item.label}</p>
+                  <p className="text-sm font-bold text-ink dark:text-ink-dark">{item.value}</p>
+                </div>
+                <div className="h-2 rounded-full bg-line dark:bg-line-dark overflow-hidden">
+                  <div className={`h-full ${item.color}`} style={{ width: `${item.percent}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

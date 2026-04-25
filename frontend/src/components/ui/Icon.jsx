@@ -1,16 +1,17 @@
 import {
   AlertCircle, AlertTriangle, ArrowLeft, ArrowLeftRight, ArrowRight,
   ArrowUpDown, Banknote, BarChart3, Bell, Bike, BookOpen,
-  Calculator, Calendar, Check, CheckCircle, ChefHat, ChevronDown,
+  BriefcaseBusiness, Calculator, Calendar, Check, CheckCircle, ChefHat, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, ClipboardList,
   Clock, Code, Coffee, Construction, Copy, CreditCard, Download,
   Eye, EyeOff, ExternalLink, FileEdit, FileText, FileUp, Filter,
   Flag, Folders, Globe, HelpCircle, History, Hourglass, Home,
   IdCard, Info, LayoutDashboard, LayoutGrid, Lightbulb, LineChart,
+  MapPin, Phone,
   ListPlus, ListX, Loader, Lock, LockOpen, LogIn, LogOut, Landmark,
   Map, Menu, Minus, MinusCircle, Monitor, Moon, Package, PauseCircle,
   Pencil, PieChart, Plus, PlusCircle, Printer, QrCode, Receipt,
-  RefreshCw, RotateCw, Ruler, Save, ScanLine, Scissors, Search,
+  RefreshCw, RotateCw, Ruler, Save, ScanLine, Scissors, Search, Timer,
   Send, Settings, ShieldAlert, ShoppingCart, SlidersHorizontal,
   Store, Sun, Table, Tag, Tags, Trash2, Truck, TrendingUp, Undo2,
   Upload, User, UserCog, Users, UserX, Wallet, Warehouse,
@@ -142,6 +143,12 @@ const MAP = {
   expand_less: ChevronUp,
   filter_list: Filter,
   filter_alt: Filter,
+  work: BriefcaseBusiness,
+  fingerprint: IdCard,
+  call: Phone,
+  timer: Timer,
+  weekend: Calendar,
+  location_on: MapPin,
 };
 
 /* ------------------------------------------------------------------ */

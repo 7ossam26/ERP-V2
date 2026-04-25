@@ -93,23 +93,19 @@ const GenericDataTable = ({
                     ) : (
                       /* Render default edit/delete actions */
                       <>
-                        {AuthService.hasSensitiveAccess() && (
-                          <>
-                            {onEdit && (
-                              <button
-                                onClick={() => onEdit(item)}
-                                className="text-blue-500 hover:text-blue-700 ml-2 transition-colors p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 min-w-touch min-h-touch flex items-center justify-center">
-                                <Icon name="edit" />
-                              </button>
-                            )}
-                            {onDelete && (
-                              <button
-                                onClick={() => onDelete(item.id)}
-                                className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 min-w-touch min-h-touch flex items-center justify-center">
-                                <Icon name="delete" />
-                              </button>
-                            )}
-                          </>
+                        {onEdit && (
+                          <button
+                            onClick={() => onEdit(item)}
+                            className="text-blue-500 hover:text-blue-700 ml-2 transition-colors p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 min-w-touch min-h-touch flex items-center justify-center">
+                            <Icon name="edit" />
+                          </button>
+                        )}
+                        {onDelete && AuthService.hasSensitiveAccess() && (
+                          <button
+                            onClick={() => onDelete(item.id)}
+                            className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 min-w-touch min-h-touch flex items-center justify-center">
+                            <Icon name="delete" />
+                          </button>
                         )}
                       </>
                     )}

@@ -6,14 +6,17 @@ import AuthService from "../../services/authService";
 import Icon from "../../components/ui/Icon";
 
 const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
-  // Calculate next ID if creating new branch
-  const nextId =
-    data && data.length > 0
-      ? Math.max(...data.map((d) => parseInt(d.id) || 0)) + 1
-      : 1;
+  const getNextAvailableId = () => {
+    const existingIds = new Set((data || []).map((d) => parseInt(d.id, 10)).filter(Boolean));
+    let candidate = 1;
+    while (existingIds.has(candidate)) {
+      candidate += 1;
+    }
+    return candidate;
+  };
 
   const [formData, setFormData] = useState({
-    id: initialData?.id || nextId,
+    id: initialData?.id || getNextAvailableId(),
     name: initialData?.name || "",
     address: initialData?.address || "",
     warehouseId: initialData?.warehouseId || "",
@@ -22,6 +25,21 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
   const [warehouses, setWarehouses] = useState([]);
   const [treasuries, setTreasuries] = useState([]);
   const [keepOpen, setKeepOpen] = useState(false);
+
+  const assignedWarehouseIds = new Set(
+    (data || [])
+      .filter((branch) => !initialData || branch.id !== initialData.id)
+      .map((branch) => branch.warehouseId)
+      .filter(Boolean),
+  );
+  const assignedTreasuryIds = new Set(
+    (data || [])
+      .filter((branch) => !initialData || branch.id !== initialData.id)
+      .map((branch) => branch.treasuryId)
+      .filter(Boolean),
+  );
+  const availableWarehouses = warehouses.filter((warehouse) => !assignedWarehouseIds.has(warehouse.id));
+  const availableTreasuries = treasuries.filter((treasury) => !assignedTreasuryIds.has(treasury.id));
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,7 +77,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
     if (keepOpen) {
       setFormData((prev) => ({
         ...prev,
-        id: parseInt(prev.id) + 1,
+        id: getNextAvailableId(),
         name: "",
         address: "",
         // Keep warehouse and treasury sticky
@@ -137,7 +155,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             onChange={handleChange}
             required>
             <option value="">اختر المخزن...</option>
-            {warehouses.map((warehouse) => (
+            {availableWarehouses.map((warehouse) => (
               <option key={warehouse.id} value={warehouse.id}>
                 {warehouse.name}
               </option>
@@ -160,7 +178,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             onChange={handleChange}
             required>
             <option value="">اختر الخزينة...</option>
-            {treasuries.map((treasury) => (
+            {availableTreasuries.map((treasury) => (
               <option key={treasury.id} value={treasury.id}>
                 {treasury.name}
               </option>

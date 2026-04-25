@@ -220,17 +220,17 @@ router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res, n
     const { name, address, warehouseId, treasuryId } = req.body;
 
     // Validate required fields
-    if (!name || !address || !warehouseId || !treasuryId) {
+    if (!name || !warehouseId || !treasuryId) {
       return res.status(400).json({
         error: "Missing required fields",
-        message: "name, address, warehouseId, and treasuryId are required",
+        message: "name, warehouseId, and treasuryId are required",
       });
     }
 
     const branch = await prisma.branch.create({
       data: {
         name,
-        address,
+        address: address || "-",
         warehouseId: parseInt(warehouseId),
         treasuryId: parseInt(treasuryId),
       },
@@ -241,6 +241,12 @@ router.post("/", requireCreatePermission("CREATES_BRANCHES"), async (req, res, n
     });
     res.status(201).json(branch);
   } catch (error) {
+    if (error?.code === "P2002") {
+      return res.status(400).json({
+        error: "Duplicate relation",
+        message: "المخزن أو الخزينة مرتبط بالفعل بفرع آخر",
+      });
+    }
     next(error);
   }
 });
@@ -267,6 +273,12 @@ router.put("/:id", requireAnyPermission(["BRANCHES", "CREATES_BRANCHES"]), requi
     });
     res.json(branch);
   } catch (error) {
+    if (error?.code === "P2002") {
+      return res.status(400).json({
+        error: "Duplicate relation",
+        message: "المخزن أو الخزينة مرتبط بالفعل بفرع آخر",
+      });
+    }
     next(error);
   }
 });

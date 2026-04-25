@@ -13,7 +13,7 @@ const {
 router.use(authenticateToken);
 
 // GET all treasuries
-router.get("/", requirePermission("TREASURIES"), async (req, res) => {
+router.get("/", requireAnyPermission(["TREASURIES", "CREATES_TREASURIES"]), async (req, res) => {
   try {
     const branchFilter = await getUserBranchFilter(req.user.id, req);
 
@@ -24,10 +24,16 @@ router.get("/", requirePermission("TREASURIES"), async (req, res) => {
     if (branchFilter) {
       if (branchFilter.id.in) {
         // Multi-branch user (e.g., General Manager)
-        where.branch = { id: { in: branchFilter.id.in } };
+        where.OR = [
+          { branch: { id: { in: branchFilter.id.in } } },
+          { branch: null },
+        ];
       } else {
         // Single-branch user
-        where.branch = { id: branchFilter.id };
+        where.OR = [
+          { branch: { id: branchFilter.id } },
+          { branch: null },
+        ];
       }
     }
 
