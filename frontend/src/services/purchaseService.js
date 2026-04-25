@@ -63,6 +63,7 @@ const toFrontend = (backendData) => ({
     itemId: pi.item.id,
     name: pi.item.name,
     quantity: pi.quantity,
+    unit: pi.item.unit || "piece",
     purchasePrice: pi.purchasePrice,
     sellPrice: pi.sellPrice,
     total: pi.total,
@@ -120,6 +121,7 @@ export const purchaseService = {
       items: purchaseData.items.map((item) => ({
         itemId: item.itemId,
         quantity: item.quantity,
+        unit: item.unit || "piece",
         purchasePrice: item.purchasePrice,
         sellPrice: item.sellPrice,
         total: item.total,
@@ -152,6 +154,7 @@ export const purchaseService = {
       items: updates.items.map((item) => ({
         itemId: item.itemId,
         quantity: item.quantity,
+        unit: item.unit || "piece",
         purchasePrice: item.purchasePrice,
         sellPrice: item.sellPrice,
         total: item.total,

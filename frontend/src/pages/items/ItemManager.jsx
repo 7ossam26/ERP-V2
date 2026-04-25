@@ -193,6 +193,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             onChange={handleChange}>
             <option value="piece">قطعة</option>
             <option value="kg">كيلو جرام</option>
+            <option value="cm">سنتيمتر</option>
             <option value="box">علبة</option>
           </select>
           <Icon name="scale" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -401,7 +402,15 @@ const ItemManager = () => {
       accessor: "unit",
       render: (item) => (
         <span className="text-gray-500">
-          {item.unit === "piece" ? "قطعة" : item.unit === "kg" ? "كجم" : "علبة"}
+          {item.unit === "piece"
+            ? "قطعة"
+            : item.unit === "kg"
+              ? "كجم"
+              : item.unit === "cm"
+                ? "سم"
+                : item.unit === "box"
+                  ? "علبة"
+                  : item.unit}
         </span>
       ),
     },

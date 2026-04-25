@@ -17,6 +17,13 @@ import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
 import PurchaseReturnModal from "./PurchaseReturnModal";
 import Icon from "../../components/ui/Icon";
 
+const PURCHASE_UNIT_OPTIONS = [
+  { value: "piece", label: "قطعة" },
+  { value: "kg", label: "كجم" },
+  { value: "cm", label: "سم" },
+  { value: "box", label: "علبة" },
+];
+
 const PurchasesPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH, CREDIT, DEFERRED, MIXED
   const [items, setItems] = useState([
@@ -449,6 +456,13 @@ const PurchasesPage = () => {
         return;
       }
 
+      // Validate quantity > 0 for all items
+      const invalidQtyItems = items.filter((item) => Number(item.quantity) <= 0);
+      if (invalidQtyItems.length > 0) {
+        toast.error("يجب أن تكون الكمية أكبر من 0 لجميع الأصناف");
+        return;
+      }
+
       // Validate sell price >= purchase price
       const invalidSellPriceItems = items.filter(
         (item) => Number(item.sellPrice) < Number(item.purchasePrice),
@@ -486,6 +500,7 @@ const PurchasesPage = () => {
         items: items.map((item) => ({
           itemId: parseInt(item.itemId),
           quantity: Number(item.quantity),
+          unit: item.unit || "piece",
           purchasePrice: Number(item.purchasePrice),
           sellPrice: Number(item.sellPrice),
           total: Number(item.quantity) * Number(item.purchasePrice),
@@ -521,6 +536,7 @@ const PurchasesPage = () => {
           quantity: 1,
           purchasePrice: 0,
           sellPrice: 0,
+          unit: "piece",
           itemType: null,
           rolls: [],
         },
@@ -931,6 +947,9 @@ const PurchasesPage = () => {
                           updateItem(item.id, "quantity", v);
                         }}
                         unit={item.unit || "piece"}
+                        allowUnitChange
+                        unitOptions={PURCHASE_UNIT_OPTIONS}
+                        onUnitChange={(selectedUnit) => updateItem(item.id, "unit", selectedUnit)}
                         min={0.001}
                       />
                     </td>
