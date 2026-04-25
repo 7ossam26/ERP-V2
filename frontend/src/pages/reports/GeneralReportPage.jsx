@@ -39,7 +39,6 @@ const getLocalToday = () => {
 
 const GeneralReportPage = () => {
   const currentUser = AuthService.getCurrentUser();
-  console.log("Logged In User:", currentUser); // DEBUG USER ROLE
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
   const [error, setError] = useState(null);
@@ -79,12 +78,6 @@ const GeneralReportPage = () => {
 
       const formattedStart = filters.startDate;
       const formattedEnd = filters.endDate;
-
-      console.log("Fetching report with:", {
-        formattedStart,
-        formattedEnd,
-        branchId: filters.branchId,
-      });
 
       const data = await reportService.getGeneralReport({
         startDate: formattedStart,

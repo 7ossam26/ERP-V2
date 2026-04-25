@@ -32,6 +32,7 @@ async function downloadXlsx(path, filename) {
 export const reportService = {
   // Track 1 - Owner Dashboard
   getOwnerDashboard: () => get("/reports/dashboard/owner"),
+  getGeneralReport: (params) => get(`/reports/general?${new URLSearchParams(params)}`),
 
   // Track 2 - Reports
   getDailySales: (params) => get(`/reports/sales/daily?${new URLSearchParams(params)}`),

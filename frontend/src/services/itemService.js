@@ -11,6 +11,7 @@ const toFrontend = (backendData) => ({
   costPrice: backendData.costPrice,
   unit: backendData.unit,
   reorderPoint: backendData.reorderPoint,
+  itemType: backendData.itemType,
   showInPos: backendData.showInPos,
   suppliers: backendData.suppliers?.map((s) => s.supplier.id) || [],
   categories: backendData.categories?.map((c) => c.category.id) || [],
@@ -27,8 +28,8 @@ export const itemService = {
    * Get all items
    * @returns {Promise<Array>} Array of items
    */
-  async getAll() {
-    const data = await api.get(ITEMS_URL);
+  async getAll(params = {}) {
+    const data = await api.get(ITEMS_URL, { params });
     return data.map(toFrontend);
   },
 

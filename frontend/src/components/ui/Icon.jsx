@@ -80,6 +80,7 @@ const MAP = {
   leaderboard: TrendingUp,
   lightbulb: Lightbulb,
   local_cafe: Coffee,
+  local_offer: Tag,
   local_shipping: Truck,
   lock: Lock,
   lock_open: LockOpen,
@@ -89,6 +90,7 @@ const MAP = {
   map: Map,
   menu: Menu,
   menu_book: BookOpen,
+  monetization_on: Banknote,
   motorcycle: Bike,
   nights_stay: Moon,
   notifications: Bell,
@@ -123,6 +125,8 @@ const MAP = {
   storefront: Store,
   straighten: Ruler,
   summarize: FileText,
+  today: Calendar,
+  event: Calendar,
   swap_horiz: ArrowLeftRight,
   swap_vert: ArrowUpDown,
   sync: RefreshCw,
@@ -148,6 +152,7 @@ const MAP = {
   call: Phone,
   timer: Timer,
   weekend: Calendar,
+  insights: BarChart3,
   location_on: MapPin,
 };
 
