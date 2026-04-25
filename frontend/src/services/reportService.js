@@ -10,7 +10,10 @@ async function get(path) {
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "فشل تحميل البيانات");
+    const error = new Error(data.error || "فشل تحميل البيانات");
+    error.status = res.status;
+    error.details = data.details;
+    throw error;
   }
   return res.json();
 }
@@ -34,6 +37,8 @@ export const reportService = {
   getOwnerDashboard: () => get("/reports/dashboard/owner"),
 
   // Track 2 - Reports
+  getGeneralReport: (params) => get(`/reports/general?${new URLSearchParams(params)}`),
+
   getDailySales: (params) => get(`/reports/sales/daily?${new URLSearchParams(params)}`),
   exportDailySales: (params) => downloadXlsx(`/reports/sales/daily/export.xlsx?${new URLSearchParams(params)}`, "تقرير-المبيعات-اليومية"),
 
