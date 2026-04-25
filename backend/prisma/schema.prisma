@@ -802,6 +802,10 @@ model SystemConfiguration {
   eveningShiftStart String @default("17:00") @map("evening_shift_start")
   eveningShiftEnd   String @default("01:00") @map("evening_shift_end")
 
+  // Dashboard Customization
+  dashboardQuickActions Json? @map("dashboard_quick_actions")
+  dashboardReports      Json? @map("dashboard_reports")
+
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations

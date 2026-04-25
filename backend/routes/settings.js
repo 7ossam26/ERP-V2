@@ -46,6 +46,11 @@ const safeInt = (val) => {
   return isNaN(parsed) ? null : parsed;
 };
 
+const safeArray = (val) => {
+  if (!Array.isArray(val)) return undefined;
+  return val.filter((item) => typeof item === "string" && item.trim().length > 0);
+};
+
 // PUT Update Configuration
 router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
   try {
@@ -61,6 +66,12 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       salaryEndDay,
       shiftStartTime,
       shiftEndTime,
+      morningShiftStart,
+      morningShiftEnd,
+      eveningShiftStart,
+      eveningShiftEnd,
+      dashboardQuickActions,
+      dashboardReports,
     } = req.body;
 
     // Validate Tax Rate
@@ -79,6 +90,12 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       salaryEndDay: safeInt(salaryEndDay),
       shiftStartTime,
       shiftEndTime,
+      morningShiftStart,
+      morningShiftEnd,
+      eveningShiftStart,
+      eveningShiftEnd,
+      dashboardQuickActions: safeArray(dashboardQuickActions),
+      dashboardReports: safeArray(dashboardReports),
     };
 
     // Remove undefined keys for update
@@ -101,6 +118,12 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
         salaryEndDay: safeInt(salaryEndDay) || 30,
         shiftStartTime: shiftStartTime || "09:00",
         shiftEndTime: shiftEndTime || "17:00",
+        morningShiftStart: morningShiftStart || "09:00",
+        morningShiftEnd: morningShiftEnd || "17:00",
+        eveningShiftStart: eveningShiftStart || "17:00",
+        eveningShiftEnd: eveningShiftEnd || "01:00",
+        dashboardQuickActions: safeArray(dashboardQuickActions) || [],
+        dashboardReports: safeArray(dashboardReports) || [],
       },
     });
 

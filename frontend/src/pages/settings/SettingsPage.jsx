@@ -7,6 +7,23 @@ import {
   treasuryService,
 } from "../../services/domainServices";
 
+const DASHBOARD_QUICK_ACTIONS_OPTIONS = [
+  { id: "POS", label: "فاتورة جديدة" },
+  { id: "PURCHASES", label: "المشتريات" },
+  { id: "INVENTORY_COUNT", label: "الجرد" },
+  { id: "REPORTS", label: "التقارير" },
+  { id: "STOCK_TRANSFER", label: "التحويل المخزني" },
+  { id: "EXPENSES", label: "المصروفات" },
+];
+
+const DASHBOARD_REPORTS_OPTIONS = [
+  { id: "sales_daily", label: "المبيعات اليومية" },
+  { id: "reports_general", label: "التقرير العام" },
+  { id: "reports_detailed", label: "التقارير التفصيلية" },
+  { id: "history_sales", label: "سجل المبيعات" },
+  { id: "owner_dashboard", label: "لوحة المالك" },
+];
+
 const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,6 +43,8 @@ const SettingsPage = () => {
     morningShiftEnd: "17:00",
     eveningShiftStart: "17:00",
     eveningShiftEnd: "01:00",
+    dashboardQuickActions: DASHBOARD_QUICK_ACTIONS_OPTIONS.map((item) => item.id),
+    dashboardReports: DASHBOARD_REPORTS_OPTIONS.map((item) => item.id),
   });
 
   const [warehouses, setWarehouses] = useState([]);
@@ -63,6 +82,12 @@ const SettingsPage = () => {
         morningShiftEnd: settings.morningShiftEnd || "17:00",
         eveningShiftStart: settings.eveningShiftStart || "17:00",
         eveningShiftEnd: settings.eveningShiftEnd || "01:00",
+        dashboardQuickActions: Array.isArray(settings.dashboardQuickActions)
+          ? settings.dashboardQuickActions
+          : DASHBOARD_QUICK_ACTIONS_OPTIONS.map((item) => item.id),
+        dashboardReports: Array.isArray(settings.dashboardReports)
+          ? settings.dashboardReports
+          : DASHBOARD_REPORTS_OPTIONS.map((item) => item.id),
       });
 
       setWarehouses(warehousesData);
@@ -81,6 +106,19 @@ const SettingsPage = () => {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleMultiToggle = (field, id) => {
+    setFormData((prev) => {
+      const current = Array.isArray(prev[field]) ? prev[field] : [];
+      const next = current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id];
+      return {
+        ...prev,
+        [field]: next,
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -370,6 +408,56 @@ const SettingsPage = () => {
               <strong>ملاحظة:</strong> يتم تحديد نوع الوردية (صباحية/مسائية) تلقائياً بناءً على الوقت الحالي عند بدء الوردية.
               الوردية المسائية يمكن أن تمتد بعد منتصف الليل (مثلاً من 17:00 إلى 01:00).
             </p>
+          </div>
+        </div>
+
+        {/* Dashboard Settings */}
+        <div className="bg-surface-light dark:bg-surface-dark rounded-2xl p-6 shadow-sm border border-border-light dark:border-border-dark">
+          <h2 className="text-xl font-bold text-primary dark:text-accent mb-4 flex items-center gap-2">
+            <Icon name="dashboard_customize" />
+            تخصيص لوحة الرئيسية
+          </h2>
+          <p className="text-sm text-text-secondary dark:text-gray-400 mb-6">
+            اختر العناصر التي تظهر في قسم «إجراءات سريعة» و«التقارير السريعة» في الصفحة الرئيسية.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-3">
+                إجراءات سريعة
+              </label>
+              <div className="space-y-2">
+                {DASHBOARD_QUICK_ACTIONS_OPTIONS.map((option) => (
+                  <label key={option.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={formData.dashboardQuickActions.includes(option.id)}
+                      onChange={() => handleMultiToggle("dashboardQuickActions", option.id)}
+                      className="w-4 h-4 rounded border-border-light dark:border-border-dark"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-3">
+                التقارير السريعة
+              </label>
+              <div className="space-y-2">
+                {DASHBOARD_REPORTS_OPTIONS.map((option) => (
+                  <label key={option.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={formData.dashboardReports.includes(option.id)}
+                      onChange={() => handleMultiToggle("dashboardReports", option.id)}
+                      className="w-4 h-4 rounded border-border-light dark:border-border-dark"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
