@@ -16,7 +16,6 @@ const SECTIONS = [
   { id: "expenses",    icon: "receipt_long",            title: "المصروفات",            route: "/expenses" },
   { id: "hr",          icon: "groups",                  title: "الموارد البشرية",      route: "/hr" },
   { id: "delivery",    icon: "local_shipping",          title: "التوصيل",              route: "/delivery-men" },
-  { id: "bom",         icon: "precision_manufacturing", title: "قائمة المواد (BOM)",   route: "/bom" },
   { id: "reports",     icon: "bar_chart",               title: "التقارير",             route: "/reports" },
   { id: "settings",    icon: "settings",                title: "الإعدادات",            route: "/settings" },
   { id: "superadmin",  icon: "admin_panel_settings",    title: "لوحة الإدارة العليا", route: "/superadmin" },
@@ -400,26 +399,6 @@ const UserManualPage = () => {
             </div>
 
             <Note>التسوية تتطلب صلاحية «إدارة التوصيل» أو صلاحية مدير.</Note>
-          </Section>
-
-          {/* ════════════════════════════════════════════════════════════ */}
-          {/* 13. BOM */}
-          <Section {...sec("bom")}>
-            <p>وحدة BOM (Bill of Materials) تُستخدم لتعريف وصفات الإنتاج وتنفيذ أوامر التصنيع.</p>
-
-            <h3 className="font-bold text-slate-800 dark:text-white mt-4 mb-2">إنشاء وصفة إنتاج</h3>
-            <div className="space-y-2">
-              <Step num="1" text="افتح «BOM» واضغط «وصفة جديدة»." />
-              <Step num="2" text="اختر المنتج النهائي واضغط «إضافة مكوّن»." />
-              <Step num="3" text="حدد كل مادة خام والكمية المطلوبة منها لإنتاج وحدة واحدة." />
-              <Step num="4" text="اضغط «حفظ الوصفة»." />
-            </div>
-
-            <h3 className="font-bold text-slate-800 dark:text-white mt-4 mb-2">تنفيذ أمر إنتاج</h3>
-            <div className="space-y-2">
-              <Step num="1" text="اختر الوصفة المطلوبة وأدخل الكمية المراد إنتاجها." />
-              <Step num="2" text="اضغط «تنفيذ»؛ سيخصم النظام المواد الخام من المخزون ويضيف المنتج النهائي." />
-            </div>
           </Section>
 
           {/* ════════════════════════════════════════════════════════════ */}

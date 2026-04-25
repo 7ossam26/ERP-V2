@@ -43,17 +43,27 @@ const GROUPS = [
 ];
 
 const PIN_KEY = "rmx_sidebar_pinned";
-const HOVER_KEY = "rmx_sidebar_hover_open";
 
 const defaultExpanded = Object.fromEntries(GROUPS.map((g) => [g.key, true]));
 
-export default function Sidebar() {
+export default function Sidebar({ pinned: pinnedProp, onPinnedChange, onHoverChange }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [hoverOpen, setHoverOpen] = useState(false);
-  const [pinned, setPinned] = useState(() => {
+  const [pinnedState, setPinnedState] = useState(() => {
     try { return localStorage.getItem(PIN_KEY) === "true"; } catch { return false; }
   });
+  const [expandedGroups, setExpandedGroups] = useState(defaultExpanded);
+
+  const sidebarExpanded = pinned || hoverOpen;
+
+  const pinned = typeof pinnedProp === "boolean" ? pinnedProp : pinnedState;
+
+  const setPinned = (value) => {
+    const resolved = typeof value === "function" ? value(pinned) : value;
+    setPinnedState(resolved);
+    onPinnedChange?.(resolved);
+  };
   const [expandedGroups, setExpandedGroups] = useState(defaultExpanded);
 
   const sidebarExpanded = pinned || hoverOpen;
@@ -62,9 +72,10 @@ export default function Sidebar() {
     try { localStorage.setItem(PIN_KEY, String(pinned)); } catch {}
   }, [pinned]);
 
+
   useEffect(() => {
-    try { localStorage.setItem(HOVER_KEY, String(hoverOpen)); } catch {}
-  }, [hoverOpen]);
+    onHoverChange?.(hoverOpen);
+  }, [hoverOpen, onHoverChange]);
 
   const moduleMap = Object.fromEntries(MODULES.map((m) => [m.id, m]));
 
@@ -87,7 +98,7 @@ export default function Sidebar() {
   return (
     <aside
       onMouseEnter={() => !pinned && setHoverOpen(true)}
-      onMouseLeave={() => !pinned && setHoverOpen(false)}
+      onMouseLeave={() => setHoverOpen(false)}
       className={`fixed top-0 right-0 z-40 h-screen bg-surface dark:bg-surface-dark border-l border-line dark:border-line-dark flex flex-col transition-all duration-300 ${
         sidebarExpanded ? "w-sidebar" : "w-sidebar-collapsed"
       }`}
@@ -97,7 +108,10 @@ export default function Sidebar() {
           <RmxLogo className="text-ink dark:text-ink-dark mr-2" />
         )}
         <button
-          onClick={() => setPinned(!pinned)}
+          onClick={() => {
+            setPinned(!pinned);
+            if (pinned) setHoverOpen(false);
+          }}
           className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent-light dark:hover:bg-accent-light-dark text-muted hover:text-accent dark:hover:text-accent-dark transition-colors shrink-0 mr-auto"
           title={pinned ? "إلغاء تثبيت القائمة" : "تثبيت القائمة"}
         >

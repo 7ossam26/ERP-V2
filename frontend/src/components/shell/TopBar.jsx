@@ -5,7 +5,7 @@ import AuthService from "../../services/authService";
 import BranchSwitcher from "../BranchSwitcher";
 import Modal from "../ui/Modal";
 
-export default function TopBar({ onOpenCommandPalette, sidebarPinned }) {
+export default function TopBar({ onOpenCommandPalette, sidebarExpanded }) {
   const navigate = useNavigate();
   const [isUserOpen, setIsUserOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -46,9 +46,9 @@ export default function TopBar({ onOpenCommandPalette, sidebarPinned }) {
     <>
       <header
         className={`fixed top-0 left-0 z-30 h-topbar bg-surface dark:bg-surface-dark border-b border-line dark:border-line-dark flex items-center px-4 transition-all duration-300 ${
-          sidebarPinned ? "right-sidebar" : "right-sidebar-collapsed"
+          sidebarExpanded ? "right-sidebar" : "right-sidebar-collapsed"
         }`}
-        style={{ right: sidebarPinned ? "240px" : "64px" }}
+        style={{ right: sidebarExpanded ? "240px" : "64px" }}
       >
         {/* Left: command palette trigger */}
         <button

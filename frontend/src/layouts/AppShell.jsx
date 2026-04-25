@@ -5,23 +5,19 @@ import CommandPalette from "../components/shell/CommandPalette";
 import Footer from "../components/shared/Footer";
 
 const PIN_KEY = "rmx_sidebar_pinned";
-const HOVER_KEY = "rmx_sidebar_hover_open";
 
 export default function AppShell({ children }) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(() => {
     try { return localStorage.getItem(PIN_KEY) === "true"; } catch { return false; }
   });
-  const [sidebarHoverOpen, setSidebarHoverOpen] = useState(() => {
-    try { return localStorage.getItem(HOVER_KEY) === "true"; } catch { return false; }
-  });
+  const [sidebarHoverOpen, setSidebarHoverOpen] = useState(false);
 
   // Listen for sidebar pin state changes (Sidebar writes to localStorage)
   useEffect(() => {
     const handler = () => {
       try {
         setSidebarPinned(localStorage.getItem(PIN_KEY) === "true");
-        setSidebarHoverOpen(localStorage.getItem(HOVER_KEY) === "true");
       } catch {}
     };
     window.addEventListener("storage", handler);
@@ -30,9 +26,7 @@ export default function AppShell({ children }) {
     const interval = setInterval(() => {
       try {
         const pinVal = localStorage.getItem(PIN_KEY) === "true";
-        const hoverVal = localStorage.getItem(HOVER_KEY) === "true";
         setSidebarPinned((prev) => (prev !== pinVal ? pinVal : prev));
-        setSidebarHoverOpen((prev) => (prev !== hoverVal ? hoverVal : prev));
       } catch {}
     }, 300);
 
@@ -59,8 +53,15 @@ export default function AppShell({ children }) {
 
   return (
     <div className="bg-canvas dark:bg-canvas-dark text-ink dark:text-ink-dark font-body min-h-screen">
-      <Sidebar />
-      <TopBar onOpenCommandPalette={() => setCmdOpen(true)} sidebarPinned={sidebarPinned} />
+      <Sidebar
+        pinned={sidebarPinned}
+        onPinnedChange={setSidebarPinned}
+        onHoverChange={setSidebarHoverOpen}
+      />
+      <TopBar
+        onOpenCommandPalette={() => setCmdOpen(true)}
+        sidebarExpanded={isSidebarExpanded}
+      />
       <CommandPalette open={cmdOpen} onClose={closeCmd} />
 
       {/* Main content — offset by sidebar + topbar */}
