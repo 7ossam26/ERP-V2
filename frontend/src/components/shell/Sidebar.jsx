@@ -53,6 +53,9 @@ export default function Sidebar({ pinned: pinnedProp, onPinnedChange, onHoverCha
   const [pinnedState, setPinnedState] = useState(() => {
     try { return localStorage.getItem(PIN_KEY) === "true"; } catch { return false; }
   });
+  const [expandedGroups, setExpandedGroups] = useState(defaultExpanded);
+
+  const sidebarExpanded = pinned || hoverOpen;
 
   const pinned = typeof pinnedProp === "boolean" ? pinnedProp : pinnedState;
 
