@@ -5,7 +5,6 @@ export default function RmxLogo({ className = "" }) {
       style={{
         fontFamily: '"Arial Black", "Helvetica Neue", Impact, sans-serif',
         fontWeight: 900,
-        fontSize: "22px",
         letterSpacing: "-0.04em",
       }}
     >

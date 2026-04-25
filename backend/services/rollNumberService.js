@@ -19,14 +19,12 @@ const generateRollNumber = async (tx) => {
   // ON DUPLICATE KEY UPDATE increments last_seq and returns the new value via
   // a subsequent SELECT — all inside the same connection/transaction context.
   await client.$executeRawUnsafe(
-    `INSERT INTO roll_number_sequences (year_month, last_seq)
-     VALUES (?, 1)
-     ON DUPLICATE KEY UPDATE last_seq = last_seq + 1`,
+    "INSERT INTO roll_number_sequences (`year_month`, last_seq)\n     VALUES (?, 1)\n     ON DUPLICATE KEY UPDATE last_seq = last_seq + 1",
     yearMonth
   );
 
   const rows = await client.$queryRawUnsafe(
-    `SELECT last_seq FROM roll_number_sequences WHERE year_month = ?`,
+    "SELECT last_seq FROM roll_number_sequences WHERE `year_month` = ?",
     yearMonth
   );
 

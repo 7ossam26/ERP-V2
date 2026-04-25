@@ -39,6 +39,10 @@ const POSPage = () => {
   const clientInputRef = useRef(null);
   const cashClientRef = useRef(null);
 
+  // Keypad mode (declared early — useEffect below depends on it)
+  const [keypadMode, setKeypadMode] = useState("default");
+  const [selectedProductForQuantity, setSelectedProductForQuantity] = useState(null);
+
   // User & Shift State
   const [currentUser, setCurrentUser] = useState(AuthService.getCurrentUser());
   const [currentShiftId, setCurrentShiftId] = useState(null);
@@ -297,11 +301,6 @@ const POSPage = () => {
   const [isPaymentConfirmOpen, setIsPaymentConfirmOpen] = useState(false);
   const [pendingPaymentMethod, setPendingPaymentMethod] = useState(null);
   const [cashPaidAmount, setCashPaidAmount] = useState(""); // For cash payment input
-
-  // Quantity/Weight Selection State
-  const [keypadMode, setKeypadMode] = useState("default"); // 'default', 'piece', 'weight', 'payment'
-  const [selectedProductForQuantity, setSelectedProductForQuantity] =
-    useState(null);
 
   // Custom input state
   const [customInputValue, setCustomInputValue] = useState("");

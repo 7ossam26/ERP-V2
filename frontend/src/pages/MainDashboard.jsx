@@ -121,7 +121,7 @@ export default function MainDashboard() {
             لوحة التحكم
           </span>
           <div className="flex items-center justify-center gap-2">
-            <RmxLogo className="text-accent w-10 h-10" />
+            <RmxLogo className="text-accent text-2xl sm:text-3xl" />
             <h1 className="text-2xl sm:text-3xl font-bold text-ink dark:text-ink-dark">
               مرحباً{user?.name ? `، ${user.name}` : ""}
             </h1>

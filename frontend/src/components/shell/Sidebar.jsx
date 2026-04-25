@@ -100,7 +100,7 @@ export default function Sidebar({ pinned: pinnedProp, onPinnedChange, onHoverCha
     >
       <div className="h-topbar flex items-center gap-2 px-2 border-b border-line dark:border-line-dark overflow-hidden">
         {sidebarExpanded && (
-          <RmxLogo className="text-ink dark:text-ink-dark mr-2" />
+          <RmxLogo className="text-ink dark:text-ink-dark mr-2 text-[22px]" />
         )}
         <button
           onClick={() => {

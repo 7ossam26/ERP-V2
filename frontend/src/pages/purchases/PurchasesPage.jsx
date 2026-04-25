@@ -277,7 +277,7 @@ const PurchasesPage = () => {
               // P4: auto-fill last purchase price from costPrice field
               purchasePrice: parseFloat(selectedItem.costPrice) || 0,
               sellPrice: selectedItem.price || 0,
-              unit: selectedItem.unit || "piece",
+              unit: selectedItem.itemType === "FABRIC" ? "meter" : (selectedItem.unit || "piece"),
               quantity: 1,
               itemType: selectedItem.itemType || null,
               rolls: selectedItem.itemType === "FABRIC" ? [{ originalLength: "", barcode: "", notes: "" }] : [],
@@ -504,13 +504,9 @@ const PurchasesPage = () => {
           purchasePrice: Number(item.purchasePrice),
           sellPrice: Number(item.sellPrice),
           total: Number(item.quantity) * Number(item.purchasePrice),
-          rolls: item.itemType === "FABRIC" ? (item.rolls || [])
-            .filter((r) => (parseFloat(r.originalLength) || 0) > 0)
-            .map(r => ({
-            originalLength: parseFloat(r.originalLength),
-            barcode: r.barcode || undefined,
-            notes: r.notes || undefined,
-          })) : undefined,
+          rolls: item.itemType === "FABRIC"
+            ? [{ originalLength: parseFloat(item.quantity) || 0 }]
+            : undefined,
           manualAllocatedLandedCost: landedCostAllocation === "MANUAL" ? parseFloat(item.manualAllocatedLandedCost || 0) : undefined,
         })),
       };
@@ -935,19 +931,9 @@ const PurchasesPage = () => {
                     <td className="px-4 py-3">
                       <KgQuantityInput
                         value={item.quantity}
-                        onChange={(v) => {
-                          if (item.itemType === "FABRIC") {
-                            const currentRolls = item.rolls || [];
-                            if (currentRolls.length === 0) {
-                              updateItem(item.id, "rolls", [{ originalLength: v, barcode: "", notes: "" }]);
-                            } else if (currentRolls.length === 1 && !(parseFloat(currentRolls[0].originalLength) > 0)) {
-                              updateItem(item.id, "rolls", [{ ...currentRolls[0], originalLength: v }]);
-                            }
-                          }
-                          updateItem(item.id, "quantity", v);
-                        }}
-                        unit={item.unit || "piece"}
-                        allowUnitChange
+                        onChange={(v) => updateItem(item.id, "quantity", v)}
+                        unit={item.itemType === "FABRIC" ? "meter" : (item.unit || "piece")}
+                        allowUnitChange={item.itemType !== "FABRIC"}
                         unitOptions={PURCHASE_UNIT_OPTIONS}
                         onUnitChange={(selectedUnit) => updateItem(item.id, "unit", selectedUnit)}
                         min={0.001}
@@ -983,91 +969,6 @@ const PurchasesPage = () => {
                       </button>
                     </td>
                   </tr>
-                {item.itemType === "FABRIC" && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-0">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-3 rounded-lg mt-1 mb-2">
-                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-1">
-                      <Icon name="inventory_2" size={14} />
-                      اللفات
-                    </div>
-                    <div className="space-y-2">
-                      {(item.rolls || []).map((roll, rIdx) => (
-                        <div key={rIdx} className="flex items-center gap-2">
-                          <input
-                            type="number" min="0.01" step="0.01"
-                            value={roll.originalLength}
-                            onChange={e => {
-                              const updated = item.rolls.map((r, ri) =>
-                                ri === rIdx ? { ...r, originalLength: e.target.value } : r
-                              );
-                              updateItem(item.id, "rolls", updated);
-                            }}
-                            className="w-28 border rounded-lg px-2 py-1 text-sm"
-                            placeholder="الطول (م)"
-                          />
-                          <input
-                            type="text"
-                            value={roll.barcode || ""}
-                            onChange={e => {
-                              const updated = item.rolls.map((r, ri) =>
-                                ri === rIdx ? { ...r, barcode: e.target.value } : r
-                              );
-                              updateItem(item.id, "rolls", updated);
-                            }}
-                            className="w-32 border rounded-lg px-2 py-1 text-sm"
-                            placeholder="باركود (اختياري)"
-                          />
-                          <input
-                            type="text"
-                            value={roll.notes || ""}
-                            onChange={e => {
-                              const updated = item.rolls.map((r, ri) =>
-                                ri === rIdx ? { ...r, notes: e.target.value } : r
-                              );
-                              updateItem(item.id, "rolls", updated);
-                            }}
-                            className="flex-1 border rounded-lg px-2 py-1 text-sm"
-                            placeholder="ملاحظات (اختياري)"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = item.rolls.filter((_, ri) => ri !== rIdx);
-                              updateItem(item.id, "rolls", updated);
-                            }}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Icon name="remove_circle" className="text-lg" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {(() => {
-                      const rollsTotal = (item.rolls || []).reduce((s, r) => s + (parseFloat(r.originalLength) || 0), 0);
-                      const lineQty = parseFloat(item.quantity) || 0;
-                      const match = Math.abs(rollsTotal - lineQty) < 0.001;
-                      return (
-                        <div className={`text-xs mt-2 ${match ? "text-green-600" : "text-red-600"}`}>
-                          مجموع اللفات: {rollsTotal.toFixed(2)} م {match ? "✓" : `(المطلوب: ${lineQty.toFixed(2)} م)`}
-                        </div>
-                      );
-                    })()}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = [...(item.rolls || []), { originalLength: "", barcode: "", notes: "" }];
-                        updateItem(item.id, "rolls", updated);
-                      }}
-                      className="mt-2 text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                    >
-                      <Icon name="add_circle_outline" className="text-sm" />
-                      إضافة لفة
-                    </button>
-                  </div>
-                    </td>
-                  </tr>
-                )}
                   </React.Fragment>
                 ))}
               </tbody>
