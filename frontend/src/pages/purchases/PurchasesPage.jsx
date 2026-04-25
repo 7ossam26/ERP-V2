@@ -489,8 +489,10 @@ const PurchasesPage = () => {
           purchasePrice: Number(item.purchasePrice),
           sellPrice: Number(item.sellPrice),
           total: Number(item.quantity) * Number(item.purchasePrice),
-          rolls: item.itemType === "FABRIC" ? (item.rolls || []).map(r => ({
-            originalLength: parseFloat(r.originalLength) || 0,
+          rolls: item.itemType === "FABRIC" ? (item.rolls || [])
+            .filter((r) => (parseFloat(r.originalLength) || 0) > 0)
+            .map(r => ({
+            originalLength: parseFloat(r.originalLength),
             barcode: r.barcode || undefined,
             notes: r.notes || undefined,
           })) : undefined,
@@ -917,7 +919,17 @@ const PurchasesPage = () => {
                     <td className="px-4 py-3">
                       <KgQuantityInput
                         value={item.quantity}
-                        onChange={(v) => updateItem(item.id, "quantity", v)}
+                        onChange={(v) => {
+                          if (item.itemType === "FABRIC") {
+                            const currentRolls = item.rolls || [];
+                            if (currentRolls.length === 0) {
+                              updateItem(item.id, "rolls", [{ originalLength: v, barcode: "", notes: "" }]);
+                            } else if (currentRolls.length === 1 && !(parseFloat(currentRolls[0].originalLength) > 0)) {
+                              updateItem(item.id, "rolls", [{ ...currentRolls[0], originalLength: v }]);
+                            }
+                          }
+                          updateItem(item.id, "quantity", v);
+                        }}
                         unit={item.unit || "piece"}
                         min={0.001}
                       />
