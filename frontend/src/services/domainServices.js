@@ -16,8 +16,6 @@ import shiftService from "./shiftService";
 import { reportService } from "./reportService";
 import { expenseService } from "./expenseService";
 import { supplierAccountService } from "./supplierAccountService";
-import { deliveryService } from "./deliveryService";
-import { deliveryZoneService } from "./deliveryZoneService";
 import { bomService } from "./bomService";
 
 // Employee, Treasury, Branch, Warehouse, Client, Supplier, Category, Item, Purchase, and Sales services use real API
@@ -39,8 +37,6 @@ export {
   reportService,
   expenseService,
   supplierAccountService,
-  deliveryService,
-  deliveryZoneService,
   bomService,
 };
 

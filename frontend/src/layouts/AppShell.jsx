@@ -57,9 +57,10 @@ export default function AppShell({ children }) {
 
       {/* Main content — offset by sidebar + topbar */}
       <main
-        className="transition-all duration-300 pt-topbar min-h-screen"
+        className="transition-all duration-300 min-h-screen"
         style={{
           marginRight: sidebarPinned ? "240px" : "64px",
+          paddingTop: "56px",
         }}
       >
         <div className="w-full max-w-content mx-auto px-4 sm:px-6 py-6">

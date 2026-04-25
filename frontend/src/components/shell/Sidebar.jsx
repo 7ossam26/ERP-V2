@@ -6,41 +6,34 @@ import AuthService from "../../services/authService";
 import { MODULES } from "../../config/modules";
 
 const GROUPS = [
-  { key: "home", label: "الرئيسية", ids: [] },
   {
     key: "setup",
-    label: "التكويدات",
     ids: [
       "creates_warehouses", "creates_treasuries", "creates_branches",
       "creates_suppliers", "creates_categories", "creates_items",
-      "creates_employees", "creates_delivery_men", "creates_delivery_zones",
-      "creates_clients", "creates_production", "creates_fabric_rolls",
+      "creates_employees", "creates_clients", "creates_production",
+      "creates_fabric_rolls",
     ],
   },
   {
     key: "ops",
-    label: "العمليات",
     ids: ["purchases", "pos", "stock_transfer", "cashier_transfer", "supplier_accounts"],
   },
   {
     key: "inventory",
-    label: "الجرد",
     ids: ["inventory", "adjustments", "counts", "fabric_rolls"],
   },
   {
     key: "finance",
-    label: "المالية",
     ids: ["expenses", "deposits", "transfer_management"],
   },
   {
     key: "reports",
-    label: "التقارير",
     ids: ["reports", "owner_dashboard"],
   },
   {
     key: "admin",
-    label: "الإدارة",
-    ids: ["branches_sales", "hr", "shifts", "delivery_settlement", "settings", "initial_inventory"],
+    ids: ["branches_sales", "hr", "shifts", "initial_inventory"],
   },
 ];
 
@@ -73,21 +66,21 @@ export default function Sidebar() {
       }`}
     >
       {/* Logo + pin toggle */}
-      <div className="h-topbar flex items-center justify-between px-3 border-b border-line dark:border-line-dark">
+      <div className="h-topbar flex items-center justify-between px-2 border-b border-line dark:border-line-dark">
         {pinned && (
-          <RmxLogo height={26} className="text-ink dark:text-ink-dark" />
+          <RmxLogo className="text-ink dark:text-ink-dark mr-2" />
         )}
         <button
           onClick={() => setPinned(!pinned)}
-          className="mx-auto flex items-center justify-center w-9 h-9 rounded-md hover:bg-accent-light dark:hover:bg-accent-light-dark text-muted hover:text-accent dark:hover:text-accent-dark transition-colors"
+          className="mx-auto flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent-light dark:hover:bg-accent-light-dark text-muted hover:text-accent dark:hover:text-accent-dark transition-colors"
           title={pinned ? "طي القائمة" : "تثبيت القائمة"}
         >
-          <Icon name={pinned ? "chevron_right" : "menu"} size={20} />
+          <Icon name={pinned ? "chevron_right" : "menu"} size={18} />
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-2 scrollbar-hide">
+      <nav className="flex-1 overflow-y-auto py-1.5 scrollbar-hide">
         {/* Home link */}
         <SidebarItem
           icon="home"
@@ -97,7 +90,7 @@ export default function Sidebar() {
           onClick={() => navigate("/dashboard")}
         />
 
-        {GROUPS.filter((g) => g.key !== "home").map((group) => {
+        {GROUPS.map((group) => {
           const items = group.ids
             .map((id) => moduleMap[id])
             .filter((m) => m && hasPermission(m));
@@ -105,13 +98,8 @@ export default function Sidebar() {
           if (items.length === 0) return null;
 
           return (
-            <div key={group.key} className="mt-3">
-              {pinned && (
-                <div className="px-4 py-1.5 text-[11px] font-bold text-muted dark:text-muted-dark uppercase tracking-wider">
-                  {group.label}
-                </div>
-              )}
-              {!pinned && <div className="mx-3 my-1 border-t border-line dark:border-line-dark" />}
+            <div key={group.key} className="mt-1">
+              <div className="mx-3 my-1.5 border-t border-line dark:border-line-dark opacity-60" />
               {items.map((mod) => (
                 <SidebarItem
                   key={mod.id}
@@ -128,7 +116,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom: settings shortcut */}
-      <div className="border-t border-line dark:border-line-dark p-2">
+      <div className="border-t border-line dark:border-line-dark p-1.5">
         <SidebarItem
           icon="settings"
           label="الإعدادات"
@@ -146,13 +134,14 @@ function SidebarItem({ icon, label, active, pinned, onClick }) {
     <button
       onClick={onClick}
       title={!pinned ? label : undefined}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 mx-1 rounded-md transition-colors text-sm font-medium ${
+      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 mx-1 rounded-md transition-colors text-[13px] font-medium ${
         active
           ? "bg-accent text-white"
           : "text-ink dark:text-ink-dark hover:bg-accent-light dark:hover:bg-accent-light-dark hover:text-accent dark:hover:text-accent-dark"
       } ${pinned ? "" : "justify-center"}`}
+      style={{ width: pinned ? "calc(100% - 8px)" : "calc(100% - 8px)" }}
     >
-      <Icon name={icon} size={20} className={active ? "text-white" : ""} />
+      <Icon name={icon} size={18} className={active ? "text-white" : ""} />
       {pinned && <span className="truncate">{label}</span>}
     </button>
   );

@@ -64,24 +64,6 @@ export const MODULES = [
     category: "CREATION",
   },
   {
-    id: "creates_delivery_men",
-    code: "CREATES_DELIVERY_MEN",
-    label: "الطيارين",
-    description: "إدارة بيانات الطيارين",
-    icon: "delivery_dining",
-    path: "/delivery-men",
-    category: "CREATION",
-  },
-  {
-    id: "creates_delivery_zones",
-    code: "CREATES_DELIVERY_ZONES",
-    label: "المناطق",
-    description: "إدارة مناطق التوصيل والأسعار",
-    icon: "map",
-    path: "/delivery-zones",
-    category: "CREATION",
-  },
-  {
     id: "creates_clients",
     code: "CREATES_CLIENTS",
     label: "العملاء",
@@ -227,16 +209,6 @@ export const MODULES = [
     path: "/shifts",
     category: "MANAGEMENT",
   },
-  {
-    id: "delivery_settlement",
-    code: "DELIVERY_SETTLEMENT",
-    label: "تسوية الطيارين",
-    description: "إدارة مديونيات الطيارين والتسويات",
-    icon: "motorcycle",
-    path: "/delivery-settlement",
-    category: "MANAGEMENT",
-  },
-
   {
     id: "owner_dashboard",
     code: "OWNER_DASHBOARD",

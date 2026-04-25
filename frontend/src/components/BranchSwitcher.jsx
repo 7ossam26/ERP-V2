@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useBranch } from "../contexts/BranchContext";
 import Icon from "./ui/Icon";
 
@@ -11,6 +12,17 @@ const BranchSwitcher = () => {
     isGlobalRole,
     setActiveBranch,
   } = useBranch();
+
+  const handleSwitch = (id, name) => {
+    if (id === activeBranchId) {
+      setIsOpen(false);
+      return;
+    }
+    setActiveBranch(id);
+    setIsOpen(false);
+    toast.success(`تم التبديل إلى: ${name}`, { duration: 1500 });
+    setTimeout(() => window.location.reload(), 400);
+  };
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -60,10 +72,7 @@ const BranchSwitcher = () => {
           {/* All Branches option for global roles */}
           {isGlobalRole && (
             <button
-              onClick={() => {
-                setActiveBranch(0);
-                setIsOpen(false);
-              }}
+              onClick={() => handleSwitch(0, "\u0643\u0644 \u0627\u0644\u0641\u0631\u0648\u0639")}
               className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                 activeBranchId === 0
                   ? "bg-primary/10 text-primary font-semibold"
@@ -82,10 +91,7 @@ const BranchSwitcher = () => {
           {userBranches.map((branch) => (
             <button
               key={branch.id}
-              onClick={() => {
-                setActiveBranch(branch.id);
-                setIsOpen(false);
-              }}
+              onClick={() => handleSwitch(branch.id, branch.name)}
               className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                 activeBranchId === branch.id
                   ? "bg-primary/10 text-primary font-semibold"

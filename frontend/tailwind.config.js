@@ -82,6 +82,12 @@ export default {
         topbar: "56px",
         "page-header": "72px",
       },
+      spacing: {
+        topbar: "56px",
+        sidebar: "240px",
+        "sidebar-collapsed": "64px",
+        touch: "44px",
+      },
       keyframes: {
         "slide-down": {
           "0%": { transform: "translateY(-100%)", opacity: "0" },
@@ -95,9 +101,6 @@ export default {
       animation: {
         "slide-down": "slide-down 0.3s ease-out",
         "fade-in": "fade-in 0.15s ease-out",
-      },
-      spacing: {
-        touch: "44px",
       },
       minHeight: {
         touch: "44px",

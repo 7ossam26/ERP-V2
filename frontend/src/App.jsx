@@ -50,9 +50,6 @@ import SettingsPage from "./pages/settings/SettingsPage";
 import TransferManagementPage from "./pages/treasuries/TransferManagementPage";
 import ShiftManagementPage from "./pages/shifts/ShiftManagementPage";
 import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
-import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
-import DeliveryZonesPage from "./pages/delivery/DeliveryZonesPage";
-import DeliverySettlementPage from "./pages/delivery-settlement/DeliverySettlementPage";
 import BOMManager from "./pages/bom/BOMManager";
 import ProductionHistory from "./pages/bom/ProductionHistory";
 import FabricRollsListPage from "./pages/fabric-rolls/FabricRollsListPage";
@@ -508,30 +505,6 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="SHIFTS">
                 <ShiftManagementPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/delivery-men"
-            element={
-              <ProtectedRoute requiredPermission="CREATES_DELIVERY_MEN">
-                <DeliveryMenPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/delivery-zones"
-            element={
-              <ProtectedRoute requiredPermission="CREATES_DELIVERY_ZONES">
-                <DeliveryZonesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/delivery-settlement"
-            element={
-              <ProtectedRoute requiredPermission="DELIVERY_SETTLEMENT">
-                <DeliverySettlementPage />
               </ProtectedRoute>
             }
           />

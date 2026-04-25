@@ -6,8 +6,6 @@ import StartShiftModal from "./StartShiftModal";
 import ShiftBlockedModal from "./ShiftBlockedModal";
 import EndShiftModal from "../../components/pos/EndShiftModal";
 import ShiftVerificationModal from "../../components/pos/ShiftVerificationModal";
-import DeliveryModal from "../../components/pos/DeliveryModal";
-import DeliveryDebtsModal from "../../components/pos/DeliveryDebtsModal";
 import PreparationQueueModal from "../../components/pos/PreparationQueueModal";
 import Modal from "../../components/ui/Modal";
 import RefundModal from "./RefundModal";
@@ -26,12 +24,10 @@ import {
   inventoryService,
   settingsService,
   shiftService,
-  deliveryService,
   bomService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { confirmAction } from "../../utils/toastUtils";
-import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
 import Icon from "../../components/ui/Icon";
 
 const POSPage = () => {
@@ -272,9 +268,6 @@ const POSPage = () => {
     }
   };
 
-  const [isPendingDeliveriesModalOpen, setIsPendingDeliveriesModalOpen] =
-    useState(false);
-  const [pendingDeliveries, setPendingDeliveries] = useState(null);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [newClientInitialData, setNewClientInitialData] = useState(null);
   const [clients, setClients] = useState([]);
@@ -283,33 +276,11 @@ const POSPage = () => {
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
 
-  // Delivery Man State
-  const [deliveryMen, setDeliveryMen] = useState([]);
-  const [selectedDeliveryMan, setSelectedDeliveryMan] = useState(null);
-
-  // Delivery Modal State
-  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
-  const [deliveryData, setDeliveryData] = useState(null); // {riderId, riderName, zoneId, zoneName, zoneFee, address}
-  const [isDeliveryDebtsModalOpen, setIsDeliveryDebtsModalOpen] =
-    useState(false);
+  // Delivery removed — these stubs keep the rest of the file working without delivery
+  const deliveryData = null;
+  const setDeliveryData = () => {};
+  const setSelectedDeliveryMan = () => {};
   const [isPreparationQueueOpen, setIsPreparationQueueOpen] = useState(false);
-
-  useEffect(() => {
-    const fetchDeliveryMen = async () => {
-      try {
-        const params = {};
-        if (currentUser?.branch?.id) {
-          params.branchId = currentUser.branch.id;
-        }
-        const data = await deliveryService.getAll(params);
-        setDeliveryMen(data || []);
-      } catch (error) {
-        console.error("Failed to fetch delivery men", error);
-        setDeliveryMen([]);
-      }
-    };
-    fetchDeliveryMen();
-  }, []);
 
   // Hold Cart State
   const [heldCarts, setHeldCarts] = useState(() => {
@@ -829,10 +800,7 @@ const POSPage = () => {
   const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
   // taxRate comes from state now
   const tax = subtotal * taxRate;
-  const deliveryFee = deliveryData?.zoneFee
-    ? parseFloat(deliveryData.zoneFee)
-    : 0;
-  const total = subtotal + tax + deliveryFee; // Total includes delivery fee if set
+  const total = subtotal + tax;
 
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [shiftReportData, setShiftReportData] = useState(null);
@@ -873,45 +841,6 @@ const POSPage = () => {
 
       console.log("Shift ended:", updatedShift);
 
-      // CHECK FOR DELIVERY WARNINGS (SUCCESS RESPONSE)
-      if (
-        updatedShift.deliveryWarnings &&
-        updatedShift.deliveryWarnings.length > 0
-      ) {
-        console.warn(
-          "⚠️ Delivery warnings detected:",
-          updatedShift.deliveryWarnings,
-        );
-
-        // Format warnings into pendingOrders format for the modal
-        const formattedWarnings = updatedShift.deliveryWarnings.map(
-          (warning) => ({
-            deliveryMan: warning.driverName,
-            orderCount: warning.orderCount,
-            amount: warning.totalAmount,
-          }),
-        );
-
-        // Show warning modal
-        setIsEndShiftModalOpen(false);
-
-        // Store shift data for verification after warning is dismissed
-        setPendingShiftData({
-          actualCash: updatedShift.actualCash,
-          systemExpectedCash: updatedShift.systemExpectedCash,
-          shortage: updatedShift.shortage,
-        });
-
-        setPendingDeliveries(formattedWarnings);
-        setIsPendingDeliveriesModalOpen(true);
-        toast.warning(
-          `تحذير: يوجد ${updatedShift.deliveryWarnings.length} طياريـن لديهم طلبات معلقة لم يتم تسويتها`,
-          { duration: 5000 },
-        );
-
-        return; // Show warning first, verification opens after
-      }
-
       // Close blind count modal
       setIsEndShiftModalOpen(false);
 
@@ -926,15 +855,6 @@ const POSPage = () => {
       setIsVerificationModalOpen(true);
     } catch (error) {
       console.error("Failed to end shift:", error);
-
-      // Check for pending deliveries error
-      if (error.data?.pendingOrders) {
-        setIsEndShiftModalOpen(false); // Close the blind count modal
-        setPendingDeliveries(error.data?.pendingOrders);
-        setIsPendingDeliveriesModalOpen(true); // Open the blocking modal
-        return;
-      }
-
       toast.error(error.message || "فشل إغلاق الوردية");
     }
   };
@@ -1064,21 +984,16 @@ const POSPage = () => {
   // Main sale completion function
   const handleCompleteSale = async (
     paymentMethod,
-    deliveryDataOverride = null,
+    _unused = null,
     paidAmount = null,
     changeAmount = null,
   ) => {
-    // Use override if provided, otherwise use state
-    const activeDeliveryData = deliveryDataOverride || deliveryData;
-    console.log("🛒 Processing Sale with Delivery Data:", activeDeliveryData);
-
     // Determine payment amounts
     let finalPaidAmount, finalChangeAmount;
     if (paidAmount !== null && changeAmount !== null) {
       finalPaidAmount = paidAmount;
       finalChangeAmount = changeAmount;
     } else {
-      // Auto-calculate for delivery orders (always CASH with exact amount)
       finalPaidAmount = parseFloat(total.toFixed(2));
       finalChangeAmount = 0;
     }
@@ -1090,13 +1005,12 @@ const POSPage = () => {
         ? paymentMethod.toUpperCase() === "CASH"
           ? "CASH"
           : "INSTAPAY"
-        : "CASH"; // Default to CASH for delivery orders
+        : "CASH";
 
     const currentUser = AuthService.getCurrentUser();
     const saleData = {
-      clientId: selectedClient ? selectedClient.id : 1, // Default to walk-in client (ID: 1)
+      clientId: selectedClient ? selectedClient.id : 1,
       userId: currentUser ? currentUser.id : null,
-      // employeeId: 7, // REMOVED hardcoded employee
       paymentMethod: normalizedPaymentMethod,
       subtotal: parseFloat(subtotal.toFixed(2)),
       taxRate: taxRate,
@@ -1105,19 +1019,6 @@ const POSPage = () => {
       paidAmount: finalPaidAmount,
       changeAmount: finalChangeAmount,
       status: "COMPLETED",
-      deliveryManId: activeDeliveryData?.preparationOnly
-        ? null
-        : activeDeliveryData?.riderId,
-      deliveryZoneId: activeDeliveryData?.zoneId,
-      deliveryFee: activeDeliveryData?.zoneFee
-        ? parseFloat(activeDeliveryData.zoneFee)
-        : null,
-      deliveryAddress: activeDeliveryData?.address,
-      deliveryStatus: activeDeliveryData
-        ? activeDeliveryData.preparationOnly
-          ? "PENDING"
-          : "OUT_FOR_DELIVERY"
-        : null,
       items: cartItems.map((item) => ({
         itemId: item.id,
         quantity: item.quantity,
@@ -1132,36 +1033,29 @@ const POSPage = () => {
 
       let createdSale;
 
-      // Phase 6: Use POS endpoint for non-delivery sales
-      const isDeliveryOrder = !!activeDeliveryData;
-      if (!isDeliveryOrder) {
-        // Build Phase 6 POS payload
-        const posPayload = {
-          clientId: selectedClient ? selectedClient.id : null,
-          tierOverride: tierOverride || undefined,
-          tierOverrideReason: tierOverrideReason || undefined,
-          items: cartItems.map((ci) => ({
-            itemId: ci.id,
-            quantity: ci.quantity,
-            unitPrice: ci.priceOverridden ? ci.price : undefined,
-            priceOverrideReason: ci.priceOverrideReason || undefined,
-            rollAllocations:
-              ci.itemType === "FABRIC" && ci.rollAllocations
-                ? ci.rollAllocations.map((ra) => ({
-                    rollId: ra.rollId,
-                    length: ra.length,
-                  }))
-                : undefined,
-          })),
-          paymentMethod: normalizedPaymentMethod,
-          paidAmount: finalPaidAmount,
-          notes: saleData.notes || undefined,
-        };
-        createdSale = await salesService.createPOS(posPayload);
-      } else {
-        // Delivery orders use the legacy endpoint
-        createdSale = await salesService.create(saleData);
-      }
+      // Phase 6: Always use POS endpoint
+      const posPayload = {
+        clientId: selectedClient ? selectedClient.id : null,
+        tierOverride: tierOverride || undefined,
+        tierOverrideReason: tierOverrideReason || undefined,
+        items: cartItems.map((ci) => ({
+          itemId: ci.id,
+          quantity: ci.quantity,
+          unitPrice: ci.priceOverridden ? ci.price : undefined,
+          priceOverrideReason: ci.priceOverrideReason || undefined,
+          rollAllocations:
+            ci.itemType === "FABRIC" && ci.rollAllocations
+              ? ci.rollAllocations.map((ra) => ({
+                  rollId: ra.rollId,
+                  length: ra.length,
+                }))
+              : undefined,
+        })),
+        paymentMethod: normalizedPaymentMethod,
+        paidAmount: finalPaidAmount,
+        notes: saleData.notes || undefined,
+      };
+      createdSale = await salesService.createPOS(posPayload);
 
       console.log("✅ Sale created successfully:", createdSale);
 
@@ -1191,39 +1085,37 @@ const POSPage = () => {
       // REFRESH INVENTORY
       await loadInventory();
 
-      // Phase 6: Build receipt data from response (for non-delivery sales)
-      if (!isDeliveryOrder) {
-        setReceiptData({
-          companyName: companyName || "رامكس ستور",
-          taxNumber: companyTaxNumber || "",
-          taxEnabledOnSales,
-          branchName: createdSale.branch?.name || currentUser?.branch?.name || "",
-          branchAddress: createdSale.branch?.address || "",
-          saleNumber: createdSale.saleNumber,
-          date: createdSale.createdAt,
-          cashierName: createdSale.user?.name || currentUser?.name || "",
-          clientName: createdSale.client?.name || "عميل عام",
-          clientTier: createdSale.client?.tier || "RETAIL",
-          items: (createdSale.items || []).map((si) => ({
-            name: si.item?.name || "",
-            quantity: si.quantity,
-            unitPrice: si.unitPrice,
-            total: si.total,
-            unit: si.item?.unit || "",
-            rollCuts: (si.fabricRollCuts || []).map((rc) => ({
-              rollNumber: rc.fabricRoll?.rollNumber || "",
-              length: rc.lengthCut,
-            })),
+      // Phase 6: Build receipt data from response
+      setReceiptData({
+        companyName: companyName || "رامكس ستور",
+        taxNumber: companyTaxNumber || "",
+        taxEnabledOnSales,
+        branchName: createdSale.branch?.name || currentUser?.branch?.name || "",
+        branchAddress: createdSale.branch?.address || "",
+        saleNumber: createdSale.saleNumber,
+        date: createdSale.createdAt,
+        cashierName: createdSale.user?.name || currentUser?.name || "",
+        clientName: createdSale.client?.name || "عميل عام",
+        clientTier: createdSale.client?.tier || "RETAIL",
+        items: (createdSale.items || []).map((si) => ({
+          name: si.item?.name || "",
+          quantity: si.quantity,
+          unitPrice: si.unitPrice,
+          total: si.total,
+          unit: si.item?.unit || "",
+          rollCuts: (si.fabricRollCuts || []).map((rc) => ({
+            rollNumber: rc.fabricRoll?.rollNumber || "",
+            length: rc.lengthCut,
           })),
-          subtotal: createdSale.subtotal,
-          taxRate: createdSale.taxRate,
-          taxAmount: createdSale.taxAmount,
-          total: createdSale.total,
-          paymentMethod: createdSale.paymentMethod,
-          paidAmount: createdSale.paidAmount,
-          changeAmount: createdSale.changeAmount,
-        });
-      }
+        })),
+        subtotal: createdSale.subtotal,
+        taxRate: createdSale.taxRate,
+        taxAmount: createdSale.taxAmount,
+        total: createdSale.total,
+        paymentMethod: createdSale.paymentMethod,
+        paidAmount: createdSale.paidAmount,
+        changeAmount: createdSale.changeAmount,
+      });
 
       // Save for last sale printing (legacy receipt)
       setLastSale({
@@ -1235,10 +1127,6 @@ const POSPage = () => {
         branchName: currentUser?.branch?.name || "الفرع الرئيسي",
         employeeName: currentUser?.name || currentUser?.username,
         date: new Date().toLocaleString("ar-EG"),
-        riderName: activeDeliveryData?.riderName,
-        zoneName: activeDeliveryData?.zoneName,
-        deliveryFee: activeDeliveryData?.zoneFee,
-        deliveryAddress: activeDeliveryData?.address,
       });
 
       setIsPaymentConfirmOpen(false);
@@ -1543,16 +1431,6 @@ const POSPage = () => {
         systemExpectedCash={0} // Hidden in blind count
       />
 
-      {/* Pending Deliveries Blocking Modal */}
-      <PendingDeliveriesModal
-        isOpen={isPendingDeliveriesModalOpen}
-        onClose={() => {
-          setIsPendingDeliveriesModalOpen(false);
-          setIsVerificationModalOpen(true);
-        }}
-        pendingOrders={pendingDeliveries}
-      />
-
       {/* Manager Verification Modal (Step 2) */}
       <ShiftVerificationModal
         isOpen={isVerificationModalOpen}
@@ -1720,50 +1598,9 @@ const POSPage = () => {
         </div>
       </Modal>
 
-      {/* Delivery Modal */}
-      <DeliveryModal
-        isOpen={isDeliveryModalOpen}
-        onClose={() => setIsDeliveryModalOpen(false)}
-        onConfirm={async (data) => {
-          // Save delivery data first
-          setDeliveryData(data);
-
-          // Auto-complete sale with CASH payment method
-          try {
-            await handleCompleteSale("CASH", data);
-            setIsDeliveryModalOpen(false);
-            if (data.preparationOnly) {
-              toast.success(`تم إرسال الطلب لقسم التجهيز — ${data.zoneName}`, {
-                icon: "🍽️",
-                duration: 4000,
-              });
-            } else {
-              toast.success(
-                `تم تأكيد طلب التوصيل: ${data.zoneName} - ${data.riderName}`,
-              );
-            }
-          } catch (error) {
-            console.error("Failed to save delivery order:", error);
-            toast.error(error.message || "فشل حفظ طلب التوصيل");
-          }
-        }}
-        selectedClient={selectedClient}
-        deliveryMen={deliveryMen}
-        currentShiftId={currentShiftId}
-        branchId={currentUser?.branch?.id}
-      />
-
-      <DeliveryDebtsModal
-        isOpen={isDeliveryDebtsModalOpen}
-        onClose={() => setIsDeliveryDebtsModalOpen(false)}
-        branchId={currentUser?.branch?.id}
-        currentShiftId={currentShiftId}
-      />
-
       <PreparationQueueModal
         isOpen={isPreparationQueueOpen}
         onClose={() => setIsPreparationQueueOpen(false)}
-        deliveryMen={deliveryMen}
       />
 
       {/* Header */}
@@ -1814,13 +1651,6 @@ const POSPage = () => {
             className="flex items-center gap-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
             <Icon name="kitchen" className="text-sm" />
             <span className="hidden md:inline">قسم التجهيز</span>
-          </button>
-
-          <button
-            onClick={() => setIsDeliveryDebtsModalOpen(true)}
-            className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <Icon name="account_balance_wallet" className="text-sm" />
-            <span className="hidden md:inline">ديون الطيارين</span>
           </button>
 
           <button
@@ -2246,7 +2076,7 @@ const POSPage = () => {
               <div className="bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700">
                 {/* Payment Action Buttons - Only show when keypad is closed */}
                 {keypadMode === "default" && (
-                  <div className="grid grid-cols-3 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
+                  <div className="grid grid-cols-2 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
                     <button
                       onClick={() => handleQuickPayment("cash")}
                       className="flex flex-col items-center justify-center p-3 bg-green-500 hover:bg-green-600 text-white transition-colors border-l border-white/10">
@@ -2255,29 +2085,9 @@ const POSPage = () => {
                     </button>
                     <button
                       onClick={() => handleQuickPayment("visa")}
-                      className="flex flex-col items-center justify-center p-3 bg-[#4c096e] hover:bg-[#3a0654] text-white transition-colors border-l border-white/10">
+                      className="flex flex-col items-center justify-center p-3 bg-[#4c096e] hover:bg-[#3a0654] text-white transition-colors">
                       <Icon name="account_balance_wallet" className="mb-1" />
                       <span className="font-bold">InstaPay</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        // Check if no client selected OR if it's the default "General Customer"
-                        if (
-                          !selectedClient ||
-                          selectedClient.name.includes("عميل عام")
-                        ) {
-                          toast.error("يرجى اختيار عميل محدد للتوصيل");
-                          setIsClientDropdownOpen(true); // Open the dropdown
-                          if (clientInputRef.current) {
-                            clientInputRef.current.focus();
-                          }
-                          return;
-                        }
-                        setIsDeliveryModalOpen(true);
-                      }}
-                      className="flex flex-col items-center justify-center p-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors">
-                      <Icon name="local_shipping" className="mb-1" />
-                      <span className="font-bold">توصيل</span>
                     </button>
                   </div>
                 )}
@@ -2295,12 +2105,6 @@ const POSPage = () => {
                     الضريبة ({(taxRate * 100).toFixed(0)}%): {tax.toFixed(2)}{" "}
                     ج.م
                   </div>
-                  {deliveryData && (
-                    <div className="flex justify-end text-xs text-orange-600 dark:text-orange-400 mt-1 font-medium">
-                      رسوم التوصيل ({deliveryData.zoneName}):{" "}
-                      {parseFloat(deliveryData.zoneFee).toFixed(2)} ج.م
-                    </div>
-                  )}
                   <div className="flex justify-end text-xs text-gray-500 dark:text-gray-400 mt-1">
                     المجموع الفرعي: {subtotal.toFixed(2)} ج.م
                   </div>
@@ -2576,36 +2380,6 @@ const POSPage = () => {
           </div>
         </div>
 
-        {/* Delivery section */}
-        {(deliveryData || lastSale?.deliveryAddress) && (
-          <>
-            <div className="divider-dashed"></div>
-            <div className="delivery-section">
-              <div style={{ fontWeight: "bold", marginBottom: "2px" }}>معلومات التوصيل</div>
-              {(deliveryData?.riderName || lastSale?.riderName) && (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>الطيار:</span>
-                  <span style={{ fontWeight: "bold" }}>
-                    {deliveryData?.riderName || lastSale?.riderName}
-                  </span>
-                </div>
-              )}
-              {(deliveryData?.zoneName || lastSale?.zoneName) && (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>المنطقة:</span>
-                  <span>{deliveryData?.zoneName || lastSale?.zoneName}</span>
-                </div>
-              )}
-              {(deliveryData?.address || lastSale?.deliveryAddress) && (
-                <div style={{ marginTop: "2px" }}>
-                  <span style={{ fontWeight: "bold" }}>العنوان: </span>
-                  <span>{deliveryData?.address || lastSale?.deliveryAddress}</span>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
         <div className="divider-solid"></div>
 
         {/* Items table */}
@@ -2636,12 +2410,6 @@ const POSPage = () => {
             <span>ضريبة</span>
             <span>{(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(2)} ج.م</span>
           </div>
-          {(deliveryData?.zoneFee || lastSale?.deliveryFee) && (
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>توصيل</span>
-              <span>{parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0).toFixed(2)} ج.م</span>
-            </div>
-          )}
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>الدفع</span>
             <span>{lastSale?.paymentMethod === "CASH" ? "نقدي" : "انستاباي"}</span>
@@ -2654,10 +2422,7 @@ const POSPage = () => {
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "bold", margin: "3px 0" }}>
           <span>الإجمالي</span>
           <span>
-            {(
-              (cartItems.length > 0 ? total : parseFloat(lastSale?.total || 0)) +
-              parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0)
-            ).toFixed(2)} ج.م
+            {(cartItems.length > 0 ? total : parseFloat(lastSale?.total || 0)).toFixed(2)} ج.م
           </span>
         </div>
 
