@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "../ui/Icon";
+import RmxLogo from "./RmxLogo";
 import AuthService from "../../services/authService";
 import { MODULES } from "../../config/modules";
 
@@ -74,9 +75,7 @@ export default function Sidebar() {
       {/* Logo + pin toggle */}
       <div className="h-topbar flex items-center justify-between px-3 border-b border-line dark:border-line-dark">
         {pinned && (
-          <span className="font-display font-bold text-lg text-ink dark:text-ink-dark tracking-tight">
-            RMX
-          </span>
+          <RmxLogo height={26} className="text-ink dark:text-ink-dark" />
         )}
         <button
           onClick={() => setPinned(!pinned)}
