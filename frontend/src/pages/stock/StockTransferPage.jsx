@@ -107,7 +107,21 @@ const StockTransferPage = () => {
   };
 
   const isDecimalUnit = (unit) => {
-    return unit && (unit.includes("كيلو") || unit.toLowerCase().includes("kg"));
+    if (!unit) return false;
+    const normalized = unit.toLowerCase();
+    return (
+      unit.includes("كيلو") ||
+      unit.includes("سم") ||
+      unit.includes("متر") ||
+      normalized.includes("kg") ||
+      normalized.includes("kilo") ||
+      normalized.includes("cm") ||
+      normalized.includes("centimeter") ||
+      normalized.includes("centimetre") ||
+      normalized === "m" ||
+      normalized.includes("meter") ||
+      normalized.includes("metre")
+    );
   };
 
   const handleQtyChange = (id, direction) => {
