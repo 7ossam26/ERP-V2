@@ -1,5 +1,7 @@
 // API Client configuration and base utilities
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+import { emitAuthChanged } from "../utils/authEvents.js";
+
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || "/api";
 
 class APIError extends Error {
   constructor(message, status, data) {
@@ -42,7 +44,7 @@ export const apiClient = async (endpoint, options = {}) => {
       if (activeBranch && activeBranch !== "0") {
         config.headers["X-Active-Branch-Id"] = activeBranch;
       }
-    } catch (e) {
+    } catch {
       // ignore parse errors
     }
   }
@@ -65,9 +67,12 @@ export const apiClient = async (endpoint, options = {}) => {
       if (response.status === 401) {
         // Unauthorized - token expired or invalid
         // Clear stale auth data and redirect to login
-        if (!window.location.pathname.endsWith("/")) {
+        if (typeof localStorage !== "undefined") {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
+        }
+        emitAuthChanged({ reason: "unauthorized" });
+        if (typeof window !== "undefined" && !window.location.pathname.endsWith("/")) {
           window.location.href = "/";
         }
       }

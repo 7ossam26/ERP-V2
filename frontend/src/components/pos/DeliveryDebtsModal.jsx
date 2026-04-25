@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { deliveryService } from "../../services/deliveryService";
@@ -170,29 +170,47 @@ function RiderCard({ rider, onSettle }) {
 const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
   const [riderDebts, setRiderDebts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [isSettlementOpen, setIsSettlementOpen] = useState(false);
   const [selectedRider, setSelectedRider] = useState(null);
+  const reqIdRef = useRef(0);
 
-  const fetchRiderDebts = useCallback(async () => {
+  const fetchRiderDebts = async () => {
     if (!branchId || branchId === "undefined" || !currentShiftId) {
       setRiderDebts([]);
+      setHasLoaded(true);
+      setLoading(false);
       return;
     }
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     try {
       const data = await deliveryService.getStats({ branchId, shiftId: currentShiftId });
+      // Drop the response if a newer request has been issued.
+      if (reqId !== reqIdRef.current) return;
       setRiderDebts((data || []).filter((r) => r.orderCount > 0));
     } catch (error) {
+      if (reqId !== reqIdRef.current) return;
       toast.error(error?.message || "فشل تحميل ديون الطيارين");
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) {
+        setLoading(false);
+        setHasLoaded(true);
+      }
     }
-  }, [branchId, currentShiftId]);
+  };
 
+  // Refetch only when the modal opens or its identity (branch/shift) changes.
   useEffect(() => {
-    if (isOpen) fetchRiderDebts();
-  }, [isOpen, fetchRiderDebts]);
+    if (!isOpen) {
+      setHasLoaded(false);
+      reqIdRef.current++;        // invalidate any in-flight response
+      return;
+    }
+    fetchRiderDebts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, branchId, currentShiftId]);
 
   const handleOpenSettlement = (rider) => {
     setSelectedRider({ id: rider.id, name: rider.name, walletBalance: rider.totalCash });
@@ -314,7 +332,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-4">
-            {loading ? (
+            {loading && !hasLoaded ? (
               <div className="flex items-center justify-center py-16">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>

@@ -1,25 +1,24 @@
 import apiClient from "./apiClient";
+import eventStream from "./eventStreamService.js";
+import { emitAuthChanged } from "../utils/authEvents.js";
 
 const AuthService = {
   // Login with username and password
   login: async (username, password) => {
-    try {
-      const response = await apiClient.post("/auth/login", {
-        username,
-        password,
-      });
+    const response = await apiClient.post("/auth/login", {
+      username,
+      password,
+    });
 
-      const { token, refreshToken, user } = response;
+    const { token, user } = response;
 
-      if (token && user) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-
-      return response;
-    } catch (error) {
-      throw error;
+    if (token && user) {
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      emitAuthChanged({ reason: "login" });
     }
+
+    return response;
   },
 
   // Logout current user
@@ -27,11 +26,14 @@ const AuthService = {
     try {
       // Call server to invalidate tokens
       await apiClient.post("/auth/logout");
-    } catch (e) {
+    } catch {
       // Ignore logout errors
     } finally {
+      eventStream.stop();
+      eventStream.clearReplayCursor();
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      emitAuthChanged({ reason: "logout" });
       window.location.href = "/";
     }
   },
@@ -42,7 +44,7 @@ const AuthService = {
     if (!userStr) return null;
     try {
       return JSON.parse(userStr);
-    } catch (e) {
+    } catch {
       return null;
     }
   },

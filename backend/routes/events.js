@@ -53,6 +53,9 @@ function authFromTicket(req, res, next) {
 
 router.get("/stream", authFromTicket, async (req, res) => {
   const userId = req.user.id;
+  const connectedAt = Date.now();
+  let publishCount = 0;
+  let replayCount = 0;
 
   // SSE headers
   res.status(200);
@@ -106,10 +109,15 @@ router.get("/stream", authFromTicket, async (req, res) => {
           replay: true,
         });
       }
+      replayCount = missed.length;
     } catch (err) {
       console.error("[SSE] replay failed:", err.message);
     }
   }
+
+  console.log(
+    `[SSE] connect userId=${userId} lastEventId=${lastId || "—"} replayed=${replayCount}`,
+  );
 
   // Immediately send a "ready" comment so clients know connection is live.
   res.write(`: connected\n\n`);
@@ -120,6 +128,7 @@ router.get("/stream", authFromTicket, async (req, res) => {
   const unsubscribe = bus.subscribe(bus.topics.userNotifications(userId), (event) => {
     try {
       send(event);
+      publishCount += 1;
     } catch (err) {
       console.error("[SSE] write failed:", err.message);
     }
@@ -142,6 +151,10 @@ router.get("/stream", authFromTicket, async (req, res) => {
   req.on("close", () => {
     clearInterval(heartbeat);
     unsubscribe();
+    const durationMs = Date.now() - connectedAt;
+    console.log(
+      `[SSE] disconnect userId=${userId} durationMs=${durationMs} published=${publishCount}`,
+    );
     try {
       res.end();
     } catch {}

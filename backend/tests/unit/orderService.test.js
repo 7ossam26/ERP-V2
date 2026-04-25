@@ -17,11 +17,18 @@ const {
   createOrderInTx,
   publishNewOrderNotifications,
   drainPendingForBranch,
+  broadcastStatusChange,
 } = require("../../lib/orderService");
 
 beforeEach(() => {
   bus.publish.mockClear();
 });
+
+async function flushMicrotasks(times = 5) {
+  for (let i = 0; i < times; i += 1) {
+    await Promise.resolve();
+  }
+}
 
 describe("createOrderInTx", () => {
   test("persists Sale-linked Order with channel/status/timestamps", async () => {
@@ -166,6 +173,31 @@ describe("publishNewOrderNotifications", () => {
     }
   });
 
+  test("waits for eventBus publishes before resolving", async () => {
+    const tx = buildTx([11]);
+    let releasePublish;
+    let resolved = false;
+    bus.publish.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        releasePublish = resolve;
+      }),
+    );
+
+    const pending = publishNewOrderNotifications(tx, { order, sale, client }).then(() => {
+      resolved = true;
+    });
+
+    await flushMicrotasks();
+
+    expect(bus.publish).toHaveBeenCalledTimes(1);
+    expect(resolved).toBe(false);
+
+    releasePublish();
+    await pending;
+
+    expect(resolved).toBe(true);
+  });
+
   test("no-op when no cashier has an open shift", async () => {
     const tx = buildTx([]);
 
@@ -228,6 +260,31 @@ describe("drainPendingForBranch", () => {
     expect(notifiedUserIds).toEqual([11, 22]);
   });
 
+  test("waits for eventBus publishes before resolving", async () => {
+    const tx = buildDrainTx({ openShiftUserIds: [11], pendingOrders: [pendingOrder] });
+    let releasePublish;
+    let resolved = false;
+    bus.publish.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        releasePublish = resolve;
+      }),
+    );
+
+    const pending = drainPendingForBranch(tx, { branchId: 3 }).then(() => {
+      resolved = true;
+    });
+
+    await flushMicrotasks();
+
+    expect(bus.publish).toHaveBeenCalledTimes(1);
+    expect(resolved).toBe(false);
+
+    releasePublish();
+    await pending;
+
+    expect(resolved).toBe(true);
+  });
+
   test("returns empty and skips notifications when no open shifts", async () => {
     const tx = buildDrainTx({ openShiftUserIds: [], pendingOrders: [pendingOrder] });
 
@@ -245,5 +302,63 @@ describe("drainPendingForBranch", () => {
 
     expect(rows).toEqual([]);
     expect(tx.notification.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("broadcastStatusChange", () => {
+  function buildPrismaClient(openShiftUserIds) {
+    let notifId = 300;
+    return {
+      shift: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue(openShiftUserIds.map((userId) => ({ userId }))),
+      },
+      notification: {
+        create: jest.fn().mockImplementation(async ({ data }) => ({
+          id: ++notifId,
+          createdAt: new Date("2026-04-22T09:00:00Z"),
+          ...data,
+        })),
+      },
+    };
+  }
+
+  const order = {
+    id: 77,
+    saleId: 55,
+    branchId: 3,
+    createdById: 99,
+    status: "PREPARING",
+    updatedAt: new Date("2026-04-22T09:00:00Z"),
+  };
+  const sale = {
+    id: 55,
+    saleNumber: "S-001",
+  };
+
+  test("waits for eventBus publishes before resolving", async () => {
+    const prismaClient = buildPrismaClient([11]);
+    let releasePublish;
+    let resolved = false;
+    bus.publish.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        releasePublish = resolve;
+      }),
+    );
+
+    const pending = broadcastStatusChange(prismaClient, { order, sale }).then(() => {
+      resolved = true;
+    });
+
+    await flushMicrotasks();
+
+    expect(bus.publish).toHaveBeenCalledTimes(2);
+    expect(resolved).toBe(false);
+
+    releasePublish();
+    await pending;
+
+    expect(resolved).toBe(true);
   });
 });

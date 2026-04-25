@@ -1,4 +1,5 @@
 import React from "react";
+import debugLog from "../utils/debugLog.js";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,6 +13,10 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error("[ErrorBoundary] caught:", error, info?.componentStack);
+    debugLog.error("render", error, {
+      source: "ErrorBoundary",
+      componentStack: info?.componentStack,
+    });
   }
 
   handleReload = () => {

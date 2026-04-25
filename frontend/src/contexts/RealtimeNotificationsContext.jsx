@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // contexts/RealtimeNotificationsContext.jsx
 // Single source of truth for the live notification feed.
 // Starts the SSE connection after login, merges live events with REST history,
@@ -13,8 +14,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import eventStream from "../services/eventStreamService";
+import eventStream from "../services/eventStreamService.js";
 import notificationService from "../services/notificationService";
+import { AUTH_CHANGED_EVENT } from "../utils/authEvents.js";
 
 const RealtimeNotificationsContext = createContext(null);
 
@@ -29,14 +31,18 @@ const getAlertsKey = () => {
   }
 };
 
+const readAuthToken = () => localStorage.getItem("token") || "";
+
 export const RealtimeNotificationsProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState("closed");
+  const [authToken, setAuthToken] = useState(readAuthToken);
   const [alertsEnabled, setAlertsEnabled] = useState(
     () => localStorage.getItem(getAlertsKey()) === "true",
   );
   const soundRef = useRef(null);
+  const alertsEnabledRef = useRef(alertsEnabled);
 
   // Initial fetch of recent history + unread count.
   const refresh = useCallback(async () => {
@@ -57,14 +63,45 @@ export const RealtimeNotificationsProvider = ({ children }) => {
       try {
         soundRef.current = new Audio("/sounds/ding.mp3");
         soundRef.current.preload = "auto";
-      } catch {}
+      } catch {
+        // Audio setup can fail in restricted browser contexts.
+      }
     }
+  }, []);
+
+  useEffect(() => {
+    alertsEnabledRef.current = alertsEnabled;
+  }, [alertsEnabled]);
+
+  useEffect(() => {
+    const syncAuth = () => {
+      setAuthToken(readAuthToken());
+      setAlertsEnabled(localStorage.getItem(getAlertsKey()) === "true");
+    };
+
+    const handleStorage = (event) => {
+      if (!event || event.key === null || event.key === "token" || event.key === "user") {
+        syncAuth();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(AUTH_CHANGED_EVENT, syncAuth);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(AUTH_CHANGED_EVENT, syncAuth);
+    };
   }, []);
 
   // Wire up the SSE stream. Re-runs only if the token changes (login/logout).
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!authToken) {
+      eventStream.stop();
+      setConnectionStatus("closed");
+      setNotifications([]);
+      setUnreadCount(0);
+      return undefined;
+    }
 
     refresh();
     eventStream.start();
@@ -107,23 +144,26 @@ export const RealtimeNotificationsProvider = ({ children }) => {
     return () => {
       off();
       offStatus();
+      eventStream.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refresh]);
+  }, [authToken, refresh]);
 
   const playAlert = useCallback(() => {
-    if (!alertsEnabled) return;
+    if (!alertsEnabledRef.current) return;
     const audio = soundRef.current;
     if (!audio) return;
     try {
       audio.currentTime = 0;
-      audio.play().catch(() => {});
-    } catch {}
-  }, [alertsEnabled]);
+      audio.play().catch(() => undefined);
+    } catch {
+      // Alert playback is best-effort.
+    }
+  }, []);
 
   const showBrowserNotification = useCallback(
     (payload) => {
-      if (!alertsEnabled) return;
+      if (!alertsEnabledRef.current) return;
       if (typeof Notification === "undefined") return;
       if (Notification.permission !== "granted") return;
       try {
@@ -133,9 +173,11 @@ export const RealtimeNotificationsProvider = ({ children }) => {
             : `إجمالي: ${Number(payload?.total || 0).toFixed(2)}`,
           tag: `order-${payload?.orderId}`,
         });
-      } catch {}
+      } catch {
+        // Browser notification construction is best-effort.
+      }
     },
-    [alertsEnabled],
+    [],
   );
 
   /**
@@ -155,13 +197,17 @@ export const RealtimeNotificationsProvider = ({ children }) => {
         audio.pause();
         audio.currentTime = 0;
         audio.muted = false;
-      } catch {}
+      } catch {
+        // Unlocking audio is best-effort.
+      }
     }
     // Ask for browser-notification permission (idempotent).
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       try {
         await Notification.requestPermission();
-      } catch {}
+      } catch {
+        // Permission prompts can be blocked by the browser.
+      }
     }
   }, []);
 

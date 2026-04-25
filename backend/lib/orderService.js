@@ -85,14 +85,16 @@ async function publishNewOrderNotifications(tx, { order, sale, client }) {
   // immediately; if the tx rolls back, SSE listeners see an event for a
   // notification row that disappears — the client's REST-history refresh
   // reconciles on the next tick. Acceptable for our scale.
-  for (const n of notifications) {
-    bus.publish(bus.topics.userNotifications(n.userId), {
-      id: n.id,
-      type: n.type,
-      payload: n.payload,
-      createdAt: n.createdAt,
-    });
-  }
+  await Promise.all(
+    notifications.map((n) =>
+      bus.publish(bus.topics.userNotifications(n.userId), {
+        id: n.id,
+        type: n.type,
+        payload: n.payload,
+        createdAt: n.createdAt,
+      }),
+    ),
+  );
 
   return notifications;
 }
@@ -127,6 +129,7 @@ async function drainPendingForBranch(tx, { branchId }) {
   if (pending.length === 0) return [];
 
   const published = [];
+  const publishTasks = [];
   for (const order of pending) {
     const payload = {
       orderId: order.id,
@@ -145,15 +148,18 @@ async function drainPendingForBranch(tx, { branchId }) {
       const row = await tx.notification.create({
         data: { userId: shift.userId, branchId, type: "NEW_CALL_CENTER_ORDER", payload },
       });
-      bus.publish(bus.topics.userNotifications(shift.userId), {
-        id: row.id,
-        type: row.type,
-        payload: row.payload,
-        createdAt: row.createdAt,
-      });
+      publishTasks.push(
+        bus.publish(bus.topics.userNotifications(shift.userId), {
+          id: row.id,
+          type: row.type,
+          payload: row.payload,
+          createdAt: row.createdAt,
+        }),
+      );
       published.push(row);
     }
   }
+  await Promise.all(publishTasks);
   return published;
 }
 
@@ -182,6 +188,7 @@ async function broadcastStatusChange(prismaClient, { order, sale }) {
     updatedAt: order.updatedAt,
   };
 
+  const publishTasks = [];
   for (const userId of recipientIds) {
     const row = await prismaClient.notification.create({
       data: {
@@ -193,13 +200,16 @@ async function broadcastStatusChange(prismaClient, { order, sale }) {
         readAt: new Date(),
       },
     });
-    bus.publish(bus.topics.userNotifications(userId), {
-      id: row.id,
-      type: row.type,
-      payload: row.payload,
-      createdAt: row.createdAt,
-    });
+    publishTasks.push(
+      bus.publish(bus.topics.userNotifications(userId), {
+        id: row.id,
+        type: row.type,
+        payload: row.payload,
+        createdAt: row.createdAt,
+      }),
+    );
   }
+  await Promise.all(publishTasks);
 }
 
 module.exports = {
