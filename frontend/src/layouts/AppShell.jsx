@@ -4,19 +4,20 @@ import TopBar from "../components/shell/TopBar";
 import CommandPalette from "../components/shell/CommandPalette";
 import Footer from "../components/shared/Footer";
 
-const STORAGE_KEY = "rmx_sidebar_pinned";
+const PIN_KEY = "rmx_sidebar_pinned";
 
 export default function AppShell({ children }) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY) === "true"; } catch { return false; }
+    try { return localStorage.getItem(PIN_KEY) === "true"; } catch { return false; }
   });
+  const [sidebarHoverOpen, setSidebarHoverOpen] = useState(false);
 
   // Listen for sidebar pin state changes (Sidebar writes to localStorage)
   useEffect(() => {
     const handler = () => {
       try {
-        setSidebarPinned(localStorage.getItem(STORAGE_KEY) === "true");
+        setSidebarPinned(localStorage.getItem(PIN_KEY) === "true");
       } catch {}
     };
     window.addEventListener("storage", handler);
@@ -24,8 +25,8 @@ export default function AppShell({ children }) {
     // Also poll on interval since storage event doesn't fire in same tab
     const interval = setInterval(() => {
       try {
-        const val = localStorage.getItem(STORAGE_KEY) === "true";
-        setSidebarPinned((prev) => (prev !== val ? val : prev));
+        const pinVal = localStorage.getItem(PIN_KEY) === "true";
+        setSidebarPinned((prev) => (prev !== pinVal ? pinVal : prev));
       } catch {}
     }, 300);
 
@@ -48,18 +49,26 @@ export default function AppShell({ children }) {
   }, []);
 
   const closeCmd = useCallback(() => setCmdOpen(false), []);
+  const isSidebarExpanded = sidebarPinned || sidebarHoverOpen;
 
   return (
     <div className="bg-canvas dark:bg-canvas-dark text-ink dark:text-ink-dark font-body min-h-screen">
-      <Sidebar />
-      <TopBar onOpenCommandPalette={() => setCmdOpen(true)} sidebarPinned={sidebarPinned} />
+      <Sidebar
+        pinned={sidebarPinned}
+        onPinnedChange={setSidebarPinned}
+        onHoverChange={setSidebarHoverOpen}
+      />
+      <TopBar
+        onOpenCommandPalette={() => setCmdOpen(true)}
+        sidebarExpanded={isSidebarExpanded}
+      />
       <CommandPalette open={cmdOpen} onClose={closeCmd} />
 
       {/* Main content — offset by sidebar + topbar */}
       <main
         className="transition-all duration-300 min-h-screen"
         style={{
-          marginRight: sidebarPinned ? "240px" : "64px",
+          marginRight: isSidebarExpanded ? "240px" : "64px",
           paddingTop: "56px",
         }}
       >

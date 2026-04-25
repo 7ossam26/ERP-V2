@@ -68,15 +68,6 @@ const DetailedReportsPage = () => {
       darkBg: "dark:bg-indigo-900/20",
     },
     {
-      title: "سجل الإنتاج",
-      description: "عمليات التصنيع والإنتاج",
-      icon: "factory",
-      path: "/bom/production-history",
-      color: "text-pink-600",
-      bg: "bg-pink-100",
-      darkBg: "dark:bg-pink-900/20",
-    },
-    {
       title: "سجل المصروفات",
       description: "تاريخ المصروفات المنصرفة",
       icon: "paid",
