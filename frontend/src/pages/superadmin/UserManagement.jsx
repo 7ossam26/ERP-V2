@@ -3,6 +3,7 @@ import SuperadminService from "../../services/superadminService";
 import AuthService from "../../services/authService";
 import { branchService } from "../../services/domainServices";
 import { toast } from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -197,7 +198,7 @@ const UserManagement = () => {
             setShowModal(true);
           }}
           className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-900/20 shrink-0">
-          <span className="material-icons-round">add</span>
+          <Icon name="add" />
           <span className="hidden sm:inline">Add New User</span>
         </button>
       </div>
@@ -260,12 +261,12 @@ const UserManagement = () => {
                   <button
                     onClick={() => openEditModal(user)}
                     className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition">
-                    <span className="material-icons-round text-lg">edit</span>
+                    <Icon name="edit" className="text-lg" />
                   </button>
                   <button
                     onClick={() => handleDeleteClick(user)}
                     className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-                    <span className="material-icons-round text-lg">delete</span>
+                    <Icon name="delete" className="text-lg" />
                   </button>
                 </td>
               </tr>
@@ -293,7 +294,7 @@ const UserManagement = () => {
               <button
                 onClick={() => setShowModal(false)}
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <span className="material-icons-round">close</span>
+                <Icon name="close" />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
@@ -595,7 +596,7 @@ const UserManagement = () => {
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4 text-red-600">
-                <span className="material-icons-round text-3xl">warning</span>
+                <Icon name="warning" className="text-3xl" />
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                   Confirm Deletion
                 </h3>

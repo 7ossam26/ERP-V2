@@ -4,6 +4,7 @@ import { branchService, employeeService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import BranchFilterHelper from "../../utils/BranchFilterHelper";
 import Modal from "../../components/ui/Modal";
+import Icon from "../../components/ui/Icon";
 
 const TransactionForm = ({
   type,
@@ -75,9 +76,7 @@ const TransactionForm = ({
                   ? employees.find((e) => e.id === formData.employeeId)?.name
                   : "ابحث بالاسم أو الرقم..."}
               </span>
-              <span className="material-symbols-outlined text-gray-400 text-[20px]">
-                expand_more
-              </span>
+              <Icon name="expand_more" className="text-gray-400 text-[20px]" />
             </div>
 
             {isDropdownOpen && (
@@ -401,12 +400,8 @@ const HRPage = () => {
                   </option>
                 ))}
               </select>
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]">
-                store
-              </span>
-              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]">
-                expand_more
-              </span>
+              <Icon name="store" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]" />
+              <Icon name="expand_more" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]" />
             </div>
 
             <div className="h-8 w-[1px] bg-border-light dark:bg-border-dark mx-1 hidden md:block"></div>
@@ -415,18 +410,14 @@ const HRPage = () => {
             <button
               onClick={() => openModal("advance")}
               className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#FF7043] hover:bg-[#F4511E] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md">
-              <span className="material-symbols-outlined text-[20px]">
-                money_off
-              </span>
+              <Icon name="money_off" className="text-[20px]" />
               <span>إضافة سلفة</span>
             </button>
 
             <button
               onClick={() => openModal("deduction")}
               className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md">
-              <span className="material-symbols-outlined text-[20px]">
-                remove_circle
-              </span>
+              <Icon name="remove_circle" className="text-[20px]" />
               <span>إضافة خصم</span>
             </button>
           </div>
@@ -437,7 +428,7 @@ const HRPage = () => {
           <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark flex flex-col justify-between">
             <div className="flex justify-between items-start mb-2">
               <div className="p-2 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
-                <span className="material-symbols-outlined">groups</span>
+                <Icon name="groups" />
               </div>
             </div>
             <div>
@@ -454,7 +445,7 @@ const HRPage = () => {
           <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark flex flex-col justify-between">
             <div className="flex justify-between items-start mb-2">
               <div className="p-2 rounded-lg bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400">
-                <span className="material-symbols-outlined">payments</span>
+                <Icon name="payments" />
               </div>
             </div>
             <div>
@@ -472,9 +463,7 @@ const HRPage = () => {
           <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark flex flex-col justify-between">
             <div className="flex justify-between items-start mb-2">
               <div className="p-2 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400">
-                <span className="material-symbols-outlined">
-                  account_balance_wallet
-                </span>
+                <Icon name="account_balance_wallet" />
               </div>
             </div>
             <div>
@@ -492,7 +481,7 @@ const HRPage = () => {
           <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark flex flex-col justify-between">
             <div className="flex justify-between items-start mb-2">
               <div className="p-2 rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
-                <span className="material-symbols-outlined">Remove_circle</span>
+                <Icon name="Remove_circle" />
               </div>
             </div>
             <div>
@@ -591,9 +580,7 @@ const HRPage = () => {
                               onClick={() => handlePaySalary(employee)}
                               className="p-1 text-green-600 hover:bg-green-50 rounded"
                               title="دفع الراتب">
-                              <span className="material-symbols-outlined text-[20px]">
-                                payments
-                              </span>
+                              <Icon name="payments" className="text-[20px]" />
                             </button>
                           )}
 
@@ -601,9 +588,7 @@ const HRPage = () => {
                             onClick={() => openModal("history", employee)}
                             className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                             title="التفاصيل">
-                            <span className="material-symbols-outlined text-[20px]">
-                              visibility
-                            </span>
+                            <Icon name="visibility" className="text-[20px]" />
                           </button>
                           <button
                             onClick={() =>
@@ -611,9 +596,7 @@ const HRPage = () => {
                             }
                             className="p-1 text-orange-600 hover:bg-orange-50 rounded"
                             title="إضافة سلفة/خصم">
-                            <span className="material-symbols-outlined text-[20px]">
-                              add_circle
-                            </span>
+                            <Icon name="add_circle" className="text-[20px]" />
                           </button>
                         </div>
                       </td>
@@ -663,9 +646,7 @@ const HRPage = () => {
               </span>
               {selectedEmployee.isPaid && (
                 <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">
-                    check_circle
-                  </span>
+                  <Icon name="check_circle" className="text-[14px]" />
                   تم تاكيد الدفع بواسطه{" "}
                   <strong>{selectedEmployee.paidBy || "غير معروف"}</strong>
                 </span>
@@ -719,9 +700,7 @@ const HRPage = () => {
           <div className="space-y-6">
             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl flex items-center gap-4">
               <div className="bg-green-100 dark:bg-green-800 p-2 rounded-full text-green-600 dark:text-green-300">
-                <span className="material-symbols-outlined text-2xl">
-                  payments
-                </span>
+                <Icon name="payments" className="text-2xl" />
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">

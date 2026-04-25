@@ -11,6 +11,7 @@ import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 import { confirmAction } from "../../utils/toastUtils";
 import { useNavigate } from "react-router-dom";
+import Icon from "../../components/ui/Icon";
 
 // ==========================================
 // Execute Production Modal
@@ -102,9 +103,7 @@ const ExecuteProductionModal = ({
         <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="bg-green-100 dark:bg-green-900/30 p-2.5 rounded-xl">
-              <span className="material-icons-round text-2xl text-green-600">
-                precision_manufacturing
-              </span>
+              <Icon name="precision_manufacturing" className="text-2xl text-green-600" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-text-light dark:text-text-dark">
@@ -116,7 +115,7 @@ const ExecuteProductionModal = ({
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-            <span className="material-icons-round text-gray-500">close</span>
+            <Icon name="close" className="text-gray-500" />
           </button>
         </div>
 
@@ -172,9 +171,7 @@ const ExecuteProductionModal = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                <span className="material-icons-round text-sm align-middle text-red-500 ml-1">
-                  remove_circle
-                </span>
+                <Icon name="remove_circle" className="text-sm align-middle text-red-500 ml-1" />
                 مستودع الخصم (المواد الخام)
               </label>
               <select
@@ -192,9 +189,7 @@ const ExecuteProductionModal = ({
             </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                <span className="material-icons-round text-sm align-middle text-green-500 ml-1">
-                  add_circle
-                </span>
+                <Icon name="add_circle" className="text-sm align-middle text-green-500 ml-1" />
                 مستودع الإضافة (المنتج النهائي)
               </label>
               <select
@@ -308,9 +303,7 @@ const ExecuteProductionModal = ({
               type="submit"
               disabled={loading || materialRows.some((r) => r.insufficient)}
               className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-              <span className="material-icons-round text-lg">
-                precision_manufacturing
-              </span>
+              <Icon name="precision_manufacturing" className="text-lg" />
               {loading ? "جاري التنفيذ..." : "تنفيذ الإنتاج"}
             </button>
           </div>
@@ -478,9 +471,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
               type="text"
               required
             />
-            <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-              receipt
-            </span>
+            <Icon name="receipt" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
         </div>
 
@@ -497,9 +488,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
               <option value="piece">قطعة (Piece)</option>
               <option value="kg">كيلوجرام (KG)</option>
             </select>
-            <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-              straighten
-            </span>
+            <Icon name="straighten" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
         </div>
 
@@ -518,9 +507,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
               step="0.01"
               min="0"
             />
-            <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-              attach_money
-            </span>
+            <Icon name="attach_money" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
         </div>
 
@@ -552,11 +539,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
                     );
                   }}
                 />
-                <span className="material-icons-round text-base">
-                  {selectedCategoryIds.includes(cat.id)
-                    ? "check_circle"
-                    : "radio_button_unchecked"}
-                </span>
+                <Icon name={selectedCategoryIds.includes(cat.id) ? "check_circle" : "radio_button_unchecked"} size={16} />
                 {cat.name}
               </label>
             ))}
@@ -578,9 +561,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
               step="0.01"
               min="0.01"
             />
-            <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-              output
-            </span>
+            <Icon name="output" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
         </div>
 
@@ -677,7 +658,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
             type="button"
             onClick={addItem}
             className="flex items-center gap-1 text-sm text-primary hover:text-primary-hover font-bold transition-colors">
-            <span className="material-icons-round text-lg">add_circle</span>
+            <Icon name="add_circle" className="text-lg" />
             إضافة مادة
           </button>
         </div>
@@ -748,7 +729,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
                 onClick={() => removeItem(index)}
                 className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                 disabled={formData.items.length <= 1}>
-                <span className="material-icons-round text-lg">delete</span>
+                <Icon name="delete" className="text-lg" />
               </button>
             </div>
           ))}
@@ -767,7 +748,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
           type="submit"
           disabled={loading}
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 min-h-touch disabled:opacity-50">
-          <span className="material-icons-round text-lg">save</span>
+          <Icon name="save" className="text-lg" />
           <span>
             {loading ? "جاري الحفظ..." : initialData ? "حفظ التغييرات" : "حفظ"}
           </span>
@@ -876,9 +857,7 @@ const BOMManager = () => {
               setEditingBom(null);
             }}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <span className="material-icons-round text-gray-500">
-              arrow_forward
-            </span>
+            <Icon name="arrow_forward" className="text-gray-500" />
           </button>
           <div>
             <h2 className="text-2xl font-bold text-text-light dark:text-text-dark">
@@ -921,9 +900,7 @@ const BOMManager = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="bg-primary/10 dark:bg-primary/20 p-3 rounded-full">
-            <span className="material-icons-round text-3xl text-primary">
-              receipt
-            </span>
+            <Icon name="receipt" className="text-3xl text-primary" />
           </div>
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-text-light dark:text-text-dark">
@@ -938,7 +915,7 @@ const BOMManager = () => {
           <button
             onClick={() => navigate("/bom/production-history")}
             className="flex items-center gap-2 px-4 py-3 rounded-xl border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 font-bold text-sm transition-all min-h-touch">
-            <span className="material-icons-round">history</span>
+            <Icon name="history" />
             سجل الإنتاج
           </button>
           {canCreate && (
@@ -948,7 +925,7 @@ const BOMManager = () => {
                 setShowForm(true);
               }}
               className="flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all min-h-touch">
-              <span className="material-icons-round">add</span>
+              <Icon name="add" />
               إنشاء وصفة جديدة
             </button>
           )}
@@ -962,9 +939,7 @@ const BOMManager = () => {
         </div>
       ) : boms.length === 0 ? (
         <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark p-12 text-center">
-          <span className="material-icons-round text-6xl text-gray-300 dark:text-gray-600 mb-4">
-            receipt_long
-          </span>
+          <Icon name="receipt_long" className="text-6xl text-gray-300 dark:text-gray-600 mb-4" />
           <p className="text-lg text-gray-500 dark:text-gray-400">
             لا توجد وصفات تصنيع مسجلة
           </p>
@@ -985,9 +960,7 @@ const BOMManager = () => {
                         ? "bg-green-100 dark:bg-green-900/30 text-green-600"
                         : "bg-gray-100 dark:bg-gray-800 text-gray-400"
                       }`}>
-                    <span className="material-icons-round text-xl">
-                      receipt
-                    </span>
+                    <Icon name="receipt" className="text-xl" />
                   </div>
                   <div>
                     <h3 className="font-bold text-lg text-text-light dark:text-text-dark">
@@ -995,18 +968,14 @@ const BOMManager = () => {
                     </h3>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                        <span className="material-icons-round text-sm">
-                          inventory_2
-                        </span>
+                        <Icon name="inventory_2" size={14} />
                         المنتج: {bom.outputItemName}
                       </span>
                       <span className="text-sm text-gray-500 dark:text-gray-400">
                         •
                       </span>
                       <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                        <span className="material-icons-round text-sm">
-                          category
-                        </span>
+                        <Icon name="category" className="text-sm" />
                         {bom.items.length} مادة خام
                       </span>
                       <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -1071,9 +1040,7 @@ const BOMManager = () => {
                         return (
                           <span
                             className={`text-sm flex items-center gap-1 ${colorClass}`}>
-                            <span className="material-icons-round text-sm">
-                              construction
-                            </span>
+                            <Icon name="construction" className="text-sm" />
                             إمكانية الإنتاج: {isInfinite ? "-" : possibleCount}{" "}
                             وحدة
                           </span>
@@ -1092,9 +1059,7 @@ const BOMManager = () => {
                         }}
                         title="تنفيذ إنتاج"
                         className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors">
-                        <span className="material-icons-round text-lg">
-                          precision_manufacturing
-                        </span>
+                        <Icon name="precision_manufacturing" className="text-lg" />
                       </button>
                       <button
                         onClick={(e) => {
@@ -1102,9 +1067,7 @@ const BOMManager = () => {
                           handleEdit(bom);
                         }}
                         className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                        <span className="material-icons-round text-lg">
-                          edit
-                        </span>
+                        <Icon name="edit" className="text-lg" />
                       </button>
                       <button
                         onClick={(e) => {
@@ -1112,17 +1075,11 @@ const BOMManager = () => {
                           handleDelete(bom);
                         }}
                         className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                        <span className="material-icons-round text-lg">
-                          delete
-                        </span>
+                        <Icon name="delete" className="text-lg" />
                       </button>
                     </>
                   )}
-                  <span
-                    className={`material-icons-round text-gray-400 transform transition-transform ${expandedBom === bom.id ? "rotate-180" : ""
-                      }`}>
-                    expand_more
-                  </span>
+                  <Icon name="expand_more" className={`text-gray-400 transform transition-transform ${expandedBom === bom.id ? "rotate-180" : ""}`} />
                 </div>
               </div>
 
@@ -1208,9 +1165,7 @@ const BOMManager = () => {
                   </table>
                   {bom.notes && (
                     <div className="mt-3 flex items-start gap-2 text-sm text-gray-500 bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-lg">
-                      <span className="material-icons-round text-yellow-500 text-sm mt-0.5">
-                        info
-                      </span>
+                      <Icon name="info" className="text-yellow-500 text-sm mt-0.5" />
                       {bom.notes}
                     </div>
                   )}

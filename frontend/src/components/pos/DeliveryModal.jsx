@@ -5,6 +5,7 @@ import { clientService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 
 import toast from "react-hot-toast";
+import Icon from "../ui/Icon";
 
 const DeliveryModal = ({
   isOpen,
@@ -160,9 +161,7 @@ const DeliveryModal = ({
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="material-icons-round text-primary text-3xl">
-                  local_shipping
-                </span>
+                <Icon name="local_shipping" className="text-primary text-3xl" />
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                     إدارة التوصيل
@@ -175,9 +174,7 @@ const DeliveryModal = ({
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                <span className="material-icons-round text-gray-500">
-                  close
-                </span>
+                <Icon name="close" className="text-gray-500" />
               </button>
             </div>
 
@@ -190,7 +187,7 @@ const DeliveryModal = ({
                     ? "bg-orange-500 text-white shadow-md"
                     : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200"
                 }`}>
-                <span className="material-icons-round text-sm align-middle mr-1">local_shipping</span>
+                <Icon name="local_shipping" className="text-sm align-middle mr-1" />
                 توصيل مباشر
               </button>
               <button
@@ -200,7 +197,7 @@ const DeliveryModal = ({
                     ? "bg-blue-500 text-white shadow-md"
                     : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200"
                 }`}>
-                <span className="material-icons-round text-sm align-middle mr-1">kitchen</span>
+                <Icon name="kitchen" className="text-sm align-middle mr-1" />
                 إرسال للتجهيز
               </button>
             </div>
@@ -214,9 +211,7 @@ const DeliveryModal = ({
                     ? "bg-primary text-white shadow-md"
                     : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                     }`}>
-                  <span className="material-icons-round text-sm align-middle mr-1">
-                    delivery_dining
-                  </span>
+                  <Icon name="delivery_dining" className="text-sm align-middle mr-1" />
                   الطيارين
                 </button>
               )}
@@ -226,9 +221,7 @@ const DeliveryModal = ({
                   ? "bg-primary text-white shadow-md"
                   : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}>
-                <span className="material-icons-round text-sm align-middle mr-1">
-                  map
-                </span>
+                <Icon name="map" className="text-sm align-middle mr-1" />
                 المناطق
               </button>
             </div>
@@ -274,9 +267,7 @@ const DeliveryModal = ({
                         : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
                         }`}>
                       <div className="flex items-center gap-3">
-                        <span className="material-icons-round text-primary text-2xl">
-                          delivery_dining
-                        </span>
+                        <Icon name="delivery_dining" className="text-primary text-2xl" />
                         <div className="flex-1">
                           <p className="font-bold text-gray-900 dark:text-white">
                             {rider.name}
@@ -286,9 +277,7 @@ const DeliveryModal = ({
                           </p>
                         </div>
                         {selectedRider?.id === rider.id && (
-                          <span className="material-icons-round text-primary">
-                            check_circle
-                          </span>
+                          <Icon name="check_circle" className="text-primary" />
                         )}
                       </div>
                     </button>
@@ -307,7 +296,7 @@ const DeliveryModal = ({
                     <button
                       onClick={() => setIsAddingZone(!isAddingZone)}
                       className="text-primary text-sm font-bold hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
-                      <span className="material-icons-round text-lg">add</span>
+                      <Icon name="add" className="text-lg" />
                       {isAddingZone ? "إلغاء الإضافة" : "منطقة جديدة"}
                     </button>
                   )}
@@ -365,9 +354,7 @@ const DeliveryModal = ({
                         : "border-gray-200 dark:border-gray-700 hover:border-primary/50"
                         }`}>
                       <div className="flex items-center gap-3">
-                        <span className="material-icons-round text-primary text-2xl">
-                          location_on
-                        </span>
+                        <Icon name="location_on" className="text-primary text-2xl" />
                         <div className="flex-1">
                           <p className="font-bold text-gray-900 dark:text-white">
                             {zone.name}
@@ -377,9 +364,7 @@ const DeliveryModal = ({
                           </p>
                         </div>
                         {selectedZone?.id === zone.id && (
-                          <span className="material-icons-round text-primary">
-                            check_circle
-                          </span>
+                          <Icon name="check_circle" className="text-primary" />
                         )}
                       </div>
                     </button>
@@ -438,9 +423,7 @@ const DeliveryModal = ({
                     ? "bg-blue-500 hover:bg-blue-600"
                     : "bg-primary hover:bg-primary-hover"
                 }`}>
-                <span className="material-icons-round text-sm align-middle mr-1">
-                  {deliveryMode === "prepare" ? "kitchen" : "check"}
-                </span>
+                <Icon name={deliveryMode === "prepare" ? "kitchen" : "check"} size={14} className="align-middle mr-1" />
                 {deliveryMode === "prepare" ? "إرسال للتجهيز" : "تأكيد التوصيل"}
               </button>
             </div>

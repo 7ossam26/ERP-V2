@@ -5,6 +5,7 @@ import AuthService from "../../services/authService";
 import SettlementReceipt from "./components/SettlementReceipt";
 import ManagerVerificationModal from "../../components/shared/ManagerVerificationModal";
 import { toast } from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const DeliverySettlementPage = () => {
     // View mode: 'settlement' or 'report'
@@ -448,7 +449,7 @@ const DeliverySettlementPage = () => {
                                         onClick={handleSettle}
                                         disabled={(selectedDrivers.length === 0 && selectedSales.length === 0) || settling}
                                         className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
-                                        <span className="material-icons-round">lock</span>
+                                        <Icon name="lock" />
                                         {settling ? "جاري التسوية..." : "تأكيد المدير والتسوية"}
                                     </button>
                                 </div>
@@ -560,7 +561,7 @@ const DeliverySettlementPage = () => {
                         </>
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                            <span className="material-icons-round text-6xl mb-4">motorcycle</span>
+                            <Icon name="motorcycle" className="text-6xl mb-4" />
                             <p className="text-xl">اختر طيار أو عدة طيارين لبدء التسوية</p>
                         </div>
                     )

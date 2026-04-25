@@ -4,6 +4,7 @@ import AuthService from "../services/authService";
 import Modal from "../components/ui/Modal";
 import Footer from "../components/shared/Footer";
 import BranchSwitcher from "../components/BranchSwitcher";
+import Icon from "../components/ui/Icon";
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -68,9 +69,7 @@ const MainLayout = ({ children }) => {
               <button
                 onClick={() => navigate(-1)}
                 className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
-                <span className="material-icons-round text-xl">
-                  arrow_forward
-                </span>
+                <Icon name="arrow_forward" className="text-xl" />
                 <span className="text-sm font-semibold hidden sm:inline">
                   رجوع
                 </span>
@@ -80,7 +79,7 @@ const MainLayout = ({ children }) => {
               <Link
                 to="/dashboard"
                 className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
-                <span className="material-icons-round text-xl">home</span>
+                <Icon name="home" className="text-xl" />
                 <span className="text-sm font-semibold hidden sm:inline">
                   الصفحة الرئيسية
                 </span>
@@ -106,7 +105,7 @@ const MainLayout = ({ children }) => {
                 to="/manual"
                 title="دليل المستخدم"
                 className="flex items-center justify-center w-9 h-9 rounded-full text-text-light/60 hover:text-primary dark:text-text-dark/60 dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors">
-                <span className="material-icons-round text-xl">help_outline</span>
+                <Icon name="help_outline" className="text-xl" />
               </Link>
 
               {/* User Profile Dropdown */}
@@ -123,9 +122,7 @@ const MainLayout = ({ children }) => {
                     </p>
                   </div>
                   <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center">
-                    <span className="material-icons-round text-primary text-lg sm:text-xl">
-                      person
-                    </span>
+                    <Icon name="person" className="text-primary text-lg sm:text-xl" />
                   </div>
                 </button>
 
@@ -139,9 +136,7 @@ const MainLayout = ({ children }) => {
                         handleLogoutClick();
                       }}
                       className="w-full flex items-center gap-2 px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors min-h-touch">
-                      <span className="material-icons-round text-lg">
-                        logout
-                      </span>
+                      <Icon name="logout" className="text-lg" />
                       <span className="text-sm">تسجيل خروج</span>
                     </button>
                   </div>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { inventoryCountService } from "../../services/inventoryCountService";
 import { warehouseService } from "../../services/warehouseService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const InventoryCountStartPage = () => {
   const navigate = useNavigate();
@@ -44,10 +45,10 @@ const InventoryCountStartPage = () => {
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate("/inventory-counts")}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-            <span className="material-icons-round">arrow_forward</span>
+            <Icon name="arrow_forward" />
           </button>
           <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-            <span className="material-icons-round text-primary">assignment</span>
+            <Icon name="assignment" className="text-primary" />
             بدء جرد جديد
           </h2>
         </div>
@@ -82,7 +83,7 @@ const InventoryCountStartPage = () => {
             {selectedWarehouse && (
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="material-icons-round text-blue-600">info</span>
+                  <Icon name="info" className="text-blue-600" />
                   <span className="text-sm font-bold text-blue-800 dark:text-blue-300">معلومات</span>
                 </div>
                 <p className="text-sm text-blue-700 dark:text-blue-400">
@@ -100,7 +101,7 @@ const InventoryCountStartPage = () => {
             </button>
             <button type="submit" disabled={submitting || !warehouseId}
               className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2">
-              {submitting && <span className="material-icons-round animate-spin text-[16px]">sync</span>}
+              {submitting && <Icon name="sync" className="animate-spin text-[16px]" />}
               بدء الجرد
             </button>
           </div>

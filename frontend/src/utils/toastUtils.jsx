@@ -1,5 +1,6 @@
 import React from 'react';
 import toast from 'react-hot-toast';
+import Icon from "../components/ui/Icon";
 
 /**
  * Shows an enhanced error toast with optional resolution guidance.
@@ -27,13 +28,13 @@ export const showErrorToast = (error, defaultMessage = "حدث خطأ. يرجى 
     if (resolution) {
         toast((t) => (
             <div className="flex items-start gap-3 min-w-[280px] max-w-md">
-                <span className="material-icons-round text-2xl text-red-500 flex-shrink-0">error</span>
+                <Icon name="error" className="text-2xl text-red-500 flex-shrink-0" />
                 <div className="flex-1">
                     <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-snug mb-2">
                         {errorMessage}
                     </div>
                     <div className="flex items-start gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <span className="material-icons-round text-sm text-blue-500 mt-0.5 flex-shrink-0">lightbulb</span>
+                        <Icon name="lightbulb" className="text-sm text-blue-500 mt-0.5 flex-shrink-0" />
                         <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                             {resolution}
                         </span>
@@ -41,9 +42,9 @@ export const showErrorToast = (error, defaultMessage = "حدث خطأ. يرجى 
                 </div>
                 <button
                     onClick={() => toast.dismiss(t.id)}
-                    className="material-icons-round text-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-1 transition-colors flex-shrink-0"
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-1 transition-colors flex-shrink-0"
                     aria-label="Close">
-                    close
+                    <Icon name="close" size={18} />
                 </button>
             </div>
         ), {

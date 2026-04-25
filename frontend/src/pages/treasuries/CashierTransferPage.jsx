@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { treasuryService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const CashierTransferPage = () => {
   const navigate = useNavigate();
@@ -113,9 +114,7 @@ const CashierTransferPage = () => {
                 </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined">
-                  account_balance_wallet
-                </span>
+                <Icon name="account_balance_wallet" />
               </div>
             </div>
           </div>
@@ -129,9 +128,7 @@ const CashierTransferPage = () => {
                 <div className="flex-1 w-full bg-background-light dark:bg-background-dark/50 rounded-xl p-4 border border-border-light dark:border-border-dark relative group hover:border-primary/30 transition-colors">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-white dark:bg-surface-dark rounded-lg text-primary shadow-sm">
-                      <span className="material-symbols-outlined">
-                        storefront
-                      </span>
+                      <Icon name="storefront" />
                     </div>
                     <p className="text-sm font-bold text-text-secondary dark:text-gray-400">
                       من
@@ -172,18 +169,14 @@ const CashierTransferPage = () => {
                 </div>
 
                 <div className="shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary z-10 sm:rotate-180 rotate-90 my-2 sm:my-0">
-                  <span className="material-symbols-outlined">
-                    arrow_right_alt
-                  </span>
+                  <Icon name="arrow_right_alt" />
                 </div>
 
                 {/* Destination Treasury Select */}
                 <div className="flex-1 w-full bg-background-light dark:bg-background-dark/50 rounded-xl p-4 border border-border-light dark:border-border-dark relative group hover:border-primary/30 transition-colors">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-white dark:bg-surface-dark rounded-lg text-primary shadow-sm">
-                      <span className="material-symbols-outlined">
-                        account_balance
-                      </span>
+                      <Icon name="account_balance" />
                     </div>
                     <p className="text-sm font-bold text-text-secondary dark:text-gray-400">
                       إلى
@@ -249,12 +242,10 @@ const CashierTransferPage = () => {
                     disabled={loading}
                     className="flex-1 bg-primary hover:bg-primary-hover text-white py-4 px-6 rounded-xl text-lg font-bold shadow-lg shadow-primary/20 transition-all hover:translate-y-[-2px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     {loading ? (
-                      <span className="material-symbols-outlined animate-spin">
-                        progress_activity
-                      </span>
+                      <Icon name="progress_activity" className="animate-spin" />
                     ) : (
                       <>
-                        <span className="material-symbols-outlined">send</span>
+                        <Icon name="send" />
                         إرسال طلب التوريد
                       </>
                     )}

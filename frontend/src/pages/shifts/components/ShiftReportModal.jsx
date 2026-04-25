@@ -3,12 +3,12 @@ import Modal from "../../../components/ui/Modal";
 import apiClient from "../../../services/apiClient";
 import { toast } from "react-hot-toast";
 import {
-  FaPrint,
-  FaMoneyBillWave,
-  FaCreditCard,
-  FaShoppingCart,
-  FaCoins,
-} from "react-icons/fa";
+  Printer,
+  Banknote,
+  CreditCard,
+  ShoppingCart,
+  Coins,
+} from "lucide-react";
 
 const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
   const [report, setReport] = useState(null);
@@ -85,7 +85,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
             {/* Total Sales */}
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
               <div className="flex items-center gap-3 mb-2 text-blue-600">
-                <FaShoppingCart />
+                <ShoppingCart size={16} />
                 <h4 className="font-bold">إجمالي المبيعات</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
@@ -96,7 +96,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
             {/* Cash Received */}
             <div className="bg-green-50 p-4 rounded-xl border border-green-100">
               <div className="flex items-center gap-3 mb-2 text-green-600">
-                <FaMoneyBillWave />
+                <Banknote size={16} />
                 <h4 className="font-bold">مبيعات كاش</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
@@ -107,7 +107,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
             {/* InstaPay Payments */}
             <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
               <div className="flex items-center gap-3 mb-2 text-purple-600">
-                <FaCreditCard />
+                <CreditCard size={16} />
                 <h4 className="font-bold">مبيعات InstaPay</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
@@ -118,7 +118,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
             {/* Expenses */}
             <div className="bg-red-50 p-4 rounded-xl border border-red-100">
               <div className="flex items-center gap-3 mb-2 text-red-600">
-                <FaCoins />
+                <Coins size={16} />
                 <h4 className="font-bold">المصروفات</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
@@ -230,7 +230,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
             <button
               onClick={handlePrint}
               className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors">
-              <FaPrint />
+              <Printer size={16} />
               طباعة التقرير
             </button>
             <button

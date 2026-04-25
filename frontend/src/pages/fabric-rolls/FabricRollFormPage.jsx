@@ -4,6 +4,7 @@ import { fabricRollService } from "../../services/fabricRollService";
 import { warehouseService } from "../../services/warehouseService";
 import { itemService } from "../../services/itemService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 // ─── Blank row template ───
 const blankRow = () => ({
@@ -179,7 +180,7 @@ const FabricRollFormPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <span className="material-icons-round animate-spin text-primary text-4xl">sync</span>
+        <Icon name="sync" className="animate-spin text-primary text-4xl" />
       </div>
     );
   }
@@ -192,7 +193,7 @@ const FabricRollFormPage = () => {
           <button
             onClick={() => navigate(-1)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <span className="material-icons-round text-gray-500">arrow_forward</span>
+            <Icon name="arrow_forward" className="text-gray-500" />
           </button>
           <div>
             <h2 className="text-2xl font-bold text-text-main dark:text-text-dark">
@@ -258,7 +259,7 @@ const FabricRollFormPage = () => {
             <div className="flex justify-end mb-3">
               <button type="button" onClick={() => setShowQuick((v) => !v)}
                 className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors font-medium">
-                <span className="material-icons-round text-[16px]">edit_note</span>
+                <Icon name="edit_note" className="text-[16px]" />
                 {showQuick ? "إخفاء الإدخال السريع" : "إدخال سريع (نص)"}
               </button>
             </div>
@@ -370,11 +371,11 @@ const FabricRollFormPage = () => {
                           <div className="flex items-center gap-1">
                             <button type="button" onClick={() => duplicateRow(idx)} title="تكرار"
                               className="p-1 text-gray-400 hover:text-primary transition-colors">
-                              <span className="material-icons-round text-[16px]">content_copy</span>
+                              <Icon name="content_copy" className="text-[16px]" />
                             </button>
                             <button type="button" onClick={() => removeRow(idx)} title="حذف"
                               className="p-1 text-gray-400 hover:text-red-500 transition-colors">
-                              <span className="material-icons-round text-[16px]">delete_outline</span>
+                              <Icon name="delete_outline" className="text-[16px]" />
                             </button>
                           </div>
                           {row._error && (
@@ -391,7 +392,7 @@ const FabricRollFormPage = () => {
               <div className="p-3 border-t border-border-light dark:border-border-dark">
                 <button type="button" onClick={addRow}
                   className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors font-medium">
-                  <span className="material-icons-round text-[16px]">add</span>
+                  <Icon name="add" className="text-[16px]" />
                   إضافة صف
                 </button>
               </div>
@@ -407,7 +408,7 @@ const FabricRollFormPage = () => {
                 </button>
                 <button type="submit" disabled={submitting}
                   className="px-5 py-2 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-2">
-                  {submitting && <span className="material-icons-round animate-spin text-[16px]">sync</span>}
+                  {submitting && <Icon name="sync" className="animate-spin text-[16px]" />}
                   {submitting ? "جارٍ الحفظ..." : `إضافة ${rows.length} لفة`}
                 </button>
               </div>

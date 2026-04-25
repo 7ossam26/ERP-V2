@@ -6,7 +6,7 @@ import {
   Route,
   Outlet,
 } from "react-router-dom";
-import MainLayout from "./layouts/MainLayout";
+import AppShell from "./layouts/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SuperadminLayout from "./layouts/SuperadminLayout";
 import UserManagement from "./pages/superadmin/UserManagement";
@@ -143,9 +143,9 @@ function App() {
         <Route
           element={
             <ProtectedRoute>
-              <MainLayout>
+              <AppShell>
                 <Outlet />
-              </MainLayout>
+              </AppShell>
             </ProtectedRoute>
           }>
           <Route path="/dashboard" element={<MainDashboard />} />

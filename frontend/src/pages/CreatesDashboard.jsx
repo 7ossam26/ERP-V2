@@ -2,13 +2,14 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
 import { getCreationModules } from "../config/modules";
+import Icon from "../components/ui/Icon";
 
 const DashboardCard = ({ icon, title, description, onClick }) => (
   <div
     onClick={onClick}
     className="group relative flex flex-col items-center justify-center w-full h-40 sm:h-48 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft dark:shadow-soft-dark border border-transparent hover:border-primary/20 transition-all duration-300 cursor-pointer hover:-translate-y-1 p-4 min-h-touch">
     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-accent/20 dark:bg-accent/10 text-primary dark:text-accent flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
-      <span className="material-icons-round text-3xl sm:text-4xl">{icon}</span>
+      <Icon name={icon} size={30} />
     </div>
     <h3 className="text-lg sm:text-xl font-bold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
       {title}

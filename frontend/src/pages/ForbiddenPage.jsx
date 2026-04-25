@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import Icon from "../components/ui/Icon";
 
 const ForbiddenPage = () => {
     const navigate = useNavigate();
@@ -9,9 +10,7 @@ const ForbiddenPage = () => {
             <div className="text-center max-w-md">
                 <div className="mb-6 relative">
                     <div className="absolute inset-0 bg-red-500/20 blur-3xl rounded-full"></div>
-                    <span className="material-icons-round text-9xl text-red-500 relative z-10">
-                        gpp_bad
-                    </span>
+                    <Icon name="gpp_bad" className="text-9xl text-red-500 relative z-10" />
                 </div>
 
                 <h1 className="text-4xl font-bold text-text-light dark:text-text-dark mb-4">

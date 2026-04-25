@@ -4,6 +4,7 @@ import { deliveryZoneService } from "../../services/deliveryZoneService";
 import { branchService } from "../../services/branchService";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   const [branches, setBranches] = useState([]);
@@ -88,9 +89,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showTo
             placeholder="ID تلقائي"
             type="text"
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            tag
-          </span>
+          <Icon name="tag" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -108,9 +107,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showTo
             type="text"
             required
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            map
-          </span>
+          <Icon name="map" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -132,12 +129,8 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showTo
               </option>
             ))}
           </select>
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            store
-          </span>
-          <span className="material-icons-round absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            expand_more
-          </span>
+          <Icon name="store" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Icon name="expand_more" className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
@@ -157,9 +150,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showTo
             min="0"
             required
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            payments
-          </span>
+          <Icon name="payments" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -178,9 +169,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showTo
             step="0.01"
             min="0"
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            motorcycle
-          </span>
+          <Icon name="motorcycle" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -199,7 +188,7 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showTo
             onClick={() => setKeepOpen(true)}
             disabled={isSaving}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
-            <span className="material-icons-round text-lg">playlist_add</span>
+            <Icon name="playlist_add" className="text-lg" />
             <span>حفظ وإضافة آخر</span>
           </button>
         )}
@@ -211,14 +200,12 @@ const DeliveryZoneForm = ({ initialData, onClose, onSave, isSaving, data, showTo
           className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSaving ? (
             <>
-              <span className="material-icons-round text-lg animate-spin">
-                refresh
-              </span>
+              <Icon name="refresh" className="text-lg animate-spin" />
               <span>جاري الحفظ...</span>
             </>
           ) : (
             <>
-              <span className="material-icons-round text-lg">save</span>
+              <Icon name="save" className="text-lg" />
               <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
             </>
           )}
@@ -244,9 +231,7 @@ const DeliveryZonesPage = () => {
       accessor: "name",
       render: (item) => (
         <div className="flex items-center gap-2">
-          <span className="material-icons-round text-primary text-lg">
-            location_on
-          </span>
+          <Icon name="location_on" className="text-primary text-lg" />
           <span className="font-bold text-gray-900 dark:text-white">
             {item.name}
           </span>
@@ -258,9 +243,7 @@ const DeliveryZonesPage = () => {
       accessor: "branch",
       render: (item) => (
         <div className="flex items-center gap-2">
-          <span className="material-icons-round text-gray-400 text-lg">
-            store
-          </span>
+          <Icon name="store" className="text-gray-400 text-lg" />
           <span className="text-gray-700 dark:text-gray-300 font-medium">
             {item.branch?.name || "غير محدد"}
           </span>

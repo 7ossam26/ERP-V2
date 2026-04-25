@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Icon from "../../components/ui/Icon";
 import {
   branchService,
   settingsService,
@@ -71,9 +72,7 @@ const BranchesSalesPage = () => {
               <button
                 onClick={() => window.location.reload()}
                 className="flex items-center gap-2 h-10 px-4 bg-primary text-white hover:bg-primary-hover rounded-lg text-sm font-bold shadow-md shadow-primary/20 transition-all">
-                <span className="material-symbols-outlined text-[18px]">
-                  sync
-                </span>
+                <Icon name="sync" className="text-[18px]" />
                 <span>تحديث البيانات</span>
               </button>
             </div>
@@ -91,9 +90,7 @@ const BranchesSalesPage = () => {
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2 text-accent bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
-                  <span className="material-symbols-outlined text-[18px]">
-                    lock
-                  </span>
+                  <Icon name="lock" className="text-[18px]" />
                   <span className="text-xs font-bold uppercase tracking-wider text-white/90">
                     {mainTreasury?.name || "الخزينة الرئيسية"} + الفروع
                   </span>
@@ -118,9 +115,7 @@ const BranchesSalesPage = () => {
                       ? "text-green-400 bg-green-400/10 border-green-400/20"
                       : "text-red-400 bg-red-400/10 border-red-400/20"
                   } px-3 py-1.5 rounded-lg border`}>
-                  <span className="material-symbols-outlined text-[18px]">
-                    {isPositive ? "trending_up" : "trending_down"}
-                  </span>
+                  <Icon name={isPositive ? "trending_up" : "trending_down"} size={18} />
                   <span className="text-sm font-bold font-['Inter']">
                     {isPositive ? "+" : "-"}
                     {percentageChange}%
@@ -149,9 +144,7 @@ const BranchesSalesPage = () => {
               <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-accent bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
-                    <span className="material-symbols-outlined text-[18px]">
-                      account_balance_wallet
-                    </span>
+                    <Icon name="account_balance_wallet" className="text-[18px]" />
                     <span className="text-xs font-bold uppercase tracking-wider text-white/90">
                       {bankTreasury.name}
                     </span>
@@ -173,9 +166,7 @@ const BranchesSalesPage = () => {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-text-light dark:text-text-dark flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">
-                  store
-                </span>
+                <Icon name="store" className="text-primary" />
                 أرصدة الفروع
               </h3>
               <div className="h-[1px] flex-1 bg-border-light dark:bg-border-dark mx-4"></div>
@@ -192,9 +183,7 @@ const BranchesSalesPage = () => {
                   {/* Branch Header */}
                   <div className="flex gap-3 items-center border-b border-border-light dark:border-border-dark pb-3">
                     <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                      <span className="material-symbols-outlined text-xl">
-                        storefront
-                      </span>
+                      <Icon name="storefront" className="text-xl" />
                     </div>
                     <h4 className="font-bold text-lg text-text-light dark:text-text-dark">
                       {branch.name}
@@ -205,9 +194,7 @@ const BranchesSalesPage = () => {
                     {/* Cash Balance */}
                     <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/10 rounded-xl px-4 py-3 border border-green-100 dark:border-green-900/30">
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-lg">
-                          payments
-                        </span>
+                        <Icon name="payments" className="text-green-600 dark:text-green-400 text-lg" />
                         <span className="text-sm font-medium text-green-700 dark:text-green-300">
                           النقدية
                         </span>
@@ -219,9 +206,7 @@ const BranchesSalesPage = () => {
                     {/* InstaPay Balance */}
                     <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/10 rounded-xl px-4 py-3 border border-purple-100 dark:border-purple-900/30">
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-lg">
-                          phone_iphone
-                        </span>
+                        <Icon name="phone_iphone" className="text-purple-600 dark:text-purple-400 text-lg" />
                         <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
                           انستا باي اليوم
                         </span>

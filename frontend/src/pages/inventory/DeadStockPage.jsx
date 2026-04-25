@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { inventoryService } from "../../services/inventoryService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const DeadStockPage = () => {
   const navigate = useNavigate();
@@ -32,11 +33,11 @@ const DeadStockPage = () => {
           <div className="flex items-center gap-3">
             <button onClick={() => navigate("/inventory")}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-              <span className="material-icons-round">arrow_forward</span>
+              <Icon name="arrow_forward" />
             </button>
             <div>
               <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-                <span className="material-icons-round text-gray-500">inventory</span>
+                <Icon name="inventory" className="text-gray-500" />
                 المخزون الراكد
               </h2>
               <p className="text-sm text-gray-500 mt-1">
@@ -74,11 +75,11 @@ const DeadStockPage = () => {
               <tbody>
                 {loading ? (
                   <tr><td colSpan={7} className="py-12 text-center text-gray-400">
-                    <span className="material-icons-round animate-spin text-primary text-3xl">sync</span>
+                    <Icon name="sync" className="animate-spin text-primary text-3xl" />
                   </td></tr>
                 ) : data.length === 0 ? (
                   <tr><td colSpan={7} className="py-12 text-center text-gray-400">
-                    <span className="material-icons-round text-4xl mb-2 block text-green-400">check_circle</span>
+                    <Icon name="check_circle" className="text-4xl mb-2 block text-green-400" />
                     <p>لا يوجد مخزون راكد في هذه الفترة</p>
                   </td></tr>
                 ) : data.map((item, idx) => (

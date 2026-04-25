@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { bomService } from "../../services/domainServices";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import Icon from "../../components/ui/Icon";
 
 const ProductionHistory = () => {
   const [orders, setOrders] = useState([]);
@@ -83,14 +84,10 @@ const ProductionHistory = () => {
           <button
             onClick={() => navigate("/bom")}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <span className="material-icons-round text-gray-500">
-              arrow_forward
-            </span>
+            <Icon name="arrow_forward" className="text-gray-500" />
           </button>
           <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full">
-            <span className="material-icons-round text-3xl text-green-600">
-              precision_manufacturing
-            </span>
+            <Icon name="precision_manufacturing" className="text-3xl text-green-600" />
           </div>
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-text-light dark:text-text-dark">
@@ -110,9 +107,7 @@ const ProductionHistory = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-background-light dark:bg-background-dark py-2.5 pr-4 pl-10 text-sm focus:ring-2 focus:ring-primary"
           />
-          <span className="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
-            search
-          </span>
+          <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
         </div>
       </div>
 
@@ -123,9 +118,7 @@ const ProductionHistory = () => {
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark p-12 text-center">
-          <span className="material-icons-round text-6xl text-gray-300 dark:text-gray-600 mb-4">
-            precision_manufacturing
-          </span>
+          <Icon name="precision_manufacturing" className="text-6xl text-gray-300 dark:text-gray-600 mb-4" />
           <p className="text-lg text-gray-500 dark:text-gray-400">
             {search ? "لا توجد نتائج للبحث" : "لا توجد أوامر إنتاج مسجلة"}
           </p>
@@ -146,9 +139,7 @@ const ProductionHistory = () => {
                   onClick={() => setExpandedId(isExpanded ? null : order.id)}>
                   <div className="flex items-center gap-4">
                     <div className="bg-green-100 dark:bg-green-900/30 p-2.5 rounded-xl">
-                      <span className="material-icons-round text-xl text-green-600">
-                        precision_manufacturing
-                      </span>
+                      <Icon name="precision_manufacturing" className="text-xl text-green-600" />
                     </div>
                     <div>
                       <h3 className="font-bold text-lg text-text-light dark:text-text-dark">
@@ -156,9 +147,7 @@ const ProductionHistory = () => {
                       </h3>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-500 dark:text-gray-400">
                         <span className="flex items-center gap-1">
-                          <span className="material-icons-round text-sm">
-                            output
-                          </span>
+                          <Icon name="output" className="text-sm" />
                           مستهدف:{" "}
                           <b className="text-text-light dark:text-text-dark">
                             {fmt(order.targetOutputQty)}
@@ -166,9 +155,7 @@ const ProductionHistory = () => {
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
-                          <span className="material-icons-round text-sm text-green-500">
-                            check_circle
-                          </span>
+                          <Icon name="check_circle" className="text-sm text-green-500" />
                           فعلي:{" "}
                           <b className="text-green-600">
                             {fmt(order.actualOutputQty)}
@@ -178,9 +165,7 @@ const ProductionHistory = () => {
                           <>
                             <span>•</span>
                             <span className="flex items-center gap-1">
-                              <span className="material-icons-round text-sm text-red-500">
-                                warning
-                              </span>
+                              <Icon name="warning" className="text-sm text-red-500" />
                               هالك:{" "}
                               <b className="text-red-500">{fmt(wasteQty)}</b>
                             </span>
@@ -188,18 +173,14 @@ const ProductionHistory = () => {
                         )}
                         <span>•</span>
                         <span className="flex items-center gap-1">
-                          <span className="material-icons-round text-sm">
-                            remove_circle_outline
-                          </span>
+                          <Icon name="remove_circle_outline" className="text-sm" />
                           {order.sourceWarehouse?.name}
                         </span>
                         {order.destWarehouse && (
                           <>
                             <span>→</span>
                             <span className="flex items-center gap-1">
-                              <span className="material-icons-round text-sm">
-                                add_circle_outline
-                              </span>
+                              <Icon name="add_circle_outline" className="text-sm" />
                               {order.destWarehouse?.name}
                             </span>
                           </>
@@ -226,12 +207,9 @@ const ProductionHistory = () => {
                       }}
                       className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                       title="تعديل">
-                      <span className="material-icons-round text-lg">edit</span>
+                      <Icon name="edit" className="text-lg" />
                     </button>
-                    <span
-                      className={`material-icons-round text-gray-400 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}>
-                      expand_more
-                    </span>
+                    <Icon name="expand_more" className={`text-gray-400 transform transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                   </div>
                 </div>
 
@@ -243,7 +221,7 @@ const ProductionHistory = () => {
                     {editingId === order.id && (
                       <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
                         <h4 className="font-bold text-blue-700 dark:text-blue-300 mb-3 flex items-center gap-2">
-                          <span className="material-icons-round text-lg">edit</span>
+                          <Icon name="edit" className="text-lg" />
                           تعديل الكميات
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
@@ -311,7 +289,7 @@ const ProductionHistory = () => {
                             onClick={() => handleSaveEdit(order.id)}
                             disabled={saving}
                             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-bold text-sm transition-colors flex items-center gap-1">
-                            <span className="material-icons-round text-base">save</span>
+                            <Icon name="save" className="text-base" />
                             {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
                           </button>
                           <button
@@ -321,7 +299,7 @@ const ProductionHistory = () => {
                           </button>
                         </div>
                         <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
-                          <span className="material-icons-round text-sm">warning</span>
+                          <Icon name="warning" className="text-sm" />
                           سيتم حذف أمر الإنتاج الحالي وإنشاء أمر جديد بالكميات المعدّلة
                         </p>
                       </div>
@@ -400,9 +378,7 @@ const ProductionHistory = () => {
                     </table>
                     {order.notes && (
                       <div className="mt-3 flex items-start gap-2 text-sm text-gray-500 bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-lg">
-                        <span className="material-icons-round text-yellow-500 text-sm mt-0.5">
-                          info
-                        </span>
+                        <Icon name="info" className="text-yellow-500 text-sm mt-0.5" />
                         {order.notes}
                       </div>
                     )}

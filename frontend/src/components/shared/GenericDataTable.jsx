@@ -1,5 +1,6 @@
 import React from "react";
 import AuthService from "../../services/authService";
+import Icon from "../ui/Icon";
 
 const GenericDataTable = ({
   columns,
@@ -85,9 +86,7 @@ const GenericDataTable = ({
                               "hover:bg-blue-50 dark:hover:bg-blue-900/20"
                               } p-2 rounded-lg transition-all flex items-center gap-1 min-w-touch min-h-touch`}
                             title={action.label}>
-                            <span className="material-symbols-outlined text-lg">
-                              {action.icon}
-                            </span>
+                            <Icon name={action.icon} size={18} />
                           </button>
                         ))}
                       </div>
@@ -100,18 +99,14 @@ const GenericDataTable = ({
                               <button
                                 onClick={() => onEdit(item)}
                                 className="text-blue-500 hover:text-blue-700 ml-2 transition-colors p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 min-w-touch min-h-touch flex items-center justify-center">
-                                <span className="material-icons-round">
-                                  edit
-                                </span>
+                                <Icon name="edit" />
                               </button>
                             )}
                             {onDelete && (
                               <button
                                 onClick={() => onDelete(item.id)}
                                 className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 min-w-touch min-h-touch flex items-center justify-center">
-                                <span className="material-icons-round">
-                                  delete
-                                </span>
+                                <Icon name="delete" />
                               </button>
                             )}
                           </>

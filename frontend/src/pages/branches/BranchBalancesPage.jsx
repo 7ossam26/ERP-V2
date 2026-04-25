@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import apiClient from "../../services/apiClient";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import Icon from "../../components/ui/Icon";
 
 const BranchBalancesPage = () => {
   const [balances, setBalances] = useState([]);
@@ -41,14 +42,10 @@ const BranchBalancesPage = () => {
           <button
             onClick={() => navigate(-1)}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <span className="material-symbols-outlined text-gray-500">
-              arrow_forward
-            </span>
+            <Icon name="arrow_forward" className="text-gray-500" />
           </button>
           <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full">
-            <span className="material-symbols-outlined text-2xl text-blue-600">
-              account_balance
-            </span>
+            <Icon name="account_balance" className="text-2xl text-blue-600" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -67,10 +64,7 @@ const BranchBalancesPage = () => {
           onClick={fetchBalances}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-sm transition-colors">
-          <span
-            className={`material-symbols-outlined text-lg ${loading ? "animate-spin" : ""}`}>
-            refresh
-          </span>
+          <Icon name="refresh" className={`text-lg ${loading ? "animate-spin" : ""}`} />
           تحديث
         </button>
       </div>
@@ -104,9 +98,7 @@ const BranchBalancesPage = () => {
         </div>
       ) : balances.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <span className="material-symbols-outlined text-5xl mb-3 block">
-            business
-          </span>
+          <Icon name="business" className="text-5xl mb-3 block" />
           لا توجد فروع متاحة
         </div>
       ) : (
@@ -118,9 +110,7 @@ const BranchBalancesPage = () => {
               {/* Branch header */}
               <div className="bg-gradient-to-r from-primary to-primary/80 px-5 py-4 text-white">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-xl">
-                    store
-                  </span>
+                  <Icon name="store" className="text-xl" />
                   <h3 className="font-bold text-lg">{branch.name}</h3>
                 </div>
                 {branch.address && (
@@ -132,9 +122,7 @@ const BranchBalancesPage = () => {
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800">
                   <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                    <span className="material-symbols-outlined text-lg">
-                      payments
-                    </span>
+                    <Icon name="payments" className="text-lg" />
                     <span className="text-sm font-medium">نقدي في الدرج</span>
                   </div>
                   <span className="font-bold text-green-800 dark:text-green-300 text-lg">
@@ -144,9 +132,7 @@ const BranchBalancesPage = () => {
 
                 <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
                   <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
-                    <span className="material-symbols-outlined text-lg">
-                      account_balance_wallet
-                    </span>
+                    <Icon name="account_balance_wallet" className="text-lg" />
                     <span className="text-sm font-medium">InstaPay اليوم</span>
                   </div>
                   <span className="font-bold text-purple-800 dark:text-purple-300 text-lg">

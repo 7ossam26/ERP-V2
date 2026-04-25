@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { treasuryService } from "../../services/domainServices";
+import Icon from "../../components/ui/Icon";
 
 const TransferManagementPage = () => {
   const [loading, setLoading] = useState(true);
@@ -150,9 +151,7 @@ const TransferManagementPage = () => {
       <div className="space-y-4">
         {filteredTransfers.length === 0 ? (
           <div className="text-center py-12 bg-surface-light dark:bg-surface-dark rounded-2xl">
-            <span className="material-icons-round text-6xl text-gray-300 dark:text-gray-600 mb-4">
-              receipt_long
-            </span>
+            <Icon name="receipt_long" className="text-6xl text-gray-300 dark:text-gray-600 mb-4" />
             <p className="text-gray-500 dark:text-gray-400">لا توجد تحويلات</p>
           </div>
         ) : (
@@ -177,9 +176,7 @@ const TransferManagementPage = () => {
                     <span className="bg-accent/20 px-3 py-1 rounded-lg">
                       {transfer.fromTreasury.name}
                     </span>
-                    <span className="material-icons-round text-primary">
-                      arrow_back
-                    </span>
+                    <Icon name="arrow_back" className="text-primary" />
                     <span className="font-bold text-text-primary dark:text-text-dark">
                       إلى:
                     </span>
@@ -189,9 +186,7 @@ const TransferManagementPage = () => {
                   </div>
 
                   <div className="text-xs text-text-secondary dark:text-gray-400">
-                    <span className="material-icons-round text-sm align-middle mr-1">
-                      schedule
-                    </span>
+                    <Icon name="schedule" className="text-sm align-middle mr-1" />
                     {formatDate(transfer.createdAt)}
                   </div>
 
@@ -211,13 +206,9 @@ const TransferManagementPage = () => {
                       disabled={actionLoading === transfer.id}
                       className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                       {actionLoading === transfer.id ? (
-                        <span className="material-icons-round animate-spin text-sm">
-                          refresh
-                        </span>
+                        <Icon name="refresh" className="animate-spin text-sm" />
                       ) : (
-                        <span className="material-icons-round text-sm">
-                          check_circle
-                        </span>
+                        <Icon name="check_circle" className="text-sm" />
                       )}
                       قبول
                     </button>
@@ -226,13 +217,9 @@ const TransferManagementPage = () => {
                       disabled={actionLoading === transfer.id}
                       className="flex-1 md:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                       {actionLoading === transfer.id ? (
-                        <span className="material-icons-round animate-spin text-sm">
-                          refresh
-                        </span>
+                        <Icon name="refresh" className="animate-spin text-sm" />
                       ) : (
-                        <span className="material-icons-round text-sm">
-                          cancel
-                        </span>
+                        <Icon name="cancel" className="text-sm" />
                       )}
                       رفض
                     </button>

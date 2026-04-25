@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { importService } from "../../services/importService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 // ── Entity config ────────────────────────────────────────────────────────────
 const ENTITIES = [
@@ -62,11 +63,7 @@ function ResultBanner({ result, onClear }) {
     }`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className={`material-icons-round text-xl ${
-            result.imported === result.total ? "text-green-600" : hasErrors && result.imported === 0 ? "text-red-600" : "text-yellow-600"
-          }`}>
-            {result.imported === result.total ? "check_circle" : hasErrors && result.imported === 0 ? "cancel" : "warning"}
-          </span>
+          <Icon name={result.imported === result.total ? "check_circle" : hasErrors && result.imported === 0 ? "cancel" : "warning"} size={20} className={result.imported === result.total ? "text-green-600" : hasErrors && result.imported === 0 ? "text-red-600" : "text-yellow-600"} />
           <div>
             <p className="font-semibold text-sm text-slate-800 dark:text-slate-100">
               تم استيراد {result.imported} من أصل {result.total} سجل
@@ -77,7 +74,7 @@ function ResultBanner({ result, onClear }) {
         <button
           onClick={onClear}
           className="text-slate-400 hover:text-slate-600 transition-colors">
-          <span className="material-icons-round text-lg">close</span>
+          <Icon name="close" className="text-lg" />
         </button>
       </div>
 
@@ -85,7 +82,7 @@ function ResultBanner({ result, onClear }) {
         <div className="mt-3 max-h-48 overflow-y-auto space-y-1">
           {result.errors.map((e, i) => (
             <div key={i} className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
-              <span className="material-icons-round text-xs mt-0.5">error_outline</span>
+              <Icon name="error_outline" className="text-xs mt-0.5" />
               <span>صف {e.row}: {e.reason}</span>
             </div>
           ))}
@@ -142,7 +139,7 @@ function ImportCard({ entity, branches }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <span className="material-icons-round text-primary text-xl">{entity.icon}</span>
+            <Icon name={entity.icon} size={20} className="text-primary" />
           </div>
           <div>
             <h3 className="font-bold text-slate-800 dark:text-slate-100">{entity.label}</h3>
@@ -153,7 +150,7 @@ function ImportCard({ entity, branches }) {
           onClick={handleDownload}
           disabled={downloading}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50">
-          <span className="material-icons-round text-sm">{downloading ? "hourglass_empty" : "download"}</span>
+          <Icon name={downloading ? "hourglass_empty" : "download"} size={14} />
           {downloading ? "جاري التحميل..." : "تحميل القالب"}
         </button>
       </div>
@@ -204,12 +201,12 @@ function ImportCard({ entity, branches }) {
         />
         {loading ? (
           <div className="flex flex-col items-center gap-2 text-primary">
-            <span className="material-icons-round text-3xl animate-spin">autorenew</span>
+            <Icon name="autorenew" className="text-3xl animate-spin" />
             <span className="text-sm font-medium">جاري الاستيراد...</span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 text-slate-400">
-            <span className="material-icons-round text-3xl">upload_file</span>
+            <Icon name="upload_file" className="text-3xl" />
             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">اسحب الملف هنا أو انقر للاختيار</span>
             <span className="text-xs">.xlsx / .xls / .csv</span>
           </div>
@@ -238,7 +235,7 @@ export default function DataImportPage() {
       {/* Page header */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <span className="material-icons-round text-primary text-2xl">upload</span>
+          <Icon name="upload" className="text-primary text-2xl" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">استيراد البيانات</h1>
@@ -249,7 +246,7 @@ export default function DataImportPage() {
       {/* How it works */}
       <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
         <h2 className="font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-          <span className="material-icons-round text-base">info</span>
+          <Icon name="info" className="text-base" />
           كيفية الاستخدام
         </h2>
         <ol className="space-y-1.5 text-sm text-slate-600 dark:text-slate-400 list-decimal list-inside">
@@ -271,7 +268,7 @@ export default function DataImportPage() {
                 ? "bg-primary text-white shadow-sm"
                 : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/50 hover:text-primary"
             }`}>
-            <span className="material-icons-round text-base">{e.icon}</span>
+            <Icon name={e.icon} size={16} />
             {e.label}
           </button>
         ))}

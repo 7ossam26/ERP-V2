@@ -3,6 +3,7 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { branchService, treasuryService } from "../../services/domainServices";
 import { warehouseService } from "../../services/warehouseService";
 import AuthService from "../../services/authService";
+import Icon from "../../components/ui/Icon";
 
 const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
   // Calculate next ID if creating new branch
@@ -84,9 +85,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             placeholder="ID تلقائي"
             type="text"
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            tag
-          </span>
+          <Icon name="tag" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -104,9 +103,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             required
             maxLength={100}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            storefront
-          </span>
+          <Icon name="storefront" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -124,9 +121,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             type="text"
             maxLength={200}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            location_on
-          </span>
+          <Icon name="location_on" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -148,12 +143,8 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
               </option>
             ))}
           </select>
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            warehouse
-          </span>
-          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            expand_more
-          </span>
+          <Icon name="warehouse" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Icon name="expand_more" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
@@ -175,12 +166,8 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
               </option>
             ))}
           </select>
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            savings
-          </span>
-          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            expand_more
-          </span>
+          <Icon name="savings" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Icon name="expand_more" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
@@ -197,7 +184,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
             type="submit"
             onClick={() => setKeepOpen(true)}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20">
-            <span className="material-icons-round text-lg">playlist_add</span>
+            <Icon name="playlist_add" className="text-lg" />
             <span>حفظ وإضافة آخر</span>
           </button>
         )}
@@ -206,7 +193,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
           type="submit"
           onClick={() => setKeepOpen(false)}
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 min-h-touch">
-          <span className="material-icons-round text-lg">save</span>
+          <Icon name="save" className="text-lg" />
           <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
         </button>
       </div>

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
-  FaHistory,
-  FaSearch,
-  FaTimes,
-  FaRedo,
-  FaReceipt,
-} from "react-icons/fa";
+  History,
+  Search,
+  X,
+  RotateCw,
+  Receipt,
+} from "lucide-react";
 import { shiftService } from "../../services/domainServices";
 import toast from "react-hot-toast";
 
@@ -69,12 +69,12 @@ const OrdersHistoryModal = ({ isOpen, onClose, shiftId, onRefundClick }) => {
         {/* Header */}
         <div className="bg-blue-600 p-4 text-white flex justify-between items-center shadow-md z-10">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <FaHistory /> سجل فواتير الوردية
+            <History size={16} /> سجل فواتير الوردية
           </h2>
           <button
             onClick={onClose}
             className="hover:bg-blue-700 p-2 rounded-full transition-colors">
-            <FaTimes />
+            <X size={16} />
           </button>
         </div>
 
@@ -91,7 +91,7 @@ const OrdersHistoryModal = ({ isOpen, onClose, shiftId, onRefundClick }) => {
         {/* Search */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <div className="relative">
-            <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={searchTerm}
@@ -110,7 +110,7 @@ const OrdersHistoryModal = ({ isOpen, onClose, shiftId, onRefundClick }) => {
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="text-center py-10 text-gray-500 flex flex-col items-center">
-              <FaReceipt className="text-4xl mb-2 opacity-20" />
+              <Receipt size={16} className="text-4xl mb-2 opacity-20" />
               <p>لا توجد فواتير مطابقة</p>
             </div>
           ) : (
@@ -150,7 +150,7 @@ const OrdersHistoryModal = ({ isOpen, onClose, shiftId, onRefundClick }) => {
                       // onClose(); // Optional: Close history or keep it open? Better close to focus on refund.
                     }}
                     className="px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-lg flex items-center gap-1 transition-colors">
-                    <FaRedo className="text-xs" /> استرجاع
+                    <RotateCw size={16} /> استرجاع
                   </button>
                 </div>
               </div>

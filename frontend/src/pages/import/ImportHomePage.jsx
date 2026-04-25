@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import Icon from "../../components/ui/Icon";
 
 const IMPORT_TYPES = [
   {
@@ -79,7 +80,7 @@ export default function ImportHomePage() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <span className="material-icons-round text-primary text-2xl">upload</span>
+          <Icon name="upload" className="text-primary text-2xl" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">استيراد البيانات</h1>
@@ -89,7 +90,7 @@ export default function ImportHomePage() {
 
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-2xl p-4">
         <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1 flex items-center gap-2">
-          <span className="material-icons-round text-base">info</span>
+          <Icon name="info" className="text-base" />
           ترتيب الاستيراد المنصوح به
         </p>
         <ol className="text-xs text-blue-700 dark:text-blue-300 list-decimal list-inside space-y-0.5">
@@ -109,15 +110,13 @@ export default function ImportHomePage() {
             className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4 hover:border-primary/50 hover:shadow-md transition-all group"
           >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${t.color}`}>
-              <span className="material-icons-round text-xl">{t.icon}</span>
+              <Icon name={t.icon} size={20} />
             </div>
             <div className="min-w-0">
               <p className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-primary transition-colors">{t.label}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{t.desc}</p>
             </div>
-            <span className="material-icons-round text-slate-300 dark:text-slate-600 group-hover:text-primary mr-auto flex-shrink-0 transition-colors">
-              chevron_left
-            </span>
+            <Icon name="chevron_left" className="text-slate-300 dark:text-slate-600 group-hover:text-primary mr-auto flex-shrink-0 transition-colors" />
           </Link>
         ))}
       </div>

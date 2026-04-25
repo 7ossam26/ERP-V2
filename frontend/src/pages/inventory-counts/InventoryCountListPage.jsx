@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { inventoryCountService } from "../../services/inventoryCountService";
 import { warehouseService } from "../../services/warehouseService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const STATUS_LABELS = {
   IN_PROGRESS: { label: "مفتوح", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
@@ -53,7 +54,7 @@ const InventoryCountListPage = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-            <span className="material-icons-round text-primary">assignment</span>
+            <Icon name="assignment" className="text-primary" />
             الجرد الفعلي
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -62,7 +63,7 @@ const InventoryCountListPage = () => {
         </div>
         <button onClick={() => navigate("/inventory-counts/new")}
           className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-sm">
-          <span className="material-icons-round text-lg">add</span>
+          <Icon name="add" className="text-lg" />
           جرد جديد
         </button>
       </div>
@@ -101,11 +102,11 @@ const InventoryCountListPage = () => {
             <tbody>
               {loading ? (
                 <tr><td colSpan={7} className="py-12 text-center text-gray-400">
-                  <span className="material-icons-round animate-spin text-primary text-3xl">sync</span>
+                  <Icon name="sync" className="animate-spin text-primary text-3xl" />
                 </td></tr>
               ) : data.length === 0 ? (
                 <tr><td colSpan={7} className="py-12 text-center text-gray-400">
-                  <span className="material-icons-round text-4xl mb-2 block">assignment</span>
+                  <Icon name="assignment" className="text-4xl mb-2 block" />
                   لا توجد جلسات جرد
                 </td></tr>
               ) : data.map((count) => {
@@ -128,9 +129,7 @@ const InventoryCountListPage = () => {
                       <button onClick={() => navigate(
                         count.status === "IN_PROGRESS" ? `/inventory-counts/${count.id}/session` : `/inventory-counts/${count.id}`
                       )} className="text-primary hover:text-primary/70 transition-colors">
-                        <span className="material-icons-round text-[18px]">
-                          {count.status === "IN_PROGRESS" ? "edit" : "visibility"}
-                        </span>
+                        <Icon name={count.status === "IN_PROGRESS" ? "edit" : "visibility"} size={18} />
                       </button>
                     </td>
                   </tr>

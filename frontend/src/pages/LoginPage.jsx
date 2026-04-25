@@ -4,6 +4,7 @@ import AuthService from "../services/authService";
 import { toast } from "react-hot-toast";
 import { showErrorToast } from "../utils/toastUtils";
 import Footer from "../components/shared/Footer";
+import Icon from "../components/ui/Icon";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ const LoginPage = () => {
     e.preventDefault();
 
     if (!email || !password) {
-      toast.error("Please enter both username and password");
+      toast.error("يرجى إدخال اسم المستخدم وكلمة المرور");
       return;
     }
 
@@ -40,7 +41,7 @@ const LoginPage = () => {
     try {
       const response = await AuthService.login(email, password);
 
-      toast.success(`Welcome back, ${response.user.username}!`);
+      toast.success(`مرحباً، ${response.user.username}!`);
 
       // Force password change before anything else
       if (response.user.mustChangePassword) {
@@ -56,16 +57,16 @@ const LoginPage = () => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      showErrorToast(error, "Login failed. Please check your credentials.");
+      showErrorToast(error, "فشل تسجيل الدخول. يرجى التحقق من البيانات.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark font-display antialiased transition-colors duration-200 flex flex-col min-h-screen">
+    <div className="bg-canvas dark:bg-canvas-dark font-display antialiased transition-colors duration-200 flex flex-col min-h-screen">
       <div className="flex-grow flex items-center justify-center p-4">
-        <div className="w-full max-w-lg mx-auto bg-surface-light dark:bg-surface-dark rounded-xl shadow-lg overflow-hidden flex flex-col">
+        <div className="w-full max-w-lg mx-auto bg-surface dark:bg-surface-dark rounded-[10px] shadow-soft dark:shadow-soft-dark overflow-hidden flex flex-col border border-line dark:border-line-dark">
           <div className="w-full flex flex-col p-8 sm:p-10">
             <header className="flex items-center justify-center w-full mb-8">
               <img
@@ -78,28 +79,26 @@ const LoginPage = () => {
             <main className="flex-1 flex flex-col justify-center">
               <div className="w-full">
                 <div className="mb-8">
-                  <h1 className="text-gray-900 dark:text-gray-100 tracking-tight text-3xl sm:text-4xl font-bold leading-tight mb-2">
-                    Welcome Back
+                  <h1 className="text-ink dark:text-ink-dark tracking-tight text-3xl sm:text-4xl font-bold leading-tight mb-2">
+                    تسجيل الدخول
                   </h1>
-                  <p className="text-gray-500 dark:text-gray-400 text-base font-normal">
-                    Please sign in to access the system
+                  <p className="text-muted dark:text-muted-dark text-base font-normal">
+                    أدخل بياناتك للوصول إلى النظام
                   </p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
                   <div className="space-y-2">
-                    <label className="block text-gray-900 dark:text-gray-100 text-base font-medium">
-                      Username
+                    <label className="block text-ink dark:text-ink-dark text-sm font-semibold">
+                      اسم المستخدم
                     </label>
                     <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <span className="material-icons-round text-gray-400 dark:text-gray-500">
-                          person
-                        </span>
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Icon name="person" size={20} className="text-muted" />
                       </div>
                       <input
-                        className="w-full pl-12 pr-4 h-14 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
-                        placeholder="Enter your username"
+                        className="w-full pr-12 pl-4 h-14 bg-canvas dark:bg-canvas-dark border border-line dark:border-line-dark rounded-md text-ink dark:text-ink-dark placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-accent transition-all duration-200"
+                        placeholder="أدخل اسم المستخدم"
                         required
                         type="text"
                         value={email}
@@ -110,19 +109,15 @@ const LoginPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-gray-900 dark:text-gray-100 text-base font-medium">
-                        Password
-                      </label>
-                    </div>
+                    <label className="block text-ink dark:text-ink-dark text-sm font-semibold">
+                      كلمة المرور
+                    </label>
                     <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <span className="material-icons-round text-gray-400 dark:text-gray-500">
-                          lock
-                        </span>
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Icon name="lock" size={20} className="text-muted" />
                       </div>
                       <input
-                        className="w-full pl-12 pr-12 h-14 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                        className="w-full pr-12 pl-4 h-14 bg-canvas dark:bg-canvas-dark border border-line dark:border-line-dark rounded-md text-ink dark:text-ink-dark placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-accent transition-all duration-200"
                         placeholder="•••••••••"
                         required
                         type="password"
@@ -136,17 +131,13 @@ const LoginPage = () => {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full h-14 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 mt-8 disabled:opacity-70 disabled:cursor-not-allowed">
+                    className="w-full h-14 bg-accent hover:bg-accent-hover text-white rounded-md font-bold text-base shadow-soft hover:shadow-soft active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 mt-8 disabled:opacity-70 disabled:cursor-not-allowed">
                     {isLoading ? (
-                      <span className="material-icons-round animate-spin">
-                        refresh
-                      </span>
+                      <Icon name="refresh" size={20} className="animate-spin" />
                     ) : (
                       <>
-                        <span>Sign In</span>
-                        <span className="material-icons-round text-xl">
-                          login
-                        </span>
+                        <span>تسجيل الدخول</span>
+                        <Icon name="login" size={20} />
                       </>
                     )}
                   </button>

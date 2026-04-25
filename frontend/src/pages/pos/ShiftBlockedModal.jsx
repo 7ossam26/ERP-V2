@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { FaLock, FaUserSlash, FaHistory, FaArrowLeft } from "react-icons/fa";
+import { Lock, UserX, History, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const ShiftBlockedModal = ({ isOpen, blockerInfo }) => {
@@ -19,7 +19,7 @@ const ShiftBlockedModal = ({ isOpen, blockerInfo }) => {
         <div
           className={`p-8 text-center text-white ${blockerInfo?.status === "PENDING_REVIEW" ? "bg-orange-600" : "bg-red-600"}`}>
           <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm animate-pulse">
-            <FaLock className="w-10 h-10" />
+            <Lock size={16} />
           </div>
           <h2 className="text-3xl font-extrabold mb-2">
             {blockerInfo?.status === "PENDING_REVIEW"
@@ -49,7 +49,7 @@ const ShiftBlockedModal = ({ isOpen, blockerInfo }) => {
                     ? "bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400"
                     : "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
                 }`}>
-                <FaUserSlash className="w-6 h-6" />
+                <UserX size={16} />
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-gray-100 text-lg mb-1">
@@ -66,7 +66,7 @@ const ShiftBlockedModal = ({ isOpen, blockerInfo }) => {
                   {blockerInfo?.user?.name || "مستخدم غير معروف"}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-2">
-                  <FaHistory />
+                  <History size={16} />
                   <span>بدأت الوردية: </span>
                   <span className="font-mono dir-ltr">
                     {blockerInfo?.startTime
@@ -95,7 +95,7 @@ const ShiftBlockedModal = ({ isOpen, blockerInfo }) => {
           <button
             onClick={handleExit}
             className="w-full bg-gray-900 hover:bg-black dark:bg-gray-700 dark:hover:bg-gray-600 text-white p-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3">
-            <FaArrowLeft className="w-5 h-5" />
+            <ArrowLeft size={16} />
             <span>العودة إلى لوحة التحكم</span>
           </button>
         </div>

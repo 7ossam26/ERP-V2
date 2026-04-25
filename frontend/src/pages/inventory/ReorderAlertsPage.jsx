@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { inventoryService } from "../../services/inventoryService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const ReorderAlertsPage = () => {
   const navigate = useNavigate();
@@ -28,11 +29,11 @@ const ReorderAlertsPage = () => {
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate("/inventory")}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-            <span className="material-icons-round">arrow_forward</span>
+            <Icon name="arrow_forward" />
           </button>
           <div>
             <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-              <span className="material-icons-round text-orange-500">warning</span>
+              <Icon name="warning" className="text-orange-500" />
               تنبيهات إعادة الطلب
             </h2>
             <p className="text-sm text-gray-500 mt-1">
@@ -43,18 +44,18 @@ const ReorderAlertsPage = () => {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <span className="material-icons-round animate-spin text-primary text-4xl">sync</span>
+            <Icon name="sync" className="animate-spin text-primary text-4xl" />
           </div>
         ) : alerts.length === 0 ? (
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark p-12 text-center shadow-sm">
-            <span className="material-icons-round text-6xl text-green-400 mb-3 block">check_circle</span>
+            <Icon name="check_circle" className="text-6xl text-green-400 mb-3 block" />
             <p className="text-lg font-medium text-gray-500">جميع الأصناف أعلى من حد إعادة الطلب</p>
           </div>
         ) : (
           Object.entries(grouped).map(([warehouseName, items]) => (
             <div key={warehouseName} className="mb-6">
               <h3 className="text-lg font-bold text-text-main dark:text-text-dark mb-3 flex items-center gap-2">
-                <span className="material-icons-round text-gray-400">warehouse</span>
+                <Icon name="warehouse" className="text-gray-400" />
                 {warehouseName}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

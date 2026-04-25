@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import Icon from "../../components/ui/Icon";
 
 const ReportsPage = () => {
   return (
@@ -7,20 +8,14 @@ const ReportsPage = () => {
       <main className="flex-grow flex flex-col items-center justify-center p-6 sm:p-10 relative overflow-hidden">
         {/* Background Icons */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none opacity-5 dark:opacity-5">
-          <span className="material-symbols-outlined absolute top-10 left-10 text-9xl text-primary transform -rotate-12">
-            analytics
-          </span>
-          <span className="material-symbols-outlined absolute bottom-20 right-20 text-9xl text-primary transform rotate-12">
-            pie_chart
-          </span>
+          <Icon name="analytics" className="absolute top-10 left-10 text-9xl text-primary transform -rotate-12" />
+          <Icon name="pie_chart" className="absolute bottom-20 right-20 text-9xl text-primary transform rotate-12" />
         </div>
 
         <div className="w-full max-w-4xl">
           <div className="text-center mb-16">
             <div className="inline-flex items-center justify-center p-3 mb-4 rounded-full bg-primary/10 dark:bg-primary/20 text-primary dark:text-accent">
-              <span className="material-symbols-outlined text-4xl">
-                bar_chart
-              </span>
+              <Icon name="bar_chart" className="text-4xl" />
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-text-light dark:text-text-dark mb-3">
               التقارير والسجلات
@@ -39,9 +34,7 @@ const ReportsPage = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent dark:from-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10 mb-6 transform group-hover:scale-110 transition-transform duration-300">
                 <div className="h-24 w-24 bg-accent/20 dark:bg-primary/20 text-primary dark:text-accent rounded-full flex items-center justify-center shadow-lg group-hover:shadow-glow group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                  <span className="material-symbols-outlined text-5xl">
-                    summarize
-                  </span>
+                  <Icon name="summarize" className="text-5xl" />
                 </div>
               </div>
               <div className="relative z-10">
@@ -53,9 +46,7 @@ const ReportsPage = () => {
                 </p>
               </div>
               <div className="absolute bottom-4 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 text-primary dark:text-accent">
-                <span className="material-symbols-outlined text-2xl">
-                  arrow_downward
-                </span>
+                <Icon name="arrow_downward" className="text-2xl" />
               </div>
             </Link>
 
@@ -66,9 +57,7 @@ const ReportsPage = () => {
               <div className="absolute inset-0 bg-gradient-to-bl from-accent/10 to-transparent dark:from-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10 mb-6 transform group-hover:scale-110 transition-transform duration-300">
                 <div className="h-24 w-24 bg-accent/20 dark:bg-primary/20 text-primary dark:text-accent rounded-full flex items-center justify-center shadow-lg group-hover:shadow-glow group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                  <span className="material-symbols-outlined text-5xl">
-                    table_view
-                  </span>
+                  <Icon name="table_view" className="text-5xl" />
                 </div>
               </div>
               <div className="relative z-10">
@@ -80,9 +69,7 @@ const ReportsPage = () => {
                 </p>
               </div>
               <div className="absolute bottom-4 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 text-primary dark:text-accent">
-                <span className="material-symbols-outlined text-2xl">
-                  arrow_downward
-                </span>
+                <Icon name="arrow_downward" className="text-2xl" />
               </div>
             </Link>
           </div>

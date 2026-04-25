@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { treasuryService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import Icon from "../../components/ui/Icon";
 
 const AddDepositModal = ({ onClose, onAdd }) => {
     const [formData, setFormData] = useState({
@@ -51,15 +52,13 @@ const AddDepositModal = ({ onClose, onAdd }) => {
             <div className="bg-surface-light w-full max-w-lg rounded-xl shadow-2xl border border-border-light flex flex-col max-h-[90vh] animate-slide-up">
                 <div className="flex items-center justify-between p-5 border-b border-border-light bg-surface-light rounded-t-xl">
                     <h2 className="text-xl font-bold text-text-light flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">
-                            add_circle
-                        </span>
+                        <Icon name="add_circle" className="text-primary" />
                         إضافة إيداع جديد
                     </h2>
                     <button
                         onClick={onClose}
                         className="text-text-light/50 hover:text-red-500 transition-colors rounded-lg p-1 hover:bg-red-50">
-                        <span className="material-symbols-outlined">close</span>
+                        <Icon name="close" />
                     </button>
                 </div>
                 <div className="p-6 space-y-5 overflow-y-auto">
@@ -138,9 +137,7 @@ const AddDepositModal = ({ onClose, onAdd }) => {
                         onClick={handleSubmit}
                         disabled={isLoading}
                         className="px-6 py-2.5 rounded-lg bg-primary text-text-dark hover:bg-primary-hover shadow-md hover:shadow-lg font-bold transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
-                        <span className="material-symbols-outlined text-[20px]">
-                            {isLoading ? "hourglass_empty" : "check"}
-                        </span>
+                        <Icon name={isLoading ? "hourglass_empty" : "check"} size={20} />
                         <span>{isLoading ? "جاري الإضافة..." : "إضافة"}</span>
                     </button>
                 </div>

@@ -5,6 +5,7 @@ import GenericDataTable from "./GenericDataTable";
 import Modal from "../ui/Modal";
 import Toast, { useToast } from "../ui/Toast";
 import { confirmAction } from "../../utils/toastUtils";
+import Icon from "../ui/Icon";
 
 const GenericPageManager = ({
   title,
@@ -117,7 +118,7 @@ const GenericPageManager = ({
       <div className="px-6 py-5 sm:px-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-surface-dark z-10 shrink-0 print:border-b-2 print:border-black print:py-3">
         <div className="flex items-center gap-4">
           <div className="bg-primary text-white w-12 h-12 flex items-center justify-center rounded-xl shadow-lg print:hidden">
-            <span className="material-icons-round text-2xl">{icon}</span>
+            <Icon name={icon} size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 print:text-xl print:text-black">
@@ -134,7 +135,7 @@ const GenericPageManager = ({
         <button
           onClick={() => navigate(backPath)}
           className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 print:hidden">
-          <span className="material-icons-round text-2xl">close</span>
+          <Icon name="close" className="text-2xl" />
         </button>
       </div>
 
@@ -164,7 +165,7 @@ const GenericPageManager = ({
           <button
             onClick={openNewModal}
             className="flex-1 sm:flex-none bg-primary hover:bg-primary-hover text-white font-bold py-3 px-8 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
-            <span className="material-icons-round text-lg">add</span>
+            <Icon name="add" className="text-lg" />
             إضافة جديد
           </button>
         )}

@@ -3,6 +3,7 @@ import GenericPageManager from "../../components/shared/GenericPageManager";
 import { employeeService, branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { validateEgyptianPhone } from "../../utils/validationUtils";
+import Icon from "../../components/ui/Icon";
 
 const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   // Calculate next ID if creating new employee
@@ -106,9 +107,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             placeholder="ID تلقائي"
             type="text"
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            tag
-          </span>
+          <Icon name="tag" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -129,12 +128,8 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
               </option>
             ))}
           </select>
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            store
-          </span>
-          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            expand_more
-          </span>
+          <Icon name="store" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Icon name="expand_more" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
@@ -153,9 +148,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             required
             maxLength={100}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            badge
-          </span>
+          <Icon name="badge" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -174,9 +167,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             required
             maxLength={100}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            work
-          </span>
+          <Icon name="work" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -196,9 +187,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             inputMode="numeric"
             pattern="[0-9]*"
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            fingerprint
-          </span>
+          <Icon name="fingerprint" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -216,9 +205,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             type="tel"
             maxLength={14}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            call
-          </span>
+          <Icon name="call" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -238,9 +225,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             max={31}
             step={1}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            calendar_today
-          </span>
+          <Icon name="calendar_today" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -260,9 +245,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
               max={23}
               step={1}
             />
-            <span className="material-icons-round absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-base">
-              schedule
-            </span>
+            <Icon name="schedule" className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-base" />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">ساعة</span>
           </div>
           <div className="relative flex-1">
@@ -277,9 +260,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
               max={59}
               step={1}
             />
-            <span className="material-icons-round absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-base">
-              timer
-            </span>
+            <Icon name="timer" className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-base" />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">دقيقة</span>
           </div>
         </div>
@@ -299,12 +280,8 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             <option value="السبت">السبت</option>
             <option value="الأحد">الأحد</option>
           </select>
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            weekend
-          </span>
-          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            expand_more
-          </span>
+          <Icon name="weekend" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Icon name="expand_more" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
       <div className="space-y-2">
@@ -324,9 +301,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             min={0}
             max={9999999}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            attach_money
-          </span>
+          <Icon name="attach_money" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -345,7 +320,7 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
             onClick={() => setKeepOpen(true)}
             disabled={isSaving}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
-            <span className="material-icons-round text-lg">playlist_add</span>
+            <Icon name="playlist_add" className="text-lg" />
             <span>حفظ وإضافة آخر</span>
           </button>
         )}
@@ -357,14 +332,12 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
           className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSaving ? (
             <>
-              <span className="material-icons-round text-lg animate-spin">
-                refresh
-              </span>
+              <Icon name="refresh" className="text-lg animate-spin" />
               <span>جاري الحفظ...</span>
             </>
           ) : (
             <>
-              <span className="material-icons-round text-lg">save</span>
+              <Icon name="save" className="text-lg" />
               <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
             </>
           )}

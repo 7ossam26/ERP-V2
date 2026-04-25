@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { FaCashRegister, FaMoneyBillWave, FaArrowRight } from "react-icons/fa";
+import { Receipt, Banknote, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
 
 const EndShiftModal = ({ isOpen, onClose, onSubmit }) => {
@@ -37,7 +37,7 @@ const EndShiftModal = ({ isOpen, onClose, onSubmit }) => {
         <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 rounded-t-2xl text-white">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-              <FaCashRegister className="w-8 h-8" />
+              <Receipt size={16} />
             </div>
             <div>
               <h2 className="text-2xl font-bold">إغلاق الوردية</h2>
@@ -50,7 +50,7 @@ const EndShiftModal = ({ isOpen, onClose, onSubmit }) => {
           {/* Instructions */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-4">
             <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
-              <FaMoneyBillWave />
+              <Banknote size={16} />
               تعليمات العد
             </h3>
             <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 mr-6">
@@ -91,7 +91,7 @@ const EndShiftModal = ({ isOpen, onClose, onSubmit }) => {
                 disabled={!actualCash}
                 className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2">
                 <span>إغلاق الوردية</span>
-                <FaArrowRight className="w-5 h-5" />
+                <ArrowRight size={16} />
               </button>
 
               <button

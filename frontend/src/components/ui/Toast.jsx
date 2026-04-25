@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useEffect } from "react";
 
 /**
@@ -39,13 +40,13 @@ const Toast = ({ message, resolution, type = "info", onClose }) => {
     <div
       className={`fixed top-4 right-4 ${style.bg} text-white px-6 py-4 rounded-xl shadow-2xl flex items-start gap-3 animate-slide-down z-50 min-w-[300px] max-w-md`}
       role="alert">
-      <span className="material-icons-round text-2xl flex-shrink-0">{style.icon}</span>
+      <Icon name={style.icon} size={24} className="flex-shrink-0" />
       <div className="flex-1">
         <div className="font-semibold text-base leading-snug">{message}</div>
         {resolution && (
           <div className="mt-2 pt-2 border-t border-white/20">
             <div className="flex items-start gap-2">
-              <span className="material-icons-round text-sm mt-0.5 flex-shrink-0">lightbulb</span>
+              <Icon name="lightbulb" className="text-sm mt-0.5 flex-shrink-0" />
               <span className="text-sm text-white/90 leading-relaxed">{resolution}</span>
             </div>
           </div>
@@ -53,9 +54,9 @@ const Toast = ({ message, resolution, type = "info", onClose }) => {
       </div>
       <button
         onClick={onClose}
-        className="material-icons-round text-xl hover:bg-white/20 rounded-lg p-1 transition-colors flex-shrink-0"
+        className="hover:bg-white/20 rounded-lg p-1 transition-colors flex-shrink-0"
         aria-label="إغلاق">
-        close
+        <Icon name="close" size={20} />
       </button>
     </div>
   );

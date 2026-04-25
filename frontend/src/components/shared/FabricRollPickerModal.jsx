@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { fabricRollService } from "../../services/fabricRollService";
 import toast from "react-hot-toast";
+import Icon from "../ui/Icon";
 
 const SORT_OPTIONS = [
   { value: "shortest-first", label: "الأقصر أولاً" },
@@ -147,7 +148,7 @@ const FabricRollPickerModal = ({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-light dark:border-border-dark flex-shrink-0">
           <div>
             <h3 className="font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-              <span className="material-icons-round text-primary">content_cut</span>
+              <Icon name="content_cut" className="text-primary" />
               اختيار لفة
             </h3>
             {requestedLength && (
@@ -157,7 +158,7 @@ const FabricRollPickerModal = ({
             )}
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <span className="material-icons-round text-gray-400">close</span>
+            <Icon name="close" className="text-gray-400" />
           </button>
         </div>
 
@@ -167,7 +168,7 @@ const FabricRollPickerModal = ({
           <form onSubmit={handleBarcodeSubmit} className="flex gap-2 flex-1 min-w-[200px]">
             <div className="relative flex-1">
               <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                <span className="material-symbols-outlined text-gray-400 text-[16px]">qr_code_scanner</span>
+                <Icon name="qr_code_scanner" className="text-gray-400 text-[16px]" />
               </span>
               <input
                 ref={barcodeRef}
@@ -199,11 +200,11 @@ const FabricRollPickerModal = ({
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <span className="material-icons-round animate-spin text-primary text-3xl">sync</span>
+              <Icon name="sync" className="animate-spin text-primary text-3xl" />
             </div>
           ) : rolls.length === 0 ? (
             <div className="py-12 text-center text-gray-400">
-              <span className="material-icons-round text-3xl mb-2 block">inventory_2</span>
+              <Icon name="inventory_2" size={30} className="mb-2 block" />
               لا توجد لفات متاحة
             </div>
           ) : (
@@ -236,7 +237,7 @@ const FabricRollPickerModal = ({
                     <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
                       isSelected ? "bg-primary border-primary" : "border-gray-300 dark:border-gray-600"
                     }`}>
-                      {isSelected && <span className="material-icons-round text-white text-[14px]">check</span>}
+                      {isSelected && <Icon name="check" className="text-white text-[14px]" />}
                     </div>
 
                     {/* Roll info */}
@@ -278,7 +279,7 @@ const FabricRollPickerModal = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); clearAlloc(roll.rollId); }}
                           className="p-1 text-gray-400 hover:text-red-500 transition-colors">
-                          <span className="material-icons-round text-[14px]">close</span>
+                          <Icon name="close" className="text-[14px]" />
                         </button>
                       </div>
                     )}

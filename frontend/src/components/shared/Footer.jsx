@@ -1,3 +1,4 @@
+import Icon from "../ui/Icon";
 import React from "react";
 
 const Footer = () => {
@@ -10,10 +11,10 @@ const Footer = () => {
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm font-semibold text-primary hover:text-primary-hover dark:text-primary dark:hover:text-primary-hover transition-colors duration-200 flex items-center gap-1.5">
-            <span className="material-icons-round text-base">code</span>
+            <Icon name="code" className="text-base" />
             <span>Developed by</span>
             <span className="font-bold">kiko-tech.com</span>
-            <span className="material-icons-round text-xs">open_in_new</span>
+            <Icon name="open_in_new" className="text-xs" />
           </a>
           <p className="text-sm text-text-light/50 dark:text-text-dark/50">
             © {new Date().getFullYear()} Ramex Store ERP. All rights

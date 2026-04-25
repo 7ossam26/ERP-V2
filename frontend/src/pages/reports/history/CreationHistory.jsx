@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Icon from "../../../components/ui/Icon";
 import {
   employeeService,
   supplierService,
@@ -127,7 +128,7 @@ const CreationHistory = () => {
       <div className="px-6 py-5 sm:px-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-surface-dark z-10 shrink-0">
         <div className="flex items-center gap-4">
           <div className="bg-primary text-white w-12 h-12 flex items-center justify-center rounded-xl shadow-lg">
-            <span className="material-icons-round text-2xl">history_edu</span>
+            <Icon name="history_edu" className="text-2xl" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -141,7 +142,7 @@ const CreationHistory = () => {
         <button
           onClick={() => navigate("/reports/detailed")}
           className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-          <span className="material-icons-round text-2xl">close</span>
+          <Icon name="close" className="text-2xl" />
         </button>
       </div>
 
@@ -154,9 +155,7 @@ const CreationHistory = () => {
               البحث
             </label>
             <div className="relative">
-              <span className="material-icons-round absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                search
-              </span>
+              <Icon name="search" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="ابحث بالاسم أو النوع..."
@@ -195,7 +194,7 @@ const CreationHistory = () => {
                 setEndDate("");
               }}
               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2">
-              <span className="material-icons-round text-lg">clear_all</span>
+              <Icon name="clear_all" className="text-lg" />
               <span className="font-medium">مسح الفلاتر</span>
             </button>
           </div>
@@ -230,9 +229,7 @@ const CreationHistory = () => {
 
         {/* Results Count */}
         <div className="mt-3 flex items-center gap-2">
-          <span className="material-icons-round text-primary text-lg">
-            filter_list
-          </span>
+          <Icon name="filter_list" className="text-primary text-lg" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             عرض {filteredCreations.length} من {allCreations.length} سجل
           </span>
@@ -293,9 +290,7 @@ const CreationHistory = () => {
                     className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default">
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <span className="material-icons-round text-primary text-lg">
-                          {item.icon}
-                        </span>
+                        <Icon name={item.icon} size={18} className="text-primary" />
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-200">
                           {item.type}
                         </span>

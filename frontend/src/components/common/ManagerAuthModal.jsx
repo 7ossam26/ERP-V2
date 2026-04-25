@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { FaUser, FaLock, FaCheck, FaTimes } from "react-icons/fa";
+import { User, Lock, Check, X } from "lucide-react";
 import userService from "../../services/userService";
 import toast from "react-hot-toast";
 
@@ -69,7 +69,7 @@ const ManagerAuthModal = ({
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 rounded-t-2xl text-white">
           <h2 className="text-2xl font-bold flex items-center gap-2">
-            <FaLock /> {title}
+            <Lock size={16} /> {title}
           </h2>
           <p className="text-red-100 text-sm mt-1">{message}</p>
         </div>
@@ -79,7 +79,7 @@ const ManagerAuthModal = ({
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                <FaUser className="inline mr-2" />
+                <User size={16} className="inline mr-2" />
                 المدير
               </label>
               <select
@@ -101,7 +101,7 @@ const ManagerAuthModal = ({
 
             <div>
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                <FaLock className="inline mr-2" />
+                <Lock size={16} className="inline mr-2" />
                 كلمة المرور
               </label>
               <div className="relative">
@@ -129,7 +129,7 @@ const ManagerAuthModal = ({
                 type="submit"
                 disabled={loading || managers.length === 0}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2">
-                <FaCheck className="w-5 h-5" />
+                <Check size={16} />
                 <span>{loading ? "جاري التحقق..." : actionLabel}</span>
               </button>
 
@@ -138,7 +138,7 @@ const ManagerAuthModal = ({
                 onClick={onClose}
                 disabled={loading}
                 className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-6 py-3 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2">
-                <FaTimes className="w-5 h-5" />
+                <X size={16} />
                 <span>إلغاء</span>
               </button>
             </div>

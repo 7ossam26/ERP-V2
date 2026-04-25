@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { inventoryCountService } from "../../services/inventoryCountService";
 import FabricRollPickerModal from "../../components/shared/FabricRollPickerModal";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const InventoryCountSessionPage = () => {
   const { id } = useParams();
@@ -135,7 +136,7 @@ const InventoryCountSessionPage = () => {
 
   if (loading) return (
     <div className="flex justify-center items-center min-h-screen">
-      <span className="material-icons-round animate-spin text-primary text-4xl">sync</span>
+      <Icon name="sync" className="animate-spin text-primary text-4xl" />
     </div>
   );
 
@@ -154,11 +155,11 @@ const InventoryCountSessionPage = () => {
           <div className="flex items-center gap-3">
             <button onClick={() => navigate("/inventory-counts")}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-              <span className="material-icons-round">arrow_forward</span>
+              <Icon name="arrow_forward" />
             </button>
             <div>
               <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-                <span className="material-icons-round text-primary">assignment</span>
+                <Icon name="assignment" className="text-primary" />
                 جلسة الجرد {count.countNumber}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
@@ -170,14 +171,14 @@ const InventoryCountSessionPage = () => {
             <div className="flex gap-3">
               <button onClick={handleSave} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
-                {saving ? <span className="material-icons-round animate-spin text-[16px]">sync</span>
-                  : <span className="material-icons-round text-[16px]">save</span>}
+                {saving ? <Icon name="sync" className="animate-spin text-[16px]" />
+                  : <Icon name="save" className="text-[16px]" />}
                 حفظ العد
               </button>
               <button onClick={handleFinalize} disabled={finalizing || saving}
                 className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50">
-                {finalizing ? <span className="material-icons-round animate-spin text-[16px]">sync</span>
-                  : <span className="material-icons-round text-[16px]">check_circle</span>}
+                {finalizing ? <Icon name="sync" className="animate-spin text-[16px]" />
+                  : <Icon name="check_circle" className="text-[16px]" />}
                 إنهاء الجرد
               </button>
             </div>
@@ -188,7 +189,7 @@ const InventoryCountSessionPage = () => {
         <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark p-4 mb-5 shadow-sm">
           <div className="relative max-w-md">
             <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-gray-400 text-[18px]">search</span>
+              <Icon name="search" className="text-gray-400 text-[18px]" />
             </span>
             <input ref={searchRef} type="text" placeholder="بحث عن صنف..."
               value={search} onChange={(e) => setSearch(e.target.value)}
@@ -250,7 +251,7 @@ const InventoryCountSessionPage = () => {
                               className={`flex items-center gap-1 mx-auto px-3 py-1 rounded-lg text-xs font-medium border ${
                                 hasAlloc ? "bg-green-50 text-green-700 border-green-200" : "bg-yellow-50 text-yellow-700 border-yellow-200"
                               }`}>
-                              <span className="material-icons-round text-[14px]">content_cut</span>
+                              <Icon name="content_cut" className="text-[14px]" />
                               {hasAlloc ? "تم التخصيص" : "تخصيص لفات"}
                             </button>
                           )}

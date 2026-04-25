@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AuthService from "../../../services/authService";
 import { settingsService } from "../../../services/domainServices";
+import Icon from "../../../components/ui/Icon";
 
 const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
   const [settings, setSettings] = useState(null);
@@ -205,9 +206,7 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
               <div className="px-6 py-5 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-accent/5 dark:bg-primary/5 rounded-t-2xl">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary text-white p-2 rounded-lg shadow-sm">
-                    <span className="material-icons-round text-xl">
-                      shopping_cart
-                    </span>
+                    <Icon name="shopping_cart" className="text-xl" />
                   </div>
                   <h3 className="text-xl font-bold text-primary dark:text-text-dark">
                     تفاصيل فاتورة المشتريات #{purchase.id}
@@ -217,13 +216,13 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                   <button
                     onClick={() => window.print()}
                     className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
-                    <span className="material-icons-round text-lg">print</span>
+                    <Icon name="print" className="text-lg" />
                     <span className="font-bold">طباعة</span>
                   </button>
                   <button
                     onClick={onClose}
                     className="text-text-light/40 hover:text-red-500 dark:text-text-dark/40 dark:hover:text-red-400 transition-colors rounded-full p-1 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center">
-                    <span className="material-icons-round text-2xl">close</span>
+                    <Icon name="close" className="text-2xl" />
                   </button>
                 </div>
               </div>
@@ -281,7 +280,7 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                   {purchase?.landedCostEnabled && (
                     <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
                       <div className="font-medium text-yellow-800 dark:text-yellow-300 mb-2 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">local_shipping</span>
+                        <Icon name="local_shipping" className="text-sm" />
                         التكاليف الإضافية
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -298,9 +297,7 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                   {/* Items Table */}
                   <div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary">
-                        inventory_2
-                      </span>
+                      <Icon name="inventory_2" className="text-primary" />
                       الأصناف
                     </h3>
                     <div className="overflow-x-auto border border-gray-200 dark:border-zinc-700 rounded-lg">
@@ -413,9 +410,7 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
                   {/* Calculations Summary */}
                   <div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary">
-                        calculate
-                      </span>
+                      <Icon name="calculate" className="text-primary" />
                       ملخص الحسابات
                     </h3>
                     <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg space-y-3">
@@ -476,9 +471,7 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase }) => {
 
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-zinc-700">
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                          <span className="material-symbols-outlined text-lg">
-                            payment
-                          </span>
+                          <Icon name="payment" className="text-lg" />
                           <span>طريقة الدفع:</span>
                           <span className="font-bold text-gray-800 dark:text-gray-200">
                             {getPaymentMethodLabel(purchase.paymentMethod)}

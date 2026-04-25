@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import Icon from "../../components/ui/Icon";
 
 const DetailedReportsPage = () => {
   const reports = [
@@ -111,7 +112,7 @@ const DetailedReportsPage = () => {
           <Link
             to="/reports"
             className="flex items-center gap-2 text-primary hover:bg-primary/10 px-4 py-2 rounded-lg transition-colors">
-            <span className="material-symbols-outlined">arrow_forward</span>
+            <Icon name="arrow_forward" />
             <span>عودة للتقارير</span>
           </Link>
         </div>
@@ -125,9 +126,7 @@ const DetailedReportsPage = () => {
               className="bg-surface-light dark:bg-surface-dark p-6 rounded-xl shadow-sm border border-border-light dark:border-border-dark hover:shadow-md hover:border-primary/30 transition-all group flex items-start gap-4">
               <div
                 className={`p-3 rounded-lg ${report.bg} ${report.darkBg} ${report.color} group-hover:scale-110 transition-transform`}>
-                <span className="material-symbols-outlined text-3xl">
-                  {report.icon}
-                </span>
+                <Icon name={report.icon} size={30} />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-text-light dark:text-text-dark mb-1 group-hover:text-primary transition-colors">

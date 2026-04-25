@@ -6,6 +6,7 @@ import {
   categoryService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import Icon from "../../components/ui/Icon";
 
 export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
   // Calculate next ID if creating new item
@@ -119,9 +120,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             placeholder="ID تلقائي"
             type="text"
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            tag
-          </span>
+          <Icon name="tag" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -139,9 +138,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             required
             maxLength={150}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            category
-          </span>
+          <Icon name="category" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -161,9 +158,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             min={0}
             max={999999.99}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            attach_money
-          </span>
+          <Icon name="attach_money" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -183,9 +178,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             min={0}
             max={999999.99}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            local_offer
-          </span>
+          <Icon name="local_offer" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -202,9 +195,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             <option value="kg">كيلو جرام</option>
             <option value="box">علبة</option>
           </select>
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            scale
-          </span>
+          <Icon name="scale" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -223,9 +214,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             max={99999}
             step={1}
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            notification_important
-          </span>
+          <Icon name="notification_important" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -325,7 +314,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
             type="submit"
             onClick={() => setKeepOpen(true)}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20">
-            <span className="material-icons-round text-lg">playlist_add</span>
+            <Icon name="playlist_add" className="text-lg" />
             <span>حفظ وإضافة آخر</span>
           </button>
         )}
@@ -334,7 +323,7 @@ export const ItemForm = ({ initialData, onClose, onSave, data, showToast }) => {
           type="submit"
           onClick={() => setKeepOpen(false)}
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 min-h-touch">
-          <span className="material-icons-round text-lg">save</span>
+          <Icon name="save" className="text-lg" />
           <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
         </button>
       </div>

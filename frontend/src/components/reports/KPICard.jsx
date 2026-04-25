@@ -1,4 +1,5 @@
 import React from "react";
+import Icon from "../ui/Icon";
 
 export default function KPICard({ label, value, icon, color = "primary", sub }) {
   const colorMap = {
@@ -11,7 +12,7 @@ export default function KPICard({ label, value, icon, color = "primary", sub }) 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4">
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${colorMap[color] || colorMap.primary}`}>
-        <span className="material-icons-round text-2xl">{icon}</span>
+        <Icon name={icon} size={24} />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">{label}</p>

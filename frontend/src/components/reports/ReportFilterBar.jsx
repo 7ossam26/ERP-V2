@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { reportService } from "../../services/reportService";
+import Icon from "../ui/Icon";
 
 export default function ReportFilterBar({
   filters,
@@ -125,7 +126,7 @@ export default function ReportFilterBar({
             onClick={onExport}
             disabled={exporting}
             className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 mr-auto">
-            <span className="material-icons-round text-base">{exporting ? "hourglass_empty" : "download"}</span>
+            <Icon name={exporting ? "hourglass_empty" : "download"} size={16} />
             {exporting ? "جاري التصدير..." : "تصدير Excel"}
           </button>
         )}

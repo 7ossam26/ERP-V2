@@ -4,6 +4,7 @@ import { expenseService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 import { confirmAction } from "../../utils/toastUtils";
+import Icon from "../../components/ui/Icon";
 
 const ExpensesPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -172,7 +173,7 @@ const ExpensesPage = () => {
         <header className="h-16 flex md:hidden items-center justify-between px-4 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shrink-0">
           <div className="flex items-center gap-2">
             <button className="p-2 -mr-2 text-text-light dark:text-text-dark">
-              <span className="material-symbols-outlined">menu</span>
+              <Icon name="menu" />
             </button>
             <h1 className="font-bold text-lg text-text-light dark:text-text-dark">
               المصروفات
@@ -201,17 +202,13 @@ const ExpensesPage = () => {
               <button
                 onClick={() => window.print()}
                 className="flex items-center gap-2 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark hover:bg-accent/20 text-text-light/70 dark:text-text-dark/70 hover:text-primary px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">
-                <span className="material-symbols-outlined text-[20px]">
-                  download
-                </span>
+                <Icon name="download" className="text-[20px]" />
                 <span>تصدير تقرير</span>
               </button>
               <button
                 onClick={() => setIsModalOpen(true)} // This is fine, editingExpense is null by default
                 className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-text-dark px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
-                <span className="material-symbols-outlined text-[20px]">
-                  add
-                </span>
+                <Icon name="add" className="text-[20px]" />
                 <span>إضافة مصروف</span>
               </button>
             </div>
@@ -219,9 +216,7 @@ const ExpensesPage = () => {
           // Search and Filters
           <div className="bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-96">
-              <span className="material-symbols-outlined absolute top-1/2 right-3 -translate-y-1/2 text-text-light/70 dark:text-text-dark/70 pointer-events-none text-[20px]">
-                search
-              </span>
+              <Icon name="search" className="absolute top-1/2 right-3 -translate-y-1/2 text-text-light/70 dark:text-text-dark/70 pointer-events-none text-[20px]" />
               <input
                 className="w-full pr-10 pl-4 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm text-text-light dark:text-text-dark focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-text-light/50 dark:placeholder:text-text-dark/50"
                 placeholder="بحث في الوصف..."
@@ -236,9 +231,7 @@ const ExpensesPage = () => {
             <div className="flex w-full md:w-auto gap-3 overflow-x-auto pb-1 md:pb-0">
               <div className="relative min-w-[160px]">
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <span className="material-symbols-outlined text-text-light/70 dark:text-text-dark/70 text-[18px]">
-                    calendar_month
-                  </span>
+                  <Icon name="calendar_month" className="text-text-light/70 dark:text-text-dark/70 text-[18px]" />
                 </div>
                 <input
                   className="bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block w-full pr-10 p-2.5 outline-none font-numbers"
@@ -333,9 +326,7 @@ const ExpensesPage = () => {
                                   onClick={() => handleDelete(expense.id)}
                                   className="text-text-light/70 hover:text-red-600 dark:text-text-dark/70 dark:hover:text-red-400 transition-colors bg-surface-light dark:bg-surface-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-transparent hover:border-red-100 dark:hover:border-red-900/30 rounded p-1"
                                   title="حذف">
-                                  <span className="material-symbols-outlined text-[18px]">
-                                    delete
-                                  </span>
+                                  <Icon name="delete" className="text-[18px]" />
                                 </button>
                               </div>
                             ) : (
@@ -347,9 +338,7 @@ const ExpensesPage = () => {
                             <div
                               className="flex items-center justify-center gap-1 text-gray-400"
                               title="مصروف تلقائي (مرتبط بمشتروات)">
-                              <span className="material-symbols-outlined text-[16px]">
-                                lock
-                              </span>
+                              <Icon name="lock" className="text-[16px]" />
                               <span className="text-[10px]">تلقائي</span>
                             </div>
                           )}
@@ -394,9 +383,7 @@ const ExpensesPage = () => {
                     }
                     disabled={currentPage === 1}
                     className="p-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark text-text-light/70 dark:text-text-dark/70 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span className="material-symbols-outlined text-[18px] transform rotate-180">
-                      chevron_right
-                    </span>
+                    <Icon name="chevron_right" className="text-[18px] transform rotate-180" />
                   </button>
 
                   {/* Page Numbers */}
@@ -434,9 +421,7 @@ const ExpensesPage = () => {
                     }
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark text-text-light/70 dark:text-text-dark/70 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span className="material-symbols-outlined text-[18px] transform rotate-180">
-                      chevron_left
-                    </span>
+                    <Icon name="chevron_left" className="text-[18px] transform rotate-180" />
                   </button>
                 </div>
               </div>

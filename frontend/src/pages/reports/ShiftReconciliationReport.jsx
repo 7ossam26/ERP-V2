@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { reportService } from "../../services/reportService";
 import ReportFilterBar from "../../components/reports/ReportFilterBar";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const today = new Date().toISOString().split("T")[0];
 const thirtyAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
@@ -32,13 +33,13 @@ export default function ShiftReconciliationReport() {
     <div className="space-y-5" dir="rtl">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <span className="material-icons-round text-primary text-xl">account_balance_wallet</span>
+          <Icon name="account_balance_wallet" className="text-primary text-xl" />
         </div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">تسوية الورديات</h1>
       </div>
       <ReportFilterBar filters={filters} onChange={setFilters} onExport={handleExport} exporting={exporting} />
       {loading ? (
-        <div className="flex items-center justify-center h-64"><span className="material-icons-round animate-spin text-4xl text-primary">autorenew</span></div>
+        <div className="flex items-center justify-center h-64"><Icon name="autorenew" className="animate-spin text-4xl text-primary" /></div>
       ) : data?.shifts?.length ? (
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-x-auto">
           <table className="w-full text-sm">

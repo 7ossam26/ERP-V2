@@ -1,3 +1,4 @@
+import Icon from "../ui/Icon";
 import React, { useState } from "react";
 
 const WeightSelector = ({ isOpen, onClose, onSelect, itemName }) => {
@@ -177,7 +178,7 @@ const WeightSelector = ({ isOpen, onClose, onSelect, itemName }) => {
             onClick={handleConfirm}
             disabled={!previewWeight || previewWeight <= 0}
             className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2">
-            <span className="material-icons-round">check</span>
+            <Icon name="check" />
             <span>تأكيد</span>
           </button>
         </div>

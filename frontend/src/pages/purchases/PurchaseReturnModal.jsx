@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { purchaseService } from "../../services/domainServices";
 import ManagerAuthModal from "../../components/common/ManagerAuthModal";
+import Icon from "../../components/ui/Icon";
 
 const PurchaseReturnModal = ({ isOpen, onClose }) => {
   const [allPurchases, setAllPurchases] = useState([]);
@@ -121,13 +122,13 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="bg-orange-600 p-4 rounded-t-2xl text-white flex justify-between items-center flex-shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <span className="material-icons-round">assignment_return</span>
+            <Icon name="assignment_return" />
             مرتجع مشتريات
           </h2>
           <button
             onClick={onClose}
             className="hover:bg-orange-700 p-2 rounded-full transition-colors">
-            <span className="material-icons-round">close</span>
+            <Icon name="close" />
           </button>
         </div>
 
@@ -139,7 +140,7 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
             <div className="space-y-3">
               {/* Filter input */}
               <div className="relative">
-                <span className="material-icons-round absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                <Icon name="search" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
                 <input
                   type="text"
                   value={filterQuery}
@@ -153,7 +154,7 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
               {/* Bills table */}
               {loading ? (
                 <div className="text-center py-10 text-gray-400">
-                  <span className="material-icons-round animate-spin text-3xl">refresh</span>
+                  <Icon name="refresh" className="animate-spin text-3xl" />
                   <p className="mt-2 text-sm">جاري تحميل الفواتير...</p>
                 </div>
               ) : (
@@ -245,7 +246,7 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
                 <button
                   onClick={() => { setPurchase(null); setReturnItems([]); }}
                   className="mr-4 text-orange-600 hover:text-orange-800 text-xs font-bold flex items-center gap-1 flex-shrink-0">
-                  <span className="material-icons-round text-sm">swap_horiz</span>
+                  <Icon name="swap_horiz" className="text-sm" />
                   تغيير الفاتورة
                 </button>
               </div>
@@ -321,7 +322,7 @@ const PurchaseReturnModal = ({ isOpen, onClose }) => {
               onClick={initiateReturn}
               disabled={!purchase || totalReturn === 0 || loading}
               className="px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white font-bold shadow-lg flex items-center gap-2">
-              <span className="material-icons-round text-sm">assignment_return</span>
+              <Icon name="assignment_return" className="text-sm" />
               تنفيذ الإرجاع
             </button>
           </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { fabricRollService } from "../../services/fabricRollService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const STATUS_LABELS = {
   AVAILABLE:     { label: "متاح",         color: "bg-green-100 text-green-800 border-green-200" },
@@ -62,7 +63,7 @@ const FabricRollDetailPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <span className="material-icons-round animate-spin text-primary text-4xl">sync</span>
+        <Icon name="sync" className="animate-spin text-primary text-4xl" />
       </div>
     );
   }
@@ -70,7 +71,7 @@ const FabricRollDetailPage = () => {
   if (!roll) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4" dir="rtl">
-        <span className="material-icons-round text-6xl text-gray-300">inventory_2</span>
+        <Icon name="inventory_2" size={60} className="text-gray-300" />
         <p className="text-gray-500">اللفة غير موجودة</p>
         <button onClick={() => navigate("/fabric-rolls")} className="text-primary hover:underline text-sm">
           العودة للقائمة
@@ -91,7 +92,7 @@ const FabricRollDetailPage = () => {
         {/* Breadcrumb / back */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
           <Link to="/fabric-rolls" className="hover:text-primary transition-colors">لفات الأقمشة</Link>
-          <span className="material-icons-round text-[14px]">chevron_left</span>
+          <Icon name="chevron_left" className="text-[14px]" />
           <span className="text-text-main dark:text-text-dark font-medium font-mono">{roll.rollNumber}</span>
         </div>
 
@@ -100,7 +101,7 @@ const FabricRollDetailPage = () => {
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <span className="material-icons-round text-primary text-3xl">inventory_2</span>
+                <Icon name="inventory_2" size={30} className="text-primary" />
                 <div>
                   <h2 className="text-2xl font-bold font-mono text-text-main dark:text-text-dark">
                     {roll.rollNumber}
@@ -116,7 +117,7 @@ const FabricRollDetailPage = () => {
                   {roll.item?.name}
                 </span>
                 <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-sm border border-border-light dark:border-border-dark text-gray-600 dark:text-gray-400">
-                  <span className="material-icons-round text-[14px] ml-1">warehouse</span>
+                  <Icon name="warehouse" className="text-[14px] ml-1" />
                   {roll.warehouse?.name}
                 </span>
               </div>
@@ -126,13 +127,13 @@ const FabricRollDetailPage = () => {
             <div className="flex gap-2 flex-shrink-0">
               <Link to={`/fabric-rolls/${id}/edit`}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border-light dark:border-border-dark text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <span className="material-icons-round text-[16px]">edit</span>
+                <Icon name="edit" className="text-[16px]" />
                 تعديل
               </Link>
               {canMarkDamaged && (
                 <button onClick={() => setShowDamageModal(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                  <span className="material-icons-round text-[16px]">report</span>
+                  <Icon name="report" className="text-[16px]" />
                   تعليم كتالف
                 </button>
               )}
@@ -197,14 +198,14 @@ const FabricRollDetailPage = () => {
         <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
           <div className="p-4 border-b border-border-light dark:border-border-dark">
             <h3 className="font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-              <span className="material-icons-round text-primary">content_cut</span>
+              <Icon name="content_cut" className="text-primary" />
               سجل القطوع
               <span className="text-sm font-normal text-gray-400">({roll.cuts?.length || 0})</span>
             </h3>
           </div>
           {!roll.cuts || roll.cuts.length === 0 ? (
             <div className="py-10 text-center text-gray-400">
-              <span className="material-icons-round text-3xl mb-2 block">content_cut</span>
+              <Icon name="content_cut" className="text-3xl mb-2 block" />
               لا توجد قطوع سابقة
             </div>
           ) : (
@@ -229,12 +230,12 @@ const FabricRollDetailPage = () => {
                     <td className="px-4 py-3">
                       {cut.saleItem ? (
                         <span className="inline-flex items-center gap-1 text-xs text-blue-600">
-                          <span className="material-icons-round text-[14px]">point_of_sale</span>
+                          <Icon name="point_of_sale" className="text-[14px]" />
                           فاتورة #{cut.saleItem?.sale?.saleNumber || cut.saleItem?.saleId}
                         </span>
                       ) : cut.adjustment ? (
                         <span className="inline-flex items-center gap-1 text-xs text-orange-600">
-                          <span className="material-icons-round text-[14px]">tune</span>
+                          <Icon name="tune" className="text-[14px]" />
                           تعديل مخزن
                         </span>
                       ) : (
@@ -256,7 +257,7 @@ const FabricRollDetailPage = () => {
           <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-2xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                <span className="material-icons-round text-red-600">report</span>
+                <Icon name="report" className="text-red-600" />
               </div>
               <div>
                 <h3 className="font-bold text-text-main dark:text-text-dark">تعليم اللفة كتالفة</h3>
@@ -285,7 +286,7 @@ const FabricRollDetailPage = () => {
               </button>
               <button onClick={handleMarkDamaged} disabled={damaging}
                 className="px-5 py-2 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center gap-2">
-                {damaging && <span className="material-icons-round animate-spin text-[14px]">sync</span>}
+                {damaging && <Icon name="sync" className="animate-spin text-[14px]" />}
                 {damaging ? "جارٍ..." : "تأكيد التلف"}
               </button>
             </div>

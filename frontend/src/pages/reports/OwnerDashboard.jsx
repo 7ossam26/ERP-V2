@@ -3,6 +3,7 @@ import { reportService } from "../../services/reportService";
 import KPICard from "../../components/reports/KPICard";
 import ArabicLineChart from "../../components/reports/ArabicLineChart";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 export default function OwnerDashboard() {
   const [data, setData] = useState(null);
@@ -19,7 +20,7 @@ export default function OwnerDashboard() {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-64">
-      <span className="material-icons-round animate-spin text-5xl text-primary">autorenew</span>
+      <Icon name="autorenew" className="animate-spin text-5xl text-primary" />
     </div>
   );
 
@@ -31,7 +32,7 @@ export default function OwnerDashboard() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <span className="material-icons-round text-primary text-2xl">dashboard_customize</span>
+          <Icon name="dashboard_customize" className="text-primary text-2xl" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">لوحة المالك</h1>

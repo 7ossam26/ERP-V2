@@ -3,6 +3,7 @@ import { reportService } from "../../services/reportService";
 import ReportFilterBar from "../../components/reports/ReportFilterBar";
 import ArabicBarChart from "../../components/reports/ArabicBarChart";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const today = new Date().toISOString().split("T")[0];
 const thirtyAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
@@ -35,7 +36,7 @@ export default function MarginBySKUReport() {
     <div className="space-y-5" dir="rtl">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <span className="material-icons-round text-primary text-xl">trending_up</span>
+          <Icon name="trending_up" className="text-primary text-xl" />
         </div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">هامش الربح بالصنف</h1>
         <p className="text-xs text-slate-400">التكلفة = آخر سعر شراء × الكمية</p>
@@ -44,7 +45,7 @@ export default function MarginBySKUReport() {
       <ReportFilterBar filters={filters} onChange={setFilters} onExport={handleExport} exporting={exporting} />
 
       {loading ? (
-        <div className="flex items-center justify-center h-64"><span className="material-icons-round animate-spin text-4xl text-primary">autorenew</span></div>
+        <div className="flex items-center justify-center h-64"><Icon name="autorenew" className="animate-spin text-4xl text-primary" /></div>
       ) : data?.items?.length ? (
         <>
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4" style={{ height: 320 }}>

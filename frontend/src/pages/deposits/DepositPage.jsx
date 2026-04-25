@@ -4,6 +4,7 @@ import AddWithdrawalModal from "./AddWithdrawalModal";
 import { depositService } from "../../services/depositService";
 import { withdrawalService } from "../../services/withdrawalService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const DepositPage = () => {
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
@@ -89,7 +90,7 @@ const DepositPage = () => {
             <header className="h-16 flex md:hidden items-center justify-between px-4 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shrink-0">
                 <div className="flex items-center gap-2">
                     <button className="p-2 -mr-2 text-text-light dark:text-text-dark">
-                        <span className="material-symbols-outlined">menu</span>
+                        <Icon name="menu" />
                     </button>
                     <h1 className="font-bold text-lg text-text-light dark:text-text-dark">
                         الإيداعات والمسحوبات
@@ -112,13 +113,13 @@ const DepositPage = () => {
                         <button
                             onClick={() => setIsDepositModalOpen(true)}
                             className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-text-dark px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
-                            <span className="material-symbols-outlined text-[20px]">add</span>
+                            <Icon name="add" className="text-[20px]" />
                             <span>إضافة إيداع</span>
                         </button>
                         <button
                             onClick={() => setIsWithdrawalModalOpen(true)}
                             className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
-                            <span className="material-symbols-outlined text-[20px]">remove</span>
+                            <Icon name="remove" className="text-[20px]" />
                             <span>إضافة مسحوب</span>
                         </button>
                     </div>
@@ -127,9 +128,7 @@ const DepositPage = () => {
                 {/* Search and Filters */}
                 <div className="bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
                     <div className="relative w-full md:w-96">
-                        <span className="material-symbols-outlined absolute top-1/2 right-3 -translate-y-1/2 text-text-light/70 dark:text-text-dark/70 pointer-events-none text-[20px]">
-                            search
-                        </span>
+                        <Icon name="search" className="absolute top-1/2 right-3 -translate-y-1/2 text-text-light/70 dark:text-text-dark/70 pointer-events-none text-[20px]" />
                         <input
                             className="w-full pr-10 pl-4 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm text-text-light dark:text-text-dark focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-text-light/50 dark:placeholder:text-text-dark/50"
                             placeholder="بحث في الوصف أو الخزينة..."
@@ -144,9 +143,7 @@ const DepositPage = () => {
                     <div className="flex w-full md:w-auto gap-3 overflow-x-auto pb-1 md:pb-0">
                         <div className="relative min-w-[160px]">
                             <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                <span className="material-symbols-outlined text-text-light/70 dark:text-text-dark/70 text-[18px]">
-                                    calendar_month
-                                </span>
+                                <Icon name="calendar_month" className="text-text-light/70 dark:text-text-dark/70 text-[18px]" />
                             </div>
                             <input
                                 className="bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-sm rounded-lg focus:ring-primary focus:border-primary block w-full pr-10 p-2.5 outline-none font-numbers"
@@ -195,9 +192,7 @@ const DepositPage = () => {
                                                     ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                                     : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                                     }`}>
-                                                    <span className="material-symbols-outlined text-[16px]">
-                                                        {transaction.type === 'deposit' ? 'add_circle' : 'remove_circle'}
-                                                    </span>
+                                                    <Icon name={transaction.type === 'deposit' ? 'add_circle' : 'remove_circle'} size={16} />
                                                     {transaction.type === 'deposit' ? 'إيداع' : 'مسحوب'}
                                                 </span>
                                             </td>
@@ -245,7 +240,7 @@ const DepositPage = () => {
                                     onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                                     disabled={currentPage === 1}
                                     className="p-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark text-text-light/70 dark:text-text-dark/70 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <span className="material-symbols-outlined text-[18px] transform rotate-180">chevron_right</span>
+                                    <Icon name="chevron_right" className="text-[18px] transform rotate-180" />
                                 </button>
                                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                                     let pageNum = i + 1;
@@ -272,7 +267,7 @@ const DepositPage = () => {
                                     onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                                     disabled={currentPage === totalPages}
                                     className="p-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark text-text-light/70 dark:text-text-dark/70 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <span className="material-symbols-outlined text-[18px] transform rotate-180">chevron_left</span>
+                                    <Icon name="chevron_left" className="text-[18px] transform rotate-180" />
                                 </button>
                             </div>
                         </div>

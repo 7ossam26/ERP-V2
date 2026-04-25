@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import AuthService from "../../services/authService";
 import BranchFilterHelper from "../../utils/BranchFilterHelper";
+import Icon from "../ui/Icon";
 
 const ReportFilterForm = ({ onFilter, branches = null }) => {
   const currentUser = AuthService.getCurrentUser();
@@ -60,9 +61,7 @@ const ReportFilterForm = ({ onFilter, branches = null }) => {
               placeholder="بحث..."
               className="w-full pl-4 pr-10 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
             />
-            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-text-light/50 dark:text-text-dark/50 pointer-events-none text-[20px]">
-              search
-            </span>
+            <Icon name="search" className="absolute right-3 top-1/2 -translate-y-1/2 text-text-light/50 dark:text-text-dark/50 pointer-events-none text-[20px]" />
           </div>
         </div>
 
@@ -123,18 +122,14 @@ const ReportFilterForm = ({ onFilter, branches = null }) => {
             type="submit"
             title="تصفية النتائج"
             className="flex-1 bg-primary hover:bg-primary-hover text-white rounded-lg shadow-sm transition-all flex items-center justify-center">
-            <span className="material-symbols-outlined text-[24px]">
-              filter_list
-            </span>
+            <Icon name="filter_list" className="text-[24px]" />
           </button>
           <button
             type="button"
             onClick={handleReset}
             title="إعادة تعيين الفلاتر"
             className="px-4 border border-border-light dark:border-border-dark text-text-light dark:text-text-dark hover:bg-background-light dark:hover:bg-background-dark rounded-lg transition-all flex items-center justify-center">
-            <span className="material-symbols-outlined text-[24px]">
-              restart_alt
-            </span>
+            <Icon name="restart_alt" className="text-[24px]" />
           </button>
         </div>
       </div>

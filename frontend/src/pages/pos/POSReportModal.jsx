@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import Icon from "../../components/ui/Icon";
 
 const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = false }) => {
   const hasPrinted = useRef(false);
@@ -75,11 +76,11 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
         {/* Screen Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-zinc-800 print:hidden">
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors">
-            <span className="material-symbols-outlined text-2xl">close</span>
+            <Icon name="close" className="text-2xl" />
           </button>
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-gray-800 dark:text-white">تقرير نهاية الوردية</h2>
-            <span className="material-symbols-outlined text-2xl text-gray-600 dark:text-gray-400">summarize</span>
+            <Icon name="summarize" className="text-2xl text-gray-600 dark:text-gray-400" />
           </div>
         </div>
 
@@ -101,7 +102,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
           {/* Sales Breakdown Section */}
           <div className="mx-4 mt-4 mb-3 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden print:border-gray-400 print:mx-0">
             <div className="bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2.5 font-bold text-emerald-800 dark:text-emerald-300 border-b border-gray-200 dark:border-zinc-700 text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">point_of_sale</span>
+              <Icon name="point_of_sale" className="text-lg" />
               تفاصيل المبيعات
             </div>
             <Row label="تيك أواى :" count={takeaway.count} amount={takeaway.total} />
@@ -115,7 +116,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
           {/* Cash Movements Section */}
           <div className="mx-4 mb-3 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden print:border-gray-400 print:mx-0">
             <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-2.5 font-bold text-blue-800 dark:text-blue-300 border-b border-gray-200 dark:border-zinc-700 text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">swap_vert</span>
+              <Icon name="swap_vert" className="text-lg" />
               حركة النقدية
             </div>
             <Row label="نقدي داخل :" count={deposits.count} amount={deposits.total} />
@@ -127,7 +128,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
           {/* Totals Section */}
           <div className="mx-4 mb-3 border-2 border-gray-300 dark:border-zinc-600 rounded-xl overflow-hidden print:border-gray-500 print:mx-0">
             <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-2.5 font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-zinc-600 text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">calculate</span>
+              <Icon name="calculate" className="text-lg" />
               الإجمالي
             </div>
             <div className="flex items-center py-3 px-4 text-sm border-b border-gray-200 dark:border-zinc-700">
@@ -147,7 +148,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
           {/* Cash Settlement */}
           <div className="mx-4 mb-3 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden print:border-gray-400 print:mx-0">
             <div className="bg-gray-50 dark:bg-zinc-800/50 px-4 py-2.5 font-bold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-zinc-700 text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">account_balance</span>
+              <Icon name="account_balance" className="text-lg" />
               تسوية النقدية
             </div>
             <div className="text-sm">
@@ -192,7 +193,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
           {expenses.length > 0 && (
             <div className="mx-4 mb-3 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden print:border-gray-400 print:mx-0">
               <div className="bg-red-50 dark:bg-red-900/10 px-4 py-2.5 font-bold text-red-700 dark:text-red-400 border-b border-gray-200 dark:border-zinc-700 text-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">receipt_long</span>
+                <Icon name="receipt_long" className="text-lg" />
                 تفاصيل المصروفات ({expenses.length})
               </div>
               <div className="divide-y divide-gray-100 dark:divide-zinc-800">
@@ -211,7 +212,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
           {deliveryDetails.length > 0 && (
             <div className="mx-4 mb-4 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden print:border-gray-400 print:mx-0">
               <div className="bg-orange-50 dark:bg-orange-900/10 px-4 py-2.5 font-bold text-orange-700 dark:text-orange-400 border-b border-gray-200 dark:border-zinc-700 text-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">local_shipping</span>
+                <Icon name="local_shipping" className="text-lg" />
                 تفاصيل التوصيل
               </div>
               <div className="divide-y divide-gray-100 dark:divide-zinc-800">
@@ -243,7 +244,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 px-5 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
-            <span className="material-symbols-outlined text-lg">print</span>
+            <Icon name="print" className="text-lg" />
             طباعة
           </button>
           <button

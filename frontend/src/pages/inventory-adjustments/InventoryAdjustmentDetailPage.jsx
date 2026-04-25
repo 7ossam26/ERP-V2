@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { inventoryAdjustmentService } from "../../services/inventoryAdjustmentService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const REASON_LABELS = {
   DAMAGE: "تلف", THEFT: "سرقة", CORRECTION: "تصحيح",
@@ -23,13 +24,13 @@ const InventoryAdjustmentDetailPage = () => {
 
   if (loading) return (
     <div className="flex justify-center items-center min-h-screen">
-      <span className="material-icons-round animate-spin text-primary text-4xl">sync</span>
+      <Icon name="sync" className="animate-spin text-primary text-4xl" />
     </div>
   );
 
   if (!adj) return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-      <span className="material-icons-round text-6xl text-gray-300">error_outline</span>
+      <Icon name="error_outline" className="text-6xl text-gray-300" />
       <p className="text-gray-500">التسوية غير موجودة</p>
     </div>
   );
@@ -42,11 +43,11 @@ const InventoryAdjustmentDetailPage = () => {
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate("/inventory-adjustments")}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-            <span className="material-icons-round">arrow_forward</span>
+            <Icon name="arrow_forward" />
           </button>
           <div>
             <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-              <span className="material-icons-round text-primary">tune</span>
+              <Icon name="tune" className="text-primary" />
               تسوية {adj.adjustmentNumber}
             </h2>
           </div>

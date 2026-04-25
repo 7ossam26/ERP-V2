@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import ManagerVerificationModal from "../../components/shared/ManagerVerificationModal";
+import Icon from "../../components/ui/Icon";
 
 const DeliverySettlementModal = ({ deliveryMan, onClose, onSettle }) => {
     const [amount, setAmount] = useState("");
@@ -62,7 +63,7 @@ const DeliverySettlementModal = ({ deliveryMan, onClose, onSettle }) => {
                         <button
                             onClick={onClose}
                             className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <span className="material-icons-round">close</span>
+                            <Icon name="close" />
                         </button>
                     </div>
 
@@ -140,7 +141,7 @@ const DeliverySettlementModal = ({ deliveryMan, onClose, onSettle }) => {
                                 type="submit"
                                 disabled={isSubmitting}
                                 className="flex-2 w-2/3 px-4 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg shadow-green-200 dark:shadow-none hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <span className="material-icons-round">lock</span>
+                                <Icon name="lock" />
                                 <span>المتابعة للتأكيد</span>
                             </button>
                         </div>

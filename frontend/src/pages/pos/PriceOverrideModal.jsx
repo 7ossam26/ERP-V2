@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaMoneyBillWave, FaTimes } from "react-icons/fa";
+import { Banknote, X } from "lucide-react";
 
 const REASONS = [
   "خصم خاص",
@@ -41,11 +41,11 @@ export default function PriceOverrideModal({
         {/* Header */}
         <div className="bg-blue-600 text-white p-4 rounded-t-xl flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FaMoneyBillWave />
+            <Banknote size={16} />
             <h3 className="font-bold text-sm">تعديل سعر: {itemName}</h3>
           </div>
           <button onClick={onClose} className="hover:bg-blue-700 rounded p-1">
-            <FaTimes />
+            <X size={16} />
           </button>
         </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { reportService } from "../../services/reportService";
 import ReportFilterBar from "../../components/reports/ReportFilterBar";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 export default function DeadStockReport() {
   const [filters, setFilters] = useState({ days: "90" });
@@ -31,13 +32,13 @@ export default function DeadStockReport() {
     <div className="space-y-5" dir="rtl">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-          <span className="material-icons-round text-amber-600 text-xl">inventory</span>
+          <Icon name="inventory" className="text-amber-600 text-xl" />
         </div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">المخزون الراكد</h1>
       </div>
       <ReportFilterBar filters={filters} onChange={setFilters} showDays onExport={handleExport} exporting={exporting} showDateRange={false} />
       {loading ? (
-        <div className="flex items-center justify-center h-64"><span className="material-icons-round animate-spin text-4xl text-primary">autorenew</span></div>
+        <div className="flex items-center justify-center h-64"><Icon name="autorenew" className="animate-spin text-4xl text-primary" /></div>
       ) : data ? (
         <>
           <div className="flex gap-4">

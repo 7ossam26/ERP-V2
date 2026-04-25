@@ -16,7 +16,7 @@ import TierOverrideModal from "./TierOverrideModal";
 import PriceOverrideModal from "./PriceOverrideModal";
 import ReceiptPrintTemplate from "./ReceiptPrintTemplate";
 import FabricRollPickerModal from "../../components/shared/FabricRollPickerModal";
-import { FaHistory, FaRedo, FaTags } from "react-icons/fa";
+import { History, RotateCw, Tags } from "lucide-react";
 import { ClientForm } from "../clients/ClientManager";
 import {
   clientService,
@@ -32,6 +32,7 @@ import {
 import AuthService from "../../services/authService";
 import { confirmAction } from "../../utils/toastUtils";
 import PendingDeliveriesModal from "./components/PendingDeliveriesModal";
+import Icon from "../../components/ui/Icon";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -1480,7 +1481,7 @@ const POSPage = () => {
                   );
                 }}
                 className="flex items-center gap-1.5 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg font-bold text-sm transition-all">
-                <span className="material-symbols-outlined text-[18px]">delete_sweep</span>
+                <Icon name="delete_sweep" className="text-[18px]" />
                 مسح الكل
               </button>
             </div>
@@ -1494,15 +1495,11 @@ const POSPage = () => {
                   </div>
                   <div className="text-xs text-gray-500 flex gap-3">
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">
-                        schedule
-                      </span>
+                      <Icon name="schedule" className="text-[14px]" />
                       {cart.timestamp}
                     </span>
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">
-                        shopping_cart
-                      </span>
+                      <Icon name="shopping_cart" className="text-[14px]" />
                       {cart.itemsCount} أصناف
                     </span>
                   </div>
@@ -1528,7 +1525,7 @@ const POSPage = () => {
                     }}
                     className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-all"
                     title="إلغاء الفاتورة المعلقة">
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    <Icon name="delete" className="text-[18px]" />
                   </button>
                 </div>
               </div>
@@ -1640,16 +1637,7 @@ const POSPage = () => {
                 طريقة الدفع:
               </span>
               <div className="flex items-center gap-2">
-                <span
-                  className={`material-symbols-outlined text-3xl ${
-                    pendingPaymentMethod === "cash"
-                      ? "text-green-500"
-                      : "text-[#4c096e]"
-                  }`}>
-                  {pendingPaymentMethod === "cash"
-                    ? "payments"
-                    : "account_balance_wallet"}
-                </span>
+                <Icon name={pendingPaymentMethod === "cash" ? "payments" : "account_balance_wallet"} size={30} className={pendingPaymentMethod === "cash" ? "text-green-500" : "text-[#4c096e]"} />
                 <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">
                   {pendingPaymentMethod === "cash" ? "نقدي" : "InstaPay"}
                 </span>
@@ -1700,9 +1688,7 @@ const POSPage = () => {
 
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">
-                info
-              </span>
+              <Icon name="info" className="text-blue-600 dark:text-blue-400 text-xl" />
               <div className="text-sm text-blue-800 dark:text-blue-200">
                 <p className="font-bold mb-1">
                   العميل: {selectedClient?.name || "عميل نقدي"}
@@ -1716,7 +1702,7 @@ const POSPage = () => {
             <button
               onClick={() => setIsPaymentConfirmOpen(false)}
               className="flex-1 px-6 py-3 bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 text-gray-800 dark:text-gray-200 rounded-lg font-bold transition-colors flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined">close</span>
+              <Icon name="close" />
               <span>إلغاء</span>
             </button>
             <button
@@ -1727,7 +1713,7 @@ const POSPage = () => {
                   ? "bg-green-500 hover:bg-green-600"
                   : "bg-[#4c096e] hover:bg-[#3a0654]"
               }`}>
-              <span className="material-symbols-outlined">check_circle</span>
+              <Icon name="check_circle" />
               <span>{isSubmitting ? "جاري المعالجة..." : "تأكيد الدفع"}</span>
             </button>
           </div>
@@ -1784,19 +1770,19 @@ const POSPage = () => {
       <div className="bg-primary dark:bg-primary text-white px-3 md:px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
         <div className="flex items-center gap-3 md:gap-6">
           <div className="flex items-center gap-1 md:gap-2">
-            <span className="material-symbols-outlined text-lg">person</span>
+            <Icon name="person" className="text-lg" />
             <span className="font-bold hidden md:inline">اسم الموظف:</span>
             <span className="text-sm md:text-base">
               {currentUser?.name || currentUser?.username || "Guest"}
             </span>
           </div>
           <div className="hidden md:flex items-center gap-2">
-            <span className="material-symbols-outlined text-lg">store</span>
+            <Icon name="store" className="text-lg" />
             <span className="font-bold">اسم الفرع:</span>
             <span>{currentUser?.branch?.name || "غير محدد"}</span>
           </div>
           <div className="flex items-center gap-1 md:gap-2">
-            <span className="material-symbols-outlined text-lg">schedule</span>
+            <Icon name="schedule" className="text-lg" />
             <span className="font-bold hidden md:inline">الوردية:</span>
             <div className="flex flex-col leading-tight">
               <span className="text-sm md:text-base">{currentShift}</span>
@@ -1808,9 +1794,7 @@ const POSPage = () => {
             </div>
           </div>
           <div className="hidden md:flex items-center gap-2">
-            <span className="material-symbols-outlined text-lg">
-              calendar_today
-            </span>
+            <Icon name="calendar_today" className="text-lg" />
             <span className="font-bold">التاريخ:</span>
             <span>{currentDate}</span>
           </div>
@@ -1821,30 +1805,28 @@ const POSPage = () => {
           <button
             onClick={() => setIsHistoryModalOpen(true)}
             className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <FaHistory />
+            <History size={16} />
             <span className="hidden md:inline">سجل الفواتير</span>
           </button>
 
           <button
             onClick={() => setIsPreparationQueueOpen(true)}
             className="flex items-center gap-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <span className="material-symbols-outlined text-sm">kitchen</span>
+            <Icon name="kitchen" className="text-sm" />
             <span className="hidden md:inline">قسم التجهيز</span>
           </button>
 
           <button
             onClick={() => setIsDeliveryDebtsModalOpen(true)}
             className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <span className="material-symbols-outlined text-sm">
-              account_balance_wallet
-            </span>
+            <Icon name="account_balance_wallet" className="text-sm" />
             <span className="hidden md:inline">ديون الطيارين</span>
           </button>
 
           <button
             onClick={() => setIsRefundModalOpen(true)}
             className="flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <FaRedo />
+            <RotateCw size={16} />
             <span className="hidden md:inline">مرتجع</span>
           </button>
 
@@ -1853,7 +1835,7 @@ const POSPage = () => {
           <button
             onClick={handleEndShift}
             className="flex items-center gap-1 md:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 md:px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <span className="material-symbols-outlined text-sm">logout</span>
+            <Icon name="logout" className="text-sm" />
             <span className="hidden md:inline">إنهاء الوردية</span>
             <span className="md:hidden">إنهاء</span>
           </button>
@@ -1877,7 +1859,7 @@ const POSPage = () => {
                 ? "text-primary bg-primary/5 border-t-2 border-primary"
                 : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
             }`}>
-            <span className="material-symbols-outlined">grid_view</span>
+            <Icon name="grid_view" />
             <span>المنتجات</span>
           </button>
           <button
@@ -1887,7 +1869,7 @@ const POSPage = () => {
                 ? "text-primary bg-primary/5 border-t-2 border-primary"
                 : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800"
             }`}>
-            <span className="material-symbols-outlined">shopping_cart</span>
+            <Icon name="shopping_cart" />
             <span>السلة ({cartItems.length})</span>
             {cartItems.length > 0 && (
               <span className="absolute top-2 left-[55%] h-2 w-2 rounded-full bg-red-500"></span>
@@ -1905,26 +1887,24 @@ const POSPage = () => {
               <button
                 onClick={() => navigate(-1)}
                 className="hover:text-primary transition-colors flex items-center p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
-                <span className="material-symbols-outlined">arrow_forward</span>
+                <Icon name="arrow_forward" />
               </button>
               <button
                 onClick={() => navigate("/dashboard")}
                 className="hover:text-primary transition-colors flex items-center hidden md:flex">
-                <span className="material-symbols-outlined">home</span>
+                <Icon name="home" />
               </button>
               <span className="mx-2 text-gray-300 hidden md:inline">/</span>
               <a
                 className="flex items-center hover:text-primary transition-colors hidden md:flex"
                 href="#">
-                <span className="material-symbols-outlined ml-1">apps</span>
+                <Icon name="apps" className="ml-1" />
                 <span className="font-medium">كل المنتجات</span>
               </a>
             </div>
             <div className="relative flex-1 md:flex-none">
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <span className="material-symbols-outlined text-lg">
-                  search
-                </span>
+                <Icon name="search" className="text-lg" />
               </span>
               <input
                 className="pr-10 pl-4 py-2 w-full md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
@@ -1949,9 +1929,7 @@ const POSPage = () => {
                   container.scrollBy({ left: 200, behavior: "smooth" });
                 }}
                 className="flex-shrink-0 bg-white dark:bg-zinc-800 rounded-lg p-2 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-zinc-700 transition-all border border-gray-200 dark:border-zinc-700">
-                <span className="material-symbols-outlined text-primary text-xl">
-                  chevron_right
-                </span>
+                <Icon name="chevron_right" className="text-primary text-xl" />
               </button>
 
               {/* Categories Container */}
@@ -1981,9 +1959,7 @@ const POSPage = () => {
                   container.scrollBy({ left: -200, behavior: "smooth" });
                 }}
                 className="flex-shrink-0 bg-white dark:bg-zinc-800 rounded-lg p-2 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-zinc-700 transition-all border border-gray-200 dark:border-zinc-700">
-                <span className="material-symbols-outlined text-primary text-xl">
-                  chevron_left
-                </span>
+                <Icon name="chevron_left" className="text-primary text-xl" />
               </button>
             </div>
 
@@ -1995,9 +1971,7 @@ const POSPage = () => {
                   className="bg-card-light dark:bg-card-dark rounded-lg shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden hover:shadow-md cursor-pointer flex flex-col min-h-[6rem] group relative active:scale-[0.97] transition-all duration-150"
                   onClick={() => handleProductClick(product)}>
                   <span className="absolute top-1 left-1 text-gray-300 hover:text-gray-500 dark:text-gray-500 cursor-help z-10">
-                    <span className="material-symbols-outlined text-sm">
-                      info
-                    </span>
+                    <Icon name="info" className="text-sm" />
                   </span>
                   <div className="p-2 md:p-3 flex flex-col flex-1 justify-between">
                     <h3 className="font-bold text-gray-800 dark:text-gray-100 text-xs md:text-sm mb-0.5 md:mb-1 line-clamp-2 leading-tight pl-4">
@@ -2065,12 +2039,8 @@ const POSPage = () => {
                     setClientSearchTerm(""); // Clear on focus to search
                   }}
                 />
-                <span className="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                  {isClientDropdownOpen ? "search" : "expand_more"}
-                </span>
-                <span className="material-symbols-outlined absolute right-3 top-1/2 transform -translate-y-1/2 text-primary pointer-events-none">
-                  person
-                </span>
+                <Icon name={isClientDropdownOpen ? "search" : "expand_more"} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <Icon name="person" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-primary pointer-events-none" />
               </div>
 
               {/* Display Address if selected */}
@@ -2078,9 +2048,7 @@ const POSPage = () => {
                 <div className="mt-3 px-1">
                   {selectedClient.address ? (
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-3 flex items-start gap-3 transition-all animate-fade-in">
-                      <span className="material-symbols-outlined text-blue-500 text-lg mt-0.5">
-                        location_on
-                      </span>
+                      <Icon name="location_on" className="text-blue-500 text-lg mt-0.5" />
                       <div>
                         <div className="text-xs text-blue-400 font-bold mb-0.5">
                           العنوان
@@ -2092,9 +2060,7 @@ const POSPage = () => {
                     </div>
                   ) : (
                     <div className="bg-gray-50 dark:bg-zinc-800 border-2 border-dashed border-gray-200 dark:border-zinc-700 rounded-lg p-3 flex items-center justify-center gap-2 text-gray-400 transition-all">
-                      <span className="material-symbols-outlined text-lg">
-                        location_off
-                      </span>
+                      <Icon name="location_off" className="text-lg" />
                       <span className="text-xs font-medium">
                         لا يوجد عنوان مسجل
                       </span>
@@ -2146,9 +2112,7 @@ const POSPage = () => {
                             setIsClientModalOpen(true);
                           }}
                           className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-lg transition-colors">
-                          <span className="material-symbols-outlined text-[18px]">
-                            person_add
-                          </span>
+                          <Icon name="person_add" className="text-[18px]" />
                           إضافة عميل جديد
                           {clientSearchTerm && (
                             <span className="text-xs opacity-80">
@@ -2183,7 +2147,7 @@ const POSPage = () => {
                 onClick={() => setIsTierOverrideModalOpen(true)}
                 className="text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 underline flex items-center gap-1"
               >
-                <FaTags className="text-[10px]" />
+                <Tags size={16} />
                 تغيير
               </button>
               {tierOverride && (
@@ -2201,9 +2165,7 @@ const POSPage = () => {
             <div className="flex flex-col flex-shrink min-h-0 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 h-64">
-                  <span className="material-symbols-outlined text-6xl mb-2">
-                    shopping_cart
-                  </span>
+                  <Icon name="shopping_cart" className="text-6xl mb-2" />
                   <span>السلة فارغة</span>
                 </div>
               ) : (
@@ -2225,9 +2187,7 @@ const POSPage = () => {
                         }}
                         className="flex-shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded-full transition-colors"
                         title="حذف من السلة">
-                        <span className="material-symbols-outlined text-xl">
-                          delete
-                        </span>
+                        <Icon name="delete" className="text-xl" />
                       </button>
                     ) : (
                       <div className="w-9"></div>
@@ -2290,17 +2250,13 @@ const POSPage = () => {
                     <button
                       onClick={() => handleQuickPayment("cash")}
                       className="flex flex-col items-center justify-center p-3 bg-green-500 hover:bg-green-600 text-white transition-colors border-l border-white/10">
-                      <span className="material-symbols-outlined mb-1">
-                        payments
-                      </span>
+                      <Icon name="payments" className="mb-1" />
                       <span className="font-bold">نقدي</span>
                     </button>
                     <button
                       onClick={() => handleQuickPayment("visa")}
                       className="flex flex-col items-center justify-center p-3 bg-[#4c096e] hover:bg-[#3a0654] text-white transition-colors border-l border-white/10">
-                      <span className="material-symbols-outlined mb-1">
-                        account_balance_wallet
-                      </span>
+                      <Icon name="account_balance_wallet" className="mb-1" />
                       <span className="font-bold">InstaPay</span>
                     </button>
                     <button
@@ -2320,9 +2276,7 @@ const POSPage = () => {
                         setIsDeliveryModalOpen(true);
                       }}
                       className="flex flex-col items-center justify-center p-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors">
-                      <span className="material-symbols-outlined mb-1">
-                        local_shipping
-                      </span>
+                      <Icon name="local_shipping" className="mb-1" />
                       <span className="font-bold">توصيل</span>
                     </button>
                   </div>
@@ -2355,17 +2309,13 @@ const POSPage = () => {
                   <button
                     onClick={handlePrintClick}
                     className="flex flex-col items-center justify-center p-2 text-primary dark:text-primary-dark hover:bg-gray-100 dark:hover:bg-zinc-700 border-l border-gray-200 dark:border-zinc-700">
-                    <span className="material-symbols-outlined mb-1">
-                      print
-                    </span>
+                    <Icon name="print" className="mb-1" />
                     <span>طباعة</span>
                   </button>
                   <button
                     onClick={clearCart}
                     className="flex flex-col items-center justify-center p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border-l border-gray-200 dark:border-zinc-700">
-                    <span className="material-symbols-outlined mb-1">
-                      cancel
-                    </span>
+                    <Icon name="cancel" className="mb-1" />
                     <span>إلغاء</span>
                   </button>
                   <button
@@ -2377,9 +2327,7 @@ const POSPage = () => {
                       }
                     }}
                     className="flex flex-col items-center justify-center p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 relative">
-                    <span className="material-symbols-outlined mb-1">
-                      {cartItems.length > 0 ? "pause_circle" : "history"}
-                    </span>
+                    <Icon name={cartItems.length > 0 ? "pause_circle" : "history"} className="mb-1" />
                     <span>
                       {cartItems.length > 0 ? "تعليق" : "فواتير معلقة"}
                     </span>
@@ -2419,7 +2367,7 @@ const POSPage = () => {
                       <button
                         onClick={() => setKeypadMode("default")}
                         className="text-red-500 hover:text-red-700">
-                        <span className="material-icons-round">close</span>
+                        <Icon name="close" />
                       </button>
                     </div>
 
@@ -2463,7 +2411,7 @@ const POSPage = () => {
                     <button
                       onClick={handleCustomInputSubmit}
                       className="col-span-2 bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all flex items-center justify-center border border-gray-200 dark:border-zinc-700">
-                      <span className="material-icons-round text-sm">done</span>
+                      <Icon name="done" className="text-sm" />
                     </button>
                   </>
                 )}
@@ -2479,7 +2427,7 @@ const POSPage = () => {
                       <button
                         onClick={() => setKeypadMode("default")}
                         className="text-red-500 hover:text-red-700">
-                        <span className="material-icons-round">close</span>
+                        <Icon name="close" />
                       </button>
                     </div>
 
@@ -2536,7 +2484,7 @@ const POSPage = () => {
                     <button
                       onClick={handleCustomInputSubmit}
                       className="bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all flex items-center justify-center border border-gray-200 dark:border-zinc-700">
-                      <span className="material-icons-round text-sm">done</span>
+                      <Icon name="done" className="text-sm" />
                     </button>
                   </>
                 )}
@@ -2552,7 +2500,7 @@ const POSPage = () => {
                       <button
                         onClick={() => setKeypadMode("default")}
                         className="text-red-500 hover:text-red-700">
-                        <span className="material-icons-round">close</span>
+                        <Icon name="close" />
                       </button>
                     </div>
 
@@ -2570,18 +2518,14 @@ const POSPage = () => {
                     <button
                       onClick={() => handlePaymentSelected("cash")}
                       className="col-span-5 row-span-2 bg-green-500 hover:bg-green-600 text-white font-bold text-xl transition-all flex flex-col items-center justify-center gap-2 border border-gray-200 dark:border-zinc-700">
-                      <span className="material-icons-round text-4xl">
-                        payments
-                      </span>
+                      <Icon name="payments" className="text-4xl" />
                       <span>نقدي (Cash)</span>
                     </button>
 
                     <button
                       onClick={() => handlePaymentSelected("visa")}
                       className="col-span-5 row-span-2 bg-[#4c096e] hover:bg-[#3a0654] text-white font-bold text-xl transition-all flex flex-col items-center justify-center gap-2 border border-gray-200 dark:border-zinc-700">
-                      <span className="material-icons-round text-4xl">
-                        account_balance_wallet
-                      </span>
+                      <Icon name="account_balance_wallet" className="text-4xl" />
                       <span>InstaPay</span>
                     </button>
                   </>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { FaSearch, FaRedo, FaTrash, FaCheck, FaTimes } from "react-icons/fa";
+import { Search, RotateCw, Trash2, Check, X } from "lucide-react";
 import { salesService } from "../../services/domainServices";
 import toast from "react-hot-toast";
 import ManagerAuthModal from "../../components/common/ManagerAuthModal";
@@ -189,12 +189,12 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
         {/* Header */}
         <div className="bg-red-600 p-4 rounded-t-2xl text-white flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <FaRedo /> استرجاع فاتورة (مرتجع)
+            <RotateCw size={16} /> استرجاع فاتورة (مرتجع)
           </h2>
           <button
             onClick={onClose}
             className="hover:bg-red-700 p-2 rounded-full transition-colors">
-            <FaTimes />
+            <X size={16} />
           </button>
         </div>
 
@@ -263,7 +263,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
               type="submit"
               disabled={loading}
               className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2">
-              <FaSearch /> بحث
+              <Search size={16} /> بحث
             </button>
           </form>
 
@@ -454,7 +454,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
               onClick={initiateRefund}
               disabled={!saleData || calculateTotalRefund() === 0}
               className="px-8 py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold shadow-lg flex items-center gap-2">
-              <FaRedo /> تنفيذ الاسترجاع
+              <RotateCw size={16} /> تنفيذ الاسترجاع
             </button>
           </div>
         </div>

@@ -15,6 +15,7 @@ import Modal from "../../components/ui/Modal";
 import { ItemForm } from "../items/ItemManager";
 import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
 import PurchaseReturnModal from "./PurchaseReturnModal";
+import Icon from "../../components/ui/Icon";
 
 const PurchasesPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH, CREDIT, DEFERRED, MIXED
@@ -574,16 +575,16 @@ const PurchasesPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border border-gray-100 dark:border-gray-700">
             <div className="bg-blue-600 p-4 rounded-t-2xl text-white flex justify-between items-center flex-shrink-0">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                <span className="material-symbols-outlined">receipt_long</span>
+                <Icon name="receipt_long" />
                 سجل المشتريات ({filteredHistory.length})
               </h2>
               <button onClick={()=>setIsHistoryOpen(false)} className="hover:bg-blue-700 p-2 rounded-full transition-colors">
-                <span className="material-symbols-outlined">close</span>
+                <Icon name="close" />
               </button>
             </div>
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
               <div className="relative">
-                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                <Icon name="search" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
                 <input type="text" value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)}
                   placeholder="فلترة برقم الفاتورة، اسم المورد، أو رقم فاتورة المورد..."
                   className="w-full pr-10 pl-4 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:border-blue-500 text-right text-sm" autoFocus />
@@ -636,7 +637,7 @@ const PurchasesPage = () => {
                         <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${psClass(p.paymentStatus)}`}>{psLabel(p.paymentStatus)}</span></td>
                         <td className="p-3">
                           <button onClick={()=>setSelectedHistoryPurchase(p)} className="text-blue-600 hover:text-blue-800 transition-colors" title="عرض التفاصيل">
-                            <span className="material-symbols-outlined text-xl">visibility</span>
+                            <Icon name="visibility" className="text-xl" />
                           </button>
                         </td>
                       </tr>
@@ -670,7 +671,7 @@ const PurchasesPage = () => {
         {/* Header / Title Section */}
         <div className="flex items-center justify-between bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-border-light dark:border-border-dark">
           <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
-            <span className="material-symbols-outlined">receipt_long</span>
+            <Icon name="receipt_long" />
             فاتورة مشتريات
           </h2>
 
@@ -681,35 +682,33 @@ const PurchasesPage = () => {
             <button
               onClick={() => setIsHistoryOpen(true)}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
-              <span className="material-symbols-outlined text-sm">receipt_long</span>
+              <Icon name="receipt_long" className="text-sm" />
               <span>سجل المشتريات</span>
             </button>
             <button
               onClick={() => setIsReturnModalOpen(true)}
               className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
-              <span className="material-symbols-outlined text-sm">assignment_return</span>
+              <Icon name="assignment_return" className="text-sm" />
               <span>مرتجع</span>
             </button>
             <button
               onClick={handleHoldPurchase}
               className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
-              <span className="material-symbols-outlined text-sm">pause_circle</span>
+              <Icon name="pause_circle" className="text-sm" />
               <span>تعليق</span>
             </button>
             {heldPurchases.length > 0 && (
               <button
                 onClick={() => setIsHeldPurchasesOpen(true)}
                 className="relative flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg transition-colors shadow-sm font-bold">
-                <span className="material-symbols-outlined text-sm">inventory</span>
+                <Icon name="inventory" className="text-sm" />
                 <span>معلق ({heldPurchases.length})</span>
               </button>
             )}
             <button
               onClick={() => navigate("/dashboard")}
               className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
-              <span className="material-symbols-outlined text-sm">
-                arrow_forward
-              </span>
+              <Icon name="arrow_forward" className="text-sm" />
               <span>رجوع</span>
             </button>
           </div>
@@ -763,9 +762,7 @@ const PurchasesPage = () => {
                     </option>
                   ))}
                 </select>
-                <span className="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">
-                  expand_more
-                </span>
+                <Icon name="expand_more" className="absolute left-3 top-3 text-text-muted pointer-events-none text-sm" />
               </div>
             </div>
             <div className="md:col-span-5">
@@ -798,9 +795,7 @@ const PurchasesPage = () => {
                     </option>
                   ))}
                 </select>
-                <span className="material-symbols-outlined absolute left-3 top-3 text-text-muted pointer-events-none text-sm">
-                  expand_more
-                </span>
+                <Icon name="expand_more" className="absolute left-3 top-3 text-text-muted pointer-events-none text-sm" />
               </div>
               <button
                 type="button"
@@ -817,9 +812,7 @@ const PurchasesPage = () => {
                   )
                 }
                 title="عرض حساب المورد">
-                <span className="material-symbols-outlined">
-                  account_balance_wallet
-                </span>
+                <Icon name="account_balance_wallet" />
               </button>
             </div>
               {/* Phase 4: International purchase flag */}
@@ -842,18 +835,14 @@ const PurchasesPage = () => {
         <section className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
           <div className="p-4 bg-background-light dark:bg-background-dark/50 border-b border-border-light dark:border-border-dark flex justify-between items-center">
             <h3 className="font-bold text-text-light dark:text-text-dark flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">
-                inventory_2
-              </span>
+              <Icon name="inventory_2" className="text-primary" />
               الأصناف
             </h3>
             <button
               type="button"
               onClick={() => setIsItemModalOpen(true)}
               className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-lg transition-colors font-bold text-sm">
-              <span className="material-symbols-outlined text-[20px]">
-                qr_code_scanner
-              </span>
+              <Icon name="qr_code_scanner" className="text-[20px]" />
               <span>تكويد سريع</span>
             </button>
           </div>
@@ -897,9 +886,7 @@ const PurchasesPage = () => {
                           placeholder="ابحث عن صنف..."
                           className="w-full bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md focus:ring-1 focus:ring-primary focus:border-primary p-2 pr-8 text-text-light dark:text-text-dark font-bold"
                         />
-                        <span className="material-symbols-outlined absolute right-2 top-2.5 text-text-muted pointer-events-none text-base">
-                          search
-                        </span>
+                        <Icon name="search" className="absolute right-2 top-2.5 text-text-muted pointer-events-none text-base" />
                         {openItemDropdown === item.id && (
                           <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-52 overflow-y-auto">
                             {getAvailableItems(item.id)
@@ -961,9 +948,7 @@ const PurchasesPage = () => {
                       <button
                         onClick={() => removeItem(item.id)}
                         className="text-red-500 hover:text-red-700 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20">
-                        <span className="material-symbols-outlined text-base">
-                          delete
-                        </span>
+                        <Icon name="delete" className="text-base" />
                       </button>
                     </td>
                   </tr>
@@ -972,7 +957,7 @@ const PurchasesPage = () => {
                     <td colSpan={5} className="px-4 py-0">
                   <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-3 rounded-lg mt-1 mb-2">
                     <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-sm">inventory_2</span>
+                      <Icon name="inventory_2" size={14} />
                       اللفات
                     </div>
                     <div className="space-y-2">
@@ -1022,7 +1007,7 @@ const PurchasesPage = () => {
                             }}
                             className="text-red-500 hover:text-red-700"
                           >
-                            <span className="material-symbols-outlined text-lg">remove_circle</span>
+                            <Icon name="remove_circle" className="text-lg" />
                           </button>
                         </div>
                       ))}
@@ -1045,7 +1030,7 @@ const PurchasesPage = () => {
                       }}
                       className="mt-2 text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-sm">add_circle_outline</span>
+                      <Icon name="add_circle_outline" className="text-sm" />
                       إضافة لفة
                     </button>
                   </div>
@@ -1066,9 +1051,7 @@ const PurchasesPage = () => {
                   ? "bg-white dark:bg-surface-dark hover:bg-accent/20 dark:hover:bg-border-dark text-text-light dark:text-text-dark border-primary/40 dark:border-primary/60 cursor-pointer"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-60"
               }`}>
-              <span className="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform text-primary">
-                add_circle
-              </span>
+              <Icon name="add_circle" className="mr-2 group-hover:scale-110 transition-transform text-primary" />
               <span className="font-medium">إضافة صنف جديد</span>
             </button>
           </div>
@@ -1083,12 +1066,10 @@ const PurchasesPage = () => {
                   onClick={() => setLandedCostEnabled(prev => !prev)}
                 >
                   <span className="font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">local_shipping</span>
+                    <Icon name="local_shipping" className="text-lg" />
                     التكاليف الإضافية (Landed Cost)
                   </span>
-                  <span className="material-symbols-outlined text-gray-500">
-                    {landedCostEnabled ? "expand_less" : "expand_more"}
-                  </span>
+                  <Icon name={landedCostEnabled ? "expand_less" : "expand_more"} className="text-gray-500" />
                 </button>
 
                 {landedCostEnabled && (
@@ -1149,9 +1130,7 @@ const PurchasesPage = () => {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                       <div className="bg-primary text-white p-1.5 rounded-full flex items-center justify-center">
-                        <span className="material-symbols-outlined text-lg">
-                          local_offer
-                        </span>
+                        <Icon name="local_offer" className="text-lg" />
                       </div>
                       <label className="text-lg font-bold text-primary dark:text-accent">
                         الخصم الإضافي
@@ -1274,9 +1253,7 @@ const PurchasesPage = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-border-light dark:border-border-dark pb-3">
                 <h3 className="text-lg font-bold text-text-light dark:text-text-dark flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary">
-                    payments
-                  </span>
+                  <Icon name="payments" className="text-primary" />
                   طريقة الدفع
                 </h3>
                 {selectedTreasuryId && (
@@ -1295,9 +1272,7 @@ const PurchasesPage = () => {
                   (paymentMethod === "MIXED" ? paidAmount : totals.net) && (
                   <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
                     <p className="text-xs text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
-                      <span className="material-symbols-outlined text-sm">
-                        warning
-                      </span>
+                      <Icon name="warning" className="text-sm" />
                       رصيد الخزينة غير كافي
                     </p>
                   </div>
@@ -1320,9 +1295,7 @@ const PurchasesPage = () => {
                     className="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
                     htmlFor="payment-cash">
                     <span>نقد (Cash)</span>
-                    <span className="material-symbols-outlined text-text-muted text-lg">
-                      monetization_on
-                    </span>
+                    <Icon name="monetization_on" className="text-text-muted text-lg" />
                   </label>
                 </div>
 
@@ -1342,9 +1315,7 @@ const PurchasesPage = () => {
                     className="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
                     htmlFor="payment-credit">
                     <span>كريدت/فيزا (Card)</span>
-                    <span className="material-symbols-outlined text-text-muted text-lg">
-                      credit_card
-                    </span>
+                    <Icon name="credit_card" className="text-text-muted text-lg" />
                   </label>
                 </div>
 
@@ -1364,9 +1335,7 @@ const PurchasesPage = () => {
                     className="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
                     htmlFor="payment-deferred">
                     <span>آجل (Deferred)</span>
-                    <span className="material-symbols-outlined text-text-muted text-lg">
-                      schedule
-                    </span>
+                    <Icon name="schedule" className="text-text-muted text-lg" />
                   </label>
                 </div>
 
@@ -1386,9 +1355,7 @@ const PurchasesPage = () => {
                     className="ms-3 text-sm font-bold text-text-light dark:text-text-dark w-full cursor-pointer flex items-center justify-between"
                     htmlFor="payment-mixed">
                     <span>متنوع (Mixed)</span>
-                    <span className="material-symbols-outlined text-text-muted text-lg">
-                      account_balance
-                    </span>
+                    <Icon name="account_balance" className="text-text-muted text-lg" />
                   </label>
                 </div>
               </div>
@@ -1416,9 +1383,7 @@ const PurchasesPage = () => {
                           setPaidAmount(val);
                         }}
                       />
-                      <span className="material-symbols-outlined absolute left-3 top-2.5 text-text-muted text-sm pointer-events-none">
-                        attach_money
-                      </span>
+                      <Icon name="attach_money" className="absolute left-3 top-2.5 text-text-muted text-sm pointer-events-none" />
                     </div>
                   </div>
                   <div>
@@ -1441,9 +1406,7 @@ const PurchasesPage = () => {
                           setPaidAmount(totals.net - remaining);
                         }}
                       />
-                      <span className="material-symbols-outlined absolute left-3 top-2.5 text-red-400 text-sm pointer-events-none">
-                        money_off
-                      </span>
+                      <Icon name="money_off" className="absolute left-3 top-2.5 text-red-400 text-sm pointer-events-none" />
                     </div>
                   </div>
                 </div>
@@ -1453,7 +1416,7 @@ const PurchasesPage = () => {
               <button
                 onClick={handleSavePurchase}
                 className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-primary/30 transform hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2">
-                <span className="material-symbols-outlined">print</span>
+                <Icon name="print" />
                 <span>حفظ وطباعة</span>
               </button>
             </div>
@@ -1467,11 +1430,11 @@ const PurchasesPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700">
             <div className="bg-yellow-500 p-4 rounded-t-2xl text-white flex justify-between items-center">
               <h2 className="text-lg font-bold flex items-center gap-2">
-                <span className="material-symbols-outlined">inventory</span>
+                <Icon name="inventory" />
                 فواتير المشتريات المعلقة
               </h2>
               <button onClick={() => setIsHeldPurchasesOpen(false)} className="hover:bg-yellow-600 p-1.5 rounded-full transition-colors">
-                <span className="material-symbols-outlined">close</span>
+                <Icon name="close" />
               </button>
             </div>
             <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
@@ -1494,7 +1457,7 @@ const PurchasesPage = () => {
                       <button
                         onClick={() => handleDeleteHeldPurchase(h.id)}
                         className="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1.5 rounded-lg text-sm transition-all">
-                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                        <Icon name="delete" className="text-[16px]" />
                       </button>
                     </div>
                   </div>
@@ -1510,7 +1473,7 @@ const PurchasesPage = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" dir="rtl">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="bg-orange-500 p-4 text-white flex items-center gap-3">
-              <span className="material-symbols-outlined text-2xl">warning</span>
+              <Icon name="warning" className="text-2xl" />
               <h2 className="text-lg font-bold">فاتورة غير محفوظة</h2>
             </div>
             <div className="p-6 space-y-4">
@@ -1521,19 +1484,19 @@ const PurchasesPage = () => {
                 <button
                   onClick={handleHoldAndLeave}
                   className="w-full flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-xl font-bold transition-colors shadow-sm">
-                  <span className="material-symbols-outlined text-lg">pause_circle</span>
+                  <Icon name="pause_circle" className="text-lg" />
                   <span>تعليق الفاتورة والخروج</span>
                 </button>
                 <button
                   onClick={handleDiscardAndLeave}
                   className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold transition-colors shadow-sm">
-                  <span className="material-symbols-outlined text-lg">delete</span>
+                  <Icon name="delete" className="text-lg" />
                   <span>خروج بدون حفظ</span>
                 </button>
                 <button
                   onClick={() => blocker.reset?.()}
                   className="w-full flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-3 rounded-xl font-bold transition-colors">
-                  <span className="material-symbols-outlined text-lg">arrow_back</span>
+                  <Icon name="arrow_back" className="text-lg" />
                   <span>البقاء في الصفحة</span>
                 </button>
               </div>

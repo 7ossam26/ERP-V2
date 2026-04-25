@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { inventoryService } from "../../services/inventoryService";
+import Icon from "../ui/Icon";
 
 const ReorderAlertsWidget = () => {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ const ReorderAlertsWidget = () => {
     <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-orange-200 dark:border-orange-800 p-4 shadow-sm" dir="rtl">
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-sm font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-          <span className="material-icons-round text-orange-500 text-[18px]">warning</span>
+          <Icon name="warning" className="text-orange-500 text-[18px]" />
           تنبيهات المخزون
         </h3>
         <button onClick={() => navigate("/inventory/alerts")}

@@ -8,6 +8,7 @@ import {
 } from "../../services/domainServices";
 import Modal from "../../components/ui/Modal";
 import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
+import Icon from "../../components/ui/Icon";
 
 const SupplierAccountsPage = () => {
     const [searchParams] = useSearchParams();
@@ -174,7 +175,7 @@ const SupplierAccountsPage = () => {
             {/* Header */}
             <div className="flex items-center justify-between bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-border-light dark:border-border-dark">
                 <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
-                    <span className="material-symbols-outlined">account_balance_wallet</span>
+                    <Icon name="account_balance_wallet" />
                     حسابات الموردين
                 </h2>
                 <div className="flex items-center gap-3">
@@ -184,15 +185,13 @@ const SupplierAccountsPage = () => {
                             ? "bg-primary text-white"
                             : "bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark"
                             }`}>
-                        <span className="material-symbols-outlined text-sm">
-                            {showZeroBalance ? "visibility" : "visibility_off"}
-                        </span>
+                        <Icon name={showZeroBalance ? "visibility" : "visibility_off"} size={14} />
                         <span>{showZeroBalance ? "إخفاء الأرصدة الصفرية" : "إظهار الكل"}</span>
                     </button>
                     <Link
                         to="/dashboard"
                         className="flex items-center gap-2 bg-text-light/10 hover:bg-text-light/20 dark:bg-white/10 dark:hover:bg-white/20 text-text-light dark:text-text-dark px-6 py-2 rounded-lg transition-colors shadow-sm">
-                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                        <Icon name="arrow_forward" className="text-sm" />
                         <span>رجوع</span>
                     </Link>
                 </div>
@@ -203,7 +202,7 @@ const SupplierAccountsPage = () => {
                 <div className="lg:col-span-1 bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
                     <div className="p-4 bg-background-light dark:bg-background-dark/50 border-b border-border-light dark:border-border-dark">
                         <h3 className="font-bold text-text-light dark:text-text-dark flex items-center gap-2">
-                            <span className="material-symbols-outlined text-primary">group</span>
+                            <Icon name="group" className="text-primary" />
                             الموردين ({accounts.filter(acc => showZeroBalance || Number(acc.balance) > 0).length})
                         </h3>
                     </div>
@@ -211,7 +210,7 @@ const SupplierAccountsPage = () => {
                     <div className="overflow-y-auto max-h-[600px]">
                         {isLoading ? (
                             <div className="p-8 text-center text-text-muted">
-                                <span className="material-symbols-outlined animate-spin text-4xl">progress_activity</span>
+                                <Icon name="progress_activity" className="animate-spin text-4xl" />
                             </div>
                         ) : accounts.filter(acc => showZeroBalance || Number(acc.balance) > 0).length === 0 ? (
                             <div className="p-8 text-center text-text-muted">
@@ -259,9 +258,7 @@ const SupplierAccountsPage = () => {
                 <div className="lg:col-span-2 space-y-6">
                     {!selectedAccount ? (
                         <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark p-12 text-center">
-                            <span className="material-symbols-outlined text-6xl text-text-muted/30 dark:text-accent/30 mb-4">
-                                touch_app
-                            </span>
+                            <Icon name="touch_app" className="text-6xl text-text-muted/30 dark:text-accent/30 mb-4" />
                             <p className="text-text-muted dark:text-accent">
                                 اختر موردًا لعرض التفاصيل
                             </p>
@@ -293,7 +290,7 @@ const SupplierAccountsPage = () => {
                                     <button
                                         onClick={handleMakePayment}
                                         className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
-                                        <span className="material-symbols-outlined">payments</span>
+                                        <Icon name="payments" />
                                         سداد دفعة
                                     </button>
                                 )}
@@ -305,7 +302,7 @@ const SupplierAccountsPage = () => {
                                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
                                         <div className="p-4 bg-background-light dark:bg-background-dark/50 border-b border-border-light dark:border-border-dark">
                                             <h3 className="font-bold text-text-light dark:text-text-dark flex items-center gap-2">
-                                                <span className="material-symbols-outlined text-primary">receipt_long</span>
+                                                <Icon name="receipt_long" className="text-primary" />
                                                 سجل الفواتير ({purchases.length})
                                             </h3>
                                         </div>
@@ -369,9 +366,7 @@ const SupplierAccountsPage = () => {
                                                                     }}
                                                                     className="text-primary hover:text-primary-dark transition-colors"
                                                                     title="عرض التفاصيل">
-                                                                    <span className="material-symbols-outlined text-xl">
-                                                                        visibility
-                                                                    </span>
+                                                                    <Icon name="visibility" className="text-xl" />
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -387,7 +382,7 @@ const SupplierAccountsPage = () => {
                             <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
                                 <div className="p-4 bg-background-light dark:bg-background-dark/50 border-b border-border-light dark:border-border-dark">
                                     <h3 className="font-bold text-text-light dark:text-text-dark flex items-center gap-2">
-                                        <span className="material-symbols-outlined text-primary">history</span>
+                                        <Icon name="history" className="text-primary" />
                                         سجل الدفعات ({payments.length})
                                     </h3>
                                 </div>

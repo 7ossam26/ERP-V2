@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaFilter,
-  FaSearch,
-  FaTimes,
-  FaCheck,
-  FaEye,
-  FaFileAlt,
-  FaTruck,
-} from "react-icons/fa";
+  Filter,
+  Search,
+  X,
+  Check,
+  Eye,
+  FileText,
+  Truck,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import apiClient from "../../services/apiClient";
 import { branchService } from "../../services/branchService";
@@ -130,7 +130,7 @@ const ShiftManagementPage = () => {
           onClick={() => navigate("/delivery-settlement")}
           className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg font-medium"
           title="الانتقال إلى تسوية الطيارين">
-          <FaTruck className="text-lg" />
+          <Truck size={16} />
           <span>تسوية الطيارين</span>
         </button>
       </div>
@@ -175,7 +175,7 @@ const ShiftManagementPage = () => {
           onClick={fetchShifts}
           className="mr-auto p-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           title="تحديث البيانات">
-          <FaSearch />
+          <Search size={16} />
         </button>
       </div>
 
@@ -237,7 +237,7 @@ const ShiftManagementPage = () => {
                         className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
                         title="عرض التقرير"
                         onClick={() => openReportModal(shift.id)}>
-                        <FaFileAlt />
+                        <FileText size={16} />
                       </button>
 
                       {/* Approve Button (Only for Pending) */}
@@ -246,7 +246,7 @@ const ShiftManagementPage = () => {
                           className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors animate-pulse"
                           title="مراجعة واعتماد"
                           onClick={() => openApproveModal(shift)}>
-                          <FaCheck />
+                          <Check size={16} />
                         </button>
                       )}
                     </td>

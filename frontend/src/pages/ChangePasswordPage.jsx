@@ -4,6 +4,7 @@ import apiClient from "../services/apiClient";
 import AuthService from "../services/authService";
 import { toast } from "react-hot-toast";
 import Footer from "../components/shared/Footer";
+import Icon from "../components/ui/Icon";
 
 const ChangePasswordPage = () => {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ const ChangePasswordPage = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                    <span className="material-icons-round text-gray-400 text-xl">lock</span>
+                    <Icon name="lock" className="text-gray-400 text-xl" />
                   </div>
                   <input
                     name="oldPassword"
@@ -86,7 +87,7 @@ const ChangePasswordPage = () => {
                     type="button"
                     onClick={() => setShowOld((v) => !v)}
                     className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400 hover:text-gray-600">
-                    <span className="material-icons-round text-xl">{showOld ? "visibility_off" : "visibility"}</span>
+                    <Icon name={showOld ? "visibility_off" : "visibility"} size={20} />
                   </button>
                 </div>
               </div>
@@ -98,7 +99,7 @@ const ChangePasswordPage = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                    <span className="material-icons-round text-gray-400 text-xl">lock_open</span>
+                    <Icon name="lock_open" className="text-gray-400 text-xl" />
                   </div>
                   <input
                     name="newPassword"
@@ -114,7 +115,7 @@ const ChangePasswordPage = () => {
                     type="button"
                     onClick={() => setShowNew((v) => !v)}
                     className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400 hover:text-gray-600">
-                    <span className="material-icons-round text-xl">{showNew ? "visibility_off" : "visibility"}</span>
+                    <Icon name={showNew ? "visibility_off" : "visibility"} size={20} />
                   </button>
                 </div>
               </div>
@@ -126,7 +127,7 @@ const ChangePasswordPage = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                    <span className="material-icons-round text-gray-400 text-xl">lock_open</span>
+                    <Icon name="lock_open" className="text-gray-400 text-xl" />
                   </div>
                   <input
                     name="confirmPassword"
@@ -146,11 +147,11 @@ const ChangePasswordPage = () => {
                 disabled={isLoading}
                 className="w-full h-12 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-base shadow-lg shadow-primary/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed">
                 {isLoading ? (
-                  <span className="material-icons-round animate-spin">refresh</span>
+                  <Icon name="refresh" className="animate-spin" />
                 ) : (
                   <>
                     <span>تغيير كلمة المرور</span>
-                    <span className="material-icons-round text-xl">check_circle</span>
+                    <Icon name="check_circle" className="text-xl" />
                   </>
                 )}
               </button>

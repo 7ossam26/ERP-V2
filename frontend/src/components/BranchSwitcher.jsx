@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useBranch } from "../contexts/BranchContext";
+import Icon from "./ui/Icon";
 
 const BranchSwitcher = () => {
   const {
@@ -29,7 +30,7 @@ const BranchSwitcher = () => {
   if (!hasMultipleBranches) {
     return (
       <div className="hidden md:flex items-center gap-2 bg-primary/5 dark:bg-primary/10 px-3 py-1.5 rounded-full border border-primary/10 dark:border-primary/20">
-        <span className="material-icons-round text-sm text-primary">store</span>
+        <Icon name="store" className="text-sm text-primary" />
         <span className="text-sm font-medium text-primary">
           {activeBranch?.name || "\u0627\u0644\u0641\u0631\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A"}
         </span>
@@ -49,11 +50,9 @@ const BranchSwitcher = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 bg-primary/5 dark:bg-primary/10 px-3 py-1.5 rounded-full border border-primary/10 dark:border-primary/20 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors cursor-pointer"
       >
-        <span className="material-icons-round text-sm text-primary">store</span>
+        <Icon name="store" className="text-sm text-primary" />
         <span className="text-sm font-medium text-primary">{displayName}</span>
-        <span className="material-icons-round text-sm text-primary">
-          {isOpen ? "expand_less" : "expand_more"}
-        </span>
+        <Icon name={isOpen ? "expand_less" : "expand_more"} size={14} className="text-primary" />
       </button>
 
       {isOpen && (
@@ -71,7 +70,7 @@ const BranchSwitcher = () => {
                   : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
               }`}
             >
-              <span className="material-icons-round text-sm">language</span>
+              <Icon name="language" className="text-sm" />
               <span>{"\u0643\u0644 \u0627\u0644\u0641\u0631\u0648\u0639"}</span>
             </button>
           )}
@@ -93,7 +92,7 @@ const BranchSwitcher = () => {
                   : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
               }`}
             >
-              <span className="material-icons-round text-sm">store</span>
+              <Icon name="store" className="text-sm" />
               <span>{branch.name}</span>
             </button>
           ))}

@@ -11,6 +11,7 @@ import {
   categoryService,
 } from "../../services/domainServices";
 import authService from "../../services/authService";
+import Icon from "../../components/ui/Icon";
 
 const StockTransferPage = () => {
   const navigate = useNavigate();
@@ -329,7 +330,7 @@ const StockTransferPage = () => {
             <button
               onClick={handleSubmitTransfer}
               className="flex-1 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined">check_circle</span>
+              <Icon name="check_circle" />
               <span>تأكيد التحويل</span>
             </button>
           </div>
@@ -345,12 +346,12 @@ const StockTransferPage = () => {
               <button
                 onClick={() => navigate(-1)}
                 className="hover:text-primary transition-colors flex items-center p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
-                <span className="material-symbols-outlined">arrow_forward</span>
+                <Icon name="arrow_forward" />
               </button>
               <button
                 onClick={() => navigate("/dashboard")}
                 className="hover:text-primary transition-colors flex items-center">
-                <span className="material-symbols-outlined">home</span>
+                <Icon name="home" />
               </button>
               <span className="mx-2 text-gray-300">/</span>
             </div>
@@ -362,12 +363,12 @@ const StockTransferPage = () => {
           <button
             onClick={() => navigate("/reports/custom/stock-transfers")}
             className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-600 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-bold transition-colors border border-gray-200 dark:border-zinc-600">
-            <span className="material-symbols-outlined text-lg">history</span>
+            <Icon name="history" className="text-lg" />
             سجل التحويلات
           </button>
           <div className="relative w-full md:w-auto">
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-              <span className="material-symbols-outlined text-lg">search</span>
+              <Icon name="search" className="text-lg" />
             </span>
             <input
               className="pr-10 pl-4 py-2 w-full md:w-80 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 text-sm shadow-sm transition-all font-sans"
@@ -389,9 +390,7 @@ const StockTransferPage = () => {
                 container.scrollBy({ left: 200, behavior: "smooth" });
               }}
               className="flex-shrink-0 bg-white dark:bg-zinc-800 rounded-lg p-2 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-zinc-700 transition-all border border-gray-200 dark:border-zinc-700">
-              <span className="material-symbols-outlined text-primary text-xl">
-                chevron_right
-              </span>
+              <Icon name="chevron_right" className="text-primary text-xl" />
             </button>
 
             <div
@@ -417,9 +416,7 @@ const StockTransferPage = () => {
                 container.scrollBy({ left: -200, behavior: "smooth" });
               }}
               className="flex-shrink-0 bg-white dark:bg-zinc-800 rounded-lg p-2 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-zinc-700 transition-all border border-gray-200 dark:border-zinc-700">
-              <span className="material-symbols-outlined text-primary text-xl">
-                chevron_left
-              </span>
+              <Icon name="chevron_left" className="text-primary text-xl" />
             </button>
           </div>
 
@@ -431,9 +428,7 @@ const StockTransferPage = () => {
                 onClick={() => handleAddItem(product)}
                 className="bg-card-light dark:bg-card-dark rounded shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-28 group relative active:scale-95 transition-transform">
                 <span className="absolute top-1 left-1 text-gray-300 hover:text-gray-500 dark:text-gray-500 cursor-help">
-                  <span className="material-symbols-outlined text-sm">
-                    info
-                  </span>
+                  <Icon name="info" className="text-sm" />
                 </span>
                 <div className="p-3 flex flex-col flex-1 justify-between h-full">
                   <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm mb-1 leading-tight line-clamp-2">
@@ -478,9 +473,7 @@ const StockTransferPage = () => {
         {/* Header Form - Order 1 on Mobile */}
         <div className="order-1 lg:order-none p-4 bg-gray-50 dark:bg-zinc-800/80 border-b border-gray-200 dark:border-zinc-700">
           <h2 className="text-lg font-bold text-primary dark:text-primary mb-3 flex items-center">
-            <span className="material-symbols-outlined ml-2">
-              local_shipping
-            </span>
+            <Icon name="local_shipping" className="ml-2" />
             بيانات التحويل
           </h2>
           <div className="flex gap-4 mb-3">
@@ -550,9 +543,7 @@ const StockTransferPage = () => {
             {selectedItems.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-gray-400 py-8 lg:py-0">
                 <div className="text-center">
-                  <span className="material-symbols-outlined text-6xl mb-2">
-                    inventory_2
-                  </span>
+                  <Icon name="inventory_2" size={60} className="mb-2" />
                   <p>لم يتم اختيار أي أصناف بعد</p>
                 </div>
               </div>
@@ -621,9 +612,7 @@ const StockTransferPage = () => {
                     <button
                       onClick={() => handleRemoveItem(item.id)}
                       className="text-red-400 hover:text-red-600 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="material-symbols-outlined text-lg">
-                        delete
-                      </span>
+                      <Icon name="delete" className="text-lg" />
                     </button>
                   </div>
                 </div>
@@ -655,13 +644,13 @@ const StockTransferPage = () => {
                   setNotes("");
                 }}
                 className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 py-3 rounded-lg font-bold shadow-sm transition-colors">
-                <span className="material-symbols-outlined">cancel</span>
+                <Icon name="cancel" />
                 إلغاء
               </button>
               <button
                 onClick={handleConfirmTransfer}
                 className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold shadow-md transition-colors transform active:scale-95">
-                <span className="material-symbols-outlined">check_circle</span>
+                <Icon name="check_circle" />
                 تأكيد التحويل
               </button>
             </div>

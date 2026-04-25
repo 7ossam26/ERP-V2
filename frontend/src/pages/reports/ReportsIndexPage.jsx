@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import AuthService from "../../services/authService";
+import Icon from "../../components/ui/Icon";
 
 const GROUPS = [
   {
@@ -45,7 +46,7 @@ export default function ReportsIndexPage() {
     <div className="space-y-8" dir="rtl">
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <span className="material-icons-round text-primary text-2xl">bar_chart</span>
+          <Icon name="bar_chart" className="text-primary text-2xl" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">التقارير والسجلات</h1>
@@ -57,19 +58,19 @@ export default function ReportsIndexPage() {
         <Link
           to="/dashboard/owner"
           className="flex items-center gap-4 p-5 bg-gradient-to-l from-primary/10 to-primary/5 border border-primary/20 rounded-2xl hover:border-primary/40 transition-colors">
-          <span className="material-icons-round text-primary text-3xl">dashboard_customize</span>
+          <Icon name="dashboard_customize" className="text-primary text-3xl" />
           <div>
             <p className="font-bold text-slate-900 dark:text-white">لوحة المالك</p>
             <p className="text-sm text-slate-500">نظرة شاملة على أداء جميع الفروع</p>
           </div>
-          <span className="material-icons-round text-slate-400 mr-auto">chevron_left</span>
+          <Icon name="chevron_left" className="text-slate-400 mr-auto" />
         </Link>
       )}
 
       {GROUPS.map((group) => (
         <div key={group.label}>
           <h2 className="flex items-center gap-2 text-base font-bold text-slate-700 dark:text-slate-300 mb-3">
-            <span className="material-icons-round text-lg text-primary">{group.icon}</span>
+            <Icon name={group.icon} size={18} className="text-primary" />
             {group.label}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -79,7 +80,7 @@ export default function ReportsIndexPage() {
                 to={item.path}
                 className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:shadow-sm transition-all">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="material-icons-round text-primary text-xl">{item.icon}</span>
+                  <Icon name={item.icon} size={20} className="text-primary" />
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{item.label}</p>
@@ -93,14 +94,14 @@ export default function ReportsIndexPage() {
 
       <div>
         <h2 className="flex items-center gap-2 text-base font-bold text-slate-700 dark:text-slate-300 mb-3">
-          <span className="material-icons-round text-lg text-primary">history</span>
+          <Icon name="history" className="text-lg text-primary" />
           السجلات التفصيلية
         </h2>
         <Link
           to="/reports/detailed"
           className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:shadow-sm transition-all">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <span className="material-icons-round text-primary text-xl">table_view</span>
+            <Icon name="table_view" className="text-primary text-xl" />
           </div>
           <div>
             <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">السجلات التفصيلية</p>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import Icon from "../../components/ui/Icon";
 
 // ─── Table of Contents Definition ────────────────────────────────────────────
 const SECTIONS = [
@@ -27,7 +28,7 @@ function Section({ id, icon, title, route, onNavigate, children }) {
     <section id={id} className="scroll-mt-24 mb-12">
       <div className="flex items-center gap-3 mb-5 pb-3 border-b-2 border-primary/20">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <span className="material-icons-round text-primary text-xl">{icon}</span>
+          <Icon name={icon} size={20} className="text-primary" />
         </div>
         <h2 className="text-xl font-bold text-slate-800 dark:text-white flex-1">{title}</h2>
         {route && (
@@ -35,7 +36,7 @@ function Section({ id, icon, title, route, onNavigate, children }) {
             onClick={() => onNavigate(route)}
             title={`افتح صفحة ${title}`}
             className="flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 rounded-lg px-2.5 py-1.5 hover:bg-primary hover:text-white transition-all flex-shrink-0">
-            <span className="material-icons-round text-sm">open_in_new</span>
+            <Icon name="open_in_new" className="text-sm" />
             <span>فتح الصفحة</span>
           </button>
         )}
@@ -61,7 +62,7 @@ function Step({ num, text }) {
 function Note({ children }) {
   return (
     <div className="flex gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
-      <span className="material-icons-round text-base flex-shrink-0 mt-0.5">info</span>
+      <Icon name="info" className="text-base flex-shrink-0 mt-0.5" />
       <span>{children}</span>
     </div>
   );
@@ -70,7 +71,7 @@ function Note({ children }) {
 function Tip({ children }) {
   return (
     <div className="flex gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg px-4 py-3 text-sm text-green-800 dark:text-green-300">
-      <span className="material-icons-round text-base flex-shrink-0 mt-0.5">lightbulb</span>
+      <Icon name="lightbulb" className="text-base flex-shrink-0 mt-0.5" />
       <span>{children}</span>
     </div>
   );
@@ -121,12 +122,12 @@ const UserManualPage = () => {
             <button
               onClick={() => navigate(-1)}
               className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-primary transition-colors">
-              <span className="material-icons-round text-base">arrow_back</span>
+              <Icon name="arrow_back" className="text-base" />
               رجوع
             </button>
             <span className="text-slate-300">|</span>
             <div className="flex items-center gap-2">
-              <span className="material-icons-round text-primary text-xl">help</span>
+              <Icon name="help" className="text-primary text-xl" />
               <h1 className="text-base font-bold text-slate-800 dark:text-white">دليل المستخدم</h1>
             </div>
           </div>
@@ -134,7 +135,7 @@ const UserManualPage = () => {
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="lg:hidden flex items-center gap-1.5 text-sm text-slate-500 hover:text-primary transition-colors border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5">
-            <span className="material-icons-round text-base">menu_book</span>
+            <Icon name="menu_book" className="text-base" />
             المحتوى
           </button>
         </div>
@@ -170,14 +171,14 @@ const UserManualPage = () => {
                       ? "bg-primary text-white font-semibold shadow-sm"
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary"
                   }`}>
-                  <span className="material-icons-round text-base flex-shrink-0">{icon}</span>
+                  <Icon name={icon} size={16} className="flex-shrink-0" />
                   <span className="flex-1">{title}</span>
                   {route && (
                     <span
                       onClick={(e) => { e.stopPropagation(); navigate(route); }}
                       title="فتح الصفحة"
-                      className={`material-icons-round text-sm flex-shrink-0 opacity-60 hover:opacity-100 ${activeSection === id ? "text-white" : "text-primary"}`}>
-                      open_in_new
+                      className={`flex-shrink-0 opacity-60 hover:opacity-100 ${activeSection === id ? "text-white" : "text-primary"}`}>
+                      <Icon name="open_in_new" size={14} />
                     </span>
                   )}
                 </button>
@@ -192,7 +193,7 @@ const UserManualPage = () => {
           {/* Welcome */}
           <div className="mb-10 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-              <span className="material-icons-round text-primary text-4xl">help_outline</span>
+              <Icon name="help_outline" className="text-primary text-4xl" />
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2">
               دليل المستخدم — نظام ERP

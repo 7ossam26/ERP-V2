@@ -3,6 +3,7 @@ import { reportService } from "../../services/reportService";
 import ReportFilterBar from "../../components/reports/ReportFilterBar";
 import ArabicPieChart from "../../components/reports/ArabicPieChart";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 export default function FabricRollsByAgeReport() {
   const [filters, setFilters] = useState({});
@@ -30,13 +31,13 @@ export default function FabricRollsByAgeReport() {
     <div className="space-y-5" dir="rtl">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <span className="material-icons-round text-primary text-xl">schedule</span>
+          <Icon name="schedule" className="text-primary text-xl" />
         </div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">لفات الأقمشة حسب العمر</h1>
       </div>
       <ReportFilterBar filters={filters} onChange={setFilters} showDateRange={false} onExport={handleExport} exporting={exporting} />
       {loading ? (
-        <div className="flex items-center justify-center h-64"><span className="material-icons-round animate-spin text-4xl text-primary">autorenew</span></div>
+        <div className="flex items-center justify-center h-64"><Icon name="autorenew" className="animate-spin text-4xl text-primary" /></div>
       ) : data?.buckets ? (
         <>
           <div className="grid grid-cols-3 gap-4">

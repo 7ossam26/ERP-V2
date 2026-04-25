@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import SuperadminService from "../../services/superadminService";
 import ManagerVerificationModal from "../../components/shared/ManagerVerificationModal";
 import { toast } from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const RESET_CATEGORIES = {
     transactions: [
@@ -147,7 +148,7 @@ const DatabaseReset = () => {
                         : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
                 }`}
             >
-                <span className="material-icons-round text-base">{item.icon}</span>
+                <Icon name={item.icon} size={16} />
             </div>
             <div className="flex-1 min-w-0 text-left">
                 <p
@@ -163,13 +164,7 @@ const DatabaseReset = () => {
                     {item.description}
                 </p>
             </div>
-            <span
-                className={`material-icons-round text-sm mt-1 shrink-0 opacity-0 group-hover:opacity-100 transition ${
-                    item.danger ? "text-red-500" : "text-slate-400"
-                }`}
-            >
-                chevron_right
-            </span>
+            <Icon name="chevron_right" className={`text-sm mt-1 shrink-0 opacity-0 group-hover:opacity-100 transition ${item.danger ? "text-red-500" : "text-slate-400"}`} />
         </button>
     );
 
@@ -189,7 +184,7 @@ const DatabaseReset = () => {
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="p-3 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-xl shrink-0">
-                        <span className="material-icons-round text-2xl">warning</span>
+                        <Icon name="warning" className="text-2xl" />
                     </div>
                     <div>
                         <h2 className="font-bold text-amber-900 dark:text-amber-300 text-base">
@@ -209,7 +204,7 @@ const DatabaseReset = () => {
                     }
                     className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition shadow-lg shadow-amber-900/20 shrink-0 whitespace-nowrap"
                 >
-                    <span className="material-icons-round text-base">delete_sweep</span>
+                    <Icon name="delete_sweep" className="text-base" />
                     مسح الكل
                 </button>
             </div>
@@ -219,7 +214,7 @@ const DatabaseReset = () => {
                 {/* Column 1: Revenue / Expenses / Procurement */}
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="material-icons-round text-slate-500 text-base">receipt_long</span>
+                        <Icon name="receipt_long" className="text-slate-500 text-base" />
                         <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wide">
                             الإيرادات والمصروفات والتوريد
                         </h3>
@@ -232,7 +227,7 @@ const DatabaseReset = () => {
                 {/* Column 2: HR / Inventory / Manufacturing */}
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="material-icons-round text-slate-500 text-base">manage_accounts</span>
+                        <Icon name="manage_accounts" className="text-slate-500 text-base" />
                         <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wide">
                             الموارد البشرية والمخزون
                         </h3>
@@ -245,7 +240,7 @@ const DatabaseReset = () => {
                 {/* Column 3: Master Data (DANGER) */}
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="material-icons-round text-red-500 text-base">dangerous</span>
+                        <Icon name="dangerous" className="text-red-500 text-base" />
                         <h3 className="font-bold text-red-600 dark:text-red-400 text-sm uppercase tracking-wide">
                             البيانات الأساسية (خطر)
                         </h3>

@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { FaTruck, FaTimes, FaExclamationTriangle } from "react-icons/fa";
+import { Truck, X, AlertTriangle } from "lucide-react";
 
 const PendingDeliveriesModal = ({ isOpen, onClose, pendingOrders }) => {
   if (!isOpen) return null;
@@ -12,7 +12,7 @@ const PendingDeliveriesModal = ({ isOpen, onClose, pendingOrders }) => {
         <div className="bg-red-600 p-6 text-white flex justify-between items-start">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-              <FaTruck className="w-6 h-6" />
+              <Truck size={16} />
             </div>
             <div>
               <h2 className="text-xl font-bold">لا يمكن إنهاء الوردية</h2>
@@ -24,13 +24,13 @@ const PendingDeliveriesModal = ({ isOpen, onClose, pendingOrders }) => {
           <button
             onClick={onClose}
             className="text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-lg">
-            <FaTimes />
+            <X size={16} />
           </button>
         </div>
 
         <div className="p-6">
           <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-lg p-4 mb-4 flex items-start gap-3">
-            <FaExclamationTriangle className="text-red-500 mt-1 flex-shrink-0" />
+            <AlertTriangle size={16} className="text-red-500 mt-1 flex-shrink-0" />
             <div className="text-sm text-red-800 dark:text-red-200 leading-relaxed">
               يجب عليك الذهاب إلى شاشة <strong>"تسوية التوصيل"</strong> وتسوية
               الطلبات التالية قبل إغلاق الوردية.

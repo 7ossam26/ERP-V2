@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Modal from "../../../components/ui/Modal";
 import apiClient from "../../../services/apiClient";
 import { toast } from "react-hot-toast";
-import { FaLock, FaUser, FaTruck } from "react-icons/fa";
+import { Lock, User, Truck } from "lucide-react";
 
 const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
   const navigate = useNavigate();
@@ -99,7 +99,7 @@ const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
                 navigate("/delivery-settlement");
               }}
               className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg font-medium text-sm">
-              <FaTruck className="text-base" />
+              <Truck size={16} />
               <span>الانتقال إلى تسوية الطيارين</span>
             </button>
           </div>
@@ -111,7 +111,7 @@ const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
           </label>
           <div className="relative">
             <span className="absolute left-3 top-3 text-gray-400">
-              <FaUser />
+              <User size={16} />
             </span>
             <input
               type="text"
@@ -129,7 +129,7 @@ const ShiftApprovalModal = ({ isOpen, onClose, shift, onSuccess }) => {
           </label>
           <div className="relative">
             <span className="absolute left-3 top-3 text-gray-400">
-              <FaLock />
+              <Lock size={16} />
             </span>
             <input
               type="password"

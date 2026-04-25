@@ -1,3 +1,4 @@
+import Icon from "../ui/Icon";
 import React, { useState } from "react";
 
 const PieceQuantitySelector = ({ isOpen, onClose, onSelect, itemName }) => {
@@ -73,7 +74,7 @@ const PieceQuantitySelector = ({ isOpen, onClose, onSelect, itemName }) => {
           <button
             onClick={handleConfirm}
             className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg transition-all flex items-center justify-center">
-            <span className="material-icons-round">check</span>
+            <Icon name="check" />
           </button>
         </div>
 

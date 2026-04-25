@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaTags, FaTimes } from "react-icons/fa";
+import { Tags, X } from "lucide-react";
 
 const REASONS = [
   "طلب العميل",
@@ -40,11 +40,11 @@ export default function TierOverrideModal({ isOpen, onClose, currentTier, onConf
         {/* Header */}
         <div className="bg-amber-500 text-white p-4 rounded-t-xl flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FaTags />
+            <Tags size={16} />
             <h3 className="font-bold">تغيير مستوى التسعير</h3>
           </div>
           <button onClick={onClose} className="hover:bg-amber-600 rounded p-1">
-            <FaTimes />
+            <X size={16} />
           </button>
         </div>
 

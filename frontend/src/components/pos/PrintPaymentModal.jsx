@@ -1,3 +1,4 @@
+import Icon from "../ui/Icon";
 import React from "react";
 
 const PrintPaymentModal = ({ isOpen, onClose, onSelectPayment, totals }) => {
@@ -20,7 +21,7 @@ const PrintPaymentModal = ({ isOpen, onClose, onSelectPayment, totals }) => {
         <button
           onClick={onClose}
           className="absolute top-4 left-4 text-gray-400 hover:text-red-500 transition-colors">
-          <span className="material-icons-round text-2xl">close</span>
+          <Icon name="close" className="text-2xl" />
         </button>
 
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 text-center mb-2">
@@ -45,14 +46,14 @@ const PrintPaymentModal = ({ isOpen, onClose, onSelectPayment, totals }) => {
           <button
             onClick={() => handlePayment("cash")}
             className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl">
-            <span className="material-icons-round text-3xl">payments</span>
+            <Icon name="payments" className="text-3xl" />
             <span className="text-xl">نقدي (Cash)</span>
           </button>
 
           <button
             onClick={() => handlePayment("visa")}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl">
-            <span className="material-icons-round text-3xl">credit_card</span>
+            <Icon name="credit_card" className="text-3xl" />
             <span className="text-xl">بطاقة (Visa)</span>
           </button>
         </div>

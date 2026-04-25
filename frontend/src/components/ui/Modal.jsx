@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { Fragment, useEffect } from "react";
 
 const Modal = ({ isOpen, onClose, title, children, zIndex }) => {
@@ -32,7 +33,7 @@ const Modal = ({ isOpen, onClose, title, children, zIndex }) => {
           <div className="flex items-center gap-3">
             {/* Icon Logic can be passed or generic */}
             <div className="bg-primary text-white p-1.5 sm:p-2 rounded-lg shadow-sm">
-              <span className="material-icons-round text-lg sm:text-xl">warehouse</span>
+              <Icon name="warehouse" className="text-lg sm:text-xl" />
             </div>
             <h3 className="text-lg sm:text-xl font-bold text-primary dark:text-text-dark">
               {title}
@@ -41,7 +42,7 @@ const Modal = ({ isOpen, onClose, title, children, zIndex }) => {
           <button
             onClick={onClose}
             className="text-text-light/40 hover:text-red-500 dark:text-text-dark/40 dark:hover:text-red-400 transition-colors rounded-full p-2 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center min-w-touch min-h-touch">
-            <span className="material-icons-round text-2xl">close</span>
+            <Icon name="close" className="text-2xl" />
           </button>
         </div>
         <div className="p-4 sm:p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1">

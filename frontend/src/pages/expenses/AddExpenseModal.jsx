@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { treasuryService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
     const [formData, setFormData] = useState({
@@ -112,15 +113,13 @@ const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
             <div className="bg-surface-light w-full max-w-lg rounded-xl shadow-2xl border border-border-light flex flex-col max-h-[90vh] animate-slide-up">
                 <div className="flex items-center justify-between p-5 border-b border-border-light bg-surface-light rounded-t-xl">
                     <h2 className="text-xl font-bold text-text-light flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">
-                            {expenseToEdit ? "edit" : "add_circle"}
-                        </span>
+                        <Icon name={expenseToEdit ? "edit" : "add_circle"} size={20} className="text-primary" />
                         {expenseToEdit ? "تعديل المصروف" : "إضافة مصروف جديد"}
                     </h2>
                     <button
                         onClick={onClose}
                         className="text-text-light/50 hover:text-red-500 transition-colors rounded-lg p-1 hover:bg-red-50">
-                        <span className="material-symbols-outlined">close</span>
+                        <Icon name="close" />
                     </button>
                 </div>
                 <div className="p-6 space-y-5 overflow-y-auto">
@@ -212,9 +211,7 @@ const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
                     <button
                         onClick={handleSubmit}
                         className="px-6 py-2.5 rounded-lg bg-primary text-text-dark hover:bg-primary-hover shadow-md hover:shadow-lg font-bold transition-all flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[20px]">
-                            {expenseToEdit ? "save" : "check"}
-                        </span>
+                        <Icon name={expenseToEdit ? "save" : "check"} size={20} />
                         <span>{expenseToEdit ? "حفظ التعديلات" : "إضافة"}</span>
                     </button>
                 </div>

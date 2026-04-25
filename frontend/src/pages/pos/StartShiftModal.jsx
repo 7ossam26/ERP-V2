@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { FaCashRegister, FaCheck, FaUser, FaClock, FaCalendarAlt, FaStore, FaSignOutAlt } from "react-icons/fa";
+import { Receipt, Check, User, Clock, Calendar, Store, LogOut } from "lucide-react";
 
 const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
     const navigate = useNavigate();
@@ -32,7 +32,7 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                 <div className="bg-primary-600 p-6 rounded-t-2xl text-white">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                            <FaCashRegister className="w-8 h-8" />
+                            <Receipt size={16} />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold">فتح وردية جديدة</h2>
@@ -48,7 +48,7 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                         {/* Employee Info */}
                         <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600">
                             <div className="flex items-center gap-3 mb-2 text-primary-600 dark:text-primary-400">
-                                <FaUser />
+                                <User size={16} />
                                 <span className="font-semibold text-sm">الموظف</span>
                             </div>
                             <p className="font-bold text-gray-900 dark:text-white truncate">
@@ -62,7 +62,7 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                         {/* Branch Info */}
                         <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600">
                             <div className="flex items-center gap-3 mb-2 text-primary-600 dark:text-primary-400">
-                                <FaStore />
+                                <Store size={16} />
                                 <span className="font-semibold text-sm">الفرع</span>
                             </div>
                             <p className="font-bold text-gray-900 dark:text-white truncate">
@@ -73,7 +73,7 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                         {/* Date */}
                         <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600">
                             <div className="flex items-center gap-3 mb-2 text-primary-600 dark:text-primary-400">
-                                <FaCalendarAlt />
+                                <Calendar size={16} />
                                 <span className="font-semibold text-sm">التاريخ</span>
                             </div>
                             <p className="font-bold text-gray-900 dark:text-white font-mono dir-ltr">
@@ -84,7 +84,7 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                         {/* Time */}
                         <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600">
                             <div className="flex items-center gap-3 mb-2 text-primary-600 dark:text-primary-400">
-                                <FaClock />
+                                <Clock size={16} />
                                 <span className="font-semibold text-sm">الوقت الحالي</span>
                             </div>
                             <p className="font-bold text-gray-900 dark:text-white font-mono dir-ltr">
@@ -120,7 +120,7 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                                 type="submit"
                                 className="flex-1 bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3"
                             >
-                                <FaCheck className="w-5 h-5" />
+                                <Check size={16} />
                                 <span>بدء الوردية</span>
                             </button>
 
@@ -130,7 +130,7 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                                 className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 p-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2"
                                 title="الخروج إلى لوحة التحكم"
                             >
-                                <FaSignOutAlt className="w-5 h-5" />
+                                <LogOut size={16} />
                             </button>
                         </div>
                     </form>

@@ -4,6 +4,7 @@ import { deliveryService } from "../../services/deliveryService";
 import { branchService } from "../../services/branchService";
 import AuthService from "../../services/authService";
 import { validateEgyptianPhone } from "../../utils/validationUtils";
+import Icon from "../../components/ui/Icon";
 
 const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   // Calculate next ID if creating new delivery man
@@ -96,9 +97,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
             placeholder="ID تلقائي"
             type="text"
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            tag
-          </span>
+          <Icon name="tag" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -119,12 +118,8 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
               </option>
             ))}
           </select>
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            store
-          </span>
-          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            expand_more
-          </span>
+          <Icon name="store" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Icon name="expand_more" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
@@ -142,9 +137,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
             type="text"
             required
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            delivery_dining
-          </span>
+          <Icon name="delivery_dining" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -164,12 +157,8 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
             <option value="van">فان</option>
             <option value="bicycle">دراجة</option>
           </select>
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            two_wheeler
-          </span>
-          <span className="material-icons-round absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-            expand_more
-          </span>
+          <Icon name="two_wheeler" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Icon name="expand_more" className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
@@ -186,9 +175,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
             placeholder="رقم البطاقة"
             type="text"
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            fingerprint
-          </span>
+          <Icon name="fingerprint" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
       <div className="space-y-2">
@@ -206,9 +193,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
             type="tel"
             required
           />
-          <span className="material-icons-round absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            call
-          </span>
+          <Icon name="call" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -227,7 +212,7 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
             onClick={() => setKeepOpen(true)}
             disabled={isSaving}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
-            <span className="material-icons-round text-lg">playlist_add</span>
+            <Icon name="playlist_add" className="text-lg" />
             <span>حفظ وإضافة آخر</span>
           </button>
         )}
@@ -239,14 +224,12 @@ const DeliveryManForm = ({ initialData, onClose, onSave, isSaving, data, showToa
           className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSaving ? (
             <>
-              <span className="material-icons-round text-lg animate-spin">
-                refresh
-              </span>
+              <Icon name="refresh" className="text-lg animate-spin" />
               <span>جاري الحفظ...</span>
             </>
           ) : (
             <>
-              <span className="material-icons-round text-lg">save</span>
+              <Icon name="save" className="text-lg" />
               <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
             </>
           )}

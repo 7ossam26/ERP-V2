@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { importService } from "../../services/importService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const TYPE_META = {
   "fabric-items":      { label: "أقمشة", icon: "texture" },
@@ -29,7 +30,7 @@ function StepIndicator({ current }) {
               i === current ? "bg-primary text-white" :
               "bg-slate-200 dark:bg-slate-700 text-slate-400"
             }`}>
-              {i < current ? <span className="material-icons-round text-sm">check</span> : i + 1}
+              {i < current ? <Icon name="check" className="text-sm" /> : i + 1}
             </div>
             <span className={`text-xs font-medium ${i === current ? "text-primary" : "text-slate-400"}`}>{label}</span>
           </div>
@@ -117,10 +118,10 @@ export default function ImportWizardPage() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link to="/import" className="text-slate-400 hover:text-primary transition-colors">
-          <span className="material-icons-round">arrow_forward</span>
+          <Icon name="arrow_forward" />
         </Link>
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <span className="material-icons-round text-primary">{meta.icon}</span>
+          <Icon name={meta.icon} className="text-primary" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">استيراد {meta.label}</h1>
@@ -140,7 +141,7 @@ export default function ImportWizardPage() {
               disabled={downloading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
             >
-              <span className="material-icons-round text-sm">{downloading ? "hourglass_empty" : "download"}</span>
+              <Icon name={downloading ? "hourglass_empty" : "download"} size={14} />
               {downloading ? "جاري التحميل..." : "تحميل القالب"}
             </button>
           </div>
@@ -159,13 +160,13 @@ export default function ImportWizardPage() {
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => handleFile(e.target.files[0])} />
             {file ? (
               <div className="flex flex-col items-center gap-2 text-green-600 dark:text-green-400">
-                <span className="material-icons-round text-3xl">check_circle</span>
+                <Icon name="check_circle" className="text-3xl" />
                 <span className="text-sm font-medium">{file.name}</span>
                 <span className="text-xs text-slate-400">{(file.size / 1024).toFixed(1)} KB — انقر للتغيير</span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 text-slate-400">
-                <span className="material-icons-round text-3xl">upload_file</span>
+                <Icon name="upload_file" className="text-3xl" />
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-300">اسحب الملف هنا أو انقر للاختيار</span>
                 <span className="text-xs">.xlsx / .xls / .csv</span>
               </div>
@@ -177,7 +178,7 @@ export default function ImportWizardPage() {
             disabled={!file || loading}
             className="w-full py-2.5 rounded-xl bg-primary text-white font-semibold text-sm disabled:opacity-50 hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
           >
-            {loading ? <span className="material-icons-round text-lg animate-spin">autorenew</span> : null}
+            {loading ? <Icon name="autorenew" className="text-lg animate-spin" /> : null}
             {loading ? "جاري التحقق..." : "التحقق من الملف →"}
           </button>
         </div>
@@ -208,7 +209,7 @@ export default function ImportWizardPage() {
               <p className="text-xs font-semibold text-red-700 dark:text-red-300 mb-2">الأخطاء المكتشفة:</p>
               {dryRunResult.errors.map((e, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
-                  <span className="material-icons-round text-xs mt-0.5">error_outline</span>
+                  <Icon name="error_outline" className="text-xs mt-0.5" />
                   <span>صف {e.row}{e.column ? ` — ${e.column}` : ""}: {e.message || e.reason}</span>
                 </div>
               ))}
@@ -262,7 +263,7 @@ export default function ImportWizardPage() {
           <h2 className="font-semibold text-slate-700 dark:text-slate-300">تأكيد الاستيراد</h2>
           <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-4">
             <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
-              <span className="material-icons-round text-base">warning</span>
+              <Icon name="warning" className="text-base" />
               سيتم إدراج {dryRunResult.validRows} سجل في قاعدة البيانات. هذا الإجراء لا يمكن التراجع عنه.
             </p>
             {dryRunResult.invalidRows > 0 && (
@@ -280,7 +281,7 @@ export default function ImportWizardPage() {
               disabled={loading}
               className="flex-1 py-2.5 rounded-xl bg-green-600 text-white font-semibold text-sm disabled:opacity-50 hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
             >
-              {loading ? <span className="material-icons-round text-lg animate-spin">autorenew</span> : null}
+              {loading ? <Icon name="autorenew" className="text-lg animate-spin" /> : null}
               {loading ? "جاري الاستيراد..." : "تأكيد الاستيراد"}
             </button>
           </div>
@@ -292,9 +293,7 @@ export default function ImportWizardPage() {
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5 text-center">
           <div className="flex flex-col items-center gap-3">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center ${finalResult.imported > 0 ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30"}`}>
-              <span className={`material-icons-round text-3xl ${finalResult.imported > 0 ? "text-green-600" : "text-red-600"}`}>
-                {finalResult.imported > 0 ? "check_circle" : "cancel"}
-              </span>
+              <Icon name={finalResult.imported > 0 ? "check_circle" : "cancel"} size={30} className={finalResult.imported > 0 ? "text-green-600" : "text-red-600"} />
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800 dark:text-white">
@@ -311,7 +310,7 @@ export default function ImportWizardPage() {
             <div className="rounded-xl border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/10 p-4 text-right max-h-40 overflow-y-auto space-y-1">
               {finalResult.errors.map((e, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
-                  <span className="material-icons-round text-xs mt-0.5">error_outline</span>
+                  <Icon name="error_outline" className="text-xs mt-0.5" />
                   <span>صف {e.row}: {e.message || e.reason}</span>
                 </div>
               ))}

@@ -17,6 +17,7 @@ import { reportService, branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import BranchFilterHelper from "../../utils/BranchFilterHelper";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 ChartJS.register(
   CategoryScale,
@@ -203,9 +204,7 @@ const GeneralReportPage = () => {
         <Link
           to="/reports"
           className="flex items-center gap-2 text-gray-500 hover:text-primary transition-colors">
-          <span className="material-icons-round rtl:rotate-180">
-            arrow_forward
-          </span>
+          <Icon name="arrow_forward" className="rtl:rotate-180" />
           <span>العودة للتقارير</span>
         </Link>
       </div>
@@ -226,9 +225,7 @@ const GeneralReportPage = () => {
                 }
                 className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm"
               />
-              <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
-                event
-              </span>
+              <Icon name="event" className="absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg" />
             </div>
           </div>
           <div className="w-full sm:w-auto flex-1 min-w-[150px]">
@@ -244,9 +241,7 @@ const GeneralReportPage = () => {
                 }
                 className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm"
               />
-              <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
-                event
-              </span>
+              <Icon name="event" className="absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg" />
             </div>
           </div>
           <div className="w-full sm:w-auto flex-1 min-w-[200px]">
@@ -266,21 +261,14 @@ const GeneralReportPage = () => {
                   </option>
                 ))}
               </select>
-              <span className="material-icons-round absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg">
-                store
-              </span>
+              <Icon name="store" className="absolute left-3 top-2.5 text-gray-400 pointer-events-none text-lg" />
             </div>
           </div>
           <div>
             <button
               onClick={fetchReport}
               className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors font-medium shadow-md shadow-primary/20 flex items-center justify-center gap-2">
-              <span
-                className={`material-icons-round text-lg ${
-                  loading ? "animate-spin" : ""
-                }`}>
-                refresh
-              </span>
+              <Icon name="refresh" className={`text-lg ${loading ? "animate-spin" : ""}`} />
               تحديث التقرير
             </button>
           </div>
@@ -307,9 +295,7 @@ const GeneralReportPage = () => {
               </h3>
             </div>
             <div className="p-2 bg-primary/10 rounded-lg">
-              <span className="material-icons-round text-primary text-xl">
-                payments
-              </span>
+              <Icon name="payments" className="text-primary text-xl" />
             </div>
           </div>
         </div>
@@ -325,9 +311,7 @@ const GeneralReportPage = () => {
               </h3>
             </div>
             <div className="p-2 bg-success/10 rounded-lg">
-              <span className="material-icons-round text-success text-xl">
-                savings
-              </span>
+              <Icon name="savings" className="text-success text-xl" />
             </div>
           </div>
         </div>
@@ -343,9 +327,7 @@ const GeneralReportPage = () => {
               </h3>
             </div>
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <span className="material-icons-round text-blue-600 dark:text-blue-400 text-xl">
-                receipt_long
-              </span>
+              <Icon name="receipt_long" className="text-blue-600 dark:text-blue-400 text-xl" />
             </div>
           </div>
         </div>
@@ -361,9 +343,7 @@ const GeneralReportPage = () => {
               </h3>
             </div>
             <div className="p-2 bg-warning/10 rounded-lg">
-              <span className="material-icons-round text-warning text-xl">
-                inventory_2
-              </span>
+              <Icon name="inventory_2" size={20} className="text-warning" />
             </div>
           </div>
         </div>
@@ -420,7 +400,7 @@ const GeneralReportPage = () => {
       <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8 overflow-hidden">
         <div className="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-[#3E332F]/50">
           <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-            <span className="material-icons-round">store</span>
+            <Icon name="store" />
             تفاصيل المبيعات حسب الفرع
           </h3>
         </div>
@@ -442,9 +422,7 @@ const GeneralReportPage = () => {
                   className="hover:bg-gray-50 dark:hover:bg-[#3E332F] transition-colors group">
                   <td className="px-6 py-4 font-bold text-gray-900 dark:text-white flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-[#6F4E37]/10 flex items-center justify-center text-[#6F4E37]">
-                      <span className="material-icons-round text-sm">
-                        apartment
-                      </span>
+                      <Icon name="apartment" className="text-sm" />
                     </div>
                     {branch.name}
                   </td>
@@ -480,7 +458,7 @@ const GeneralReportPage = () => {
       <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8 overflow-hidden">
         <div className="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-[#3E332F]/50">
           <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-            <span className="material-icons-round">warning</span>
+            <Icon name="warning" />
             تنبيهات المخزون (أقل من حد الطلب)
           </h3>
         </div>

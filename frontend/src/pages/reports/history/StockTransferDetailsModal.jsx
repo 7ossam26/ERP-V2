@@ -1,3 +1,4 @@
+import Icon from "../../../components/ui/Icon";
 import React from "react";
 
 const StockTransferDetailsModal = ({ isOpen, onClose, transfer }) => {
@@ -58,9 +59,7 @@ const StockTransferDetailsModal = ({ isOpen, onClose, transfer }) => {
             <div className="px-6 py-5 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-accent/5 dark:bg-primary/5 rounded-t-2xl">
               <div className="flex items-center gap-3">
                 <div className="bg-primary text-white p-2 rounded-lg shadow-sm">
-                  <span className="material-icons-round text-xl">
-                    move_down
-                  </span>
+                  <Icon name="move_down" className="text-xl" />
                 </div>
                 <div className="flex flex-col">
                   <h3 className="text-xl font-bold text-primary dark:text-text-dark flex items-center gap-2">
@@ -78,7 +77,7 @@ const StockTransferDetailsModal = ({ isOpen, onClose, transfer }) => {
                 <button
                   onClick={onClose}
                   className="text-text-light/40 hover:text-red-500 dark:text-text-dark/40 dark:hover:text-red-400 transition-colors rounded-full p-1 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center">
-                  <span className="material-icons-round text-2xl">close</span>
+                  <Icon name="close" className="text-2xl" />
                 </button>
               </div>
             </div>
@@ -146,9 +145,7 @@ const StockTransferDetailsModal = ({ isOpen, onClose, transfer }) => {
                 {/* Items Table */}
                 <div>
                   <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">
-                      inventory_2
-                    </span>
+                    <Icon name="inventory_2" className="text-primary" />
                     الأصناف المحولة
                   </h3>
                   <div className="overflow-x-auto border border-gray-200 dark:border-zinc-700 rounded-lg">

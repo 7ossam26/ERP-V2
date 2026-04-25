@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../../services/apiClient";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ACTION_GROUPS = [
@@ -367,7 +368,7 @@ function DetailsDrawer({ log, onClose, refs }) {
             </span>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-3 shrink-0">
-            <span className="material-icons-round">close</span>
+            <Icon name="close" />
           </button>
         </div>
 
@@ -571,11 +572,11 @@ const AuditLogs = () => {
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-slate-400">
-            <span className="material-icons-round animate-spin mr-2">refresh</span>Loading…
+            <Icon name="refresh" className="animate-spin mr-2" />Loading…
           </div>
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <span className="material-icons-round text-4xl mb-2">history</span>
+            <Icon name="history" className="text-4xl mb-2" />
             <p className="text-sm">No audit records match your filters.</p>
           </div>
         ) : (
@@ -636,7 +637,7 @@ const AuditLogs = () => {
             disabled={page <= 1 || loading}
             className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
           >
-            <span className="material-icons-round text-base align-middle">chevron_left</span>
+            <Icon name="chevron_left" className="text-base align-middle" />
           </button>
           {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
             const p = totalPages <= 7 ? i + 1 : page <= 4 ? i + 1 : page + i - 3;
@@ -661,7 +662,7 @@ const AuditLogs = () => {
             disabled={page >= totalPages || loading}
             className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
           >
-            <span className="material-icons-round text-base align-middle">chevron_right</span>
+            <Icon name="chevron_right" className="text-base align-middle" />
           </button>
         </div>
       )}

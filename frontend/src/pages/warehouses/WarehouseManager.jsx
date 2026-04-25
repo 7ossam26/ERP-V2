@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { warehouseService } from "../../services/warehouseService";
 import AuthService from "../../services/authService";
+import Icon from "../../components/ui/Icon";
 
 const WarehouseForm = ({ initialData, onClose, onSave, data = [], showToast }) => {
   const [formData, setFormData] = useState({
@@ -56,7 +57,7 @@ const WarehouseForm = ({ initialData, onClose, onSave, data = [], showToast }) =
         </label>
         <div className="relative">
           <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-            <span className="material-icons-round text-lg">tag</span>
+            <Icon name="tag" className="text-lg" />
           </span>
           <input
             className="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow opacity-70 cursor-not-allowed"
@@ -78,7 +79,7 @@ const WarehouseForm = ({ initialData, onClose, onSave, data = [], showToast }) =
         </label>
         <div className="relative">
           <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-light/40 dark:text-text-dark/40">
-            <span className="material-icons-round text-lg">inventory_2</span>
+            <Icon name="inventory_2" size={18} />
           </span>
           <input
             className="block w-full pr-10 pl-3 py-2.5 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm text-text-light dark:text-text-dark placeholder-text-light/30 dark:placeholder-text-dark/30 transition-shadow"
@@ -105,7 +106,7 @@ const WarehouseForm = ({ initialData, onClose, onSave, data = [], showToast }) =
             type="submit"
             onClick={() => setKeepOpen(true)}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20">
-            <span className="material-icons-round text-lg">playlist_add</span>
+            <Icon name="playlist_add" className="text-lg" />
             <span>حفظ وإضافة آخر</span>
           </button>
         )}
@@ -114,7 +115,7 @@ const WarehouseForm = ({ initialData, onClose, onSave, data = [], showToast }) =
           type="submit"
           onClick={() => setKeepOpen(false)}
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 min-h-touch">
-          <span className="material-icons-round text-lg">save</span>
+          <Icon name="save" className="text-lg" />
           <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
         </button>
       </div>

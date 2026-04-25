@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import SuperadminService from "../../services/superadminService";
 import { toast } from "react-hot-toast";
 import { getManagementModules, getCreationModules } from "../../config/modules";
+import Icon from "../../components/ui/Icon";
 
 const PermissionConfig = () => {
     const { id } = useParams();
@@ -87,7 +88,7 @@ const PermissionConfig = () => {
     const renderPermissionTable = (modules, title, icon) => (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm mb-8">
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                <span className="material-icons-round text-slate-500 dark:text-slate-400">{icon}</span>
+                <Icon name={icon} size={20} className="text-slate-500 dark:text-slate-400" />
                 <h3 className="font-bold text-slate-700 dark:text-slate-200">{title}</h3>
             </div>
             <table className="w-full text-left border-collapse">
@@ -164,7 +165,7 @@ const PermissionConfig = () => {
                         onClick={handleSave}
                         className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg hover:brightness-110 transition shadow-lg shadow-primary/20 font-bold"
                     >
-                        <span className="material-icons-round">save</span>
+                        <Icon name="save" />
                         Save Changes
                     </button>
                 </div>

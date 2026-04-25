@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 import {
   settingsService,
   warehouseService,
@@ -120,7 +121,7 @@ const SettingsPage = () => {
         {/* Operational Settings */}
         <div className="bg-surface-light dark:bg-surface-dark rounded-2xl p-6 shadow-sm border border-border-light dark:border-border-dark">
           <h2 className="text-xl font-bold text-primary dark:text-accent mb-6 flex items-center gap-2">
-            <span className="material-icons-round">settings_applications</span>
+            <Icon name="settings_applications" />
             الإعدادات التشغيلية
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -225,7 +226,7 @@ const SettingsPage = () => {
         {/* HR Settings */}
         <div className="bg-surface-light dark:bg-surface-dark rounded-2xl p-6 shadow-sm border border-border-light dark:border-border-dark">
           <h2 className="text-xl font-bold text-primary dark:text-accent mb-6 flex items-center gap-2">
-            <span className="material-icons-round">access_time</span>
+            <Icon name="access_time" />
             إعدادات الدوام والرواتب
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -287,7 +288,7 @@ const SettingsPage = () => {
         {/* POS Shift Settings */}
         <div className="bg-surface-light dark:bg-surface-dark rounded-2xl p-6 shadow-sm border border-border-light dark:border-border-dark">
           <h2 className="text-xl font-bold text-primary dark:text-accent mb-4 flex items-center gap-2">
-            <span className="material-icons-round">store</span>
+            <Icon name="store" />
             إعدادات ورديات نقاط البيع (POS)
           </h2>
           <p className="text-sm text-text-secondary dark:text-gray-400 mb-6">
@@ -298,7 +299,7 @@ const SettingsPage = () => {
             {/* Morning Shift */}
             <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border-2 border-blue-200 dark:border-blue-800">
               <h3 className="font-bold text-blue-700 dark:text-blue-300 mb-3 flex items-center gap-2">
-                <span className="material-icons-round text-xl">wb_sunny</span>
+                <Icon name="wb_sunny" className="text-xl" />
                 الوردية الصباحية
               </h3>
               <div className="space-y-3">
@@ -332,7 +333,7 @@ const SettingsPage = () => {
             {/* Evening Shift */}
             <div className="bg-orange-50 dark:bg-orange-900/10 p-4 rounded-xl border-2 border-orange-200 dark:border-orange-800">
               <h3 className="font-bold text-orange-700 dark:text-orange-300 mb-3 flex items-center gap-2">
-                <span className="material-icons-round text-xl">nights_stay</span>
+                <Icon name="nights_stay" className="text-xl" />
                 الوردية المسائية
               </h3>
               <div className="space-y-3">
@@ -379,9 +380,9 @@ const SettingsPage = () => {
             disabled={saving}
             className="bg-primary hover:bg-primary-hover text-white py-3 px-8 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all hover:translate-y-[-2px] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
             {saving ? (
-              <span className="material-icons-round animate-spin">refresh</span>
+              <Icon name="refresh" className="animate-spin" />
             ) : (
-              <span className="material-icons-round">save</span>
+              <Icon name="save" />
             )}
             حفظ التغييرات
           </button>

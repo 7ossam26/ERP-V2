@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import AuthService from "../services/authService";
 import Footer from "../components/shared/Footer";
+import Icon from "../components/ui/Icon";
 
 const SuperadminLayout = () => {
   const location = useLocation();
@@ -46,12 +47,7 @@ const SuperadminLayout = () => {
                   ? "bg-red-600 text-white shadow-lg shadow-red-900/20"
                   : "text-slate-400 hover:bg-slate-800 hover:text-white"
               }`}>
-              <span
-                className={`material-icons-round text-xl ${
-                  isActive ? "text-white" : "text-slate-400 group-hover:text-white"
-                }`}>
-                {item.icon}
-              </span>
+              <Icon name={item.icon} size={20} className={isActive ? "text-white" : "text-slate-400 group-hover:text-white"} />
               <span className="font-medium text-sm">{item.label}</span>
             </Link>
           );
@@ -61,7 +57,7 @@ const SuperadminLayout = () => {
       <div className="p-4 border-t border-slate-800 shrink-0">
         <div className="flex items-center gap-3 px-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center shrink-0">
-            <span className="material-icons-round text-slate-400">person</span>
+            <Icon name="person" className="text-slate-400" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate">{user?.name || "Admin"}</p>
@@ -71,7 +67,7 @@ const SuperadminLayout = () => {
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors text-sm font-medium min-h-touch">
-          <span className="material-icons-round text-lg">logout</span>
+          <Icon name="logout" className="text-lg" />
           Sign Out
         </button>
       </div>
@@ -103,7 +99,7 @@ const SuperadminLayout = () => {
         <button
           onClick={() => setSidebarOpen(false)}
           className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
-          <span className="material-icons-round">close</span>
+          <Icon name="close" />
         </button>
         <SidebarContent />
       </aside>
@@ -116,13 +112,13 @@ const SuperadminLayout = () => {
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            <span className="material-icons-round text-2xl">menu</span>
+            <Icon name="menu" className="text-2xl" />
           </button>
 
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-            <span className="material-icons-round text-xl">arrow_forward</span>
+            <Icon name="arrow_forward" className="text-xl" />
             <span className="font-medium hidden sm:inline">رجوع</span>
           </button>
         </header>

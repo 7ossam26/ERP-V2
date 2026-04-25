@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Modal from "../ui/Modal";
-import { FaLock, FaUser } from "react-icons/fa";
+import { Lock, User } from "lucide-react";
 
 /**
  * Reusable Manager Verification Modal
@@ -47,7 +47,7 @@ const ManagerVerificationModal = ({
                         اسم المستخدم (المدير)
                     </label>
                     <div className="relative">
-                        <FaUser className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <User size={16} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             value={username}
@@ -67,7 +67,7 @@ const ManagerVerificationModal = ({
                         كلمة المرور
                     </label>
                     <div className="relative">
-                        <FaLock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <Lock size={16} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                             type="password"
                             value={password}

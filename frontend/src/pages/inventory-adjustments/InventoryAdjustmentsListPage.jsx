@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { inventoryAdjustmentService } from "../../services/inventoryAdjustmentService";
 import { warehouseService } from "../../services/warehouseService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const REASON_LABELS = {
   DAMAGE: "تلف",
@@ -65,7 +66,7 @@ const InventoryAdjustmentsListPage = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-            <span className="material-icons-round text-primary">tune</span>
+            <Icon name="tune" className="text-primary" />
             تسويات المخزون
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -75,7 +76,7 @@ const InventoryAdjustmentsListPage = () => {
         <button
           onClick={() => navigate("/inventory-adjustments/new")}
           className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-sm">
-          <span className="material-icons-round text-lg">add</span>
+          <Icon name="add" className="text-lg" />
           تسوية جديدة
         </button>
       </div>
@@ -85,7 +86,7 @@ const InventoryAdjustmentsListPage = () => {
         <div className="flex flex-wrap gap-3 items-end">
           <div className="relative flex-1 min-w-[180px]">
             <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-gray-400 text-[18px]">search</span>
+              <Icon name="search" className="text-gray-400 text-[18px]" />
             </span>
             <input
               type="text"
@@ -133,11 +134,11 @@ const InventoryAdjustmentsListPage = () => {
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} className="py-12 text-center text-gray-400">
-                  <span className="material-icons-round animate-spin text-primary text-3xl">sync</span>
+                  <Icon name="sync" className="animate-spin text-primary text-3xl" />
                 </td></tr>
               ) : data.length === 0 ? (
                 <tr><td colSpan={8} className="py-12 text-center text-gray-400">
-                  <span className="material-icons-round text-4xl mb-2 block">tune</span>
+                  <Icon name="tune" className="text-4xl mb-2 block" />
                   لا توجد تسويات
                 </td></tr>
               ) : data.map((adj) => {
@@ -148,7 +149,7 @@ const InventoryAdjustmentsListPage = () => {
                     <td className="px-4 py-3">{adj.warehouse?.name || "—"}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${dir.color}`}>
-                        <span className="material-icons-round text-[14px]">{dir.icon}</span>
+                        <Icon name={dir.icon} size={14} />
                         {dir.label}
                       </span>
                     </td>
@@ -161,7 +162,7 @@ const InventoryAdjustmentsListPage = () => {
                     <td className="px-4 py-3 text-center">
                       <button onClick={() => navigate(`/inventory-adjustments/${adj.id}`)}
                         className="text-primary hover:text-primary/70 transition-colors">
-                        <span className="material-icons-round text-[18px]">visibility</span>
+                        <Icon name="visibility" className="text-[18px]" />
                       </button>
                     </td>
                   </tr>

@@ -4,6 +4,7 @@ import GenericDataTable from "../../components/shared/GenericDataTable";
 
 import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
+import Icon from "../../components/ui/Icon";
 
 const InventoryPage = () => {
   const navigate = useNavigate();
@@ -116,9 +117,7 @@ const InventoryPage = () => {
               <div className="flex flex-col items-center animate-pulse">
                 <span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
                   {item.quantity}
-                  <span className="material-symbols-outlined text-[14px]">
-                    warning
-                  </span>
+                  <Icon name="warning" className="text-[14px]" />
                 </span>
                 <span className="text-[10px] text-red-600 dark:text-red-400 uppercase font-bold">
                   {item.unit}
@@ -219,17 +218,13 @@ const InventoryPage = () => {
                   {stats.totalItems || 0}
                 </h3>
                 <span className="text-green-800 text-xs font-medium flex items-center bg-green-100 px-1.5 py-0.5 rounded">
-                  <span className="material-symbols-outlined text-[14px]">
-                    trending_up
-                  </span>
+                  <Icon name="trending_up" className="text-[14px]" />
                   12%
                 </span>
               </div>
             </div>
             <div className="p-2 bg-primary/10 rounded-lg">
-              <span className="material-icons-round text-primary text-xl">
-                dataset
-              </span>
+              <Icon name="dataset" className="text-primary text-xl" />
             </div>
           </div>
         </div>
@@ -251,9 +246,7 @@ const InventoryPage = () => {
               </div>
             </div>
             <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-              <span className="material-icons-round text-red-600 dark:text-red-400 text-xl">
-                warning
-              </span>
+              <Icon name="warning" className="text-red-600 dark:text-red-400 text-xl" />
             </div>
           </div>
         </div>
@@ -275,9 +268,7 @@ const InventoryPage = () => {
               </div>
             </div>
             <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <span className="material-icons-round text-green-600 dark:text-green-400 text-xl">
-                attach_money
-              </span>
+              <Icon name="attach_money" className="text-green-600 dark:text-green-400 text-xl" />
             </div>
           </div>
         </div>
@@ -301,9 +292,7 @@ const InventoryPage = () => {
               </div>
             </div>
             <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <span className="material-icons-round text-blue-600 dark:text-blue-400 text-xl">
-                point_of_sale
-              </span>
+              <Icon name="point_of_sale" className="text-blue-600 dark:text-blue-400 text-xl" />
             </div>
           </div>
         </div>
@@ -323,16 +312,12 @@ const InventoryPage = () => {
                   </span>
                 </h3>
                 <span className="text-purple-800 text-xs font-medium flex items-center bg-purple-100 px-1.5 py-0.5 rounded">
-                  <span className="material-symbols-outlined text-[14px]">
-                    trending_up
-                  </span>
+                  <Icon name="trending_up" className="text-[14px]" />
                 </span>
               </div>
             </div>
             <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <span className="material-icons-round text-purple-600 dark:text-purple-400 text-xl">
-                savings
-              </span>
+              <Icon name="savings" className="text-purple-600 dark:text-purple-400 text-xl" />
             </div>
           </div>
         </div>
@@ -351,19 +336,19 @@ const InventoryPage = () => {
                 ? "bg-primary text-white border-primary"
                 : "bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:bg-gray-100 dark:hover:bg-gray-700"
             }`}>
-            <span className={`material-icons-round text-[16px] ${stockFilter !== chip.key ? (chip.color || "") : ""}`}>{chip.icon}</span>
+            <Icon name={chip.icon} size={16} className={stockFilter !== chip.key ? (chip.color || "") : ""} />
             {chip.label}
           </button>
         ))}
         <div className="mr-auto flex gap-2">
           <button onClick={() => navigate("/inventory/alerts")}
             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium text-orange-600 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 hover:bg-orange-100">
-            <span className="material-icons-round text-[16px]">notifications</span>
+            <Icon name="notifications" className="text-[16px]" />
             تنبيهات إعادة الطلب
           </button>
           <button onClick={() => navigate("/inventory/dead-stock")}
             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-100">
-            <span className="material-icons-round text-[16px]">inventory</span>
+            <Icon name="inventory" className="text-[16px]" />
             المخزون الراكد
           </button>
         </div>
@@ -375,9 +360,7 @@ const InventoryPage = () => {
           {/* Search */}
           <div className="relative w-full lg:max-w-md group">
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-text-muted dark:text-gray-400 group-focus-within:text-primary transition-colors">
-                search
-              </span>
+              <Icon name="search" className="text-text-muted dark:text-gray-400 group-focus-within:text-primary transition-colors" />
             </div>
             <input
               className="block w-full pr-10 pl-3 py-2.5 rounded-lg leading-5 bg-background-light dark:bg-background-dark text-text-main dark:text-text-dark placeholder-text-muted/60 dark:placeholder-gray-500 border border-border-light dark:border-border-dark focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm shadow-sm text-right transition-all"
@@ -405,12 +388,8 @@ const InventoryPage = () => {
                   </option>
                 ))}
               </select>
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]">
-                store
-              </span>
-              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]">
-                expand_more
-              </span>
+              <Icon name="store" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]" />
+              <Icon name="expand_more" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[20px]" />
             </div>
           </div>
 
@@ -425,9 +404,7 @@ const InventoryPage = () => {
                   container.scrollBy({ left: 100, behavior: "smooth" });
               }}
               className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
-              <span className="material-symbols-outlined text-sm">
-                chevron_right
-              </span>
+              <Icon name="chevron_right" className="text-sm" />
             </button>
             <div
               id="category-scroll-container"
@@ -454,9 +431,7 @@ const InventoryPage = () => {
                   container.scrollBy({ left: -100, behavior: "smooth" });
               }}
               className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
-              <span className="material-symbols-outlined text-sm">
-                chevron_left
-              </span>
+              <Icon name="chevron_left" className="text-sm" />
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { deliveryService } from "../../services/deliveryService";
 import DeliverySettlementModal from "../../pages/delivery/DeliverySettlementModal";
 import toast from "react-hot-toast";
+import Icon from "../ui/Icon";
 
 const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
   const [riderDebts, setRiderDebts] = useState([]);
@@ -85,9 +86,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
           {/* Header */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <span className="material-icons-round text-primary text-3xl">
-                account_balance_wallet
-              </span>
+              <Icon name="account_balance_wallet" className="text-primary text-3xl" />
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   ديون الطيارين
@@ -100,7 +99,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-              <span className="material-icons-round text-gray-500">close</span>
+              <Icon name="close" className="text-gray-500" />
             </button>
           </div>
 
@@ -108,7 +107,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
           <div className="flex-1 overflow-y-auto p-6">
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
               <p className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                <span className="material-icons-round text-sm">info</span>
+                <Icon name="info" className="text-sm" />
                 هذا العرض يوضح إجمالي المبالغ النقدية لطلبات التوصيل التي لم يتم
                 تحصيلها بعد.
               </p>
@@ -131,9 +130,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
                         <tr className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                           <td className="px-4 py-4 font-bold text-gray-900 dark:text-gray-100">
                             <div className="flex items-center gap-2">
-                              <span className="material-icons-round text-gray-400">
-                                two_wheeler
-                              </span>
+                              <Icon name="two_wheeler" className="text-gray-400" />
                               {rider.name}
                             </div>
                           </td>
@@ -147,9 +144,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
                             <button
                               onClick={() => handleOpenSettlement(rider)}
                               className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-sm">
-                              <span className="material-icons-round text-sm">
-                                payments
-                              </span>
+                              <Icon name="payments" className="text-sm" />
                               تسوية
                             </button>
                           </td>
@@ -180,17 +175,13 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
                         className="px-4 py-12 text-center text-gray-500 bg-white dark:bg-gray-800">
                         {!branchId ? (
                           <div className="flex flex-col items-center gap-2">
-                            <span className="material-icons-round text-gray-400 text-4xl">
-                              store_off
-                            </span>
+                            <Icon name="store_off" className="text-gray-400 text-4xl" />
                             <p className="font-bold">الحساب غير مرتبط بفرع</p>
                             <p className="text-sm">لا يمكن عرض ديون الطيارين بدون فرع محدد</p>
                           </div>
                         ) : !currentShiftId ? (
                           <div className="flex flex-col items-center gap-2">
-                            <span className="material-icons-round text-yellow-500 text-4xl">
-                              warning
-                            </span>
+                            <Icon name="warning" className="text-yellow-500 text-4xl" />
                             <p className="font-bold">لا توجد وردية نشطة</p>
                             <p className="text-sm">
                               يرجى بدء وردية جديدة لعرض ديون الطيارين
@@ -198,9 +189,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-2">
-                            <span className="material-icons-round text-gray-300 text-4xl">
-                              inbox
-                            </span>
+                            <Icon name="inbox" className="text-gray-300 text-4xl" />
                             <p>لا توجد ديون معلقة حالياً</p>
                           </div>
                         )}

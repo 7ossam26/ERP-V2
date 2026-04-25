@@ -4,6 +4,7 @@ import { fabricRollService } from "../../services/fabricRollService";
 import { warehouseService } from "../../services/warehouseService";
 import { itemService } from "../../services/itemService";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const STATUS_LABELS = {
   AVAILABLE:     { label: "متاح",         color: "bg-green-100 text-green-800 border-green-200" },
@@ -91,7 +92,7 @@ const FabricRollsListPage = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-            <span className="material-icons-round text-primary">inventory_2</span>
+            <Icon name="inventory_2" className="text-primary" />
             لفات الأقمشة
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -101,7 +102,7 @@ const FabricRollsListPage = () => {
         <Link
           to="/fabric-rolls/new"
           className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-sm">
-          <span className="material-icons-round text-lg">add</span>
+          <Icon name="add" className="text-lg" />
           إضافة لفات
         </Link>
       </div>
@@ -112,7 +113,7 @@ const FabricRollsListPage = () => {
           {/* Search */}
           <div className="relative flex-1 min-w-[180px]">
             <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-gray-400 text-[18px]">search</span>
+              <Icon name="search" className="text-gray-400 text-[18px]" />
             </span>
             <input
               type="text"
@@ -184,13 +185,13 @@ const FabricRollsListPage = () => {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-gray-400">
-                    <span className="material-icons-round animate-spin text-primary text-3xl">sync</span>
+                    <Icon name="sync" className="animate-spin text-primary text-3xl" />
                   </td>
                 </tr>
               ) : rolls.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-gray-400">
-                    <span className="material-icons-round text-4xl mb-2 block">inventory_2</span>
+                    <Icon name="inventory_2" size={36} className="mb-2 block" />
                     لا توجد لفات
                   </td>
                 </tr>
@@ -235,7 +236,7 @@ const FabricRollsListPage = () => {
                       <button
                         onClick={() => navigate(`/fabric-rolls/${roll.id}`)}
                         className="text-primary hover:text-primary/70 transition-colors">
-                        <span className="material-icons-round text-[18px]">visibility</span>
+                        <Icon name="visibility" className="text-[18px]" />
                       </button>
                     </td>
                   </tr>

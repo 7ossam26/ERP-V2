@@ -2,6 +2,7 @@ import React from "react";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { categoryService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
+import Icon from "../../components/ui/Icon";
 
 const CategoryForm = ({ initialData, onSave, onClose, data, showToast }) => {
   // Calculate next ID if creating new category
@@ -107,7 +108,7 @@ const CategoryForm = ({ initialData, onSave, onClose, data, showToast }) => {
             type="submit"
             onClick={() => setKeepOpen(true)}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary dark:text-accent font-bold text-sm transition-all flex items-center justify-center gap-2 min-h-touch border border-primary/20">
-            <span className="material-icons-round text-lg">playlist_add</span>
+            <Icon name="playlist_add" className="text-lg" />
             <span>حفظ وإضافة آخر</span>
           </button>
         )}
@@ -116,7 +117,7 @@ const CategoryForm = ({ initialData, onSave, onClose, data, showToast }) => {
           type="submit"
           onClick={() => setKeepOpen(false)}
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 min-h-touch">
-          <span className="material-icons-round text-lg">save</span>
+          <Icon name="save" className="text-lg" />
           <span>{initialData ? "حفظ التغييرات" : "حفظ وإغلاق"}</span>
         </button>
       </div>

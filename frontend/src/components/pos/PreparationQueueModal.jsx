@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { salesService } from "../../services/salesService";
+import Icon from "../ui/Icon";
 
 const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
   const [orders, setOrders] = useState([]);
@@ -60,7 +61,7 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 rounded-t-2xl text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-3xl">kitchen</span>
+            <Icon name="kitchen" className="text-3xl" />
             <div>
               <h2 className="text-xl font-bold">قسم التجهيز</h2>
               <p className="text-blue-100 text-sm">
@@ -74,15 +75,12 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
               disabled={loading}
               className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
               title="تحديث">
-              <span
-                className={`material-symbols-outlined text-lg ${loading ? "animate-spin" : ""}`}>
-                refresh
-              </span>
+              <Icon name="refresh" className={`text-lg ${loading ? "animate-spin" : ""}`} />
             </button>
             <button
               onClick={onClose}
               className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors">
-              <span className="material-symbols-outlined text-lg">close</span>
+              <Icon name="close" className="text-lg" />
             </button>
           </div>
         </div>
@@ -95,9 +93,7 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
             </div>
           ) : orders.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
-              <span className="material-symbols-outlined text-5xl mb-3 block text-gray-300">
-                check_circle
-              </span>
+              <Icon name="check_circle" className="text-5xl mb-3 block text-gray-300" />
               <p className="font-medium">لا توجد طلبات في قسم التجهيز</p>
             </div>
           ) : (
@@ -141,9 +137,7 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
 
                   {/* Zone & Address */}
                   <div className="flex items-center gap-2 mb-3 text-sm">
-                    <span className="material-symbols-outlined text-orange-500 text-base">
-                      location_on
-                    </span>
+                    <Icon name="location_on" className="text-orange-500 text-base" />
                     <span className="text-gray-700 dark:text-gray-300 font-medium">
                       {order.deliveryZone?.name}
                     </span>
@@ -191,9 +185,7 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [] }) => {
                         !selectedRiders[order.id] || dispatchingId === order.id
                       }
                       className="px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-bold rounded-lg transition-colors text-sm flex items-center gap-1">
-                      <span className="material-symbols-outlined text-base">
-                        local_shipping
-                      </span>
+                      <Icon name="local_shipping" className="text-base" />
                       {dispatchingId === order.id ? "..." : "توصيل"}
                     </button>
                   </div>

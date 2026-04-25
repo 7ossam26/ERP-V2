@@ -5,6 +5,7 @@ import { warehouseService } from "../../services/warehouseService";
 import { itemService } from "../../services/itemService";
 import FabricRollPickerModal from "../../components/shared/FabricRollPickerModal";
 import toast from "react-hot-toast";
+import Icon from "../../components/ui/Icon";
 
 const REASONS = [
   { value: "DAMAGE", label: "تلف" },
@@ -111,10 +112,10 @@ const InventoryAdjustmentFormPage = () => {
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate("/inventory-adjustments")}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-            <span className="material-icons-round">arrow_forward</span>
+            <Icon name="arrow_forward" />
           </button>
           <h2 className="text-2xl font-bold text-text-main dark:text-text-dark flex items-center gap-2">
-            <span className="material-icons-round text-primary">tune</span>
+            <Icon name="tune" className="text-primary" />
             تسوية مخزون جديدة
           </h2>
         </div>
@@ -138,14 +139,14 @@ const InventoryAdjustmentFormPage = () => {
                     direction === "OUT" ? "border-red-400 bg-red-50 dark:bg-red-900/20 text-red-700" : "border-border-light dark:border-border-dark"
                   }`}>
                     <input type="radio" value="OUT" checked={direction === "OUT"} onChange={() => setDirection("OUT")} className="hidden" />
-                    <span className="material-icons-round text-[18px]">remove_circle</span>
+                    <Icon name="remove_circle" className="text-[18px]" />
                     <span className="text-sm font-medium">خصم (OUT)</span>
                   </label>
                   <label className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border cursor-pointer transition-colors ${
                     direction === "IN" ? "border-green-400 bg-green-50 dark:bg-green-900/20 text-green-700" : "border-border-light dark:border-border-dark"
                   }`}>
                     <input type="radio" value="IN" checked={direction === "IN"} onChange={() => setDirection("IN")} className="hidden" />
-                    <span className="material-icons-round text-[18px]">add_circle</span>
+                    <Icon name="add_circle" className="text-[18px]" />
                     <span className="text-sm font-medium">إضافة (IN)</span>
                   </label>
                 </div>
@@ -172,7 +173,7 @@ const InventoryAdjustmentFormPage = () => {
               <h3 className="text-lg font-bold">الأصناف</h3>
               <button type="button" onClick={addRow}
                 className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20">
-                <span className="material-icons-round text-[16px]">add</span>
+                <Icon name="add" className="text-[16px]" />
                 إضافة صنف
               </button>
             </div>
@@ -204,7 +205,7 @@ const InventoryAdjustmentFormPage = () => {
                       <div className="flex items-end gap-2">
                         <button type="button" onClick={() => openPicker(idx)}
                           className="flex items-center gap-1 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 border border-blue-200">
-                          <span className="material-icons-round text-[16px]">content_cut</span>
+                          <Icon name="content_cut" className="text-[16px]" />
                           {row.rollAllocations.length > 0 ? `${row.rollAllocations.length} لفة` : "تخصيص لفات"}
                         </button>
                       </div>
@@ -224,7 +225,7 @@ const InventoryAdjustmentFormPage = () => {
 
                     <button type="button" onClick={() => removeRow(idx)} disabled={rows.length === 1}
                       className="p-2 text-red-400 hover:text-red-600 disabled:opacity-30 mt-5">
-                      <span className="material-icons-round text-[18px]">delete</span>
+                      <Icon name="delete" className="text-[18px]" />
                     </button>
                   </div>
                 );
@@ -239,7 +240,7 @@ const InventoryAdjustmentFormPage = () => {
             </button>
             <button type="submit" disabled={submitting}
               className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2">
-              {submitting && <span className="material-icons-round animate-spin text-[16px]">sync</span>}
+              {submitting && <Icon name="sync" className="animate-spin text-[16px]" />}
               إنشاء التسوية
             </button>
           </div>
