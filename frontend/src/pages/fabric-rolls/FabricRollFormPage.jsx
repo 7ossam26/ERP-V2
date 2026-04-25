@@ -83,7 +83,8 @@ const FabricRollFormPage = () => {
           : Promise.resolve([]),
       ]);
       setWarehouses(Array.isArray(wh) ? wh : []);
-      setItems(Array.isArray(it) ? it : []);
+      const allItems = Array.isArray(it) ? it : [];
+      setItems(allItems.filter((item) => item.itemType === "FABRIC"));
     };
     loadMeta();
   }, []);
@@ -153,7 +154,10 @@ const FabricRollFormPage = () => {
       toast.success(`تم إنشاء ${payload.length} لفة بنجاح`);
       navigate("/fabric-rolls");
     } catch (err) {
-      toast.error(err.message || "فشل إنشاء اللفات");
+      const details = Array.isArray(err?.data?.errors)
+        ? err.data.errors.join(" — ")
+        : null;
+      toast.error(details || err.message || "فشل إنشاء اللفات");
     } finally {
       setSubmitting(false);
     }
