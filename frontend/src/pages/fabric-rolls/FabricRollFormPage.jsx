@@ -19,41 +19,6 @@ const blankRow = () => ({
   _error: "",
 });
 
-// ─── Parse a quick-entry line: "itemId|length|unitCost|notes" ───
-const parseQuickLine = (line, warehouses, items, fallbackWarehouseId) => {
-  const parts = line.split("|").map((p) => p.trim());
-  const row = blankRow();
-  const errors = [];
-
-  const rawItemId = parts[0];
-  const rawLen = parts[1];
-  const rawCost = parts[2];
-  const rawNotes = parts[3];
-
-  // itemId lookup (by id or name prefix)
-  const item = items.find(
-    (i) =>
-      String(i.id) === rawItemId ||
-      i.name.toLowerCase().startsWith(rawItemId.toLowerCase())
-  );
-  if (!item) errors.push(`صنف غير موجود: "${rawItemId}"`);
-  else row.itemId = String(item.id);
-
-  const len = parseFloat(rawLen);
-  if (isNaN(len) || len <= 0) errors.push("الطول غير صالح");
-  else row.originalLength = String(len);
-
-  if (rawCost) {
-    const cost = parseFloat(rawCost);
-    if (!isNaN(cost)) row.unitCost = String(cost);
-  }
-  if (rawNotes) row.notes = rawNotes;
-
-  row.warehouseId = String(fallbackWarehouseId || "");
-  row._error = errors.join(" — ");
-  return row;
-};
-
 const FabricRollFormPage = () => {
   const navigate = useNavigate();
   const { id } = useParams(); // present for edit mode
@@ -66,8 +31,6 @@ const FabricRollFormPage = () => {
 
   // Batch-create state
   const [rows, setRows] = useState([blankRow()]);
-  const [quickText, setQuickText] = useState("");
-  const [showQuick, setShowQuick] = useState(false);
 
   // Edit state
   const [editRoll, setEditRoll] = useState(null);
@@ -118,17 +81,6 @@ const FabricRollFormPage = () => {
       copy.splice(idx + 1, 0, { ...prev[idx], barcode: "", _error: "" });
       return copy;
     });
-
-  // ── Quick-entry parse ──
-  const applyQuickText = () => {
-    const lines = quickText.split("\n").filter((l) => l.trim());
-    if (!lines.length) return;
-    const fallbackWh = warehouses[0]?.id || "";
-    const parsed = lines.map((l) => parseQuickLine(l, warehouses, items, fallbackWh));
-    setRows(parsed);
-    setShowQuick(false);
-    setQuickText("");
-  };
 
   // ── Submit batch create ──
   const handleCreate = async (e) => {
@@ -259,37 +211,6 @@ const FabricRollFormPage = () => {
         {/* ── Batch Create Form ── */}
         {!isEdit && (
           <form onSubmit={handleCreate}>
-            {/* Quick-entry toggle */}
-            <div className="flex justify-end mb-3">
-              <button type="button" onClick={() => setShowQuick((v) => !v)}
-                className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors font-medium">
-                <Icon name="edit_note" className="text-[16px]" />
-                {showQuick ? "إخفاء الإدخال السريع" : "إدخال سريع (نص)"}
-              </button>
-            </div>
-
-            {/* Quick-entry textarea */}
-            {showQuick && (
-              <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark p-4 mb-4 shadow-sm">
-                <p className="text-xs text-gray-500 mb-2">
-                  كل سطر: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">itemId|الطول|التكلفة|ملاحظات</code>
-                </p>
-                <textarea
-                  value={quickText}
-                  onChange={(e) => setQuickText(e.target.value)}
-                  rows={6}
-                  placeholder={"1|50|120|لفة حمراء\n2|80\n3|30|200"}
-                  className="w-full px-3 py-2 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-sm font-mono text-text-main dark:text-text-dark focus:ring-1 focus:ring-primary outline-none resize-none"
-                />
-                <div className="flex justify-end mt-2">
-                  <button type="button" onClick={applyQuickText}
-                    className="px-4 py-1.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors">
-                    تحليل النص
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Rows table */}
             <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden mb-4">
               <div className="overflow-x-auto">
