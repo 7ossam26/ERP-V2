@@ -123,6 +123,39 @@ function validateFabricRolls(items, itemTypeMap) {
   }
 }
 
+/**
+ * Normalize fabric lines so quantity is always represented by rolls.
+ *
+ * Behavior:
+ * - If a fabric line has no rolls, auto-create one roll with originalLength = quantity.
+ * - If a fabric line has exactly one empty/zero-length roll, sync it to quantity.
+ *
+ * This keeps purchase creation resilient when clients only provide line quantity.
+ */
+function normalizeFabricRolls(items, itemTypeMap) {
+  for (const item of items) {
+    const isFabric = itemTypeMap[parseInt(item.itemId)] === "FABRIC";
+    if (!isFabric) continue;
+
+    const lineQty = parseFloat(item.quantity) || 0;
+    if (lineQty <= 0) continue;
+
+    const rolls = Array.isArray(item.rolls) ? item.rolls : [];
+
+    if (rolls.length === 0) {
+      item.rolls = [{ originalLength: lineQty }];
+      continue;
+    }
+
+    if (rolls.length === 1) {
+      const onlyRollLength = parseFloat(rolls[0]?.originalLength || 0);
+      if (!onlyRollLength || onlyRollLength <= 0) {
+        item.rolls = [{ ...rolls[0], originalLength: lineQty }];
+      }
+    }
+  }
+}
+
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
 const { generateRollNumber } = require("../services/rollNumberService");
@@ -347,8 +380,9 @@ router.post("/", async (req, res, next) => {
     const itemTypeMap = {};
     dbItems.forEach(i => { itemTypeMap[i.id] = i.itemType; });
 
-    // ── Validate fabric rolls ───────────────────────────────────────────
+    // ── Normalize + validate fabric rolls ───────────────────────────────
     try {
+      normalizeFabricRolls(items, itemTypeMap);
       validateFabricRolls(items, itemTypeMap);
     } catch (err) {
       return res.status(err.status || 400).json({ error: err.message });
