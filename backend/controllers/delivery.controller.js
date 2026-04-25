@@ -226,6 +226,127 @@ exports.getDeliveryStats = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/delivery-men/with-debt
+ * Drivers that owe money — wallet balance OR pending cash on dispatched
+ * deliveries. The two sources can diverge: legacy data and call-center
+ * dispatches that didn't increment the wallet still show up here, so the
+ * settlement page never misses a rider with cash in hand.
+ *
+ * Returns: [{ id, name, phone, vehicleType, branchId, walletBalance,
+ *             pendingCash, effectiveDebt, pendingOrders }]
+ *   effectiveDebt = max(walletBalance, pendingCash)
+ *   pendingOrders = count of OUT_FOR_DELIVERY CASH sales for this driver
+ */
+exports.getDeliveryMenWithDebt = async (req, res) => {
+  try {
+    const { branchId } = req.query;
+    const branchFilter = branchId ? { branchId: parseInt(branchId) } : {};
+
+    const drivers = await prisma.deliveryMan.findMany({
+      where: { isActive: true, ...branchFilter },
+      include: {
+        branch: { select: { id: true, name: true } },
+      },
+      orderBy: [{ walletBalance: "desc" }, { name: "asc" }],
+    });
+
+    const driverIds = drivers.map((d) => d.id);
+    if (driverIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Pending CASH out-for-delivery, regardless of shift — the settlement
+    // page and POS-debts modal are both shift-agnostic.
+    const pendingSales = await prisma.sale.findMany({
+      where: {
+        deliveryManId: { in: driverIds },
+        deliveryStatus: "OUT_FOR_DELIVERY",
+        status: "COMPLETED",
+        paymentMethod: "CASH",
+      },
+      select: {
+        id: true,
+        saleNumber: true,
+        total: true,
+        deliveryFee: true,
+        deliveryDriverShare: true,
+        paymentMethod: true,
+        deliveryAddress: true,
+        deliveryManId: true,
+        createdAt: true,
+        client: { select: { id: true, name: true, phoneNumber: true } },
+        deliveryZone: { select: { id: true, name: true } },
+        items: { select: { id: true, quantity: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const ordersByDriver = new Map();
+    for (const s of pendingSales) {
+      if (!ordersByDriver.has(s.deliveryManId)) ordersByDriver.set(s.deliveryManId, []);
+      ordersByDriver.get(s.deliveryManId).push({
+        id: s.id,
+        saleNumber: s.saleNumber,
+        total: Number(s.total || 0),
+        deliveryFee: Number(s.deliveryFee || 0),
+        deliveryDriverShare: Number(s.deliveryDriverShare || 0),
+        paymentMethod: s.paymentMethod,
+        deliveryAddress: s.deliveryAddress,
+        createdAt: s.createdAt,
+        clientName: s.client?.name || null,
+        clientPhone: s.client?.phoneNumber || null,
+        zoneName: s.deliveryZone?.name || null,
+        itemsCount: Array.isArray(s.items) ? s.items.length : 0,
+      });
+    }
+
+    const enriched = drivers
+      .map((d) => {
+        const wallet = Number(d.walletBalance || 0);
+        const orders = ordersByDriver.get(d.id) || [];
+        // Pending cash = what the rider should hand over after keeping their
+        // share. This must mirror routes/sales.js + routes/orders.js
+        // (walletBalance gets `total − share` per dispatch). Summing the gross
+        // total here is what caused the POS modal to read 10 ج.م higher than
+        // the settlement page on the same orders.
+        const pendingCash = orders.reduce(
+          (sum, o) => sum + (Number(o.total || 0) - Number(o.deliveryDriverShare || 0)),
+          0,
+        );
+        const pendingOrders = orders.length;
+        const effectiveDebt = Math.max(wallet, pendingCash);
+        return {
+          id: d.id,
+          name: d.name,
+          phone: d.phone,
+          vehicleType: d.vehicleType,
+          branchId: d.branchId,
+          branch: d.branch,
+          walletBalance: wallet,
+          pendingCash,
+          pendingOrders,
+          effectiveDebt,
+          // Aliases so callers expecting the legacy getStats shape work too:
+          totalCash: effectiveDebt,
+          totalAmount: pendingCash,
+          orderCount: pendingOrders,
+          orders,
+        };
+      })
+      .filter((d) => d.effectiveDebt > 0)
+      .sort((a, b) => b.effectiveDebt - a.effectiveDebt);
+
+    res.json(enriched);
+  } catch (error) {
+    console.error("❌ getDeliveryMenWithDebt failed:", error);
+    res.status(500).json({
+      error: "Failed to fetch indebted delivery men",
+      details: error.message,
+    });
+  }
+};
+
 // Verify manager credentials for settlement
 exports.verifyManagerCredentials = async (req, res) => {
   try {
@@ -343,7 +464,7 @@ exports.settleDeliveryMan = async (req, res) => {
         let totalOrdersUpdated = 0;
 
         for (const driver of deliveryMen) {
-          if (!driver.id || !driver.amount) continue;
+          if (!driver.id) continue;
 
           // Fetch driver with branch info to get treasury
           const driverData = await tx.deliveryMan.findUnique({
@@ -359,7 +480,29 @@ exports.settleDeliveryMan = async (req, res) => {
           }
 
           const treasuryId = driverData.branch.treasuryId;
-          const driverAmount = parseFloat(driver.amount);
+
+          // Same guard as the single path: derive the settleable amount from
+          // still-pending sales. If nothing pending, skip silently — bulk
+          // tolerates partial idempotent replays across many drivers.
+          const idFilter =
+            Array.isArray(driver.saleIds) && driver.saleIds.length > 0
+              ? { id: { in: driver.saleIds.map((id) => parseInt(id)) } }
+              : {};
+          const pendingSales = await tx.sale.findMany({
+            where: {
+              deliveryManId: parseInt(driver.id),
+              deliveryStatus: "OUT_FOR_DELIVERY",
+              ...idFilter,
+            },
+            select: { id: true, total: true, deliveryDriverShare: true },
+          });
+
+          if (pendingSales.length === 0) continue;
+
+          const driverAmount = pendingSales.reduce(
+            (sum, s) => sum + (Number(s.total || 0) - Number(s.deliveryDriverShare || 0)),
+            0,
+          );
 
           // 1. Decrement Driver Wallet Balance
           const updatedDriver = await tx.deliveryMan.update({
@@ -378,22 +521,9 @@ exports.settleDeliveryMan = async (req, res) => {
             },
           });
 
-          // 3. Mark orders as DELIVERED
-          const whereClause = {
-            deliveryManId: parseInt(driver.id),
-            deliveryStatus: "OUT_FOR_DELIVERY",
-          };
-
-          if (
-            driver.saleIds &&
-            Array.isArray(driver.saleIds) &&
-            driver.saleIds.length > 0
-          ) {
-            whereClause.id = { in: driver.saleIds.map((id) => parseInt(id)) };
-          }
-
+          // 3. Mark exactly those sales DELIVERED
           const updateResult = await tx.sale.updateMany({
-            where: whereClause,
+            where: { id: { in: pendingSales.map((s) => s.id) } },
             data: { deliveryStatus: "DELIVERED" },
           });
 
@@ -439,10 +569,8 @@ exports.settleDeliveryMan = async (req, res) => {
     }
 
     // ===== SINGLE SETTLEMENT =====
-    if (!deliveryManId || !amount) {
-      return res.status(400).json({
-        error: "Delivery Man ID and Amount are required",
-      });
+    if (!deliveryManId) {
+      return res.status(400).json({ error: "Delivery Man ID is required" });
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -460,58 +588,86 @@ exports.settleDeliveryMan = async (req, res) => {
 
       const treasuryId = driver.branch.treasuryId;
 
-      // 1. Decrement Wallet Balance
+      // Trust the database, not the client. Resolve the actual settleable
+      // amount from the still-pending OUT_FOR_DELIVERY rows the user picked.
+      // Without this guard, replaying the same request (or a stale tab
+      // re-clicking "تأكيد التسوية") would double-debit treasury and push
+      // the rider's wallet negative, even though no orders flip — because
+      // the update is filtered on OUT_FOR_DELIVERY but the wallet/treasury
+      // mutations were not.
+      const idFilter =
+        Array.isArray(saleIds) && saleIds.length > 0
+          ? { id: { in: saleIds.map((id) => parseInt(id)) } }
+          : {};
+      const pendingSales = await tx.sale.findMany({
+        where: {
+          deliveryManId: parseInt(deliveryManId),
+          deliveryStatus: "OUT_FOR_DELIVERY",
+          ...idFilter,
+        },
+        select: { id: true, total: true, deliveryDriverShare: true },
+      });
+
+      if (pendingSales.length === 0) {
+        const err = new Error(
+          "لا توجد طلبات معلقة قابلة للتسوية — قد تكون مسوّاة بالفعل",
+        );
+        err.code = "NOTHING_TO_SETTLE";
+        throw err;
+      }
+
+      const trustedAmount = pendingSales.reduce(
+        (sum, s) => sum + (Number(s.total || 0) - Number(s.deliveryDriverShare || 0)),
+        0,
+      );
+
+      // 1. Decrement Wallet Balance — by the trusted amount, not the client's
       const updatedDeliveryMan = await tx.deliveryMan.update({
         where: { id: parseInt(deliveryManId) },
-        data: { walletBalance: { decrement: parseFloat(amount) } },
+        data: { walletBalance: { decrement: trustedAmount } },
       });
 
       // 2. Increment Treasury Balance (driver's branch treasury)
       await tx.treasury.update({
         where: { id: treasuryId },
-        data: { balance: { increment: parseFloat(amount) } },
+        data: { balance: { increment: trustedAmount } },
       });
 
       // 3. Log Delivery Transaction (Payment)
       const settlementTx = await tx.deliveryManTransaction.create({
         data: {
           deliveryManId: parseInt(deliveryManId),
-          amount: parseFloat(amount),
+          amount: trustedAmount,
           type: "PAYMENT",
           description: notes || "Manual Settlement",
           createdById: settledById,
         },
       });
 
-      // 4. Mark orders as DELIVERED
-      const whereClause = {
-        deliveryManId: parseInt(deliveryManId),
-        deliveryStatus: "OUT_FOR_DELIVERY",
-      };
-
-      // If specific sales selected, only update those
-      if (saleIds && Array.isArray(saleIds) && saleIds.length > 0) {
-        whereClause.id = { in: saleIds.map((id) => parseInt(id)) };
-      }
-
+      // 4. Mark exactly those sales as DELIVERED
       const updateResult = await tx.sale.updateMany({
-        where: whereClause,
-        data: {
-          deliveryStatus: "DELIVERED",
-        },
+        where: { id: { in: pendingSales.map((s) => s.id) } },
+        data: { deliveryStatus: "DELIVERED" },
       });
 
       return {
         deliveryMan: updatedDeliveryMan,
         transaction: settlementTx,
         updatedOrdersCount: updateResult.count,
+        amount: trustedAmount,
         treasuryId,
-        settledSaleIds: saleIds || [],
+        settledSaleIds: pendingSales.map((s) => s.id),
       };
     });
 
     res.json(result);
   } catch (error) {
+    if (error?.code === "NOTHING_TO_SETTLE") {
+      return res.status(409).json({
+        error: error.message,
+        code: "NOTHING_TO_SETTLE",
+      });
+    }
     console.error("❌ Error settling delivery man:", error);
     res.status(500).json({ error: "Failed to settle delivery man" });
   }

@@ -217,7 +217,47 @@ router.patch("/:id/status", cashierOrAgent, async (req, res, next) => {
           updatedSale = await tx.sale.update({
             where: { id: order.saleId },
             data: saleUpdates,
+            include: { deliveryZone: true },
           });
+        }
+
+        // Dispatching a CASH delivery hands cash to the rider — mirror the POS
+        // sale-creation accounting (routes/sales.js): driver earns the zone
+        // share, owes the rest. Without this, walletBalance never increments
+        // for call-center orders so settlement pages can't see them.
+        if (nextStatus === "OUT_FOR_DELIVERY" && updatedSale) {
+          const method = String(updatedSale.paymentMethod || "CASH").toUpperCase();
+          if (method === "CASH") {
+            let driverShare = 0;
+            if (updatedSale.deliveryZone?.driverShare != null) {
+              driverShare = Number(updatedSale.deliveryZone.driverShare) || 0;
+            }
+            const total = Number(updatedSale.total) || 0;
+            const netDebt = total - driverShare;
+
+            if (driverShare > 0 && updatedSale.deliveryDriverShare == null) {
+              await tx.sale.update({
+                where: { id: updatedSale.id },
+                data: { deliveryDriverShare: driverShare },
+              });
+            }
+
+            if (netDebt > 0) {
+              await tx.deliveryMan.update({
+                where: { id: deliveryManId },
+                data: { walletBalance: { increment: netDebt } },
+              });
+              await tx.deliveryManTransaction.create({
+                data: {
+                  deliveryManId,
+                  amount: netDebt,
+                  type: "DEBT_ACCRUED",
+                  description: `Order #${updatedSale.saleNumber || updatedSale.id} dispatch (share ${driverShare})`,
+                  createdById: userId || null,
+                },
+              });
+            }
+          }
         }
 
         // Dismiss pending notifications on claim/cancel so other tabs clear.

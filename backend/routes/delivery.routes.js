@@ -30,6 +30,12 @@ router.post(
 router.get("/stats", deliveryController.getDeliveryStats);
 
 router.get(
+  "/with-debt",
+  requireAnyPermission(["DELIVERY_SETTLEMENT", "POS", "CREATES_DELIVERY_MEN"]),
+  deliveryController.getDeliveryMenWithDebt,
+);
+
+router.get(
   "/",
   // requirePermission('POS'), // Or relevant permission to view delivery men
   deliveryController.getAllDeliveryMen,

@@ -4,7 +4,6 @@ import {
   branchService,
   treasuryService,
 } from "../../services/domainServices";
-import { useBranch } from "../../contexts/BranchContext";
 import DateFilterBar, {
   computePresetRange,
 } from "../../components/branches/DateFilterBar";
@@ -18,11 +17,15 @@ const fmt = (n) =>
 
 // ─── branch card ─────────────────────────────────────────────────────────────
 
-function BranchCard({ branch }) {
+function BranchCard({ branch, windowLabel }) {
+  // Stock — current cash in this branch's treasury, ignores the date filter (D3).
+  const cashNow  = Number(branch.currentCashBalance ?? branch.cashBalance ?? 0);
+  // Flow — paid sales in the selected window.
   const visa     = Number(branch.visa ?? branch.visaToday ?? 0);
   const instapay = Number(branch.instapay ?? branch.instapayToday ?? 0);
-  const cash     = Number(branch.cashBalance || 0);
-  const total    = Number(branch.total ?? cash + visa + instapay);
+  const cashSales = Number(branch.cashSales ?? branch.cashBalance ?? 0);
+  // Window-only total (flow). The header cash card carries the stock.
+  const windowTotal = Number(branch.total ?? (cashSales + visa + instapay));
 
   return (
     <div className="bg-surface-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
@@ -36,9 +39,11 @@ function BranchCard({ branch }) {
           <p className="text-xs text-text-light/50 dark:text-text-dark/40">فرع نشط</p>
         </div>
         <div className="text-left flex-shrink-0">
-          <p className="text-xs text-text-light/50 dark:text-text-dark/40 mb-0.5">الإجمالي</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-text-light/40 dark:text-text-dark/40 mb-0.5">
+            مبيعات {windowLabel}
+          </p>
           <p className="font-black text-lg text-text-light dark:text-text-dark tabular-nums">
-            {fmt(total)}
+            {fmt(windowTotal)}
             <span className="text-xs font-medium text-text-light/50 dark:text-text-dark/40 mr-1">ج.م</span>
           </p>
         </div>
@@ -47,28 +52,37 @@ function BranchCard({ branch }) {
       {/* Divider */}
       <div className="h-px bg-border-light dark:bg-border-dark mx-5" />
 
-      {/* Stats row */}
+      {/* Stats row — captioned with time domain */}
       <div className="grid grid-cols-3 divide-x divide-x-reverse divide-border-light dark:divide-border-dark px-0 py-0 flex-1">
-        <div className="flex flex-col items-center gap-1 py-4 px-2">
-          <div className="w-2 h-2 rounded-full bg-green-500 mb-0.5" />
-          <p className="text-[11px] font-bold text-green-700 dark:text-green-400">نقدي</p>
-          <p className="font-black text-sm text-green-700 dark:text-green-300 tabular-nums text-center leading-tight">
-            {fmt(cash)}
-            <span className="text-[10px] font-normal block text-green-700/60 dark:text-green-400/60">ج.م</span>
+        <div className="flex flex-col items-center gap-0.5 py-4 px-2">
+          <div className="flex items-center gap-1 mb-0.5">
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">نقدي</p>
+          </div>
+          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-700/60 dark:text-emerald-400/60">الآن</p>
+          <p className="font-black text-sm text-emerald-700 dark:text-emerald-300 tabular-nums text-center leading-tight mt-0.5">
+            {fmt(cashNow)}
+            <span className="text-[10px] font-normal block text-emerald-700/60 dark:text-emerald-400/60">ج.م</span>
           </p>
         </div>
-        <div className="flex flex-col items-center gap-1 py-4 px-2">
-          <div className="w-2 h-2 rounded-full bg-blue-500 mb-0.5" />
-          <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400">فيزا</p>
-          <p className="font-black text-sm text-blue-700 dark:text-blue-300 tabular-nums text-center leading-tight">
+        <div className="flex flex-col items-center gap-0.5 py-4 px-2">
+          <div className="flex items-center gap-1 mb-0.5">
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400">فيزا</p>
+          </div>
+          <p className="text-[9px] font-black uppercase tracking-wider text-blue-700/60 dark:text-blue-400/60">{windowLabel}</p>
+          <p className="font-black text-sm text-blue-700 dark:text-blue-300 tabular-nums text-center leading-tight mt-0.5">
             {fmt(visa)}
             <span className="text-[10px] font-normal block text-blue-700/60 dark:text-blue-400/60">ج.م</span>
           </p>
         </div>
-        <div className="flex flex-col items-center gap-1 py-4 px-2">
-          <div className="w-2 h-2 rounded-full bg-purple-500 mb-0.5" />
-          <p className="text-[11px] font-bold text-purple-700 dark:text-purple-400">انستاباي</p>
-          <p className="font-black text-sm text-purple-700 dark:text-purple-300 tabular-nums text-center leading-tight">
+        <div className="flex flex-col items-center gap-0.5 py-4 px-2">
+          <div className="flex items-center gap-1 mb-0.5">
+            <div className="w-2 h-2 rounded-full bg-purple-500" />
+            <p className="text-[11px] font-bold text-purple-700 dark:text-purple-400">انستاباي</p>
+          </div>
+          <p className="text-[9px] font-black uppercase tracking-wider text-purple-700/60 dark:text-purple-400/60">{windowLabel}</p>
+          <p className="font-black text-sm text-purple-700 dark:text-purple-300 tabular-nums text-center leading-tight mt-0.5">
             {fmt(instapay)}
             <span className="text-[10px] font-normal block text-purple-700/60 dark:text-purple-400/60">ج.م</span>
           </p>
@@ -80,32 +94,39 @@ function BranchCard({ branch }) {
 
 // ─── totals summary card ──────────────────────────────────────────────────────
 
-function TotalsCard({ totals, count }) {
+function TotalsCard({ totals, count, windowLabel }) {
   return (
     <div className="bg-gradient-to-l from-primary/5 to-transparent dark:from-primary/10 rounded-2xl border border-primary/20 dark:border-primary/30 p-5 flex flex-wrap items-center gap-6">
       <div className="flex items-center gap-2">
         <span className="material-symbols-outlined text-primary text-[22px]">summarize</span>
         <div>
-          <p className="text-xs font-bold text-text-light/60 dark:text-text-dark/50">إجمالي {count} فرع</p>
+          <p className="text-[11px] font-black text-text-light/60 dark:text-text-dark/50 uppercase tracking-wider">
+            إجمالي {count} فرع · مبيعات {windowLabel}
+          </p>
           <p className="font-black text-xl text-text-light dark:text-text-dark tabular-nums">
-            {fmt(totals.total)}
+            {fmt(totals.windowTotal)}
             <span className="text-xs font-normal text-text-light/50 dark:text-text-dark/40 mr-1">ج.م</span>
           </p>
         </div>
       </div>
       <div className="flex gap-6 flex-wrap">
-        <Stat label="نقدي" value={fmt(totals.cash)} color="text-green-700 dark:text-green-400" />
-        <Stat label="فيزا" value={fmt(totals.visa)} color="text-blue-700 dark:text-blue-400" />
-        <Stat label="انستاباي" value={fmt(totals.instapay)} color="text-purple-700 dark:text-purple-400" />
+        <Stat label="نقدي" caption="الآن" value={fmt(totals.cashNow)} color="text-emerald-700 dark:text-emerald-400" />
+        <Stat label="فيزا" caption={windowLabel} value={fmt(totals.visa)} color="text-blue-700 dark:text-blue-400" />
+        <Stat label="انستاباي" caption={windowLabel} value={fmt(totals.instapay)} color="text-purple-700 dark:text-purple-400" />
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, color }) {
+function Stat({ label, caption, value, color }) {
   return (
     <div>
-      <p className={`text-[11px] font-bold ${color} mb-0.5`}>{label}</p>
+      <p className={`text-[11px] font-bold ${color} mb-0.5`}>
+        {label}
+        {caption && (
+          <span className="text-[9px] font-black uppercase tracking-wider opacity-60 mr-1.5">· {caption}</span>
+        )}
+      </p>
       <p className={`font-black text-sm tabular-nums ${color}`}>
         {value}
         <span className="text-[10px] font-normal opacity-60 mr-1">ج.م</span>
@@ -117,15 +138,11 @@ function Stat({ label, value, color }) {
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 const BranchesSalesPage = () => {
-  const { activeBranchId } = useBranch();
-
   const initialRange = computePresetRange("today");
   const [filter, setFilter] = useState({ preset: "today", ...initialRange });
 
   const [branches, setBranches]               = useState([]);
   const [mainTreasury, setMainTreasury]       = useState(null);
-  const [visaTreasury, setVisaTreasury]       = useState(null);
-  const [instapayTreasury, setInstapayTreasury] = useState(null);
   const [branchesTotalBalance, setBranchesTotalBalance] = useState(0);
   const [percentageChange, setPercentageChange] = useState(0);
   const [isPositive, setIsPositive]           = useState(true);
@@ -139,9 +156,9 @@ const BranchesSalesPage = () => {
         treasuryService.getGlobalBalances(),
         branchService.getSummary(),
       ]);
+      // We only need the main (HQ) treasury for the context strip now —
+      // visa/instapay running balances were replaced by windowed sales totals.
       setMainTreasury(globals?.mainTreasury || null);
-      setVisaTreasury(globals?.visaTreasury || null);
-      setInstapayTreasury(globals?.instapayTreasury || null);
       const pct = parseFloat(summary.percentageChange);
       setPercentageChange(Math.abs(pct || 0));
       setIsPositive((pct || 0) >= 0);
@@ -165,23 +182,40 @@ const BranchesSalesPage = () => {
     }
   }, []);
 
-  useEffect(() => { fetchHeader(); }, [fetchHeader, activeBranchId]);
-  useEffect(() => { fetchRows(filter.from, filter.to); }, [fetchRows, filter.from, filter.to, activeBranchId]);
+  // Page is intentionally chain-wide ("نظرة عامة... جميع الفروع") — drop the
+  // activeBranchId dep that was forcing redundant refetches without affecting
+  // the result.
+  useEffect(() => { fetchHeader(); }, [fetchHeader]);
+  useEffect(() => { fetchRows(filter.from, filter.to); }, [fetchRows, filter.from, filter.to]);
 
   const refreshAll = () => {
     fetchHeader();
     fetchRows(filter.from, filter.to);
   };
 
+  // Mixed-domain aggregate. cashNow is stock (treasury balance, ignores
+  // window). visa/instapay/cashSales are flow (paid sales in window).
   const totals = branches.reduce(
     (acc, b) => ({
-      cash:     acc.cash     + Number(b.cashBalance || 0),
-      visa:     acc.visa     + Number(b.visa ?? b.visaToday ?? 0),
-      instapay: acc.instapay + Number(b.instapay ?? b.instapayToday ?? 0),
-      total:    acc.total    + Number(b.total || 0),
+      cashNow:     acc.cashNow   + Number(b.currentCashBalance ?? b.cashBalance ?? 0),
+      cashSales:   acc.cashSales + Number(b.cashSales ?? b.cashBalance ?? 0),
+      visa:        acc.visa      + Number(b.visa ?? b.visaToday ?? 0),
+      instapay:    acc.instapay  + Number(b.instapay ?? b.instapayToday ?? 0),
+      windowTotal: acc.windowTotal + Number(b.total || 0),
     }),
-    { cash: 0, visa: 0, instapay: 0, total: 0 },
+    { cashNow: 0, cashSales: 0, visa: 0, instapay: 0, windowTotal: 0 },
   );
+
+  // Short label that captions every "للفترة" slot. /summary's totalBalance is
+  // already a stock figure unaffected by filter so we don't wire it here.
+  const windowLabel = (() => {
+    switch (filter.preset) {
+      case "today":     return "اليوم";
+      case "yesterday": return "أمس";
+      case "last7":     return "آخر 7 أيام";
+      default:          return "الفترة المحددة";
+    }
+  })();
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">
@@ -210,14 +244,19 @@ const BranchesSalesPage = () => {
             </button>
           </div>
 
-          {/* Treasury header cards */}
+          {/* HQ context strip + 3-up scoreboard.
+              branchesTotalBalance is the chain-wide stock from /summary;
+              cashNow from rows.reduce should match it but we trust /summary
+              when both are present (single source of truth). */}
           <TreasuryHeaderCards
             mainTreasury={mainTreasury}
-            visaTreasury={visaTreasury}
-            instapayTreasury={instapayTreasury}
-            branchesTotalBalance={branchesTotalBalance}
+            branchesCashTotal={branchesTotalBalance || totals.cashNow}
+            windowVisaSales={totals.visa}
+            windowInstapaySales={totals.instapay}
+            windowLabel={windowLabel}
             percentageChange={percentageChange}
             isPositive={isPositive}
+            loading={loadingHeader}
           />
 
           {/* Date filter */}
@@ -247,12 +286,12 @@ const BranchesSalesPage = () => {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {branches.map((b) => (
-                    <BranchCard key={b.id} branch={b} />
+                    <BranchCard key={b.id} branch={b} windowLabel={windowLabel} />
                   ))}
                 </div>
 
                 {branches.length > 1 && (
-                  <TotalsCard totals={totals} count={branches.length} />
+                  <TotalsCard totals={totals} count={branches.length} windowLabel={windowLabel} />
                 )}
               </>
             )}

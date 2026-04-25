@@ -122,6 +122,10 @@ router.get("/summary", async (req, res, next) => {
       totalBalance,
       percentageChange: percentageChange.toFixed(1), // Returns string "12.5"
       netChange,
+      // D4: makes the trend's time scope unambiguous to the UI; the page can
+      // label the badge as "اليوم vs الأمس" instead of letting users assume
+      // it follows the date filter.
+      scope: "today-vs-yesterday",
     });
   } catch (error) {
     next(error);
@@ -177,73 +181,95 @@ router.get("/balances", async (req, res, next) => {
 
     const branchIds = branches.map((b) => b.id);
 
-    // Aggregate sales per branch per method for the requested window
-    const salesByMethod = await prisma.sale.groupBy({
+    // Aggregate Visa + Instapay sales per branch for the window.
+    // D6: use paidAmount (what actually hit the till) instead of total.
+    const cardSalesByMethod = await prisma.sale.groupBy({
       by: ["branchId", "paymentMethod"],
       where: {
-        paymentMethod: { in: ["CASH", "INSTAPAY", "VISA"] },
+        paymentMethod: { in: ["INSTAPAY", "VISA"] },
         status: "COMPLETED",
         createdAt: { gte: rangeStart, lte: rangeEnd },
         branchId: { in: branchIds },
       },
-      _sum: { total: true },
+      _sum: { paidAmount: true },
     });
-    const instapaySales = salesByMethod.filter(
-      (r) => r.paymentMethod === "INSTAPAY",
-    );
-    const visaSales = salesByMethod.filter((r) => r.paymentMethod === "VISA");
-    const cashSales = salesByMethod.filter((r) => r.paymentMethod === "CASH");
+    const instapaySales = cardSalesByMethod.filter((r) => r.paymentMethod === "INSTAPAY");
+    const visaSales     = cardSalesByMethod.filter((r) => r.paymentMethod === "VISA");
 
-    // Get Visa + Instapay treasury running balances from system config
+    // Visa + Instapay treasury running balances — still consumed by
+    // BranchBalancesPage. Kept on every row for backward compatibility; new UI
+    // shouldn't read these (use the dedicated /treasuries/global-balances).
     const sysConfig = await prisma.systemConfiguration.findFirst({
       select: { visaTreasuryId: true, instapayTreasuryId: true },
     });
-    let visaTreasuryBalance = 0;
-    let instapayTreasuryBalance = 0;
-    if (sysConfig?.visaTreasuryId) {
-      const t = await prisma.treasury.findUnique({
-        where: { id: sysConfig.visaTreasuryId },
-        select: { balance: true },
-      });
-      visaTreasuryBalance = Number(t?.balance || 0);
-    }
-    if (sysConfig?.instapayTreasuryId) {
-      const t = await prisma.treasury.findUnique({
-        where: { id: sysConfig.instapayTreasuryId },
-        select: { balance: true },
-      });
-      instapayTreasuryBalance = Number(t?.balance || 0);
-    }
+    const [visaTreasury, instapayTreasury] = await Promise.all([
+      sysConfig?.visaTreasuryId
+        ? prisma.treasury.findUnique({
+            where: { id: sysConfig.visaTreasuryId },
+            select: { balance: true },
+          })
+        : Promise.resolve(null),
+      sysConfig?.instapayTreasuryId
+        ? prisma.treasury.findUnique({
+            where: { id: sysConfig.instapayTreasuryId },
+            select: { balance: true },
+          })
+        : Promise.resolve(null),
+    ]);
+    const visaTreasuryBalance     = Number(visaTreasury?.balance || 0);
+    const instapayTreasuryBalance = Number(instapayTreasury?.balance || 0);
 
-    const instapayMap = {};
-    instapaySales.forEach((row) => {
-      instapayMap[row.branchId] = Number(row._sum.total || 0);
+    // CASH: D7 — only count sales whose money has actually reached the till.
+    //   - non-delivery sales: deliveryStatus IS NULL → cash collected at sale time
+    //   - DELIVERED delivery sales: cash settled into treasury
+    // Exclude PENDING / OUT_FOR_DELIVERY / RETURNED / CANCELED — money is not in the till.
+    const cashSales = await prisma.sale.groupBy({
+      by: ["branchId"],
+      where: {
+        paymentMethod: "CASH",
+        status: "COMPLETED",
+        createdAt: { gte: rangeStart, lte: rangeEnd },
+        branchId: { in: branchIds },
+        OR: [
+          { deliveryStatus: null },
+          { deliveryStatus: "DELIVERED" },
+        ],
+      },
+      _sum: { paidAmount: true },
     });
 
-    const visaMap = {};
-    visaSales.forEach((row) => {
-      visaMap[row.branchId] = Number(row._sum.total || 0);
-    });
-
-    const cashMap = {};
-    cashSales.forEach((row) => {
-      cashMap[row.branchId] = Number(row._sum.total || 0);
-    });
+    const instapayMap = Object.fromEntries(
+      instapaySales.map((r) => [r.branchId, Number(r._sum.paidAmount || 0)]),
+    );
+    const visaMap = Object.fromEntries(
+      visaSales.map((r) => [r.branchId, Number(r._sum.paidAmount || 0)]),
+    );
+    const cashMap = Object.fromEntries(
+      cashSales.map((r) => [r.branchId, Number(r._sum.paidAmount || 0)]),
+    );
 
     const result = branches.map((branch) => {
-      const cashBalance = cashMap[branch.id] || 0;
-      const visa = visaMap[branch.id] || 0;
+      const cashSalesInWindow = cashMap[branch.id] || 0;
+      const visa     = visaMap[branch.id] || 0;
       const instapay = instapayMap[branch.id] || 0;
+      // Stock: cash physically/logically in this branch's treasury right now.
+      // Independent of the date window — D3.
+      const currentCashBalance = Number(branch.treasury?.balance || 0);
       return {
         id: branch.id,
         name: branch.name,
         address: branch.address,
-        cashBalance,
-        visa,
-        instapay,
-        total: Math.round((cashBalance + visa + instapay) * 100) / 100,
+        // New, semantically clean fields:
+        currentCashBalance,    // stock — "right now" cash in branch
+        cashSales: cashSalesInWindow, // flow — paid CASH revenue in window
+        visa,                  // flow — paid VISA revenue in window
+        instapay,              // flow — paid INSTAPAY revenue in window
+        // Combined total of the window's flow figures (no stock mixed in).
+        total: Math.round((cashSalesInWindow + visa + instapay) * 100) / 100,
         treasuryName: branch.treasury?.name || "الخزينة",
-        // Legacy fields — kept for backward compat with existing UI consumers.
+        // Legacy aliases — keep so the current UI keeps rendering until Phase 2.
+        // After Phase 2 lands these can be removed.
+        cashBalance: cashSalesInWindow,
         instapayToday: instapay,
         visaToday: visa,
         visaTreasuryBalance,

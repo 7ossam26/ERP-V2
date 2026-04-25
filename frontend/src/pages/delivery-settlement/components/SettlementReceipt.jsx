@@ -7,12 +7,14 @@ const SettlementReceipt = forwardRef(({ data }, ref) => {
 
     return (
         <div ref={ref} className="p-8 bg-white text-black font-sans max-w-4xl mx-auto" style={{ direction: 'rtl' }}>
-            {/* Header with Logo Placeholder */}
+            {/* Header with Logo */}
             <div className="text-center mb-8 pb-6 border-b-2 border-gray-800">
-                {/* Logo Placeholder */}
-                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                    <span className="text-white text-3xl font-bold">ERP</span>
-                </div>
+                <img
+                    src="/assets/logo.png"
+                    alt="Logo"
+                    className="w-24 h-24 mx-auto mb-4 object-contain"
+                />
+
 
                 <h1 className="text-3xl font-bold mb-2">إيصال توريد نقدية - تسوية طيار</h1>
                 <div className="flex justify-center gap-6 text-sm text-gray-600 mt-3">

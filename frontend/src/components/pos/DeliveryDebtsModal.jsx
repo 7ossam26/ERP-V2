@@ -177,7 +177,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
   const reqIdRef = useRef(0);
 
   const fetchRiderDebts = async () => {
-    if (!branchId || branchId === "undefined" || !currentShiftId) {
+    if (!branchId || branchId === "undefined") {
       setRiderDebts([]);
       setHasLoaded(true);
       setLoading(false);
@@ -186,10 +186,12 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
     const reqId = ++reqIdRef.current;
     setLoading(true);
     try {
-      const data = await deliveryService.getStats({ branchId, shiftId: currentShiftId });
-      // Drop the response if a newer request has been issued.
+      // Unified source with the settlement page so the two views never
+      // disagree about who owes what. shiftId no longer narrows the result —
+      // legacy debts and call-center dispatches all surface here.
+      const data = await deliveryService.getWithDebt({ branchId });
       if (reqId !== reqIdRef.current) return;
-      setRiderDebts((data || []).filter((r) => r.orderCount > 0));
+      setRiderDebts((data || []).filter((r) => Number(r.effectiveDebt ?? r.totalCash ?? 0) > 0));
     } catch (error) {
       if (reqId !== reqIdRef.current) return;
       toast.error(error?.message || "فشل تحميل ديون الطيارين");
@@ -201,7 +203,8 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
     }
   };
 
-  // Refetch only when the modal opens or its identity (branch/shift) changes.
+  // Refetch only when the modal opens or its branch identity changes. The
+  // unified endpoint is shift-agnostic, so currentShiftId is no longer a key.
   useEffect(() => {
     if (!isOpen) {
       setHasLoaded(false);
@@ -210,7 +213,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
     }
     fetchRiderDebts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, branchId, currentShiftId]);
+  }, [isOpen, branchId]);
 
   const handleOpenSettlement = (rider) => {
     setSelectedRider({ id: rider.id, name: rider.name, walletBalance: rider.totalCash });
@@ -249,14 +252,10 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
     icon: "store",
     title: "الحساب غير مرتبط بفرع",
     desc: "لا يمكن عرض ديون الطيارين بدون فرع محدد",
-  } : !currentShiftId ? {
-    icon: "warning",
-    title: "لا توجد وردية نشطة",
-    desc: "افتح وردية جديدة لعرض ديون الطيارين",
   } : {
     icon: "verified",
     title: "كل الطيارين مسددين",
-    desc: "ما في ديون معلقة في هذه الوردية",
+    desc: "ما من ديون معلقة على أي طيار",
   };
 
   return createPortal(
@@ -273,7 +272,7 @@ const DeliveryDebtsModal = ({ isOpen, onClose, branchId, currentShiftId }) => {
               <div>
                 <h2 className="text-base font-black text-gray-900 dark:text-gray-50 leading-tight">ديون الطيارين</h2>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                  متابعة وتسوية العهد النقدية للوردية الحالية
+                  متابعة وتسوية العهد النقدية — موحّد المصدر مع التسوية
                 </p>
               </div>
             </div>
