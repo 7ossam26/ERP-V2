@@ -44,7 +44,7 @@ const GROUPS = [
 
 const PIN_KEY = "rmx_sidebar_pinned";
 
-const defaultExpanded = Object.fromEntries(GROUPS.map((g) => [g.key, true]));
+const defaultExpanded = Object.fromEntries(GROUPS.map((g) => [g.key, false]));
 
 export default function Sidebar({ pinned: pinnedProp, onPinnedChange, onHoverChange }) {
   const navigate = useNavigate();
