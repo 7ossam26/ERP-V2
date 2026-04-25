@@ -6,7 +6,6 @@ import StartShiftModal from "./StartShiftModal";
 import ShiftBlockedModal from "./ShiftBlockedModal";
 import EndShiftModal from "../../components/pos/EndShiftModal";
 import ShiftVerificationModal from "../../components/pos/ShiftVerificationModal";
-import PreparationQueueModal from "../../components/pos/PreparationQueueModal";
 import Modal from "../../components/ui/Modal";
 import RefundModal from "./RefundModal";
 import OrdersHistoryModal from "./OrdersHistoryModal";
@@ -24,7 +23,6 @@ import {
   inventoryService,
   settingsService,
   shiftService,
-  bomService,
 } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { confirmAction } from "../../utils/toastUtils";
@@ -280,7 +278,6 @@ const POSPage = () => {
   const deliveryData = null;
   const setDeliveryData = () => {};
   const setSelectedDeliveryMan = () => {};
-  const [isPreparationQueueOpen, setIsPreparationQueueOpen] = useState(false);
 
   // Hold Cart State
   const [heldCarts, setHeldCarts] = useState(() => {
@@ -408,102 +405,12 @@ const POSPage = () => {
         }
       }
 
-      // FETCH DATA: Inventory (Stock Levels) + BOMs (Recipes)
-      // We need inventory to know stock of Raw Materials.
-      // We need BOMs to know what we can sell (Recipes).
-      const [inventoryItems, dbCategories, boms] = await Promise.all([
+      const [inventoryItems, dbCategories] = await Promise.all([
         inventoryService.getInventory({ warehouseId }),
         categoryService.getAll(),
-        bomService.getAll(),
       ]);
 
-      // Map Inventory to a Helper Object for fast lookup
-      // inventoryItems contains items with their "current stock" in the selected warehouse (or total)
-      const inventoryMap = {}; // ItemID -> Quantity
-      inventoryItems.forEach((item) => {
-        inventoryMap[item.id] = item.quantity || 0;
-      });
-
-      // TRANSFORM BOMS TO PRODUCTS
-      // We treat each active BOM as a sellable product.
-      // If linked to an outputItem: show actual warehouse stock of that item.
-      // If not linked: show max possible production from raw materials.
-      const bomProducts = boms
-        .filter((bom) => bom.isActive)
-        .map((bom) => {
-          // Find linked Output Item for categories and stock (if linked)
-          const outputItem = bom.outputItemId
-            ? inventoryItems.find((i) => i.id === bom.outputItemId)
-            : null;
-
-          let quantity;
-          let autoProducible = 0;
-          if (bom.outputItemId) {
-            // Use ACTUAL warehouse stock of the manufactured output
-            quantity = parseFloat(
-              (inventoryMap[bom.outputItemId] || 0).toFixed(4),
-            );
-            // Also calculate max auto-producible from raw materials
-            if (bom.items && bom.items.length > 0) {
-              const maxRuns = bom.items.reduce((min, bomItem) => {
-                const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
-                const requiredQty = Number(bomItem.quantity);
-                if (requiredQty <= 0) return min;
-                return Math.min(min, rawMaterialQty / requiredQty);
-              }, Infinity);
-              const outputPerRun = Number(bom.outputQuantity) || 1;
-              autoProducible = maxRuns === Infinity ? 0 : parseFloat((maxRuns * outputPerRun).toFixed(4));
-            }
-          } else {
-            // No linked item → fall back to max possible production from raw materials
-            const maxProduction = bom.items.reduce((min, bomItem) => {
-              const rawMaterialQty = inventoryMap[bomItem.itemId] || 0;
-              const requiredQty = bomItem.quantity;
-              if (requiredQty <= 0) return min;
-              const possible = rawMaterialQty / requiredQty;
-              return Math.min(min, possible);
-            }, Infinity);
-            quantity =
-              maxProduction === Infinity
-                ? 0
-                : parseFloat(maxProduction.toFixed(4));
-          }
-
-          // Map to Product Structure used by POS
-          return {
-            id: bom.outputItemId || `bom_${bom.id}`, // Use Item ID if linked, otherwise BOM ID
-            bomId: bom.id,
-            name: bom.name,
-            price: parseFloat(bom.price) || 0, // Use BOM's own price
-            purchasePrice: 0,
-            unit: bom.unit || "piece", // Use BOM's own unit
-            // Normalize BOM categories to IDs (same format as inventory items) for POS filtering
-            categories:
-              bom.categories?.map((bc) =>
-                bc.category ? bc.category.id : bc.categoryId ?? bc.id ?? bc,
-              ) ||
-              (outputItem ? outputItem.categories.map((c) => c.category?.id ?? c.categoryId ?? c) : []),
-            quantity: quantity,
-            autoProducible: autoProducible,
-            hasBom: true,
-            hasLinkedOutput: !!bom.outputItemId, // true = real warehouse stock, false = theoretical max
-            showInPos: outputItem
-              ? outputItem.showInPos !== false
-              : bom.outputItem
-                ? bom.outputItem.showInPos !== false
-                : true,
-          };
-        });
-
-      // ALSO: Include Non-BOM items? (e.g. Water, Soda that are just bought/sold)
-      // The user wants to see "BOMs", but we shouldn't hide pure retail items unless requested.
-      // Strategy: Merge BOM Products + Inventory Items that DO NOT have a BOM.
-      // inventoryItems.hasBom is based on backend check (bomOutputs.length > 0)
-      const nonBomProducts = inventoryItems.filter((item) => !item.hasBom);
-
-      const distinctProducts = [...bomProducts, ...nonBomProducts];
-
-      setProducts(distinctProducts);
+      setProducts(inventoryItems);
 
       // Build categories from database with "All" option
       const allCategories = [
@@ -549,8 +456,8 @@ const POSPage = () => {
 
   // Handle product clicks - check unit type and show appropriate selector
   const handleProductClick = (product) => {
-    // Check stock availability (include auto-producible for BOM items)
-    const totalAvailable = (product.quantity || 0) + (product.autoProducible || 0);
+    // Check stock availability
+    const totalAvailable = product.quantity || 0;
     if (totalAvailable <= 0 && product.itemType !== "FABRIC") {
       toast.error(`الكمية غير متوفرة! المتاح: ${product.quantity || 0}`);
       return;
@@ -701,19 +608,7 @@ const POSPage = () => {
     const existingQty = existingItem ? existingItem.quantity : 0;
     const totalRequested = existingQty + quantity;
 
-    // Skip stock check for unlinked BOM items (auto-manufactured on demand)
-    const skipStockCheck = product.hasBom && !product.hasLinkedOutput;
-    // Linked BOM items can auto-produce from raw materials if stock is insufficient
-    const canAutoProduce = product.hasBom && product.hasLinkedOutput && (product.autoProducible || 0) > 0;
-
-    if (canAutoProduce) {
-      // For linked BOMs with auto-production, check against combined availability
-      const combinedAvailable = currentStock + (product.autoProducible || 0);
-      if (totalRequested > combinedAvailable) {
-        toast.error(`الكمية غير متوفرة! المتاح: ${combinedAvailable.toFixed(2)}`);
-        return false;
-      }
-    } else if (!skipStockCheck && totalRequested > currentStock) {
+    if (totalRequested > currentStock) {
       toast.error(`الكمية غير متوفرة! المتاح: ${currentStock}`);
       return false;
     }
@@ -722,7 +617,7 @@ const POSPage = () => {
     const reorderPoint = product.reorderPoint || 0;
     const remainingAfterSale = currentStock - totalRequested;
 
-    if (!skipStockCheck && !canAutoProduce && remainingAfterSale <= reorderPoint) {
+    if (remainingAfterSale <= reorderPoint) {
       toast(`تحذير: المخزون سيصبح منخفض (${remainingAfterSale})`, {
         icon: "⚠️",
       });
@@ -1598,11 +1493,6 @@ const POSPage = () => {
         </div>
       </Modal>
 
-      <PreparationQueueModal
-        isOpen={isPreparationQueueOpen}
-        onClose={() => setIsPreparationQueueOpen(false)}
-      />
-
       {/* Header */}
       <div className="bg-primary dark:bg-primary text-white px-3 md:px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-30 print:hidden">
         <div className="flex items-center gap-3 md:gap-6">
@@ -1644,13 +1534,6 @@ const POSPage = () => {
             className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
             <History size={16} />
             <span className="hidden md:inline">سجل الفواتير</span>
-          </button>
-
-          <button
-            onClick={() => setIsPreparationQueueOpen(true)}
-            className="flex items-center gap-1 bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded text-xs font-bold transition-colors shadow-sm">
-            <Icon name="kitchen" className="text-sm" />
-            <span className="hidden md:inline">قسم التجهيز</span>
           </button>
 
           <button
@@ -1809,11 +1692,6 @@ const POSPage = () => {
                     </h3>
                     <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mb-0.5 md:mb-1 font-medium leading-snug">
                       <span>المتاح: {Number(product.quantity || 0)} {getArabicUnit(product.unit)}</span>
-                      {product.autoProducible > 0 && (
-                        <span className="block text-emerald-600 dark:text-emerald-400 text-[10px]">
-                          (+{Math.floor(product.autoProducible)} إنتاج تلقائي)
-                        </span>
-                      )}
                     </div>
                     <div className="mt-auto">
                       <span className="block text-primary dark:text-primary/90 font-bold text-sm md:text-base leading-tight">
