@@ -32,9 +32,15 @@ const BranchBalancesPage = () => {
   const fmt = (n) =>
     Number(n).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const totalCash = balances.reduce((s, b) => s + b.cashBalance, 0);
-  const totalInstapay = balances.reduce((s, b) => s + b.instapayToday, 0);
-  const totalVisa = balances.reduce((s, b) => s + b.visaToday, 0);
+  // currentCashBalance = stock (treasury balance). cashBalance was the legacy
+  // alias that actually carried windowed sales — page label is "نقدي في الدرج"
+  // so the stock figure is what we want here.
+  const totalCash = balances.reduce(
+    (s, b) => s + Number(b.currentCashBalance ?? 0),
+    0,
+  );
+  const totalInstapay = balances.reduce((s, b) => s + Number(b.instapay ?? 0), 0);
+  const totalVisa = balances.reduce((s, b) => s + Number(b.visa ?? 0), 0);
   // Global treasury balances are the same for every row — take from first
   const visaTreasuryBalance =
     balances.length > 0 ? balances[0].visaTreasuryBalance || 0 : 0;
@@ -194,7 +200,7 @@ const BranchBalancesPage = () => {
                     <span className="text-sm font-medium">نقدي في الدرج</span>
                   </div>
                   <span className="font-bold text-green-800 dark:text-green-300 text-lg">
-                    {fmt(branch.cashBalance)} ج.م
+                    {fmt(branch.currentCashBalance)} ج.م
                   </span>
                 </div>
 
@@ -207,7 +213,7 @@ const BranchBalancesPage = () => {
                     <span className="text-sm font-medium">فيزا اليوم</span>
                   </div>
                   <span className="font-bold text-blue-800 dark:text-blue-300 text-lg">
-                    {fmt(branch.visaToday)} ج.م
+                    {fmt(branch.visa)} ج.م
                   </span>
                 </div>
 
@@ -220,7 +226,7 @@ const BranchBalancesPage = () => {
                     <span className="text-sm font-medium">InstaPay اليوم</span>
                   </div>
                   <span className="font-bold text-purple-800 dark:text-purple-300 text-lg">
-                    {fmt(branch.instapayToday)} ج.م
+                    {fmt(branch.instapay)} ج.م
                   </span>
                 </div>
 
@@ -230,7 +236,7 @@ const BranchBalancesPage = () => {
                     إجمالي رقمي (فيزا + InstaPay)
                   </span>
                   <span className="font-bold text-indigo-700 dark:text-indigo-300 text-sm">
-                    {fmt(branch.visaToday + branch.instapayToday)} ج.م
+                    {fmt(Number(branch.visa || 0) + Number(branch.instapay || 0))} ج.م
                   </span>
                 </div>
 
@@ -240,7 +246,7 @@ const BranchBalancesPage = () => {
                     الإجمالي
                   </span>
                   <span className="font-bold text-gray-800 dark:text-white text-lg">
-                    {fmt(branch.cashBalance + branch.visaToday + branch.instapayToday)} ج.م
+                    {fmt(Number(branch.currentCashBalance || 0) + Number(branch.visa || 0) + Number(branch.instapay || 0))} ج.م
                   </span>
                 </div>
               </div>

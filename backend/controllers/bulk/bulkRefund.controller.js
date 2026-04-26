@@ -2,6 +2,15 @@
 const prisma = require("../../config/database");
 const { allocateNumber } = require("../../services/bulkNumbering.service");
 const { applyBulkOrderStockMovement } = require("../../services/bulkStock.service");
+const { writeAudit } = require("../../utils/auditLogger");
+
+function clientIp(req) {
+  return (
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    null
+  );
+}
 
 const orderInclude = {
   customer: { select: { id: true, companyName: true, taxNumber: true, primaryContactPhone: true } },
@@ -77,14 +86,21 @@ exports.createReturn = async (req, res, next) => {
         });
       }
 
+      let treasuryBefore = null;
+      let treasuryAfter  = null;
       if (method === "CASH_REFUND" && treasuryId) {
-        await tx.treasury.update({
+        treasuryBefore = await tx.treasury.findUnique({
+          where: { id: treasuryId },
+          select: { id: true, name: true, balance: true },
+        });
+        treasuryAfter = await tx.treasury.update({
           where: { id: treasuryId },
           data: { balance: { decrement: amount } },
+          select: { id: true, name: true, balance: true },
         });
       }
 
-      await tx.bulkRefund.create({
+      const refund = await tx.bulkRefund.create({
         data: {
           orderId,
           method,
@@ -96,16 +112,95 @@ exports.createReturn = async (req, res, next) => {
         },
       });
 
+      const orderBefore = {
+        id: order.id,
+        status: order.status,
+        balanceDue: Number(order.balanceDue || 0),
+      };
+
       const updated = await tx.bulkOrder.update({
         where: { id: orderId },
         data: { status: "RETURNED", returnedAt: new Date(), balanceDue: 0 },
         include: orderInclude,
       });
 
-      return updated;
+      return { updated, refund, treasuryBefore, treasuryAfter, orderBefore, creditNoteNumber };
     });
 
-    res.json(result);
+    // ─── post-commit audit + log ───
+    const ip = clientIp(req);
+    const actorId = req.user?.id ?? null;
+    const branchId = req.user?.branch?.id ?? req.user?.branchId ?? null;
+
+    console.log(
+      `[bulk-order] return #${result.updated.orderNumber} ` +
+      `by user=${actorId} method=${method} amount=${amount} ` +
+      `status=${result.orderBefore.status}→RETURNED`,
+    );
+
+    writeAudit({
+      action: "RETURN",
+      targetEntity: "bulk_order",
+      targetId: result.updated.id,
+      userId: actorId,
+      branchId,
+      oldValues: result.orderBefore,
+      newValues: {
+        status: "RETURNED",
+        returnMethod: method,
+        amount,
+        creditNoteNumber: result.creditNoteNumber,
+        refundId: result.refund.id,
+        treasuryId,
+      },
+      ipAddress: ip,
+    }).catch(() => {});
+
+    writeAudit({
+      action: "CREATE",
+      targetEntity: "bulk_refund",
+      targetId: result.refund.id,
+      userId: actorId,
+      branchId,
+      oldValues: null,
+      newValues: {
+        orderId: result.refund.orderId,
+        method: result.refund.method,
+        amount: Number(result.refund.amount),
+        treasuryId: result.refund.treasuryId,
+        creditNoteNumber: result.refund.creditNoteNumber,
+        reason: result.refund.reason,
+      },
+      ipAddress: ip,
+    }).catch(() => {});
+
+    if (result.treasuryAfter) {
+      console.log(
+        `[treasury] debit treasury=${result.treasuryAfter.id} (${result.treasuryAfter.name}) ` +
+        `-${amount} (refund bulk-order #${result.updated.orderNumber}) ` +
+        `${Number(result.treasuryBefore.balance)}→${Number(result.treasuryAfter.balance)}`,
+      );
+      writeAudit({
+        action: "UPDATE",
+        targetEntity: "treasury",
+        targetId: result.treasuryAfter.id,
+        userId: actorId,
+        branchId,
+        oldValues: { balance: Number(result.treasuryBefore.balance) },
+        newValues: {
+          balance: Number(result.treasuryAfter.balance),
+          delta: -amount,
+          reason: "bulk_order_refund",
+          orderId: result.updated.id,
+          orderNumber: result.updated.orderNumber,
+          refundId: result.refund.id,
+          method,
+        },
+        ipAddress: ip,
+      }).catch(() => {});
+    }
+
+    res.json(result.updated);
   } catch (err) {
     next(err);
   }

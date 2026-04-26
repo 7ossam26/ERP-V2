@@ -267,11 +267,8 @@ router.get("/balances", async (req, res, next) => {
         // Combined total of the window's flow figures (no stock mixed in).
         total: Math.round((cashSalesInWindow + visa + instapay) * 100) / 100,
         treasuryName: branch.treasury?.name || "الخزينة",
-        // Legacy aliases — keep so the current UI keeps rendering until Phase 2.
-        // After Phase 2 lands these can be removed.
-        cashBalance: cashSalesInWindow,
-        instapayToday: instapay,
-        visaToday: visa,
+        // Visa/Instapay treasury running balances — still consumed by
+        // BranchBalancesPage's "الرصيد المتراكم" cards.
         visaTreasuryBalance,
         instapayTreasuryBalance,
       };

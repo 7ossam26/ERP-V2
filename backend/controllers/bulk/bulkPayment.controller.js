@@ -3,6 +3,14 @@
 const prisma = require("../../config/database");
 const { createPayment, voidPayment } = require("../../services/bulkPayments.service");
 
+function clientIp(req) {
+  return (
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    null
+  );
+}
+
 const CASH_METHODS = new Set(["CASH", "BANK_TRANSFER", "CHEQUE"]);
 const VALID_METHODS = new Set(["CASH", "BANK_TRANSFER", "CHEQUE", "CREDIT"]);
 
@@ -40,6 +48,7 @@ exports.create = async (req, res, next) => {
       { method, amount, treasuryId, bankReference: body.bankReference,
         chequeNumber: body.chequeNumber, chequeDueDate: body.chequeDueDate, notes: body.notes },
       req.user.id,
+      { ipAddress: clientIp(req) },
     );
 
     res.status(201).json(payment);
@@ -56,7 +65,9 @@ exports.void = async (req, res, next) => {
     const reason = (req.body?.reason || "").trim();
     if (!reason) return res.status(400).json({ error: "reason is required" });
 
-    const result = await voidPayment(prisma, paymentId, reason, req.user.id);
+    const result = await voidPayment(prisma, paymentId, reason, req.user.id, {
+      ipAddress: clientIp(req),
+    });
     res.json(result);
   } catch (err) {
     next(err);

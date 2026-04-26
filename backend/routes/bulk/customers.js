@@ -27,7 +27,17 @@ router.post("/:id/payments", requireAnyPermission(WRITE_PERMS), async (req, res,
   try {
     const customerId = parseInt(req.params.id, 10);
     if (!Number.isFinite(customerId)) return res.status(400).json({ error: "Invalid id" });
-    const payments = await createCustomerPayment(prisma, customerId, req.body, req.user.id);
+    const ipAddress =
+      req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      null;
+    const payments = await createCustomerPayment(
+      prisma,
+      customerId,
+      req.body,
+      req.user.id,
+      { ipAddress },
+    );
     res.status(201).json(payments);
   } catch (err) {
     next(err);

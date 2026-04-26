@@ -4,6 +4,15 @@ const { allocateNumber } = require("../../services/bulkNumbering.service");
 const { applyBulkOrderStockMovement } = require("../../services/bulkStock.service");
 const { assertCreditLimitOk } = require("../../services/bulkCredit.service");
 const { recomputeOrderBalance } = require("../../services/bulkPayments.service");
+const { writeAudit } = require("../../utils/auditLogger");
+
+function clientIp(req) {
+  return (
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    null
+  );
+}
 
 // Flip to 2 when Phase 2 (real payment selection) is ready.
 const CURRENT_PHASE = 1;
@@ -290,8 +299,13 @@ exports.confirm = async (req, res, next) => {
         }
       }
 
+      let payment = null;
+      let treasuryBefore = null;
+      let treasuryAfter  = null;
+      let treasuryMoved  = false;
+
       if (paidAmount > 0) {
-        await tx.bulkPayment.create({
+        payment = await tx.bulkPayment.create({
           data: {
             orderId: order.id,
             customerId: order.customerId,
@@ -305,6 +319,32 @@ exports.confirm = async (req, res, next) => {
             notes: paymentNotes || "تسوية عند التأكيد",
           },
         });
+
+        // The dedicated bulkPayments.service.createPayment() helper would do
+        // this for us, but the order-confirm flow is already inside its own
+        // transaction and createPayment opens its own — so we mirror the
+        // treasury-increment rule inline. Keep this in sync with the
+        // CASH_METHODS set in services/bulkPayments.service.js.
+        const CASH_METHODS = new Set(["CASH", "BANK_TRANSFER", "CHEQUE"]);
+        if (CASH_METHODS.has(method) && treasuryId) {
+          // Snapshot before/after so we can audit the exact movement and the
+          // resulting balance — without this the audit row only carries the
+          // delta and an external reader can't see what the till looked like
+          // at the moment of the increment.
+          const before = await tx.treasury.findUnique({
+            where: { id: treasuryId },
+            select: { id: true, name: true, balance: true },
+          });
+          treasuryBefore = before;
+
+          const after = await tx.treasury.update({
+            where: { id: treasuryId },
+            data: { balance: { increment: paidAmount } },
+            select: { id: true, name: true, balance: true },
+          });
+          treasuryAfter = after;
+          treasuryMoved = true;
+        }
       }
       const balanceDue = round2(orderTotal - paidAmount);
       let newStatus;
@@ -324,9 +364,117 @@ exports.confirm = async (req, res, next) => {
         },
         include: orderInclude,
       });
-      return updated;
+
+      // Pre-state of the order for audit oldValues — read from the original
+      // findUnique above (cheaper than a re-fetch).
+      const orderBefore = {
+        id: order.id,
+        status: order.status,
+        total: orderTotal,
+        paidAmount: Number(order.paidAmount || 0),
+        balanceDue: Number(order.balanceDue || 0),
+      };
+
+      return {
+        updated,
+        payment,
+        treasuryBefore,
+        treasuryAfter,
+        treasuryMoved,
+        method,
+        paidAmount,
+        orderBefore,
+        documentNumber,
+      };
     });
-    res.json(result);
+
+    // ─── post-commit side effects: console log + audit trail ────────────────
+    // writeAudit uses the global prisma client (intentional — audit must
+    // outlive a parent tx, but we ALSO must not write audits for a tx that
+    // rolled back, so this runs only after $transaction resolves).
+    const ip = clientIp(req);
+    const actorId = req.user?.id ?? null;
+    const branchId = req.user?.branch?.id ?? req.user?.branchId ?? null;
+
+    console.log(
+      `[bulk-order] confirm #${result.updated.orderNumber} ` +
+      `by user=${actorId} status=${result.orderBefore.status}→${result.updated.status} ` +
+      `total=${Number(result.updated.total)} paid=${result.paidAmount} method=${result.method}`,
+    );
+
+    // Audit: order confirmation (status transition + financial snapshot).
+    writeAudit({
+      action: "CONFIRM",
+      targetEntity: "bulk_order",
+      targetId: result.updated.id,
+      userId: actorId,
+      branchId,
+      oldValues: result.orderBefore,
+      newValues: {
+        status: result.updated.status,
+        orderNumber: result.updated.orderNumber,
+        total: Number(result.updated.total),
+        paidAmount: result.paidAmount,
+        balanceDue: Number(result.updated.balanceDue),
+        method: result.method,
+        documentNumber: result.documentNumber,
+        treasuryId: result.payment?.treasuryId ?? null,
+      },
+      ipAddress: ip,
+    }).catch(() => {});
+
+    // Audit: payment row (only when one was actually created).
+    if (result.payment) {
+      writeAudit({
+        action: "CREATE",
+        targetEntity: "bulk_payment",
+        targetId: result.payment.id,
+        userId: actorId,
+        branchId,
+        oldValues: null,
+        newValues: {
+          orderId: result.payment.orderId,
+          customerId: result.payment.customerId,
+          treasuryId: result.payment.treasuryId,
+          method: result.payment.method,
+          amount: Number(result.payment.amount),
+          bankReference: result.payment.bankReference,
+          chequeNumber: result.payment.chequeNumber,
+        },
+        ipAddress: ip,
+      }).catch(() => {});
+    }
+
+    // Audit: treasury balance movement — ONLY when cash actually flowed.
+    // This is the row that the missing-treasury-increment bug would have
+    // hidden; surfacing it here makes future regressions visible immediately.
+    if (result.treasuryMoved) {
+      console.log(
+        `[treasury] credit treasury=${result.treasuryAfter.id} (${result.treasuryAfter.name}) ` +
+        `+${result.paidAmount} (bulk-order #${result.updated.orderNumber}) ` +
+        `${Number(result.treasuryBefore.balance)}→${Number(result.treasuryAfter.balance)}`,
+      );
+      writeAudit({
+        action: "UPDATE",
+        targetEntity: "treasury",
+        targetId: result.treasuryAfter.id,
+        userId: actorId,
+        branchId,
+        oldValues: { balance: Number(result.treasuryBefore.balance) },
+        newValues: {
+          balance: Number(result.treasuryAfter.balance),
+          delta: result.paidAmount,
+          reason: "bulk_order_confirm",
+          orderId: result.updated.id,
+          orderNumber: result.updated.orderNumber,
+          paymentId: result.payment?.id ?? null,
+          method: result.method,
+        },
+        ipAddress: ip,
+      }).catch(() => {});
+    }
+
+    res.json(result.updated);
   } catch (err) {
     next(err);
   }

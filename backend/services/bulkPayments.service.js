@@ -4,6 +4,13 @@
 // so that BulkOrder.paidAmount and balanceDue stay in sync. A nightly
 // reconciliation job (scripts/reconcile-bulk-payments.js) asserts consistency
 // as a safety net.
+//
+// Every treasury-touching mutation here also writes an audit_logs row
+// (via writeAudit) AFTER the transaction commits, plus a console.log line
+// in the same shape used by routes/sales.js so till movements are visible
+// in process logs.
+
+const { writeAudit } = require("../utils/auditLogger");
 
 const CASH_METHODS = new Set(["CASH", "BANK_TRANSFER", "CHEQUE"]);
 
@@ -64,10 +71,11 @@ async function recomputeOrderBalance(tx, orderId) {
  * @param {number} actorUserId
  * @returns {Promise<object>} created BulkPayment row (with includes)
  */
-async function createPayment(prisma, orderId, data, actorUserId) {
+async function createPayment(prisma, orderId, data, actorUserId, ctx = {}) {
   const { method, amount, treasuryId, bankReference, chequeNumber, chequeDueDate, notes } = data;
+  const ipAddress = ctx.ipAddress || null;
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const order = await tx.bulkOrder.findUnique({
       where: { id: orderId },
       select: { id: true, customerId: true, status: true, total: true, balanceDue: true },
@@ -117,16 +125,74 @@ async function createPayment(prisma, orderId, data, actorUserId) {
       },
     });
 
+    let treasuryBefore = null;
+    let treasuryAfter  = null;
     if (CASH_METHODS.has(method) && treasuryId) {
-      await tx.treasury.update({
+      treasuryBefore = await tx.treasury.findUnique({
+        where: { id: treasuryId },
+        select: { id: true, name: true, balance: true },
+      });
+      treasuryAfter = await tx.treasury.update({
         where: { id: treasuryId },
         data: { balance: { increment: amount } },
+        select: { id: true, name: true, balance: true },
       });
     }
 
     await recomputeOrderBalance(tx, orderId);
-    return payment;
+    return { payment, treasuryBefore, treasuryAfter };
   });
+
+  // ─── post-commit audit + log ───
+  console.log(
+    `[bulk-payment] create id=${result.payment.id} order=${orderId} ` +
+    `method=${method} amount=${amount} by user=${actorUserId}`,
+  );
+  writeAudit({
+    action: "CREATE",
+    targetEntity: "bulk_payment",
+    targetId: result.payment.id,
+    userId: actorUserId,
+    branchId: null,
+    oldValues: null,
+    newValues: {
+      orderId,
+      customerId: result.payment.customerId,
+      treasuryId: result.payment.treasuryId,
+      method,
+      amount: Number(amount),
+      bankReference: result.payment.bankReference,
+      chequeNumber: result.payment.chequeNumber,
+    },
+    ipAddress,
+  }).catch(() => {});
+
+  if (result.treasuryAfter) {
+    console.log(
+      `[treasury] credit treasury=${result.treasuryAfter.id} (${result.treasuryAfter.name}) ` +
+      `+${amount} (bulk-payment #${result.payment.id}) ` +
+      `${Number(result.treasuryBefore.balance)}→${Number(result.treasuryAfter.balance)}`,
+    );
+    writeAudit({
+      action: "UPDATE",
+      targetEntity: "treasury",
+      targetId: result.treasuryAfter.id,
+      userId: actorUserId,
+      branchId: null,
+      oldValues: { balance: Number(result.treasuryBefore.balance) },
+      newValues: {
+        balance: Number(result.treasuryAfter.balance),
+        delta: Number(amount),
+        reason: "bulk_payment_create",
+        orderId,
+        paymentId: result.payment.id,
+        method,
+      },
+      ipAddress,
+    }).catch(() => {});
+  }
+
+  return result.payment;
 }
 
 /**
@@ -138,8 +204,10 @@ async function createPayment(prisma, orderId, data, actorUserId) {
  * @param {number} actorUserId
  * @returns {Promise<{ payment: object, orderBalance: object }>}
  */
-async function voidPayment(prisma, paymentId, reason, actorUserId) {
-  return prisma.$transaction(async (tx) => {
+async function voidPayment(prisma, paymentId, reason, actorUserId, ctx = {}) {
+  const ipAddress = ctx.ipAddress || null;
+
+  const result = await prisma.$transaction(async (tx) => {
     const payment = await tx.bulkPayment.findUnique({
       where: { id: paymentId },
       select: { id: true, orderId: true, customerId: true, method: true, amount: true,
@@ -161,16 +229,78 @@ async function voidPayment(prisma, paymentId, reason, actorUserId) {
       data: { voidedAt: new Date(), voidedByUserId: actorUserId, voidReason: reason },
     });
 
+    let treasuryBefore = null;
+    let treasuryAfter  = null;
     if (CASH_METHODS.has(payment.method) && payment.treasuryId) {
-      await tx.treasury.update({
+      treasuryBefore = await tx.treasury.findUnique({
+        where: { id: payment.treasuryId },
+        select: { id: true, name: true, balance: true },
+      });
+      treasuryAfter = await tx.treasury.update({
         where: { id: payment.treasuryId },
         data: { balance: { decrement: Number(payment.amount) } },
+        select: { id: true, name: true, balance: true },
       });
     }
 
     const orderBalance = await recomputeOrderBalance(tx, payment.orderId);
-    return { payment: { ...payment, voidedAt: new Date(), voidReason: reason }, orderBalance };
+    return {
+      payment: { ...payment, voidedAt: new Date(), voidReason: reason },
+      orderBalance,
+      treasuryBefore,
+      treasuryAfter,
+    };
   });
+
+  // ─── post-commit audit + log ───
+  console.log(
+    `[bulk-payment] void id=${paymentId} order=${result.payment.orderId} ` +
+    `amount=${Number(result.payment.amount)} reason="${reason}" by user=${actorUserId}`,
+  );
+  writeAudit({
+    action: "VOID",
+    targetEntity: "bulk_payment",
+    targetId: paymentId,
+    userId: actorUserId,
+    branchId: null,
+    oldValues: { voidedAt: null, voidReason: null },
+    newValues: {
+      voidedAt: result.payment.voidedAt,
+      voidReason: reason,
+      amount: Number(result.payment.amount),
+      method: result.payment.method,
+      treasuryId: result.payment.treasuryId,
+      orderId: result.payment.orderId,
+    },
+    ipAddress,
+  }).catch(() => {});
+
+  if (result.treasuryAfter) {
+    console.log(
+      `[treasury] debit treasury=${result.treasuryAfter.id} (${result.treasuryAfter.name}) ` +
+      `-${Number(result.payment.amount)} (void bulk-payment #${paymentId}) ` +
+      `${Number(result.treasuryBefore.balance)}→${Number(result.treasuryAfter.balance)}`,
+    );
+    writeAudit({
+      action: "UPDATE",
+      targetEntity: "treasury",
+      targetId: result.treasuryAfter.id,
+      userId: actorUserId,
+      branchId: null,
+      oldValues: { balance: Number(result.treasuryBefore.balance) },
+      newValues: {
+        balance: Number(result.treasuryAfter.balance),
+        delta: -Number(result.payment.amount),
+        reason: "bulk_payment_void",
+        paymentId,
+        orderId: result.payment.orderId,
+        method: result.payment.method,
+      },
+      ipAddress,
+    }).catch(() => {});
+  }
+
+  return { payment: result.payment, orderBalance: result.orderBalance };
 }
 
 /**
@@ -183,8 +313,10 @@ async function voidPayment(prisma, paymentId, reason, actorUserId) {
  * @param {number} actorUserId
  * @returns {Promise<object[]>} created BulkPayment rows
  */
-async function createCustomerPayment(prisma, customerId, data, actorUserId) {
+async function createCustomerPayment(prisma, customerId, data, actorUserId, ctx = {}) {
   const { amount, treasuryId, notes } = data;
+  const ipAddress = ctx.ipAddress || null;
+
   if (!amount || Number(amount) <= 0) {
     throw Object.assign(new Error("amount must be a positive number"), { status: 400 });
   }
@@ -192,17 +324,21 @@ async function createCustomerPayment(prisma, customerId, data, actorUserId) {
     throw Object.assign(new Error("treasuryId is required"), { status: 400 });
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const customer = await tx.bulkCustomer.findUnique({ where: { id: customerId } });
     if (!customer) throw Object.assign(new Error("Customer not found"), { status: 404 });
 
-    const treasury = await tx.treasury.findUnique({ where: { id: parseInt(treasuryId, 10) } });
-    if (!treasury) throw Object.assign(new Error("Treasury not found"), { status: 404 });
+    const treasuryBefore = await tx.treasury.findUnique({
+      where: { id: parseInt(treasuryId, 10) },
+      select: { id: true, name: true, balance: true },
+    });
+    if (!treasuryBefore) throw Object.assign(new Error("Treasury not found"), { status: 404 });
 
     // Customer is paying us — add amount to treasury
-    await tx.treasury.update({
+    const treasuryAfter = await tx.treasury.update({
       where: { id: parseInt(treasuryId, 10) },
       data: { balance: { increment: Number(amount) } },
+      select: { id: true, name: true, balance: true },
     });
 
     // Distribute across oldest unpaid / partially-paid orders
@@ -265,8 +401,60 @@ async function createCustomerPayment(prisma, customerId, data, actorUserId) {
       payments.push(payment);
     }
 
-    return payments;
+    return { payments, treasuryBefore, treasuryAfter };
   });
+
+  // ─── post-commit audit + log ───
+  console.log(
+    `[bulk-payment] customer-payment customer=${customerId} ` +
+    `amount=${Number(amount)} method=CASH split-into=${result.payments.length} by user=${actorUserId}`,
+  );
+
+  // One audit row per child payment so every BulkPayment has a discoverable
+  // creation audit, regardless of which entry-point created it.
+  for (const p of result.payments) {
+    writeAudit({
+      action: "CREATE",
+      targetEntity: "bulk_payment",
+      targetId: p.id,
+      userId: actorUserId,
+      branchId: null,
+      oldValues: null,
+      newValues: {
+        orderId: p.orderId,
+        customerId: p.customerId,
+        treasuryId: p.treasuryId,
+        method: p.method,
+        amount: Number(p.amount),
+        source: "customer_payment_distribution",
+      },
+      ipAddress,
+    }).catch(() => {});
+  }
+
+  console.log(
+    `[treasury] credit treasury=${result.treasuryAfter.id} (${result.treasuryAfter.name}) ` +
+    `+${Number(amount)} (customer-payment customer=${customerId}) ` +
+    `${Number(result.treasuryBefore.balance)}→${Number(result.treasuryAfter.balance)}`,
+  );
+  writeAudit({
+    action: "UPDATE",
+    targetEntity: "treasury",
+    targetId: result.treasuryAfter.id,
+    userId: actorUserId,
+    branchId: null,
+    oldValues: { balance: Number(result.treasuryBefore.balance) },
+    newValues: {
+      balance: Number(result.treasuryAfter.balance),
+      delta: Number(amount),
+      reason: "customer_payment",
+      customerId,
+      paymentIds: result.payments.map((p) => p.id),
+    },
+    ipAddress,
+  }).catch(() => {});
+
+  return result.payments;
 }
 
 /**

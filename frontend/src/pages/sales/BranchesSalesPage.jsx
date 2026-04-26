@@ -18,12 +18,12 @@ const fmt = (n) =>
 // ─── branch card ─────────────────────────────────────────────────────────────
 
 function BranchCard({ branch, windowLabel }) {
-  // Stock — current cash in this branch's treasury, ignores the date filter (D3).
-  const cashNow  = Number(branch.currentCashBalance ?? branch.cashBalance ?? 0);
-  // Flow — paid sales in the selected window.
-  const visa     = Number(branch.visa ?? branch.visaToday ?? 0);
-  const instapay = Number(branch.instapay ?? branch.instapayToday ?? 0);
-  const cashSales = Number(branch.cashSales ?? branch.cashBalance ?? 0);
+  // All three stats are flow (paid sales in the selected window) so the
+  // breakdown always adds up to the "مبيعات {windowLabel}" header. The branch's
+  // current cash balance (stock) is already shown chain-wide in the header strip.
+  const visa      = Number(branch.visa || 0);
+  const instapay  = Number(branch.instapay || 0);
+  const cashSales = Number(branch.cashSales || 0);
   // Window-only total (flow). The header cash card carries the stock.
   const windowTotal = Number(branch.total ?? (cashSales + visa + instapay));
 
@@ -59,9 +59,9 @@ function BranchCard({ branch, windowLabel }) {
             <div className="w-2 h-2 rounded-full bg-emerald-500" />
             <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">نقدي</p>
           </div>
-          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-700/60 dark:text-emerald-400/60">الآن</p>
+          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-700/60 dark:text-emerald-400/60">{windowLabel}</p>
           <p className="font-black text-sm text-emerald-700 dark:text-emerald-300 tabular-nums text-center leading-tight mt-0.5">
-            {fmt(cashNow)}
+            {fmt(cashSales)}
             <span className="text-[10px] font-normal block text-emerald-700/60 dark:text-emerald-400/60">ج.م</span>
           </p>
         </div>
@@ -110,7 +110,7 @@ function TotalsCard({ totals, count, windowLabel }) {
         </div>
       </div>
       <div className="flex gap-6 flex-wrap">
-        <Stat label="نقدي" caption="الآن" value={fmt(totals.cashNow)} color="text-emerald-700 dark:text-emerald-400" />
+        <Stat label="نقدي" caption={windowLabel} value={fmt(totals.cashSales)} color="text-emerald-700 dark:text-emerald-400" />
         <Stat label="فيزا" caption={windowLabel} value={fmt(totals.visa)} color="text-blue-700 dark:text-blue-400" />
         <Stat label="انستاباي" caption={windowLabel} value={fmt(totals.instapay)} color="text-purple-700 dark:text-purple-400" />
       </div>
@@ -197,10 +197,10 @@ const BranchesSalesPage = () => {
   // window). visa/instapay/cashSales are flow (paid sales in window).
   const totals = branches.reduce(
     (acc, b) => ({
-      cashNow:     acc.cashNow   + Number(b.currentCashBalance ?? b.cashBalance ?? 0),
-      cashSales:   acc.cashSales + Number(b.cashSales ?? b.cashBalance ?? 0),
-      visa:        acc.visa      + Number(b.visa ?? b.visaToday ?? 0),
-      instapay:    acc.instapay  + Number(b.instapay ?? b.instapayToday ?? 0),
+      cashNow:     acc.cashNow     + Number(b.currentCashBalance || 0),
+      cashSales:   acc.cashSales   + Number(b.cashSales || 0),
+      visa:        acc.visa        + Number(b.visa || 0),
+      instapay:    acc.instapay    + Number(b.instapay || 0),
       windowTotal: acc.windowTotal + Number(b.total || 0),
     }),
     { cashNow: 0, cashSales: 0, visa: 0, instapay: 0, windowTotal: 0 },
@@ -268,7 +268,7 @@ const BranchesSalesPage = () => {
               <span className="material-symbols-outlined text-primary">store</span>
               <h3 className="text-lg font-black">تفصيل الفروع</h3>
               <div className="h-px flex-1 bg-border-light dark:bg-border-dark" />
-              <span className="text-xs font-bold text-primary/70 dark:text-accent bg-primary/8 dark:bg-primary/15 px-3 py-1 rounded-full">
+              <span className="text-xs font-bold text-primary/70 dark:text-accent bg-primary/10 dark:bg-primary/15 px-3 py-1 rounded-full">
                 {branches.length} فرع
               </span>
             </div>
