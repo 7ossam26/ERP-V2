@@ -180,6 +180,13 @@ router.get("/balances", async (req, res, next) => {
     const rangeEnd = parseDateEnd(req.query.to);
 
     const branchIds = branches.map((b) => b.id);
+    // Bulk orders are scoped to a warehouse, not a branch directly. Build a
+    // warehouse → branch map so we can attribute bulk paidAmount back to the
+    // owning branch.
+    const warehouseToBranch = Object.fromEntries(
+      branches.filter((b) => b.warehouseId).map((b) => [b.warehouseId, b.id]),
+    );
+    const branchWarehouseIds = Object.keys(warehouseToBranch).map(Number);
 
     // Aggregate Visa + Instapay sales per branch for the window.
     // D6: use paidAmount (what actually hit the till) instead of total.
@@ -238,6 +245,24 @@ router.get("/balances", async (req, res, next) => {
       _sum: { paidAmount: true },
     });
 
+    // Bulk orders per branch (via warehouseId). Mirrors retail logic — sum
+    // paidAmount in window, exclude DRAFT/CANCELLED so only money that
+    // actually moved through the order counts.
+    const bulkOrders = branchWarehouseIds.length
+      ? await prisma.bulkOrder.groupBy({
+          by: ["warehouseId"],
+          where: {
+            createdAt: { gte: rangeStart, lte: rangeEnd },
+            warehouseId: { in: branchWarehouseIds },
+            status: { notIn: ["DRAFT", "CANCELLED"] },
+          },
+          _sum: { paidAmount: true },
+        })
+      : [];
+    const bulkMap = Object.fromEntries(
+      bulkOrders.map((r) => [warehouseToBranch[r.warehouseId], Number(r._sum.paidAmount || 0)]),
+    );
+
     const instapayMap = Object.fromEntries(
       instapaySales.map((r) => [r.branchId, Number(r._sum.paidAmount || 0)]),
     );
@@ -252,6 +277,7 @@ router.get("/balances", async (req, res, next) => {
       const cashSalesInWindow = cashMap[branch.id] || 0;
       const visa     = visaMap[branch.id] || 0;
       const instapay = instapayMap[branch.id] || 0;
+      const bulkSales = bulkMap[branch.id] || 0;
       // Stock: cash physically/logically in this branch's treasury right now.
       // Independent of the date window — D3.
       const currentCashBalance = Number(branch.treasury?.balance || 0);
@@ -264,8 +290,9 @@ router.get("/balances", async (req, res, next) => {
         cashSales: cashSalesInWindow, // flow — paid CASH revenue in window
         visa,                  // flow — paid VISA revenue in window
         instapay,              // flow — paid INSTAPAY revenue in window
+        bulkSales,             // flow — paid bulk-order revenue in window
         // Combined total of the window's flow figures (no stock mixed in).
-        total: Math.round((cashSalesInWindow + visa + instapay) * 100) / 100,
+        total: Math.round((cashSalesInWindow + visa + instapay + bulkSales) * 100) / 100,
         treasuryName: branch.treasury?.name || "الخزينة",
         // Visa/Instapay treasury running balances — still consumed by
         // BranchBalancesPage's "الرصيد المتراكم" cards.

@@ -18,14 +18,16 @@ const fmt = (n) =>
 // ─── branch card ─────────────────────────────────────────────────────────────
 
 function BranchCard({ branch, windowLabel }) {
-  // All three stats are flow (paid sales in the selected window) so the
-  // breakdown always adds up to the "مبيعات {windowLabel}" header. The branch's
-  // current cash balance (stock) is already shown chain-wide in the header strip.
+  // Four flow stats (paid sales in window) so the breakdown adds up to the
+  // "مبيعات {windowLabel}" header. The branch's current cash balance (stock)
+  // is shown separately in the header strip — it doesn't belong in the flow row.
   const visa      = Number(branch.visa || 0);
   const instapay  = Number(branch.instapay || 0);
   const cashSales = Number(branch.cashSales || 0);
+  const bulkSales = Number(branch.bulkSales || 0);
+  const cashNow   = Number(branch.currentCashBalance || 0);
   // Window-only total (flow). The header cash card carries the stock.
-  const windowTotal = Number(branch.total ?? (cashSales + visa + instapay));
+  const windowTotal = Number(branch.total ?? (cashSales + visa + instapay + bulkSales));
 
   return (
     <div className="bg-surface-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
@@ -49,11 +51,26 @@ function BranchCard({ branch, windowLabel }) {
         </div>
       </div>
 
-      {/* Divider */}
-      <div className="h-px bg-border-light dark:bg-border-dark mx-5" />
+      {/* Current cash banner — stock figure, lives outside the flow row so it
+          can't be confused with window sales. */}
+      <div className="mx-5 mb-3 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-gradient-to-l from-emerald-500/15 to-emerald-500/5 dark:from-emerald-500/20 dark:to-emerald-500/5 border border-emerald-500/30 dark:border-emerald-500/40">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-[20px]">payments</span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700/70 dark:text-emerald-400/70">
+              النقدية الحالية
+            </p>
+            <p className="text-[10px] text-emerald-700/60 dark:text-emerald-400/60">رصيد الخزينة الآن</p>
+          </div>
+        </div>
+        <p className="font-black text-xl text-emerald-700 dark:text-emerald-300 tabular-nums">
+          {fmt(cashNow)}
+          <span className="text-xs font-medium text-emerald-700/60 dark:text-emerald-400/60 mr-1">ج.م</span>
+        </p>
+      </div>
 
       {/* Stats row — captioned with time domain */}
-      <div className="grid grid-cols-3 divide-x divide-x-reverse divide-border-light dark:divide-border-dark px-0 py-0 flex-1">
+      <div className="grid grid-cols-4 divide-x divide-x-reverse divide-border-light dark:divide-border-dark px-0 py-0 flex-1">
         <div className="flex flex-col items-center gap-0.5 py-4 px-2">
           <div className="flex items-center gap-1 mb-0.5">
             <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -87,6 +104,17 @@ function BranchCard({ branch, windowLabel }) {
             <span className="text-[10px] font-normal block text-purple-700/60 dark:text-purple-400/60">ج.م</span>
           </p>
         </div>
+        <div className="flex flex-col items-center gap-0.5 py-4 px-2">
+          <div className="flex items-center gap-1 mb-0.5">
+            <div className="w-2 h-2 rounded-full bg-amber-500" />
+            <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">جملة</p>
+          </div>
+          <p className="text-[9px] font-black uppercase tracking-wider text-amber-700/60 dark:text-amber-400/60">{windowLabel}</p>
+          <p className="font-black text-sm text-amber-700 dark:text-amber-300 tabular-nums text-center leading-tight mt-0.5">
+            {fmt(bulkSales)}
+            <span className="text-[10px] font-normal block text-amber-700/60 dark:text-amber-400/60">ج.م</span>
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -113,6 +141,7 @@ function TotalsCard({ totals, count, windowLabel }) {
         <Stat label="نقدي" caption={windowLabel} value={fmt(totals.cashSales)} color="text-emerald-700 dark:text-emerald-400" />
         <Stat label="فيزا" caption={windowLabel} value={fmt(totals.visa)} color="text-blue-700 dark:text-blue-400" />
         <Stat label="انستاباي" caption={windowLabel} value={fmt(totals.instapay)} color="text-purple-700 dark:text-purple-400" />
+        <Stat label="جملة" caption={windowLabel} value={fmt(totals.bulkSales)} color="text-amber-700 dark:text-amber-400" />
       </div>
     </div>
   );
@@ -201,9 +230,10 @@ const BranchesSalesPage = () => {
       cashSales:   acc.cashSales   + Number(b.cashSales || 0),
       visa:        acc.visa        + Number(b.visa || 0),
       instapay:    acc.instapay    + Number(b.instapay || 0),
+      bulkSales:   acc.bulkSales   + Number(b.bulkSales || 0),
       windowTotal: acc.windowTotal + Number(b.total || 0),
     }),
-    { cashNow: 0, cashSales: 0, visa: 0, instapay: 0, windowTotal: 0 },
+    { cashNow: 0, cashSales: 0, visa: 0, instapay: 0, bulkSales: 0, windowTotal: 0 },
   );
 
   // Short label that captions every "للفترة" slot. /summary's totalBalance is

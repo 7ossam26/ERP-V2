@@ -142,9 +142,30 @@ exports.searchClients = async (req, res, next) => {
       where,
       take: 20,
       orderBy: { updatedAt: "desc" },
-      select: { id: true, name: true, phoneNumber: true, address: true },
+      select: {
+        id: true,
+        name: true,
+        phoneNumber: true,
+        address: true,
+        _count: { select: { sales: true } },
+        sales: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
     });
-    res.json(clients);
+
+    res.json(
+      clients.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phoneNumber: c.phoneNumber,
+        address: c.address,
+        totalOrders: c._count.sales,
+        lastOrderDate: c.sales[0]?.createdAt ?? null,
+      }))
+    );
   } catch (err) {
     next(err);
   }

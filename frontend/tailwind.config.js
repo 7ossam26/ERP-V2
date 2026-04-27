@@ -12,6 +12,7 @@ export default {
         "background-dark": "#1F1B18",
         "surface-light": "#FFFFFF",
         "surface-dark": "#2C2522",
+        "surface-raised": "#FAF8F5",
         "card-light": "#FFFFFF", // Added for compatibility
         "card-dark": "#27272a", // Added for compatibility (Zinc 800)
         "text-light": "#3E2723",
@@ -20,6 +21,11 @@ export default {
         "accent-dark": "#4a4a4e", // Added for compatibility
         "border-light": "#E7E5E4",
         "border-dark": "#44403C",
+        stock: {
+          ok: "#16A34A",
+          low: "#D97706",
+          out: "#DC2626",
+        },
       },
       fontFamily: {
         display: ["Cairo", "sans-serif"],
@@ -38,9 +44,14 @@ export default {
           "0%": { transform: "translateY(-100%)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
+        "cart-pulse": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.06)" },
+        },
       },
       animation: {
         "slide-down": "slide-down 0.3s ease-out",
+        "cart-pulse": "cart-pulse 200ms ease-out",
       },
       // Mobile-friendly touch target utilities
       spacing: {
