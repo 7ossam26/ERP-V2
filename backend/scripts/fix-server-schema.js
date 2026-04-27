@@ -8,7 +8,129 @@
  */
 
 const { PrismaClient } = require("@prisma/client");
+const {
+  createNotificationsTableSql,
+  foreignKeyFixes,
+  requiredColumnFixes,
+} = require("./schema-fix-definitions");
+
 const prisma = new PrismaClient();
+
+async function columnExists(table, column) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT COUNT(*) AS count
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+        AND COLUMN_NAME = ?
+    `,
+    table,
+    column
+  );
+  return Number(rows[0]?.count || 0) > 0;
+}
+
+function isIgnorableDdlError(error) {
+  const message = error?.message || "";
+  const metaCode = error?.meta?.code || "";
+
+  return [
+    "already exists",
+    "Duplicate key name",
+    "Duplicate column name",
+    "Can't DROP",
+    "check that column/key exists",
+    "1826",
+    "1060",
+    "1061",
+    "1091",
+    "ER_DUP_KEYNAME",
+    "ER_DUP_FIELDNAME",
+    "ER_CANT_DROP_FIELD_OR_KEY",
+  ].some((needle) => message.includes(needle) || metaCode === needle);
+}
+
+async function executeIgnoringDuplicate(sql) {
+  try {
+    await prisma.$executeRawUnsafe(sql);
+  } catch (error) {
+    if (!isIgnorableDdlError(error)) throw error;
+  }
+}
+
+async function applyColumnFix(fix) {
+  if (await columnExists(fix.table, fix.column)) return;
+
+  if (fix.renameFrom && (await columnExists(fix.table, fix.renameFrom))) {
+    for (const sql of fix.beforeRenameSqls || []) {
+      await executeIgnoringDuplicate(sql);
+    }
+    await prisma.$executeRawUnsafe(fix.renameSql);
+    return;
+  }
+
+  await prisma.$executeRawUnsafe(fix.addSql);
+}
+
+async function backfillTreasuryScope() {
+  if (!(await columnExists("treasuries", "scope"))) return;
+
+  if (await columnExists("system_configuration", "main_treasury_id")) {
+    await prisma.$executeRawUnsafe(`
+      UPDATE \`treasuries\` t
+        INNER JOIN \`system_configuration\` sc ON sc.\`main_treasury_id\` = t.\`id\`
+      SET t.\`scope\` = 'MAIN'
+    `);
+  }
+
+  if (await columnExists("system_configuration", "visa_treasury_id")) {
+    await prisma.$executeRawUnsafe(`
+      UPDATE \`treasuries\` t
+        INNER JOIN \`system_configuration\` sc ON sc.\`visa_treasury_id\` = t.\`id\`
+      SET t.\`scope\` = 'GLOBAL_VISA'
+    `);
+  }
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO \`treasuries\` (\`name\`, \`balance\`, \`scope\`, \`is_active\`, \`created_at\`, \`updated_at\`)
+    SELECT 'Instapay Treasury', 0, 'GLOBAL_INSTAPAY', 1, NOW(3), NOW(3)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM \`treasuries\`
+      WHERE \`scope\` = 'GLOBAL_INSTAPAY' AND \`is_active\` = 1
+    )
+  `);
+
+  if (await columnExists("system_configuration", "instapay_treasury_id")) {
+    await prisma.$executeRawUnsafe(`
+      UPDATE \`system_configuration\` sc
+        INNER JOIN \`treasuries\` t ON t.\`scope\` = 'GLOBAL_INSTAPAY' AND t.\`is_active\` = 1
+      SET sc.\`instapay_treasury_id\` = t.\`id\`
+      WHERE sc.\`instapay_treasury_id\` IS NULL
+    `);
+  }
+}
+
+async function backfillPaidAt() {
+  if (!(await columnExists("sales", "paid_at"))) return;
+
+  const hasDeliveryStatus = await columnExists("sales", "delivery_status");
+  if (hasDeliveryStatus) {
+    await prisma.$executeRawUnsafe(`
+      UPDATE \`sales\`
+      SET \`paid_at\` = \`created_at\`
+      WHERE \`paid_at\` IS NULL
+        AND (\`delivery_status\` IS NULL OR \`delivery_status\` = 'DELIVERED')
+    `);
+    return;
+  }
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE \`sales\`
+    SET \`paid_at\` = \`created_at\`
+    WHERE \`paid_at\` IS NULL
+  `);
+}
 
 async function run() {
   console.log(">>> [FIX] Checking and applying missing schema changes...");
@@ -74,6 +196,24 @@ async function run() {
       NOT NULL DEFAULT 'UNPAID'
   `);
   console.log(">>> [FIX] payment_status enum (RETURNED + CANCELLED): OK");
+
+  // 5. Repair baselined call-center notification migration drift.
+  await prisma.$executeRawUnsafe(createNotificationsTableSql);
+  console.log(">>> [FIX] notifications table: OK");
+
+  // 6. Repair baselined treasury scope / digital treasury migration drift.
+  for (const fix of requiredColumnFixes) {
+    await applyColumnFix(fix);
+  }
+  await backfillTreasuryScope();
+  await backfillPaidAt();
+  console.log(">>> [FIX] treasury scope + digital treasury columns: OK");
+
+  // 7. Add foreign keys that may be absent if tables/columns were repaired here.
+  for (const fk of foreignKeyFixes) {
+    await executeIgnoringDuplicate(fk);
+  }
+  console.log(">>> [FIX] notification/treasury foreign keys: OK");
 
   console.log(">>> [FIX] All schema fixes applied successfully.");
 }

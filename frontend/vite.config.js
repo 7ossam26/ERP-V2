@@ -1,7 +1,28 @@
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { defineConfig, loadEnv } from "vite";
+import { createLogger, defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+
+const viteLogger = createLogger();
+
+const isMutedSseProxyReset = (message, options) => {
+  const text =
+    typeof message === "string" ? message : String(message?.message || message);
+  const errorCode = options?.error?.code;
+
+  return (
+    text.includes("http proxy error: /api/events/stream") &&
+    (errorCode === "ECONNRESET" || text.includes("read ECONNRESET"))
+  );
+};
+
+const customLogger = {
+  ...viteLogger,
+  error(message, options) {
+    if (isMutedSseProxyReset(message, options)) return;
+    viteLogger.error(message, options);
+  },
+};
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -19,6 +40,7 @@ export default defineConfig(({ mode }) => {
   console.log(`🌐 API Target: ${apiUrl}\n`);
 
   return {
+    customLogger,
     plugins: [react({ jsxRuntime: "automatic" })],
     resolve: {
       alias: {
