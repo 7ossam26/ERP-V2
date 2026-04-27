@@ -16,3 +16,5 @@ Dist/
 # Playwright auth state
 e2e/.auth/
 test-results/
+# Local-only dev scripts
+backend/scripts/reset-local-db.js

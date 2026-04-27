@@ -29,11 +29,12 @@ if (!dbUrl || (!dbUrl.includes("localhost") && !dbUrl.includes("127.0.0.1"))) {
     process.exit(1);
 }
 
-// 3. Run the original seed script
-// We use require to execute it. Note that seedSuperadmin.js runs main() automatically.
-console.log("🚀 Launching seedSuperadmin.js...");
-try {
-    require('../seedSuperadmin.js');
-} catch (err) {
-    console.error("❌ Error importing seed script:", err);
-}
+// 3. Run the merged seed script
+console.log("🚀 Launching prisma/seed.js...");
+const seedMain = require('../prisma/seed.js');
+seedMain()
+    .then(() => console.log("✅ Seed complete."))
+    .catch((err) => {
+        console.error("❌ Seed failed:", err);
+        process.exit(1);
+    });

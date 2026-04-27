@@ -25,7 +25,7 @@ try {
 
     // 2. Seed Data (Creates users)
     console.log("\n2️⃣  Seeding Database...");
-    const seedMain = require('./scripts/seed-production.js');
+    const seedMain = require('./prisma/seed.js');
 
     seedMain().then(() => {
         console.log("\n✅ Setup Complete! You can now start the server.");

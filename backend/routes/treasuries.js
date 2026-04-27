@@ -205,15 +205,6 @@ router.post("/transfer", async (req, res) => {
 
       if (!source) throw new Error("Source treasury not found");
 
-      // Block Visa / Instapay as SOURCE — these are one-way destinations.
-      if (source.scope === "GLOBAL_VISA" || source.scope === "GLOBAL_INSTAPAY") {
-        const err = new Error("لا يمكن التحويل من خزائن فيزا / انستاباي");
-        err.status = 422;
-        throw err;
-      }
-
-      // ----------------------------------------
-
       if (Number(source.balance) < transferAmount) {
         throw new Error("Insufficient funds in source treasury");
       }

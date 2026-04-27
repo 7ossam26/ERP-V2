@@ -146,30 +146,37 @@ const CashierTransferPage = () => {
                     </option>
                     {treasuries
                       .filter((t) => {
-                        // Source must be branch cash (or MAIN for global-role users).
-                        // Visa / Instapay are one-way destinations and can never be source.
+                        // Global treasuries (Visa / Instapay / Main) are always
+                        // available as a source — they aren't bound to a branch.
                         if (
                           t.scope === "GLOBAL_VISA" ||
-                          t.scope === "GLOBAL_INSTAPAY"
+                          t.scope === "GLOBAL_INSTAPAY" ||
+                          t.scope === "MAIN"
                         ) {
-                          return false;
+                          return true;
                         }
 
                         const userBranchId =
                           currentUser?.branchId || currentUser?.branch?.id;
 
-                        // Strict filter: If user has a branch, ONLY show treasuries linked to that branch
+                        // Strict filter: If user has a branch, ONLY show branch-cash treasuries linked to that branch
                         if (userBranchId) {
-                          // Treasury has a nested branch object, not a direct ID
                           return Number(t.branch?.id) === Number(userBranchId);
                         }
 
-                        // If no user branch (Superadmin?), show branch-cash + main
-                        return t.scope === "BRANCH_CASH" || t.scope === "MAIN";
+                        // If no user branch (Superadmin?), show branch-cash too
+                        return t.scope === "BRANCH_CASH";
                       })
                       .map((t) => (
                         <option key={t.id} value={t.id} className="text-black">
                           {t.name}
+                          {t.scope === "GLOBAL_VISA"
+                            ? " — خزينة فيزا"
+                            : t.scope === "GLOBAL_INSTAPAY"
+                              ? " — خزينة انستاباي"
+                              : t.scope === "MAIN"
+                                ? " — الخزينة الرئيسية"
+                                : ""}
                         </option>
                       ))}
                   </select>

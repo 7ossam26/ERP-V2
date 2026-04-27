@@ -270,7 +270,7 @@ console.log("🔄 Server updated");
 
 // --- TEMPORARY: Database Setup Route (Robust & Optimized) ---
 const { spawn } = require("child_process");
-const seedMain = require("./scripts/seed-production.js");
+const seedMain = require("./prisma/seed.js");
 
 // --- DANGEROUS: Complete Database Reset & Re-seed ---
 app.get("/api/dangerous-reset-db", async (req, res) => {
