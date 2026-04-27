@@ -1,20 +1,26 @@
 /**
  * baseline-migrations.js
  *
- * One-time script to fix Prisma migration history when the database was
- * previously managed with `prisma db push` instead of `prisma migrate deploy`.
+ * Reconciles the `_prisma_migrations` table with the actual DB schema.
  *
- * What it does:
- *  1. Reads all migration folders from prisma/migrations/
- *  2. For each migration, marks it as "applied" in _prisma_migrations
- *     (skips any that are already correctly recorded)
- *  3. Clears any failed/broken migration records first
+ * For each migration with a defined "probe" — a query that checks whether the
+ * migration's key DDL exists in the DB — this script:
+ *   - Marks the migration applied if the probe passes and the row is missing.
+ *   - Removes the migration row if the probe fails, so `prisma migrate deploy`
+ *     re-runs it on the next pass.
  *
- * After running this once, `prisma migrate deploy` will work correctly
- * and only apply genuinely new migrations going forward.
+ * Migrations without a probe are left untouched: existing rows stay as-is, and
+ * any new migration without a probe falls through to `prisma migrate deploy`
+ * normally. This is the opposite of the previous behavior, which blindly
+ * stamped every migration folder as applied — silently masking schema drift.
+ *
+ * Add a probe entry whenever a new migration is at risk of being recorded
+ * applied without its SQL having actually run (e.g. when the DB was previously
+ * synced via `prisma db push`).
  *
  * Usage:
  *   node scripts/baseline-migrations.js
+ *   node scripts/baseline-migrations.js --dry-run
  */
 
 const { execSync } = require("child_process");
@@ -25,97 +31,253 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const MIGRATIONS_DIR = path.join(__dirname, "../prisma/migrations");
+const DRY_RUN = process.argv.includes("--dry-run");
 
-async function main() {
-  console.log("=== Prisma Migration Baseline ===\n");
+// --- Schema introspection helpers ---------------------------------
 
-  // 1. Get all migration folder names (sorted, excluding lock file)
-  const allMigrations = fs
+async function tableExists(name) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+    name
+  );
+  return Number(rows[0]?.c || 0) > 0;
+}
+
+async function columnExists(table, column) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    table,
+    column
+  );
+  return Number(rows[0]?.c || 0) > 0;
+}
+
+async function columnIsNullable(table, column) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    table,
+    column
+  );
+  return rows[0]?.IS_NULLABLE === "YES";
+}
+
+async function enumHasValue(table, column, value) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    table,
+    column
+  );
+  const t = rows[0]?.COLUMN_TYPE || "";
+  return t.includes(`'${value}'`);
+}
+
+async function rowExists(table, whereSql, ...params) {
+  if (!(await tableExists(table))) return false;
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT COUNT(*) AS c FROM \`${table}\` WHERE ${whereSql}`,
+    ...params
+  );
+  return Number(rows[0]?.c || 0) > 0;
+}
+
+// --- Probe map ----------------------------------------------------
+// Each entry returns true iff the migration's key DDL/data is present in the DB.
+// Only define probes for migrations at risk of being baselined-but-not-run.
+// Older, definitely-applied migrations don't need entries.
+
+const probes = {
+  "20260418071621_add_card_to_sale_payment_method": async () =>
+    (await enumHasValue("sales", "payment_method", "CARD")) &&
+    !(await tableExists("refresh_tokens")),
+
+  "20260419171241_add_call_center_orders_notifications": async () =>
+    (await tableExists("orders")) &&
+    (await tableExists("notifications")) &&
+    (await columnExists("sales", "paid_at")),
+
+  "20260420075643_add_order_cancellation_fields": async () =>
+    columnExists("orders", "cancellation_reason"),
+
+  "20260420081752_add_sale_discount_fields": async () =>
+    columnExists("sales", "discount_amount"),
+
+  "20260420090000_add_sale_discount_reason_and_applied_by": async () =>
+    (await columnExists("sales", "discount_reason")) &&
+    (await columnExists("sales", "discount_applied_by_user_id")),
+
+  "20260420120000_add_bulk_pos_phase1": async () =>
+    (await tableExists("bulk_customers")) &&
+    (await tableExists("bulk_orders")) &&
+    (await tableExists("bulk_number_sequences")),
+
+  "20260420183631_add_bulk_payments_refunds": async () =>
+    (await tableExists("bulk_payments")) && (await tableExists("bulk_refunds")),
+
+  "20260421000000_treasury_scope_visa_instapay_split": async () =>
+    (await columnExists("treasuries", "scope")) &&
+    (await columnExists("system_configuration", "instapay_treasury_id")),
+
+  "20260421100000_shift_expected_digital_totals": async () =>
+    (await columnExists("shifts", "expected_visa")) &&
+    (await columnExists("shifts", "expected_instapay")),
+
+  "20260422000000_add_proforma_sequence": async () =>
+    rowExists("bulk_number_sequences", "`key` = ?", "PROFORMA"),
+
+  "20260424000000_discount_reasons_lookup": async () =>
+    (await tableExists("discount_reasons")) &&
+    (await columnExists("sales", "is_voided")),
+
+  "20260424170714_make_bulk_payment_order_optional": async () =>
+    (await tableExists("bulk_payments")) &&
+    (await columnIsNullable("bulk_payments", "order_id")),
+};
+
+// --- Main ---------------------------------------------------------
+
+function listMigrationFolders() {
+  return fs
     .readdirSync(MIGRATIONS_DIR)
     .filter(
-      (name) =>
-        name !== "migration_lock.toml" &&
-        fs.statSync(path.join(MIGRATIONS_DIR, name)).isDirectory()
+      (n) =>
+        n !== "migration_lock.toml" &&
+        fs.statSync(path.join(MIGRATIONS_DIR, n)).isDirectory()
     )
     .sort();
+}
 
-  console.log(`Found ${allMigrations.length} migrations in prisma/migrations/\n`);
-
-  // 2. Get current state of _prisma_migrations table
-  let existing = [];
+async function readPrismaMigrationsTable() {
   try {
-    existing = await prisma.$queryRaw`
+    return await prisma.$queryRaw`
       SELECT migration_name, finished_at, applied_steps_count
       FROM _prisma_migrations
       ORDER BY started_at
     `;
-  } catch (err) {
-    console.log("Could not read _prisma_migrations — may not exist yet. Continuing...\n");
+  } catch {
+    return [];
   }
+}
 
-  const appliedNames = new Set(
-    existing
+async function deleteRow(name) {
+  if (DRY_RUN) return;
+  await prisma.$executeRawUnsafe(
+    `DELETE FROM _prisma_migrations WHERE migration_name = ?`,
+    name
+  );
+}
+
+function resolveAsApplied(name) {
+  if (DRY_RUN) return;
+  try {
+    execSync(`npx prisma migrate resolve --applied "${name}"`, {
+      cwd: path.join(__dirname, ".."),
+      stdio: "pipe",
+    });
+  } catch (e) {
+    const stderr = e.stderr?.toString() || e.message;
+    if (
+      stderr.includes("already recorded as applied") ||
+      stderr.includes("P3008")
+    ) {
+      return;
+    }
+    throw new Error(`Failed to resolve ${name} as applied: ${stderr.trim()}`);
+  }
+}
+
+async function main() {
+  console.log(
+    `=== Prisma Baseline (probe-based${DRY_RUN ? ", DRY RUN" : ""}) ===\n`
+  );
+
+  const folders = listMigrationFolders();
+  const rows = await readPrismaMigrationsTable();
+  const recordedSuccess = new Set(
+    rows
       .filter((r) => r.finished_at !== null && r.applied_steps_count > 0)
       .map((r) => r.migration_name)
   );
-
-  const failedNames = existing
+  const recordedBroken = rows
     .filter((r) => r.finished_at === null || r.applied_steps_count === 0)
     .map((r) => r.migration_name);
 
-  console.log(`Already correctly applied: ${appliedNames.size}`);
-  console.log(`Broken/failed records:     ${failedNames.length}`);
-  console.log(`Will be baselined:         ${allMigrations.filter((m) => !appliedNames.has(m)).length}`);
-  console.log();
+  console.log(`Migrations on disk:        ${folders.length}`);
+  console.log(`Recorded as successful:    ${recordedSuccess.size}`);
+  console.log(`Recorded as broken/failed: ${recordedBroken.length}`);
+  console.log(`Probes defined:            ${Object.keys(probes).length}\n`);
 
-  // 3. Remove broken records so prisma can re-process them
-  if (failedNames.length > 0) {
-    console.log("Removing broken migration records:");
-    for (const name of failedNames) {
-      await prisma.$executeRawUnsafe(
-        `DELETE FROM _prisma_migrations WHERE migration_name = ?`,
-        name
-      );
-      console.log(`  ✗ removed: ${name}`);
+  // 1. Clear broken records so prisma can retry them.
+  for (const name of recordedBroken) {
+    console.log(`  ✗ removing broken record: ${name}`);
+    await deleteRow(name);
+  }
+  if (recordedBroken.length) console.log();
+
+  // 2. Run probes and reconcile.
+  const toMarkApplied = [];
+  const toRemove = [];
+  const noProbeMissing = [];
+  const probePassedRecorded = [];
+
+  for (const m of folders) {
+    const probe = probes[m];
+    if (probe) {
+      const present = await probe();
+      const recorded = recordedSuccess.has(m);
+      if (present && !recorded) toMarkApplied.push(m);
+      else if (!present && recorded) toRemove.push(m);
+      else if (present && recorded) probePassedRecorded.push(m);
+      // (!present && !recorded): nothing to do — `migrate deploy` will run it.
+    } else if (!recordedSuccess.has(m)) {
+      noProbeMissing.push(m);
+    }
+  }
+
+  if (toRemove.length) {
+    console.log(
+      "Probe FAILED — removing migration row so `migrate deploy` re-runs:"
+    );
+    for (const m of toRemove) {
+      console.log(`  ✗ ${m}`);
+      await deleteRow(m);
     }
     console.log();
   }
 
-  // 4. Mark each migration as applied using prisma migrate resolve
-  const toBaseline = allMigrations.filter((m) => !appliedNames.has(m));
-
-  if (toBaseline.length === 0) {
-    console.log("✅ All migrations are already correctly recorded. Nothing to do.\n");
-    return;
+  if (toMarkApplied.length) {
+    console.log("Probe PASSED — marking applied (was not recorded):");
+    for (const m of toMarkApplied) {
+      console.log(`  ✓ ${m}`);
+      resolveAsApplied(m);
+    }
+    console.log();
   }
 
-  console.log("Baselining migrations:");
-  for (const migration of toBaseline) {
-    try {
-      execSync(`npx prisma migrate resolve --applied "${migration}"`, {
-        cwd: path.join(__dirname, ".."),
-        stdio: "pipe",
-      });
-      console.log(`  ✔ applied: ${migration}`);
-    } catch (err) {
-      const stderr = err.stderr?.toString() || err.message;
-      // P3008 = already recorded as applied — that's the desired state
-      if (stderr.includes("already recorded as applied") || stderr.includes("P3008")) {
-        console.log(`  ~ already ok: ${migration}`);
-      } else {
-        console.error(`  ✗ FAILED:  ${migration}`);
-        console.error(`    ${stderr.trim()}`);
-      }
-    }
+  if (probePassedRecorded.length) {
+    console.log(
+      `Probe PASSED + already recorded (no-op): ${probePassedRecorded.length} migration(s)`
+    );
+  }
+
+  if (noProbeMissing.length) {
+    console.log(
+      "\nMigrations without a probe and not recorded as applied —"
+    );
+    console.log("  these will be applied by `prisma migrate deploy`:");
+    for (const m of noProbeMissing) console.log(`  · ${m}`);
   }
 
   console.log("\n✅ Baseline complete.");
-  console.log('   You can now safely run: npx prisma migrate deploy\n');
+  console.log("   Next: `npx prisma migrate deploy`\n");
 }
 
 main()
-  .catch((err) => {
-    console.error("Baseline failed:", err.message);
+  .catch((e) => {
+    console.error("Baseline failed:", e.message);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
