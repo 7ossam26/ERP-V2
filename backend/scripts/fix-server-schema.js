@@ -31,6 +31,25 @@ async function columnExists(table, column) {
   return Number(rows[0]?.count || 0) > 0;
 }
 
+async function tableExists(table) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+    table
+  );
+  return Number(rows[0]?.count || 0) > 0;
+}
+
+async function columnIsNullable(table, column) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    table,
+    column
+  );
+  return rows[0]?.IS_NULLABLE === "YES";
+}
+
 function isIgnorableDdlError(error) {
   const message = error?.message || "";
   const metaCode = error?.meta?.code || "";
@@ -132,6 +151,381 @@ async function backfillPaidAt() {
   `);
 }
 
+// Patches for migrations 20260418071621 → 20260424170714 that were baselined
+// (marked applied) without their SQL having actually run. Each block is
+// idempotent so it's safe to re-run on every boot. Once these all complete,
+// the probes in baseline-migrations.js will pass and the migrations will be
+// recorded applied without `migrate deploy` ever needing to run their
+// non-idempotent SQL.
+async function applyLegacyMigrationFixes() {
+  // --- 20260418071621_add_card_to_sale_payment_method ---
+  await executeIgnoringDuplicate(
+    "ALTER TABLE `refresh_tokens` DROP FOREIGN KEY `refresh_tokens_user_id_fkey`"
+  );
+  await executeIgnoringDuplicate("DROP TABLE IF EXISTS `refresh_tokens`");
+  await executeIgnoringDuplicate(
+    "ALTER TABLE `audit_logs` DROP INDEX `audit_logs_target_entity_target_id_idx`"
+  );
+  await executeIgnoringDuplicate(
+    "ALTER TABLE `bom` MODIFY `output_quantity` DECIMAL(10, 4) NOT NULL DEFAULT 1"
+  );
+  await executeIgnoringDuplicate(`
+    ALTER TABLE \`sales\` MODIFY \`payment_method\`
+    ENUM('CASH','INSTAPAY','VISA','CARD') NOT NULL DEFAULT 'CASH'
+  `);
+  await executeIgnoringDuplicate(
+    "CREATE INDEX `audit_logs_target_entity_target_id_idx` ON `audit_logs`(`target_entity`, `target_id`)"
+  );
+  await executeIgnoringDuplicate(`
+    ALTER TABLE \`production_orders\` ADD CONSTRAINT \`production_orders_dest_warehouse_id_fkey\`
+      FOREIGN KEY (\`dest_warehouse_id\`) REFERENCES \`warehouses\`(\`id\`)
+      ON DELETE RESTRICT ON UPDATE CASCADE
+  `);
+
+  // --- 20260419171241_add_call_center_orders_notifications ---
+  await executeIgnoringDuplicate(`
+    ALTER TABLE \`permissions\` MODIFY \`module\`
+    ENUM('HR','INVENTORY','INVENTORY_COUNT','STOCK_TRANSFER','POS','PURCHASES','SALES','REPORTS','TREASURIES','CASH_TRANSFER','TRANSFER_MANAGEMENT','BRANCHES','EMPLOYEES','CLIENTS','SUPPLIERS','SUPPLIER_ACCOUNTS','CATEGORIES','ITEMS','WAREHOUSES','SETTINGS','EXPENSES','SHIFTS','DELIVERY_SETTLEMENT','CREATES_WAREHOUSES','CREATES_EMPLOYEES','CREATES_SUPPLIERS','CREATES_CLIENTS','CREATES_CATEGORIES','CREATES_ITEMS','CREATES_TREASURIES','CREATES_BRANCHES','DEPOSITS','CREATES_DEPOSITS','WITHDRAWALS','CREATES_WITHDRAWALS','DELIVERY_MEN','CREATES_DELIVERY_MEN','DELIVERY_ZONES','CREATES_DELIVERY_ZONES','CREATES_PRODUCTION','PRODUCTION','INITIAL_INVENTORY','CALL_CENTER','BULK_POS','BULK_CUSTOMERS','BULK_PRICING','BULK_CREDIT','BULK_REPORTS') NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`orders\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`sale_id\` INTEGER NOT NULL,
+      \`channel\` ENUM('POS','CALL_CENTER','WHATSAPP','WEB','AGGREGATOR') NOT NULL DEFAULT 'POS',
+      \`status\` ENUM('NEW','PREPARING','READY','OUT_FOR_DELIVERY','DELIVERED','CANCELLED') NOT NULL DEFAULT 'NEW',
+      \`branch_id\` INTEGER NOT NULL,
+      \`created_by_id\` INTEGER NOT NULL,
+      \`claimed_by_id\` INTEGER NULL,
+      \`claimed_at\` DATETIME(3) NULL,
+      \`ready_at\` DATETIME(3) NULL,
+      \`dispatched_at\` DATETIME(3) NULL,
+      \`delivered_at\` DATETIME(3) NULL,
+      \`cancelled_at\` DATETIME(3) NULL,
+      \`cancel_reason\` TEXT NULL,
+      \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updated_at\` DATETIME(3) NOT NULL,
+      UNIQUE INDEX \`orders_sale_id_key\`(\`sale_id\`),
+      INDEX \`orders_channel_status_branch_id_idx\`(\`channel\`, \`status\`, \`branch_id\`),
+      INDEX \`orders_created_by_id_created_at_idx\`(\`created_by_id\`, \`created_at\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  for (const fk of [
+    "ALTER TABLE `orders` ADD CONSTRAINT `orders_sale_id_fkey` FOREIGN KEY (`sale_id`) REFERENCES `sales`(`id`) ON DELETE CASCADE ON UPDATE CASCADE",
+    "ALTER TABLE `orders` ADD CONSTRAINT `orders_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `orders` ADD CONSTRAINT `orders_created_by_id_fkey` FOREIGN KEY (`created_by_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `orders` ADD CONSTRAINT `orders_claimed_by_id_fkey` FOREIGN KEY (`claimed_by_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE",
+  ]) {
+    await executeIgnoringDuplicate(fk);
+  }
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO \`orders\` (\`sale_id\`, \`channel\`, \`status\`, \`branch_id\`, \`created_by_id\`, \`delivered_at\`, \`created_at\`, \`updated_at\`)
+    SELECT s.\`id\`, 'POS', 'DELIVERED', s.\`branch_id\`, COALESCE(s.\`user_id\`, 1), s.\`created_at\`, s.\`created_at\`, s.\`created_at\`
+    FROM \`sales\` s
+    WHERE NOT EXISTS (SELECT 1 FROM \`orders\` o WHERE o.\`sale_id\` = s.\`id\`)
+  `);
+
+  // --- 20260420075643_add_order_cancellation_fields ---
+  if (!(await columnExists("orders", "cancellation_note"))) {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE \`orders\`
+        ADD COLUMN \`cancellation_note\` TEXT NULL,
+        ADD COLUMN \`cancellation_reason\` ENUM('CUSTOMER_REQUEST','OUT_OF_STOCK','WRONG_ADDRESS','NO_ANSWER','DUPLICATE','OTHER') NULL,
+        ADD COLUMN \`cancelled_by_id\` INTEGER NULL
+    `);
+  }
+  await executeIgnoringDuplicate(
+    "ALTER TABLE `orders` ADD CONSTRAINT `orders_cancelled_by_id_fkey` FOREIGN KEY (`cancelled_by_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+
+  // --- 20260420081752_add_sale_discount_fields ---
+  if (!(await columnExists("sales", "discount_amount"))) {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE \`sales\`
+        ADD COLUMN \`discount_amount\` DECIMAL(10,2) NULL,
+        ADD COLUMN \`discount_type\` ENUM('PERCENTAGE','VALUE') NULL,
+        ADD COLUMN \`discount_value\` DECIMAL(10,2) NULL
+    `);
+  }
+
+  // --- 20260420090000_add_sale_discount_reason_and_applied_by ---
+  if (!(await columnExists("sales", "discount_reason"))) {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE \`sales\`
+        ADD COLUMN \`discount_reason\` VARCHAR(32) NULL,
+        ADD COLUMN \`discount_applied_by_user_id\` INT NULL
+    `);
+  }
+  await executeIgnoringDuplicate(
+    "ALTER TABLE `sales` ADD CONSTRAINT `sales_discount_applied_by_user_id_fkey` FOREIGN KEY (`discount_applied_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+  await executeIgnoringDuplicate(
+    "CREATE INDEX `sales_discount_applied_by_user_id_idx` ON `sales`(`discount_applied_by_user_id`)"
+  );
+
+  // --- 20260420120000_add_bulk_pos_phase1 ---
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_customers\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`company_name\` VARCHAR(200) NOT NULL,
+      \`trade_name\` VARCHAR(200) NULL,
+      \`tax_number\` VARCHAR(50) NULL,
+      \`primary_contact_name\` VARCHAR(120) NOT NULL,
+      \`primary_contact_phone\` VARCHAR(40) NOT NULL,
+      \`primary_contact_email\` VARCHAR(120) NULL,
+      \`shipping_address\` TEXT NOT NULL,
+      \`credit_limit\` DECIMAL(12, 2) NULL,
+      \`notes\` TEXT NULL,
+      \`is_active\` BOOLEAN NOT NULL DEFAULT true,
+      \`created_by_user_id\` INTEGER NULL,
+      \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updated_at\` DATETIME(3) NOT NULL,
+      UNIQUE INDEX \`bulk_customers_tax_number_key\`(\`tax_number\`),
+      INDEX \`bulk_customers_company_name_idx\`(\`company_name\`),
+      INDEX \`bulk_customers_primary_contact_phone_idx\`(\`primary_contact_phone\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_customer_contacts\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`customer_id\` INTEGER NOT NULL,
+      \`name\` VARCHAR(120) NOT NULL,
+      \`phone\` VARCHAR(40) NOT NULL,
+      \`email\` VARCHAR(120) NULL,
+      \`role\` VARCHAR(60) NULL,
+      INDEX \`bulk_customer_contacts_customer_id_idx\`(\`customer_id\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_contract_prices\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`customer_id\` INTEGER NOT NULL,
+      \`item_id\` INTEGER NOT NULL,
+      \`price\` DECIMAL(10, 2) NOT NULL,
+      \`created_by_user_id\` INTEGER NULL,
+      \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updated_at\` DATETIME(3) NOT NULL,
+      UNIQUE INDEX \`bulk_contract_prices_customer_id_item_id_key\`(\`customer_id\`, \`item_id\`),
+      INDEX \`bulk_contract_prices_item_id_idx\`(\`item_id\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_orders\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`order_number\` VARCHAR(191) NULL,
+      \`customer_id\` INTEGER NOT NULL,
+      \`warehouse_id\` INTEGER NOT NULL,
+      \`created_by_user_id\` INTEGER NOT NULL,
+      \`status\` ENUM('DRAFT','QUOTED','CONFIRMED','PARTIALLY_PAID','PAID','CANCELLED','RETURNED') NOT NULL DEFAULT 'DRAFT',
+      \`subtotal_inclusive\` DECIMAL(12, 2) NOT NULL,
+      \`tax_rate\` DECIMAL(5, 4) NOT NULL DEFAULT 0.14,
+      \`net_amount\` DECIMAL(12, 2) NOT NULL,
+      \`tax_amount\` DECIMAL(12, 2) NOT NULL,
+      \`total\` DECIMAL(12, 2) NOT NULL,
+      \`paid_amount\` DECIMAL(12, 2) NOT NULL DEFAULT 0,
+      \`balance_due\` DECIMAL(12, 2) NOT NULL,
+      \`scheduled_pickup_date\` DATETIME(3) NULL,
+      \`confirmed_at\` DATETIME(3) NULL,
+      \`paid_at\` DATETIME(3) NULL,
+      \`cancelled_at\` DATETIME(3) NULL,
+      \`cancelled_by_user_id\` INTEGER NULL,
+      \`cancel_reason\` TEXT NULL,
+      \`returned_at\` DATETIME(3) NULL,
+      \`notes\` TEXT NULL,
+      \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updated_at\` DATETIME(3) NOT NULL,
+      UNIQUE INDEX \`bulk_orders_order_number_key\`(\`order_number\`),
+      INDEX \`bulk_orders_customer_id_status_idx\`(\`customer_id\`, \`status\`),
+      INDEX \`bulk_orders_status_created_at_idx\`(\`status\`, \`created_at\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_order_items\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`order_id\` INTEGER NOT NULL,
+      \`item_id\` INTEGER NOT NULL,
+      \`quantity\` DECIMAL(12, 4) NOT NULL,
+      \`unit_price\` DECIMAL(10, 2) NOT NULL,
+      \`line_total\` DECIMAL(12, 2) NOT NULL,
+      INDEX \`bulk_order_items_order_id_idx\`(\`order_id\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_documents\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`order_id\` INTEGER NOT NULL,
+      \`type\` ENUM('PROFORMA','TAX_INVOICE','SALES_RECEIPT','CREDIT_NOTE') NOT NULL,
+      \`document_number\` VARCHAR(191) NOT NULL,
+      \`issued_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`issued_by_user_id\` INTEGER NOT NULL,
+      \`snapshot\` JSON NULL,
+      UNIQUE INDEX \`bulk_documents_document_number_key\`(\`document_number\`),
+      INDEX \`bulk_documents_order_id_type_idx\`(\`order_id\`, \`type\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_number_sequences\` (
+      \`key\` VARCHAR(191) NOT NULL,
+      \`next_value\` INTEGER NOT NULL DEFAULT 1,
+      \`prefix\` VARCHAR(20) NOT NULL,
+      \`updated_at\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`key\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  for (const fk of [
+    "ALTER TABLE `bulk_customers` ADD CONSTRAINT `bulk_customers_created_by_user_id_fkey` FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_customer_contacts` ADD CONSTRAINT `bulk_customer_contacts_customer_id_fkey` FOREIGN KEY (`customer_id`) REFERENCES `bulk_customers`(`id`) ON DELETE CASCADE ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_contract_prices` ADD CONSTRAINT `bulk_contract_prices_customer_id_fkey` FOREIGN KEY (`customer_id`) REFERENCES `bulk_customers`(`id`) ON DELETE CASCADE ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_contract_prices` ADD CONSTRAINT `bulk_contract_prices_item_id_fkey` FOREIGN KEY (`item_id`) REFERENCES `items`(`id`) ON DELETE CASCADE ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_contract_prices` ADD CONSTRAINT `bulk_contract_prices_created_by_user_id_fkey` FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_orders` ADD CONSTRAINT `bulk_orders_customer_id_fkey` FOREIGN KEY (`customer_id`) REFERENCES `bulk_customers`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_orders` ADD CONSTRAINT `bulk_orders_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_orders` ADD CONSTRAINT `bulk_orders_created_by_user_id_fkey` FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_orders` ADD CONSTRAINT `bulk_orders_cancelled_by_user_id_fkey` FOREIGN KEY (`cancelled_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_order_items` ADD CONSTRAINT `bulk_order_items_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `bulk_orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_order_items` ADD CONSTRAINT `bulk_order_items_item_id_fkey` FOREIGN KEY (`item_id`) REFERENCES `items`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_documents` ADD CONSTRAINT `bulk_documents_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `bulk_orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE",
+  ]) {
+    await executeIgnoringDuplicate(fk);
+  }
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO \`bulk_number_sequences\` (\`key\`, \`next_value\`, \`prefix\`, \`updated_at\`) VALUES
+      ('ORDER', 1, 'BULK-', NOW(3)),
+      ('SALES_RECEIPT', 1, 'BULK-RCP-', NOW(3)),
+      ('TAX_INVOICE', 1, 'BULK-TAX-', NOW(3)),
+      ('CREDIT_NOTE', 1, 'BULK-CN-', NOW(3))
+    ON DUPLICATE KEY UPDATE \`prefix\` = VALUES(\`prefix\`)
+  `);
+
+  // --- 20260420183631_add_bulk_payments_refunds ---
+  await executeIgnoringDuplicate(
+    "ALTER TABLE `sales` DROP INDEX `sales_discount_reason_idx`"
+  );
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_payments\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`order_id\` INTEGER NULL,
+      \`customer_id\` INTEGER NOT NULL,
+      \`treasury_id\` INTEGER NULL,
+      \`method\` ENUM('CASH','BANK_TRANSFER','CHEQUE','CREDIT') NOT NULL,
+      \`amount\` DECIMAL(12, 2) NOT NULL,
+      \`received_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`created_by_user_id\` INTEGER NOT NULL,
+      \`bank_reference\` VARCHAR(120) NULL,
+      \`cheque_number\` VARCHAR(60) NULL,
+      \`cheque_due_date\` DATETIME(3) NULL,
+      \`voided_at\` DATETIME(3) NULL,
+      \`voided_by_user_id\` INTEGER NULL,
+      \`void_reason\` TEXT NULL,
+      \`notes\` TEXT NULL,
+      INDEX \`bulk_payments_order_id_idx\`(\`order_id\`),
+      INDEX \`bulk_payments_customer_id_received_at_idx\`(\`customer_id\`, \`received_at\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`bulk_refunds\` (
+      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+      \`order_id\` INTEGER NOT NULL,
+      \`method\` ENUM('CASH_REFUND','CREDIT_NOTE') NOT NULL,
+      \`amount\` DECIMAL(12, 2) NOT NULL,
+      \`reason\` TEXT NULL,
+      \`treasury_id\` INTEGER NULL,
+      \`credit_note_number\` VARCHAR(191) NULL,
+      \`created_by_user_id\` INTEGER NOT NULL,
+      \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      UNIQUE INDEX \`bulk_refunds_credit_note_number_key\`(\`credit_note_number\`),
+      INDEX \`bulk_refunds_order_id_idx\`(\`order_id\`),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  for (const fk of [
+    "ALTER TABLE `bulk_payments` ADD CONSTRAINT `bulk_payments_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `bulk_orders`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_payments` ADD CONSTRAINT `bulk_payments_customer_id_fkey` FOREIGN KEY (`customer_id`) REFERENCES `bulk_customers`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_payments` ADD CONSTRAINT `bulk_payments_treasury_id_fkey` FOREIGN KEY (`treasury_id`) REFERENCES `treasuries`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_payments` ADD CONSTRAINT `bulk_payments_created_by_user_id_fkey` FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_payments` ADD CONSTRAINT `bulk_payments_voided_by_user_id_fkey` FOREIGN KEY (`voided_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_refunds` ADD CONSTRAINT `bulk_refunds_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `bulk_orders`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_refunds` ADD CONSTRAINT `bulk_refunds_treasury_id_fkey` FOREIGN KEY (`treasury_id`) REFERENCES `treasuries`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    "ALTER TABLE `bulk_refunds` ADD CONSTRAINT `bulk_refunds_created_by_user_id_fkey` FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+  ]) {
+    await executeIgnoringDuplicate(fk);
+  }
+
+  // --- 20260421100000_shift_expected_digital_totals ---
+  if (!(await columnExists("shifts", "expected_visa"))) {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE \`shifts\`
+        ADD COLUMN \`expected_visa\` DECIMAL(10,2) NULL,
+        ADD COLUMN \`expected_instapay\` DECIMAL(10,2) NULL
+    `);
+  }
+
+  // --- 20260422000000_add_proforma_sequence ---
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO \`bulk_number_sequences\` (\`key\`, \`prefix\`, \`next_value\`, \`updated_at\`)
+    VALUES ('PROFORMA', 'BULK-PRO-', 1, NOW(3))
+    ON DUPLICATE KEY UPDATE \`key\` = \`key\`
+  `);
+
+  // --- 20260424000000_discount_reasons_lookup ---
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`discount_reasons\` (
+      \`code\` VARCHAR(32) NOT NULL,
+      \`label_ar\` VARCHAR(128) NOT NULL,
+      \`customer_label_ar\` VARCHAR(128) NOT NULL,
+      \`is_active\` TINYINT(1) NOT NULL DEFAULT 1,
+      PRIMARY KEY (\`code\`)
+    ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO \`discount_reasons\` (\`code\`, \`label_ar\`, \`customer_label_ar\`) VALUES
+      ('STAFF_DISCOUNT','خصم موظف','خصم موظف'),
+      ('LOYAL_CUSTOMER','عميل مميز','خصم عميل مميز'),
+      ('DAMAGED_ITEM','منتج تالف','خصم منتج تالف'),
+      ('MANAGER_COMP','مجاملة إدارة','خصم إداري'),
+      ('PROMO','عرض ترويجي','عرض ترويجي'),
+      ('OTHER','أخرى','خصم')
+    ON DUPLICATE KEY UPDATE \`code\` = \`code\`
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE \`sales\` SET \`discount_reason\` = 'OTHER'
+    WHERE \`discount_reason\` IS NOT NULL
+      AND \`discount_reason\` NOT IN ('STAFF_DISCOUNT','LOYAL_CUSTOMER','DAMAGED_ITEM','MANAGER_COMP','PROMO','OTHER')
+  `);
+  if (!(await columnExists("sales", "is_voided"))) {
+    await prisma.$executeRawUnsafe(
+      "ALTER TABLE `sales` ADD COLUMN `is_voided` TINYINT(1) NOT NULL DEFAULT 0 AFTER `discount_reason`"
+    );
+  }
+  await executeIgnoringDuplicate(
+    "CREATE INDEX `idx_sales_shift_voided` ON `sales`(`shift_id`, `status`, `is_voided`)"
+  );
+
+  // --- 20260424170714_make_bulk_payment_order_optional ---
+  if (
+    (await tableExists("bulk_payments")) &&
+    !(await columnIsNullable("bulk_payments", "order_id"))
+  ) {
+    await prisma.$executeRawUnsafe(
+      "ALTER TABLE `bulk_payments` MODIFY `order_id` INTEGER NULL"
+    );
+  }
+  // FK rename: drop legacy name + ensure final name. Both safe.
+  await executeIgnoringDuplicate(
+    "ALTER TABLE `sales` DROP FOREIGN KEY `fk_sales_discount_reason`"
+  );
+  await executeIgnoringDuplicate(
+    "ALTER TABLE `sales` ADD CONSTRAINT `sales_discount_reason_fkey` FOREIGN KEY (`discount_reason`) REFERENCES `discount_reasons`(`code`) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+}
+
 async function run() {
   console.log(">>> [FIX] Checking and applying missing schema changes...");
 
@@ -214,6 +608,12 @@ async function run() {
     await executeIgnoringDuplicate(fk);
   }
   console.log(">>> [FIX] notification/treasury foreign keys: OK");
+
+  // 8. Apply idempotent fixes for the 11 baselined-but-not-run migrations
+  //    (20260418071621 → 20260424170714). After this, baseline-migrations.js
+  //    probes pass and `migrate deploy` sees nothing pending.
+  await applyLegacyMigrationFixes();
+  console.log(">>> [FIX] legacy migration fixes (20260418→20260424): OK");
 
   console.log(">>> [FIX] All schema fixes applied successfully.");
 }
