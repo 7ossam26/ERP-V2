@@ -196,18 +196,21 @@ async function main() {
 
   const folders = listMigrationFolders();
   const rows = await readPrismaMigrationsTable();
-  const recordedSuccess = new Set(
-    rows
-      .filter((r) => r.finished_at !== null && r.applied_steps_count > 0)
-      .map((r) => r.migration_name)
+
+  // A row counts as "applied" iff finished_at is set. applied_steps_count can
+  // be 0 / NULL when the row was inserted via `migrate resolve --applied`, so
+  // we don't filter on it — that's what hid 56 rows from view last run.
+  const recordedApplied = new Set(
+    rows.filter((r) => r.finished_at !== null).map((r) => r.migration_name)
   );
   const recordedBroken = rows
-    .filter((r) => r.finished_at === null || r.applied_steps_count === 0)
+    .filter((r) => r.finished_at === null)
     .map((r) => r.migration_name);
 
   console.log(`Migrations on disk:        ${folders.length}`);
-  console.log(`Recorded as successful:    ${recordedSuccess.size}`);
-  console.log(`Recorded as broken/failed: ${recordedBroken.length}`);
+  console.log(`Rows in _prisma_migrations:${rows.length}`);
+  console.log(`  applied (finished_at set): ${recordedApplied.size}`);
+  console.log(`  broken (finished_at NULL): ${recordedBroken.length}`);
   console.log(`Probes defined:            ${Object.keys(probes).length}\n`);
 
   // 1. Clear broken records so prisma can retry them.
@@ -227,19 +230,18 @@ async function main() {
     const probe = probes[m];
     if (probe) {
       const present = await probe();
-      const recorded = recordedSuccess.has(m);
+      const recorded = recordedApplied.has(m);
       if (present && !recorded) toMarkApplied.push(m);
-      else if (!present && recorded) toRemove.push(m);
-      else if (present && recorded) probePassedRecorded.push(m);
-      // (!present && !recorded): nothing to do — `migrate deploy` will run it.
-    } else if (!recordedSuccess.has(m)) {
+      else if (!present) toRemove.push(m); // unconditional: row may exist even if filter missed it
+      else probePassedRecorded.push(m);
+    } else if (!recordedApplied.has(m)) {
       noProbeMissing.push(m);
     }
   }
 
   if (toRemove.length) {
     console.log(
-      "Probe FAILED — removing migration row so `migrate deploy` re-runs:"
+      "Probe FAILED — deleting any _prisma_migrations row so `migrate deploy` re-runs:"
     );
     for (const m of toRemove) {
       console.log(`  ✗ ${m}`);
