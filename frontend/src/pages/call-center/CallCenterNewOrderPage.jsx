@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { CheckCircle2, MapPin, Phone, Search, UserRound, X } from "lucide-react";
+import { CheckCircle2, MapPin, Phone, Search, Sparkles, UserRound, X } from "lucide-react";
 import { callCenterService } from "../../services/callCenterService";
 import { deliveryZoneService } from "../../services/deliveryZoneService";
 import { computeDiscountAmount } from "../../components/pos/DiscountPanel";
@@ -52,12 +52,13 @@ const CallCenterNewOrderPage = () => {
   const branchSectionRef = useRef(null);
   const customerSectionRef = useRef(null);
 
-  // Load branches
+  // Load branches on mount; focus phone (customer is step 1)
   useEffect(() => {
     callCenterService.listBranches().then(setBranches).catch(() => toast.error("تعذر تحميل الفروع"));
+    setTimeout(() => phoneRef.current?.focus(), 100);
   }, []);
 
-  // Load items + zones when branch changes
+  // Load items + zones when branch changes (delivery zones filter by branch)
   useEffect(() => {
     if (!branchId) { setItems([]); setZones([]); return; }
     setLoadingItems(true);
@@ -71,9 +72,6 @@ const CallCenterNewOrderPage = () => {
       .getAll()
       .then((all) => setZones(all.filter((z) => !z.branchId || z.branchId === parseInt(branchId))))
       .catch(console.error);
-
-    // Continue the operator's natural flow: branch -> phone -> order details.
-    setTimeout(() => phoneRef.current?.focus(), 100);
   }, [branchId]);
 
   // Phone lookup (debounced)
@@ -150,29 +148,36 @@ const CallCenterNewOrderPage = () => {
   );
 
   const posGateReason = useMemo(() => {
-    if (!branchId) return "اختر الفرع أولاً";
     if (!String(phone).trim()) return "أدخل رقم هاتف العميل";
     if (!String(newClientName).trim()) return "أدخل اسم العميل";
-    if (!zoneId) return "اختر منطقة التوصيل";
     if (!String(deliveryAddress).trim()) return "أدخل عنوان التسليم";
+    if (!branchId) return "اختر الفرع";
+    if (!zoneId) return "اختر منطقة التوصيل";
     return null;
   }, [branchId, phone, newClientName, zoneId, deliveryAddress]);
 
   const readyForPos = !posGateReason && customerInformationComplete;
 
   const focusCustomerInformation = () => {
+    // Flow: Customer step (phone → name → address) → Branch → Zone
+    if (!String(phone).trim() || !String(newClientName).trim() || !String(deliveryAddress).trim()) {
+      customerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(() => {
+        if (!String(phone).trim()) phoneRef.current?.focus();
+        else if (!String(newClientName).trim()) nameRef.current?.focus();
+        else addressRef.current?.focus();
+      }, 120);
+      return;
+    }
+
     if (!branchId) {
       branchSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
 
-    customerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setTimeout(() => {
-      if (!String(phone).trim()) phoneRef.current?.focus();
-      else if (!String(newClientName).trim()) nameRef.current?.focus();
-      else if (!zoneId) zoneSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      else if (!String(deliveryAddress).trim()) addressRef.current?.focus();
-    }, 120);
+    if (!zoneId) {
+      zoneSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   };
 
   useEffect(() => {
@@ -327,16 +332,9 @@ const CallCenterNewOrderPage = () => {
 
         {/* ── Column A: Form (4/12) ── */}
         <div className="lg:col-span-4 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-soft">
-          {/* Step 1 — Branch */}
-          <div ref={branchSectionRef}>
-            <Step number={1} label="الفرع" complete={!!branchId} active={!branchId}>
-              <BranchChips branches={branches} selectedId={branchId} onChange={setBranchId} />
-            </Step>
-          </div>
-
-          {/* Step 2 — Customer */}
+          {/* Step 1 — Customer */}
           <div ref={customerSectionRef}>
-            <Step number={2} label="العميل" complete={!!(phone && newClientName)} active={!!branchId && !newClientName}>
+            <Step number={1} label="العميل" complete={!!(phone && newClientName)} active={!phone || !newClientName}>
               {/* Phone */}
               <div className="mb-3">
                 <label className="block text-xs font-medium text-text-light/60 dark:text-text-dark/60 mb-1.5">رقم الهاتف</label>
@@ -364,6 +362,23 @@ const CallCenterNewOrderPage = () => {
                   />
                 </div>
               </div>
+
+              {/* New-customer notice — number not registered */}
+              {!selectedClient && phone.trim().length >= 3 && clientResults.length === 0 && (
+                <div className="mb-3 flex items-start gap-2.5 rounded-lg border-2 border-amber-400/60 bg-amber-50 px-3 py-2.5 shadow-sm dark:border-amber-500/50 dark:bg-amber-900/20">
+                  <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-amber-400/30 text-amber-700 dark:bg-amber-500/30 dark:text-amber-300">
+                    <Sparkles size={13} strokeWidth={2.5} />
+                  </span>
+                  <div className="min-w-0 text-xs leading-snug">
+                    <p className="font-extrabold text-amber-700 dark:text-amber-300">
+                      رقم غير مسجل — عميل جديد
+                    </p>
+                    <p className="mt-0.5 font-medium text-text-light/70 dark:text-text-dark/70">
+                      سيتم تسجيل هذا العميل تلقائياً في قاعدة البيانات عند إرسال الطلب
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Live results dropdown */}
               {clientResults.length > 0 && !selectedClient && (
@@ -448,43 +463,15 @@ const CallCenterNewOrderPage = () => {
                   placeholder="اسم العميل"
                 />
               </div>
-            </Step>
-          </div>
-
-          {/* Step 3 — Delivery */}
-          <Step number={3} label="التوصيل" complete={customerInformationComplete} active={!!(phone && newClientName) && !customerInformationComplete}>
-            <div className="mb-4 rounded-lg border-2 border-primary/20 bg-primary/[0.04] p-3 shadow-sm dark:bg-primary/[0.08]">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
-                    <MapPin size={16} />
-                  </span>
-                  <div>
-                    <p className="text-sm font-extrabold text-text-light dark:text-text-dark">بيانات التوصيل</p>
-                    <p className="text-[11px] font-medium text-text-light/45 dark:text-text-dark/45">مطلوبة قبل فتح الأصناف</p>
-                  </div>
-                </div>
-                {selectedZone && (
-                  <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-bold tabular-nums text-primary shadow-sm dark:bg-gray-800">
-                    {deliveryFee.toFixed(0)} ج.م
-                  </span>
-                )}
-              </div>
-
-              {/* Zone chips */}
-              <div ref={zoneSectionRef} className="mb-4">
-                <label className="mb-2 block text-sm font-extrabold text-primary">منطقة التوصيل *</label>
-                <ZoneChips zones={zones} selectedId={zoneId} onChange={setZoneId} branchId={branchId} />
-              </div>
 
               {/* Address */}
-              <div>
-                <label className="mb-2 block text-sm font-extrabold text-primary">عنوان التسليم *</label>
+              <div className="mb-3">
+                <label className="mb-1.5 block text-xs font-medium text-text-light/60 dark:text-text-dark/60">عنوان التسليم</label>
                 <div className="relative">
                   <MapPin size={18} className="absolute left-3 top-3.5 text-primary/60" />
                   <textarea
                     ref={addressRef}
-                    className="min-h-[96px] w-full resize-none rounded-lg border-2 border-primary/20 bg-white px-3 py-3 pl-10 text-sm font-semibold text-text-light placeholder:text-text-light/30 shadow-sm transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:bg-gray-800 dark:text-text-dark"
+                    className="min-h-[88px] w-full resize-none rounded-lg border border-border-light bg-white px-3 py-3 pl-10 text-sm font-semibold text-text-light placeholder:text-text-light/30 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-dark dark:bg-gray-800 dark:text-text-dark"
                     rows={3}
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
@@ -492,25 +479,47 @@ const CallCenterNewOrderPage = () => {
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Notes (collapsed) */}
-            {!notesOpen ? (
-              <button type="button" onClick={() => setNotesOpen(true)} className="text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
-                + أضف ملاحظة
-              </button>
-            ) : (
-              <div>
-                <label className="block text-xs font-medium text-text-light/60 dark:text-text-dark/60 mb-1.5">ملاحظات</label>
-                <textarea
-                  className="w-full border border-border-light dark:border-border-dark rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary transition-shadow resize-none"
-                  rows={2}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  autoFocus
-                />
+              {/* Notes (collapsed) */}
+              {!notesOpen ? (
+                <button type="button" onClick={() => setNotesOpen(true)} className="text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+                  + أضف ملاحظة
+                </button>
+              ) : (
+                <div>
+                  <label className="block text-xs font-medium text-text-light/60 dark:text-text-dark/60 mb-1.5">ملاحظات</label>
+                  <textarea
+                    className="w-full border border-border-light dark:border-border-dark rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary transition-shadow resize-none"
+                    rows={2}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </Step>
+          </div>
+
+          {/* Step 2 — Branch */}
+          <div ref={branchSectionRef}>
+            <Step number={2} label="الفرع" complete={!!branchId} active={!!(phone && newClientName) && !branchId}>
+              <BranchChips branches={branches} selectedId={branchId} onChange={setBranchId} />
+            </Step>
+          </div>
+
+          {/* Step 3 — Delivery zone */}
+          <Step number={3} label="التوصيل" complete={!!zoneId} active={!!(phone && newClientName && branchId) && !zoneId}>
+            <div ref={zoneSectionRef}>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="block text-sm font-extrabold text-primary">منطقة التوصيل *</label>
+                {selectedZone && (
+                  <span className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-bold tabular-nums text-primary">
+                    {deliveryFee.toFixed(0)} ج.م
+                  </span>
+                )}
               </div>
-            )}
+              <ZoneChips zones={zones} selectedId={zoneId} onChange={setZoneId} branchId={branchId} />
+            </div>
           </Step>
         </div>
 

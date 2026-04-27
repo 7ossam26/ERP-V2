@@ -1,9 +1,15 @@
 import React from "react";
 
 const ZoneChips = ({ zones, selectedId, onChange, branchId }) => {
-  if (!branchId) return null;
+  if (!branchId) {
+    return (
+      <p className="text-xs text-text-light/40 dark:text-text-dark/40">
+        اختر الفرع أولاً لعرض مناطق التوصيل المتاحة
+      </p>
+    );
+  }
 
-  if (branchId && zones.length === 0) {
+  if (zones.length === 0) {
     return (
       <p className="text-xs text-text-light/40 dark:text-text-dark/40">
         لا توجد مناطق توصيل لهذا الفرع
