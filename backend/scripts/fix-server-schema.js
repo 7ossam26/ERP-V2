@@ -60,13 +60,18 @@ function isIgnorableDdlError(error) {
     "Duplicate column name",
     "Can't DROP",
     "check that column/key exists",
+    "doesn't exist",
+    "Unknown table",
     "1826",
     "1060",
     "1061",
     "1091",
+    "1146",
     "ER_DUP_KEYNAME",
     "ER_DUP_FIELDNAME",
     "ER_CANT_DROP_FIELD_OR_KEY",
+    "ER_NO_SUCH_TABLE",
+    "ER_BAD_TABLE_ERROR",
   ].some((needle) => message.includes(needle) || metaCode === needle);
 }
 
