@@ -6,6 +6,9 @@ export const treasuryService = {
   // Get all treasuries
   getAll: () => api.get(BASE_URL),
 
+  // Get every treasury system-wide (no branch filter) — used by cash transfer destination dropdown
+  getAllUnfiltered: () => api.get(`${BASE_URL}?all=true`),
+
   // Get treasury by ID
   getById: (id) => api.get(`${BASE_URL}/${id}`),
 

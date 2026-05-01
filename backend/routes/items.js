@@ -29,6 +29,7 @@ router.get("/", async (req, res) => {
           },
         },
         inventory: true,
+        bomOutputs: { select: { id: true } },
       },
     });
     res.json(items);

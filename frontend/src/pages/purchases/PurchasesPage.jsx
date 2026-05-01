@@ -115,7 +115,7 @@ const PurchasesPage = () => {
           warehouseService.getAll(),
         ]);
         setSuppliers(fetchedSuppliers);
-        setAllItems(fetchedItems);
+        setAllItems(fetchedItems.filter((i) => !i.isBom && !(i.bomOutputs?.length > 0)));
         setTreasuries(fetchedTreasuries);
         setWarehouses(fetchedWarehouses);
 
@@ -377,7 +377,7 @@ const PurchasesPage = () => {
       toast.success("تم إضافة الصنف بنجاح");
       // Refresh items
       const fetchedItems = await itemService.getAll();
-      setAllItems(fetchedItems);
+      setAllItems(fetchedItems.filter((i) => !i.isBom && !(i.bomOutputs?.length > 0)));
     } catch (error) {
       console.error("Failed to save item", error);
       const errorMessage = error.message || "حدث خطأ أثناء حفظ الصنف";

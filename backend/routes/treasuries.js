@@ -33,9 +33,13 @@ router.get("/", requireAnyPermission(["TREASURIES", "PURCHASES", "SALES", "CASH_
       else if (requested.length > 1) where.scope = { in: requested };
     }
 
+    // ?all=true — return every active treasury, no branch filter.
+    // Used by Cash Transfer destination dropdown so users can send to any drawer.
+    const showAll = String(req.query.all || "").toLowerCase() === "true";
+
     // If scoped to a branch, only show that branch's cash treasury + global treasuries
     // (MAIN / GLOBAL_VISA / GLOBAL_INSTAPAY are not branch-bound and must remain visible)
-    if (branchFilter) {
+    if (branchFilter && !showAll) {
       const branchClause = branchFilter.id.in
         ? { branch: { id: { in: branchFilter.id.in } } }
         : { branch: { id: branchFilter.id } };

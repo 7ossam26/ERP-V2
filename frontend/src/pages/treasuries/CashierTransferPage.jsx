@@ -17,7 +17,9 @@ const CashierTransferPage = () => {
   useEffect(() => {
     const fetchTreasuries = async () => {
       try {
-        let data = await treasuryService.getAll();
+        // Fetch every treasury so destinations are unrestricted; source dropdown
+        // is still narrowed to the user's branches via allowedBranchIds below.
+        let data = await treasuryService.getAllUnfiltered();
         // Set treasuries
         setTreasuries(data);
 
@@ -43,6 +45,16 @@ const CashierTransferPage = () => {
     (t) => t.id === parseInt(sourceTreasuryId),
   );
   const currentBalance = selectedSource ? Number(selectedSource.balance) : 0;
+
+  const allowedBranchIds = (() => {
+    const ids = new Set();
+    if (currentUser?.branchId) ids.add(Number(currentUser.branchId));
+    if (currentUser?.branch?.id) ids.add(Number(currentUser.branch.id));
+    if (Array.isArray(currentUser?.accessibleBranches)) {
+      currentUser.accessibleBranches.forEach((b) => ids.add(Number(b.id)));
+    }
+    return ids;
+  })();
 
   const handleTransfer = async () => {
     if (!amount || Number(amount) <= 0) {
@@ -156,12 +168,9 @@ const CashierTransferPage = () => {
                           return true;
                         }
 
-                        const userBranchId =
-                          currentUser?.branchId || currentUser?.branch?.id;
-
-                        // Strict filter: If user has a branch, ONLY show branch-cash treasuries linked to that branch
-                        if (userBranchId) {
-                          return Number(t.branch?.id) === Number(userBranchId);
+                        // If user has a primary or accessible branch, show only treasuries linked to those branches.
+                        if (allowedBranchIds.size > 0) {
+                          return allowedBranchIds.has(Number(t.branch?.id));
                         }
 
                         // If no user branch (Superadmin?), show branch-cash too

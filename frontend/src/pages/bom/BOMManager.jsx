@@ -740,7 +740,7 @@ const BOMForm = ({ initialData, onClose, onSave, allItems }) => {
                   value={parseFloat(item.quantity) || 0}
                   onChange={(v) => handleItemChange(index, "quantity", String(v))}
                   unit={allItems.find((i) => String(i.id) === String(item.itemId))?.unit || "piece"}
-                  min={0.001}
+                  min={0}
                 />
               </div>
               <button

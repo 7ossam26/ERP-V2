@@ -67,7 +67,7 @@ router.post("/login", loginLimiter, loginValidation, async (req, res, next) => {
         },
         branch: true,
         accessibleBranches: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, warehouseId: true },
         },
       },
     });
@@ -188,7 +188,7 @@ router.get("/me", authenticateToken, async (req, res, next) => {
         },
         branch: true,
         accessibleBranches: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, warehouseId: true },
         },
       },
     });

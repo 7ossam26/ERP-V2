@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useBranch } from "../../contexts/BranchContext";
 import { useNavigate } from "react-router-dom";
@@ -15,7 +15,7 @@ import authService from "../../services/authService";
 
 const StockTransferPage = () => {
   const navigate = useNavigate();
-  const { activeBranchId } = useBranch();
+  const { activeBranchId, isGlobalRole, activeBranch } = useBranch();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [lastTransfer, setLastTransfer] = useState(null);
@@ -45,7 +45,11 @@ const StockTransferPage = () => {
 
         let initialSourceId = "";
 
-        if (user?.branch?.warehouseId) {
+        // Non-global users are pinned to their active branch's warehouse —
+        // the inventory API enforces this and any mismatch returns 0 stock.
+        if (!isGlobalRole && activeBranch?.warehouseId) {
+          initialSourceId = activeBranch.warehouseId.toString();
+        } else if (!isGlobalRole && user?.branch?.warehouseId) {
           initialSourceId = user.branch.warehouseId.toString();
         } else if (settings && settings.mainWarehouseId) {
           initialSourceId = settings.mainWarehouseId.toString();
@@ -74,7 +78,17 @@ const StockTransferPage = () => {
       }
     };
     fetchData();
-  }, [activeBranchId]);
+  }, [activeBranchId, isGlobalRole, activeBranch?.warehouseId]);
+
+  // Non-global users can only source from their active branch's warehouse —
+  // the inventory API filters by the active branch header, so any other choice
+  // would silently return zero stock.
+  const visibleSourceWarehouses = useMemo(() => {
+    if (isGlobalRole) return allWarehouses;
+    const branchWarehouseId = activeBranch?.warehouseId;
+    if (!branchWarehouseId) return [];
+    return allWarehouses.filter((wh) => wh.id === branchWarehouseId);
+  }, [isGlobalRole, activeBranch?.warehouseId, allWarehouses]);
 
   // Filter products
   const filteredProducts = products.filter((product) => {
@@ -491,11 +505,12 @@ const StockTransferPage = () => {
                 من المخزن
               </label>
               <select
-                className="w-full rounded p-2 text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-800 border border-primary focus:ring-primary focus:border-primary text-sm font-bold shadow-sm"
+                className="w-full rounded p-2 text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-800 border border-primary focus:ring-primary focus:border-primary text-sm font-bold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
                 value={fromWarehouseId}
+                disabled={!isGlobalRole && visibleSourceWarehouses.length <= 1}
                 onChange={(e) => handleFromWarehouseChange(e.target.value)}>
                 <option value="">-- اختر المخزن --</option>
-                {allWarehouses.map((wh) => (
+                {visibleSourceWarehouses.map((wh) => (
                   <option key={wh.id} value={wh.id}>
                     {wh.name}
                   </option>

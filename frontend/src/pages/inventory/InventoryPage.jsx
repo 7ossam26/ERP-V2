@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import GenericDataTable from "../../components/shared/GenericDataTable";
 import { useBranch } from "../../contexts/BranchContext";
 import InitialInventoryTab from "./InitialInventoryTab";
@@ -7,12 +7,14 @@ import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
 
 const InventoryPage = () => {
-  const { activeBranchId } = useBranch();
+  const { activeBranchId, isGlobalRole, activeBranch } = useBranch();
   const [activeTab, setActiveTab] = useState("inventory");
   const [filter, setFilter] = useState("الكل");
   const [branches, setBranches] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
-  const [selectedWarehouse, setSelectedWarehouse] = useState("all");
+  const [selectedWarehouse, setSelectedWarehouse] = useState(
+    isGlobalRole ? "all" : (activeBranch?.warehouseId?.toString() || "all"),
+  );
 
   const [stats, setStats] = useState({
     totalItems: 0,
@@ -43,8 +45,13 @@ const InventoryPage = () => {
     const fetchData = async () => {
       try {
         const filters = {};
-        if (selectedWarehouse !== "all")
-          filters.warehouseId = selectedWarehouse;
+        // Non-global users are pinned to their active branch's warehouse —
+        // ignore any stale selectedWarehouse and use the active branch directly.
+        const effectiveWarehouse = isGlobalRole
+          ? selectedWarehouse
+          : activeBranch?.warehouseId?.toString() || "all";
+        if (effectiveWarehouse !== "all")
+          filters.warehouseId = effectiveWarehouse;
         if (filter !== "الكل") filters.category = filter;
 
         const [inventoryData, statsData] = await Promise.all([
@@ -59,7 +66,22 @@ const InventoryPage = () => {
       }
     };
     fetchData();
-  }, [filter, selectedWarehouse, activeBranchId]);
+  }, [filter, selectedWarehouse, activeBranchId, isGlobalRole, activeBranch]);
+
+  // Non-global users can only see their accessible branches — the inventory
+  // API enforces this server-side, so showing other branches would silently
+  // return zero stock.
+  const visibleBranches = useMemo(() => {
+    if (isGlobalRole) return branches;
+    if (!activeBranch?.warehouseId) return [];
+    return branches.filter((b) => b.warehouseId === activeBranch.warehouseId);
+  }, [isGlobalRole, activeBranch, branches]);
+
+  // For non-global users, the dropdown reflects the active branch's warehouse,
+  // not the local selectedWarehouse state (which may be stale).
+  const dropdownValue = isGlobalRole
+    ? selectedWarehouse
+    : activeBranch?.warehouseId?.toString() || "";
 
   // Data is now already filtered by backend, so we just use inventoryItems
   // But searching is client side for now
@@ -388,14 +410,15 @@ const InventoryPage = () => {
             {/* Branch Filter */}
             <div className="relative">
               <select
-                value={selectedWarehouse}
+                value={dropdownValue}
+                disabled={!isGlobalRole && visibleBranches.length <= 1}
                 onChange={(e) => {
                   setSelectedWarehouse(e.target.value);
                   // Trigger fetch with new warehouse
                 }}
-                className="appearance-none bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl py-2.5 pl-10 pr-10 text-sm font-bold text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-transparent outline-none cursor-pointer">
-                <option value="all">كل الفروع</option>
-                {branches.map((branch) => (
+                className="appearance-none bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-xl py-2.5 pl-10 pr-10 text-sm font-bold text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-transparent outline-none cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
+                {isGlobalRole && <option value="all">كل الفروع</option>}
+                {visibleBranches.map((branch) => (
                   <option key={branch.id} value={branch.warehouseId}>
                     {branch.name}
                   </option>

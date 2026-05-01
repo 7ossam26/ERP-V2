@@ -12,6 +12,8 @@ const toFrontend = (backendData) => ({
   unit: backendData.unit,
   reorderPoint: backendData.reorderPoint,
   showInPos: backendData.showInPos,
+  isBom: backendData.isBom,
+  bomOutputs: backendData.bomOutputs || [],
   suppliers: backendData.suppliers?.map((s) => s.supplier.id) || [],
   categories: backendData.categories?.map((c) => c.category.id) || [],
   createdAt: backendData.createdAt,

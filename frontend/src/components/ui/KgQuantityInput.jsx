@@ -33,7 +33,7 @@ const KgQuantityInput = ({ value, onChange, unit, min = 0, className = "" }) => 
         <input
           type="number"
           min={min}
-          step="any"
+          step="0.1"
           value={parseFloat(value) || 0}
           onChange={(e) =>
             onChange(Math.max(min, parseFloat(e.target.value) || 0))
