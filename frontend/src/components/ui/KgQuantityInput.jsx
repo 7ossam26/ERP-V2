@@ -12,7 +12,13 @@ import React from "react";
  * @param {number}   [min=0]  – minimum allowed value
  * @param {string}   [className] – extra classes forwarded to inputs
  */
-const KgQuantityInput = ({ value, onChange, unit, min = 0, className = "" }) => {
+const KgQuantityInput = ({
+  value,
+  onChange,
+  unit,
+  min = 0,
+  className = "",
+}) => {
   const isKg = unit === "kg";
 
   const inputCls =
@@ -32,14 +38,13 @@ const KgQuantityInput = ({ value, onChange, unit, min = 0, className = "" }) => 
       <div className="flex items-center gap-1.5 justify-center">
         <input
           type="number"
-          min={min}
-          step="0.1"
+          step="0.05"
           value={parseFloat(value) || 0}
           onChange={(e) =>
             onChange(Math.max(min, parseFloat(e.target.value) || 0))
           }
           className={inputCls}
-          placeholder="0.0"
+          placeholder=""
         />
         <span className={badge()}>ك</span>
       </div>
@@ -55,9 +60,7 @@ const KgQuantityInput = ({ value, onChange, unit, min = 0, className = "" }) => 
         min={min}
         step="1"
         value={Math.max(0, parseInt(value) || 0)}
-        onChange={(e) =>
-          onChange(Math.max(min, parseInt(e.target.value) || 0))
-        }
+        onChange={(e) => onChange(Math.max(min, parseInt(e.target.value) || 0))}
         className={inputCls}
       />
       <span className={badge()}>{label}</span>
