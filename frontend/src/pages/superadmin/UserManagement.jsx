@@ -363,14 +363,20 @@ const UserManagement = () => {
                       "Admin",
                       "Manager",
                     ].includes(selectedRole?.name);
-                    // Only Superadmin has no branch
-                    const isSuperadmin = selectedRole?.name === "Superadmin";
+                    // Roles that serve every branch and therefore must not be
+                    // pinned to a single branchId / accessibleBranches set.
+                    const isBranchless =
+                      selectedRole?.name === "Superadmin" ||
+                      selectedRole?.name === "Call Center";
 
                     setFormData({
                       ...formData,
                       roleId: selectedRoleId,
                       hasSensitiveAccess: shouldHaveSensitive,
-                      branchId: isSuperadmin ? "" : formData.branchId,
+                      branchId: isBranchless ? "" : formData.branchId,
+                      accessibleBranchIds: isBranchless
+                        ? []
+                        : formData.accessibleBranchIds,
                     });
                   }}>
                   <option value="" disabled>
@@ -392,6 +398,11 @@ const UserManagement = () => {
                 // Superadmin has no branch (truly global)
                 const isSuperadmin = selectedRoleName === "Superadmin";
 
+                // Call Center serves every branch by design — agents route
+                // each phone order to the customer's branch, so pinning them
+                // to one branch would defeat the role.
+                const isCallCenter = selectedRoleName === "Call Center";
+
                 // Roles that use the multi-branch checkbox UI
                 const isMultiBranchRole = [
                   "General Manager",
@@ -400,6 +411,20 @@ const UserManagement = () => {
                 ].includes(selectedRoleName);
 
                 if (isSuperadmin) return null;
+
+                if (isCallCenter) {
+                  return (
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-700/30">
+                      <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Serves all branches
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Call Center agents take orders for every branch — no
+                        branch assignment is needed.
+                      </p>
+                    </div>
+                  );
+                }
 
                 // --- Multi-Branch Input (Checkboxes) ---
                 if (isMultiBranchRole) {

@@ -18,9 +18,7 @@ async function getAgentAccessibleBranchIds(userId) {
 
   const isGlobal =
     user.role &&
-    (user.role.name === "Superadmin" ||
-      user.role.name === "Admin" ||
-      user.role.name === "General Manager");
+    ["Superadmin", "Admin", "General Manager", "Call Center"].includes(user.role.name);
 
   if (isGlobal) {
     const all = await prisma.branch.findMany({
@@ -416,9 +414,18 @@ exports.listOrders = async (req, res, next) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 25));
 
+    const { isGlobal, ids } = await getAgentAccessibleBranchIds(req.user.id);
+
     const where = { channel: "CALL_CENTER" };
     if (status) where.status = status;
-    if (branchId) where.branchId = parseInt(branchId);
+    if (!isGlobal) where.branchId = { in: ids };
+    if (branchId) {
+      const requested = parseInt(branchId);
+      if (!isGlobal && !ids.includes(requested)) {
+        return res.status(403).json({ error: "Branch not accessible" });
+      }
+      where.branchId = requested;
+    }
 
     const [orders, totalRows] = await Promise.all([
       prisma.order.findMany({
