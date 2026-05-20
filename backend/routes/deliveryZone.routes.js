@@ -6,11 +6,11 @@ const { authenticateToken, requireAnyPermission, requireCreatePermission } = req
 // All routes require authentication
 router.use(authenticateToken);
 
-// GET all delivery zones — readable by anyone with POS or delivery access
-router.get("/", requireAnyPermission(["POS", "CREATES_DELIVERY_ZONES", "DELIVERY_SETTLEMENT"]), deliveryZoneController.getAllDeliveryZones);
+// GET all delivery zones — readable by anyone with POS, delivery, or call center access
+router.get("/", requireAnyPermission(["POS", "CREATES_DELIVERY_ZONES", "DELIVERY_SETTLEMENT", "CALL_CENTER"]), deliveryZoneController.getAllDeliveryZones);
 
 // GET single delivery zone by ID
-router.get("/:id", requireAnyPermission(["POS", "CREATES_DELIVERY_ZONES"]), deliveryZoneController.getDeliveryZoneById);
+router.get("/:id", requireAnyPermission(["POS", "CREATES_DELIVERY_ZONES", "CALL_CENTER"]), deliveryZoneController.getDeliveryZoneById);
 
 // POST create new delivery zone
 router.post("/", requireCreatePermission("CREATES_DELIVERY_ZONES"), deliveryZoneController.createDeliveryZone);
