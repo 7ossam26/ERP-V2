@@ -228,7 +228,7 @@ const getUserBranchFilter = async (userId, req = null) => {
       throw err;
     }
 
-    const isGlobalRole = user.role && (user.role.name === "Superadmin" || user.role.name === "Admin" || user.role.name === "General Manager");
+    const isGlobalRole = user.role && ["Superadmin", "Admin", "General Manager", "Call Center"].includes(user.role.name);
 
     // Collect all allowed branch IDs (for non-global roles)
     const allowedBranchIds = [];
