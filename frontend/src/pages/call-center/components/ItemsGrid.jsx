@@ -149,6 +149,11 @@ const ItemsGrid = ({ items, cart, loading, branchId, readyForPos, lockedReason, 
         const inCart = cart.find((c) => c.itemId === it.id);
         const outOfStock = it.stock <= 0;
         const isFirstFocusable = index === 0;
+        const isKg = it.unit === "kg";
+        const formatCartQty = (n) =>
+          isKg
+            ? (n % 1 === 0 ? n.toFixed(0) : n.toFixed(3).replace(/0+$/, "").replace(/\.$/, ""))
+            : String(n);
 
         return (
           <button
@@ -160,7 +165,7 @@ const ItemsGrid = ({ items, cart, loading, branchId, readyForPos, lockedReason, 
             disabled={outOfStock}
             onClick={() => !outOfStock && onAdd(it)}
             onFocus={() => handleCardFocus(index)}
-            aria-label={`${it.name}، ${Number(it.price).toFixed(2)} جنيه، ${outOfStock ? "نفد من المخزون" : `متوفر ${it.stock}`}${inCart ? `، في السلة: ${inCart.quantity}` : ""}`}
+            aria-label={`${it.name}، ${Number(it.price).toFixed(2)} جنيه${isKg ? " للكيلو" : ""}، ${outOfStock ? "نفد من المخزون" : `متوفر ${it.stock}`}${inCart ? `، في السلة: ${formatCartQty(inCart.quantity)}${isKg ? " كجم" : ""}` : ""}`}
             className={`
               min-h-[96px] text-right p-3 rounded-lg border-2 transition-all duration-150
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
@@ -177,15 +182,19 @@ const ItemsGrid = ({ items, cart, loading, branchId, readyForPos, lockedReason, 
                 {it.name}
               </p>
               {inCart && (
-                <span className="flex-shrink-0 text-xs bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                  {inCart.quantity}
+                <span
+                  className={`flex-shrink-0 text-[10px] bg-primary text-white rounded-full px-1.5 h-5 inline-flex items-center justify-center font-bold tabular-nums ${isKg ? "min-w-[20px]" : "w-5"}`}
+                >
+                  {formatCartQty(inCart.quantity)}
                 </span>
               )}
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium tabular-nums text-text-light dark:text-text-dark">
                 {Number(it.price).toFixed(2)}{" "}
-                <span className="text-xs text-text-light/50 dark:text-text-dark/50">ج.م</span>
+                <span className="text-xs text-text-light/50 dark:text-text-dark/50">
+                  ج.م{isKg ? " / كجم" : ""}
+                </span>
               </span>
               <StockBadge stock={it.stock} />
             </div>

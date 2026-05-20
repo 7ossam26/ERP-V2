@@ -11,7 +11,9 @@
       "Bash(node -e ':*)",
       "Bash(grep -l \"branchId.*query\\\\|branchId.*req.query\" /d/ERP-V2/backend/routes/*.js)",
       "Bash(xxd d:/ERP-V2/backend/routes/reports.js)",
-      "Bash(grep -E \"\\\\.js$\")"
+      "Bash(grep -E \"\\\\.js$\")",
+      "Bash(npx eslint *)",
+      "Bash(npx vite *)"
     ]
   }
 }

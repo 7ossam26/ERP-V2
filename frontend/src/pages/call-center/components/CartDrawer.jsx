@@ -1,62 +1,102 @@
 import React from "react";
-import { Trash2, Send, ShoppingCart } from "lucide-react";
+import { Trash2, Send, ShoppingCart, Scale } from "lucide-react";
 import DiscountPanel from "../../../components/pos/DiscountPanel";
 
-const LineItem = ({ c, onUpdateQty }) => (
-  <li
-    className="flex items-start gap-2 py-3 border-b border-dashed border-border-light/70 dark:border-border-dark/70 last:border-b-0"
-    dir="rtl"
-  >
-    <div className="flex-1 min-w-0">
-      <p className="text-sm font-semibold text-text-light dark:text-text-dark leading-tight truncate">
-        {c.name}
-      </p>
-      <p className="text-[11px] text-text-light/50 dark:text-text-dark/50 tabular-nums mt-0.5">
-        {Number(c.price).toFixed(2)} × {c.quantity}
-      </p>
-    </div>
+const formatQty = (qty, unit) => {
+  const n = Number(qty) || 0;
+  if (unit === "kg") {
+    return n % 1 === 0
+      ? n.toFixed(0)
+      : n.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  }
+  return String(n);
+};
 
-    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-      <span className="text-sm font-bold tabular-nums text-text-light dark:text-text-dark">
-        {(c.price * c.quantity).toFixed(2)}
-      </span>
-      <div className="flex items-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => onUpdateQty(c.itemId, c.quantity - 1)}
-          className="w-6 h-6 flex items-center justify-center rounded text-text-light/60 dark:text-text-dark/60 hover:bg-primary hover:text-white text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-          aria-label={`تقليل ${c.name}`}
-        >
-          −
-        </button>
-        <span className="w-5 text-center text-xs font-bold tabular-nums">
-          {c.quantity}
-        </span>
-        <button
-          type="button"
-          onClick={() => onUpdateQty(c.itemId, c.quantity + 1)}
-          disabled={c.quantity >= c.stock}
-          className="w-6 h-6 flex items-center justify-center rounded text-text-light/60 dark:text-text-dark/60 hover:bg-primary hover:text-white text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-light/60"
-          aria-label={`زيادة ${c.name}`}
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={() => onUpdateQty(c.itemId, 0)}
-          className="ml-1 w-6 h-6 flex items-center justify-center rounded text-text-light/30 dark:text-text-dark/30 hover:text-stock-out hover:bg-stock-out/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stock-out"
-          aria-label={`حذف ${c.name}`}
-        >
-          <Trash2 size={11} />
-        </button>
+const LineItem = ({ c, onUpdateQty, onEditKg }) => {
+  const isKg = c.unit === "kg";
+  return (
+    <li
+      className="flex items-start gap-2 py-3 border-b border-dashed border-border-light/70 dark:border-border-dark/70 last:border-b-0"
+      dir="rtl"
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-text-light dark:text-text-dark leading-tight truncate">
+          {c.name}
+        </p>
+        <p className="text-[11px] text-text-light/50 dark:text-text-dark/50 tabular-nums mt-0.5">
+          {Number(c.price).toFixed(2)} × {formatQty(c.quantity, c.unit)}
+          {isKg ? " كجم" : ""}
+        </p>
       </div>
-    </div>
-  </li>
-);
+
+      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+        <span className="text-sm font-bold tabular-nums text-text-light dark:text-text-dark">
+          {(c.price * c.quantity).toFixed(2)}
+        </span>
+        <div className="flex items-center gap-0.5">
+          {isKg ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onEditKg?.(c.itemId)}
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-primary hover:bg-primary hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                aria-label={`تعديل وزن ${c.name}`}
+                title="تعديل الوزن"
+              >
+                <Scale size={11} />
+                <span>{formatQty(c.quantity, "kg")} كجم</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateQty(c.itemId, 0)}
+                className="ml-1 w-6 h-6 flex items-center justify-center rounded text-text-light/30 dark:text-text-dark/30 hover:text-stock-out hover:bg-stock-out/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stock-out"
+                aria-label={`حذف ${c.name}`}
+              >
+                <Trash2 size={11} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => onUpdateQty(c.itemId, c.quantity - 1)}
+                className="w-6 h-6 flex items-center justify-center rounded text-text-light/60 dark:text-text-dark/60 hover:bg-primary hover:text-white text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                aria-label={`تقليل ${c.name}`}
+              >
+                −
+              </button>
+              <span className="w-5 text-center text-xs font-bold tabular-nums">
+                {c.quantity}
+              </span>
+              <button
+                type="button"
+                onClick={() => onUpdateQty(c.itemId, c.quantity + 1)}
+                disabled={c.quantity >= c.stock}
+                className="w-6 h-6 flex items-center justify-center rounded text-text-light/60 dark:text-text-dark/60 hover:bg-primary hover:text-white text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-light/60"
+                aria-label={`زيادة ${c.name}`}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateQty(c.itemId, 0)}
+                className="ml-1 w-6 h-6 flex items-center justify-center rounded text-text-light/30 dark:text-text-dark/30 hover:text-stock-out hover:bg-stock-out/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stock-out"
+                aria-label={`حذف ${c.name}`}
+              >
+                <Trash2 size={11} />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+};
 
 const CartDrawer = ({
   cart,
   onUpdateQty,
+  onEditKg,
   subtotal,
   deliveryFee,
   discountType,
@@ -101,7 +141,12 @@ const CartDrawer = ({
         {hasItems ? (
           <ul className="list-none m-0 p-0">
             {cart.map((c) => (
-              <LineItem key={c.itemId} c={c} onUpdateQty={onUpdateQty} />
+              <LineItem
+                key={c.itemId}
+                c={c}
+                onUpdateQty={onUpdateQty}
+                onEditKg={onEditKg}
+              />
             ))}
           </ul>
         ) : (

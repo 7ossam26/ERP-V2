@@ -10,6 +10,7 @@ import BranchChips from "./components/BranchChips";
 import CartDrawer from "./components/CartDrawer";
 import ItemsGrid from "./components/ItemsGrid";
 import ZoneChips from "./components/ZoneChips";
+import WeightPickerModal from "./components/WeightPickerModal";
 import {
   createClientSelectionState,
   isCustomerInformationComplete,
@@ -43,6 +44,7 @@ const CallCenterNewOrderPage = () => {
   const [discountInput, setDiscountInput] = useState("");
   const [discountReason, setDiscountReason] = useState("");
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [weightPickerItem, setWeightPickerItem] = useState(null);
 
   const searchRef = useRef(null);
   const phoneRef = useRef(null);
@@ -192,6 +194,10 @@ const CallCenterNewOrderPage = () => {
       return;
     }
     if (item.stock <= 0) { toast.error(`الصنف "${item.name}" غير متوفر بالمخزون`); return; }
+    if (item.unit === "kg") {
+      setWeightPickerItem(item);
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((c) => c.itemId === item.id);
       if (existing) {
@@ -204,12 +210,38 @@ const CallCenterNewOrderPage = () => {
     setTimeout(() => setLastAddedId(null), 300);
   };
 
+  const confirmWeight = (qty) => {
+    const item = weightPickerItem;
+    if (!item) return;
+    const n = Math.max(0, Math.min(Number(qty) || 0, item.stock));
+    setCart((prev) => {
+      const existing = prev.find((c) => c.itemId === item.id);
+      if (n <= 0) {
+        return prev.filter((c) => c.itemId !== item.id);
+      }
+      if (existing) {
+        return prev.map((c) => c.itemId === item.id ? { ...c, quantity: n } : c);
+      }
+      return [...prev, { itemId: item.id, name: item.name, price: item.price, quantity: n, stock: item.stock, unit: item.unit }];
+    });
+    setLastAddedId(item.id);
+    setTimeout(() => setLastAddedId(null), 300);
+    setWeightPickerItem(null);
+  };
+
   const updateQty = (itemId, qty) => {
     const n = Number(qty);
     setCart((prev) =>
       prev.map((c) => c.itemId === itemId ? { ...c, quantity: Math.max(0, Math.min(n, c.stock)) } : c)
           .filter((c) => c.quantity > 0)
     );
+  };
+
+  const openWeightPickerFor = (itemId) => {
+    const cartLine = cart.find((c) => c.itemId === itemId);
+    const item = items.find((it) => it.id === itemId);
+    if (!item) return;
+    setWeightPickerItem({ ...item, _currentQty: cartLine?.quantity || 0 });
   };
 
   const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
@@ -596,6 +628,7 @@ const CallCenterNewOrderPage = () => {
           <CartDrawer
             cart={cart}
             onUpdateQty={updateQty}
+            onEditKg={openWeightPickerFor}
             subtotal={subtotal}
             deliveryFee={deliveryFee}
             discountType={discountType}
@@ -615,6 +648,16 @@ const CallCenterNewOrderPage = () => {
           />
         </div>
       </div>
+
+      {/* Weight picker modal — kg items */}
+      {weightPickerItem && (
+        <WeightPickerModal
+          item={weightPickerItem}
+          currentQty={weightPickerItem._currentQty || cart.find((c) => c.itemId === weightPickerItem.id)?.quantity || 0}
+          onConfirm={confirmWeight}
+          onClose={() => setWeightPickerItem(null)}
+        />
+      )}
 
       {/* Keyboard shortcuts modal */}
       {showShortcuts && (
