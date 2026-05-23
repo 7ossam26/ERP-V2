@@ -145,6 +145,8 @@ exports.searchClients = async (req, res, next) => {
         name: true,
         phoneNumber: true,
         address: true,
+        lastBranchId: true,
+        lastZoneId: true,
         _count: { select: { sales: true } },
         sales: {
           orderBy: { createdAt: "desc" },
@@ -160,6 +162,8 @@ exports.searchClients = async (req, res, next) => {
         name: c.name,
         phoneNumber: c.phoneNumber,
         address: c.address,
+        lastBranchId: c.lastBranchId,
+        lastZoneId: c.lastZoneId,
         totalOrders: c._count.sales,
         lastOrderDate: c.sales[0]?.createdAt ?? null,
       }))
@@ -174,7 +178,7 @@ exports.searchClients = async (req, res, next) => {
 // -------------------------------------------------------------------------
 exports.createClient = async (req, res, next) => {
   try {
-    const { name, phoneNumber, address } = req.body;
+    const { name, phoneNumber, address, lastBranchId, lastZoneId } = req.body;
     if (!name || !phoneNumber) {
       return res.status(400).json({ error: "name and phoneNumber are required" });
     }
@@ -184,9 +188,46 @@ exports.createClient = async (req, res, next) => {
     if (existing) return res.status(200).json(existing);
 
     const client = await prisma.client.create({
-      data: { name, phoneNumber, address: address || null },
+      data: {
+        name,
+        phoneNumber,
+        address: address || null,
+        lastBranchId: lastBranchId ? parseInt(lastBranchId) : null,
+        lastZoneId: lastZoneId ? parseInt(lastZoneId) : null,
+      },
     });
     res.status(201).json(client);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// -------------------------------------------------------------------------
+// PATCH /api/call-center/clients/:id — update client fields
+// -------------------------------------------------------------------------
+exports.updateClient = async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ error: "Invalid client id" });
+
+    const { name, address, lastBranchId, lastZoneId } = req.body;
+
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (address !== undefined) data.address = address || null;
+    if (lastBranchId !== undefined) data.lastBranchId = lastBranchId ? parseInt(lastBranchId) : null;
+    if (lastZoneId !== undefined) data.lastZoneId = lastZoneId ? parseInt(lastZoneId) : null;
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+
+    const client = await prisma.client.update({
+      where: { id },
+      data,
+      select: { id: true, name: true, phoneNumber: true, address: true, lastBranchId: true, lastZoneId: true },
+    });
+    res.json(client);
   } catch (err) {
     next(err);
   }

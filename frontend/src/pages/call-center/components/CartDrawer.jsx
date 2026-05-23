@@ -116,7 +116,7 @@ const CartDrawer = ({
     <aside
       role="region"
       aria-label="ملخص الطلب"
-      className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] flex flex-col bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-soft overflow-hidden"
+      className="flex flex-col h-full bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-soft overflow-hidden"
     >
       {/* Receipt header — typewriter section label */}
       <header

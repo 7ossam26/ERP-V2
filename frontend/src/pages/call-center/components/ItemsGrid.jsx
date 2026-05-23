@@ -142,7 +142,7 @@ const ItemsGrid = ({ items, cart, loading, branchId, readyForPos, lockedReason, 
       role="grid"
       aria-label="الأصناف المتاحة"
       data-cols="3"
-      className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4"
+      className="grid grid-cols-3 gap-3"
       onKeyDown={handleGridKeyDown}
     >
       {items.map((it, index) => {

@@ -344,6 +344,7 @@ model Branch {
   auditLogs       AuditLog[]
   orders          Order[]
   notifications   Notification[]
+  clientsLastBranch Client[]
 
   @@map("branches")
 }
@@ -353,15 +354,19 @@ model Branch {
 // ============================================
 
 model Client {
-  id          Int      @id @default(autoincrement())
-  name        String
-  phoneNumber String   @map("phone_number")
-  address     String?  @db.Text
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id            Int           @id @default(autoincrement())
+  name          String
+  phoneNumber   String        @map("phone_number")
+  address       String?       @db.Text
+  lastBranchId  Int?          @map("last_branch_id")
+  lastZoneId    Int?          @map("last_zone_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  sales Sale[]
+  sales         Sale[]
+  lastBranch    Branch?       @relation(fields: [lastBranchId], references: [id])
+  lastZone      DeliveryZone? @relation(fields: [lastZoneId], references: [id])
 
   @@map("clients")
 }
@@ -997,8 +1002,9 @@ model DeliveryZone {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  sales  Sale[]
+  branch            Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sales             Sale[]
+  clientsLastZone   Client[]
 
   @@unique([branchId, name])
   @@map("delivery_zones")

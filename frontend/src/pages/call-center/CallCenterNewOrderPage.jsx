@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { CheckCircle2, MapPin, Phone, Search, Sparkles, UserRound, X } from "lucide-react";
+import { CheckCircle2, MapPin, Phone, Save, Search, Sparkles, UserRound, X } from "lucide-react";
 import { callCenterService } from "../../services/callCenterService";
 import { deliveryZoneService } from "../../services/deliveryZoneService";
 import { computeDiscountAmount } from "../../components/pos/DiscountPanel";
@@ -45,6 +45,7 @@ const CallCenterNewOrderPage = () => {
   const [discountReason, setDiscountReason] = useState("");
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [weightPickerItem, setWeightPickerItem] = useState(null);
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   const searchRef = useRef(null);
   const phoneRef = useRef(null);
@@ -88,6 +89,29 @@ const CallCenterNewOrderPage = () => {
     }, 300);
     return () => clearTimeout(t);
   }, [phone, selectedClient]);
+
+  // Restore last zone for a selected client once zones are loaded
+  useEffect(() => {
+    if (!selectedClient?.lastZoneId || !zones.length || zoneId) return;
+    const zoneExists = zones.some((z) => z.id === selectedClient.lastZoneId);
+    if (zoneExists) setZoneId(String(selectedClient.lastZoneId));
+  }, [selectedClient, zones]);
+
+  // Auto-update existing customer record when branch or zone changes
+  useEffect(() => {
+    if (!selectedClient) return;
+    const parsedBranch = branchId ? parseInt(branchId) : null;
+    const parsedZone = zoneId ? parseInt(zoneId) : null;
+    // Only fire if something actually changed vs what's stored
+    if (parsedBranch === selectedClient.lastBranchId && parsedZone === selectedClient.lastZoneId) return;
+    const t = setTimeout(() => {
+      callCenterService
+        .updateClient(selectedClient.id, { lastBranchId: parsedBranch, lastZoneId: parsedZone })
+        .then((updated) => setSelectedClient((prev) => prev ? { ...prev, lastBranchId: updated.lastBranchId, lastZoneId: updated.lastZoneId } : prev))
+        .catch(() => {}); // silent — non-blocking
+    }, 600);
+    return () => clearTimeout(t);
+  }, [selectedClient, branchId, zoneId]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -266,6 +290,12 @@ const CallCenterNewOrderPage = () => {
     setNewClientName(next.newClientName);
     setDeliveryAddress(next.deliveryAddress);
     setClientResults(next.clientResults);
+    // Restore last branch/zone if they exist in the accessible list
+    if (client.lastBranchId) {
+      const branchExists = branches.some((b) => b.id === client.lastBranchId);
+      if (branchExists) setBranchId(String(client.lastBranchId));
+    }
+    // Zone will be restored after zones load — handled by a follow-up effect
   };
 
   const clearClient = () => {
@@ -284,12 +314,59 @@ const CallCenterNewOrderPage = () => {
     setTimeout(() => nameRef.current?.focus(), 0);
   };
 
+  const handleSaveCustomer = async () => {
+    if (!phone.trim()) { toast.error("أدخل رقم الهاتف أولاً"); return; }
+    if (!newClientName.trim()) { toast.error("أدخل اسم العميل أولاً"); return; }
+    if (!deliveryAddress.trim()) { toast.error("أدخل عنوان التسليم أولاً"); return; }
+    if (!branchId) { toast.error("اختر الفرع أولاً"); return; }
+    if (!zoneId) { toast.error("اختر منطقة التوصيل أولاً"); return; }
+    setSavingCustomer(true);
+    try {
+      if (selectedClient) {
+        const updated = await callCenterService.updateClient(selectedClient.id, {
+          name: newClientName,
+          address: deliveryAddress,
+          lastBranchId: branchId ? parseInt(branchId) : null,
+          lastZoneId: zoneId ? parseInt(zoneId) : null,
+        });
+        setSelectedClient((prev) => prev ? { ...prev, ...updated } : prev);
+        toast.success("تم حفظ بيانات العميل");
+      } else {
+        const client = await callCenterService.createClient({
+          name: newClientName,
+          phoneNumber: phone,
+          address: deliveryAddress,
+          lastBranchId: branchId ? parseInt(branchId) : null,
+          lastZoneId: zoneId ? parseInt(zoneId) : null,
+        });
+        setSelectedClient(client);
+        toast.success("تم تسجيل العميل الجديد");
+      }
+    } catch (err) {
+      toast.error(err?.data?.error || err?.message || "تعذر حفظ بيانات العميل");
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
       let client = selectedClient;
       if (!client) {
-        client = await callCenterService.createClient({ name: newClientName, phoneNumber: phone, address: deliveryAddress });
+        client = await callCenterService.createClient({
+          name: newClientName,
+          phoneNumber: phone,
+          address: deliveryAddress,
+          lastBranchId: branchId ? parseInt(branchId) : null,
+          lastZoneId: zoneId ? parseInt(zoneId) : null,
+        });
+      } else {
+        // Persist any address edit the agent made during this order
+        const addrChanged = deliveryAddress !== (selectedClient.address || "");
+        if (addrChanged) {
+          await callCenterService.updateClient(client.id, { address: deliveryAddress });
+        }
       }
       const payload = {
         branchId: parseInt(branchId),
@@ -360,7 +437,7 @@ const CallCenterNewOrderPage = () => {
       </div>
 
       {/* Body: 4/5/3 three-column receipt-rail layout */}
-      <div className="mx-auto grid max-w-[1680px] grid-cols-1 gap-5 px-4 sm:px-6 pb-8 lg:grid-cols-12 items-start">
+      <div className="mx-auto grid max-w-[1680px] grid-cols-1 gap-5 px-4 sm:px-6 pb-8 lg:grid-cols-12 lg:items-stretch">
 
         {/* ── Column A: Form (4/12) ── */}
         <div className="lg:col-span-4 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-soft">
@@ -518,7 +595,7 @@ const CallCenterNewOrderPage = () => {
                   + أضف ملاحظة
                 </button>
               ) : (
-                <div>
+                <div className="mb-3">
                   <label className="block text-xs font-medium text-text-light/60 dark:text-text-dark/60 mb-1.5">ملاحظات</label>
                   <textarea
                     className="w-full border border-border-light dark:border-border-dark rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary transition-shadow resize-none"
@@ -529,6 +606,7 @@ const CallCenterNewOrderPage = () => {
                   />
                 </div>
               )}
+
             </Step>
           </div>
 
@@ -553,10 +631,25 @@ const CallCenterNewOrderPage = () => {
               <ZoneChips zones={zones} selectedId={zoneId} onChange={setZoneId} branchId={branchId} />
             </div>
           </Step>
+
+          {/* Save customer button — after delivery zone */}
+          <button
+            type="button"
+            onClick={handleSaveCustomer}
+            disabled={savingCustomer}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-green-500/40 bg-green-50 px-4 py-2.5 text-sm font-bold text-green-700 transition-colors hover:bg-green-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 disabled:opacity-60 dark:border-green-500/30 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30"
+          >
+            <Save size={15} />
+            {savingCustomer
+              ? "جارٍ الحفظ..."
+              : selectedClient
+              ? "حفظ تعديلات العميل"
+              : "حفظ / إنشاء سجل العميل"}
+          </button>
         </div>
 
         {/* ── Column B: Items catalog (5/12) ── */}
-        <div className="lg:col-span-5 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-soft">
+        <div className="lg:col-span-5 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-soft flex flex-col">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary/70">POS</p>
@@ -610,7 +703,7 @@ const CallCenterNewOrderPage = () => {
           )}
 
           {/* Items grid — roving tabindex keyboard nav handled inside ItemsGrid */}
-          <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+          <div className="flex-1 overflow-y-auto min-h-0">
             <ItemsGrid
               items={filteredItems}
               cart={cart}
@@ -624,7 +717,7 @@ const CallCenterNewOrderPage = () => {
         </div>
 
         {/* ── Column C: Cart receipt rail (3/12) ── */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 flex flex-col">
           <CartDrawer
             cart={cart}
             onUpdateQty={updateQty}

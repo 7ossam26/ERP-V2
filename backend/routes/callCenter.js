@@ -11,6 +11,7 @@ router.get("/items", ctrl.listItems);
 
 router.get("/clients", ctrl.searchClients);
 router.post("/clients", ctrl.createClient);
+router.patch("/clients/:id", ctrl.updateClient);
 
 router.post("/orders", ctrl.createOrder);
 router.get("/orders", ctrl.listOrders);
