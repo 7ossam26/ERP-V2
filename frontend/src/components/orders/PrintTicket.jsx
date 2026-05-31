@@ -30,19 +30,22 @@ const PrintTicket = ({ order, onDone }) => {
     <>
       <style>{`
         @media print {
-          @page { size: 80mm auto; margin: 2mm; }
+          @page { size: 78mm auto; margin: 2mm; }
           body * { visibility: hidden !important; }
           .print-ticket, .print-ticket * { visibility: visible !important; }
           .print-ticket {
-            position: absolute; top: 0; right: 0; left: 0;
-            width: 76mm;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 74mm;
             font-family: 'Cairo', 'Tajawal', sans-serif;
-            font-size: 11px;
+            font-size: 10px;
             direction: rtl;
           }
           .no-print { display: none !important; }
         }
-        .print-ticket { width: 76mm; font-family: inherit; direction: rtl; }
+        .print-ticket { width: 74mm; margin: 0 auto; font-family: inherit; direction: rtl; }
       `}</style>
       <div className="print-ticket p-2 text-right">
         <div className="text-center font-bold text-base mb-1">طلب كول سنتر</div>

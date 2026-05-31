@@ -913,16 +913,20 @@ const POSPage = () => {
 
   // Handle quick payment with confirmation
   const handleQuickPayment = (method) => {
-    if (!selectedClient && !isWalkIn) {
-      if (method === "cash") {
+    if (method === "cash") {
+      // Cash sales never require manual client selection — auto-fill the
+      // walk-in cash client (عميل نقدي) silently.
+      if (!selectedClient && cashClientRef.current) {
+        setSelectedClient(cashClientRef.current);
+      } else if (!selectedClient) {
         setIsWalkIn(true);
-      } else {
-        toast.error("يرجى اختيار العميل أولاً");
-        if (clientInputRef.current) {
-          clientInputRef.current.focus();
-        }
-        return;
       }
+    } else if (!selectedClient && !isWalkIn) {
+      toast.error("يرجى اختيار العميل أولاً");
+      if (clientInputRef.current) {
+        clientInputRef.current.focus();
+      }
+      return;
     }
     if (cartItems.length === 0) {
       toast.error("السلة فارغة");

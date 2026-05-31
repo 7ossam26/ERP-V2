@@ -97,7 +97,7 @@ const InitialInventoryTab = () => {
   const handleOpenModal = () => {
     if (!selectedItem) return;
     setFormData({
-      warehouseId: warehouses.length > 0 ? warehouses[0].id : "",
+      warehouseId: selectedWarehouseId || (warehouses[0]?.id ?? ""),
       quantity: "",
       date: new Date().toISOString().split("T")[0],
       notes: "",

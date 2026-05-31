@@ -9,7 +9,7 @@ function buildStyles() {
       position: fixed;
       top: 0;
       left: 0;
-      width: 80mm;
+      width: 74mm;
       opacity: 0;
       pointer-events: none;
       z-index: -1;
@@ -19,16 +19,18 @@ function buildStyles() {
     }
 
     @media print {
-      @page { size: 80mm auto; margin: 3mm; }
+      @page { size: 78mm auto; margin: 2mm; }
       body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
       body * { visibility: hidden !important; }
       .${R}, .${R} * { visibility: visible !important; }
       .${R} {
         position: absolute !important;
-        inset: 0 auto auto 0 !important;
+        top: 0 !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
         opacity: 1 !important;
         z-index: 9999 !important;
-        width: 80mm !important;
+        width: 74mm !important;
       }
     }
   `;
