@@ -242,6 +242,10 @@ const POSPage = () => {
   // Delivery Modal State
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [deliveryData, setDeliveryData] = useState(null); // {riderId, riderName, zoneId, zoneName, zoneFee, address}
+  // Client picker is hidden for direct in-store sales (which always use the
+  // walk-in cash client). It is revealed only when the cashier starts a
+  // delivery, since delivery requires a real, identified client.
+  const [isClientSectionVisible, setIsClientSectionVisible] = useState(false);
   const [isDeliveryDebtsModalOpen, setIsDeliveryDebtsModalOpen] =
     useState(false);
   const [isPreparationQueueOpen, setIsPreparationQueueOpen] = useState(false);
@@ -667,6 +671,9 @@ const POSPage = () => {
     setDiscountType("PERCENTAGE");
     setDiscountValue("");
     setDiscountReason("");
+    // Hide the client picker again — next sale starts as a direct in-store sale.
+    setIsClientSectionVisible(false);
+    setIsClientDropdownOpen(false);
   };
 
   const handleItemClick = (id) => {
@@ -1811,7 +1818,8 @@ const POSPage = () => {
           className={`w-full md:w-[600px] flex flex-col flex-1 md:flex-none bg-card-light dark:bg-card-dark shadow-xl z-20 ${
             activeMobileTab === "products" ? "hidden md:flex" : "flex"
           }`}>
-          {/* Client Selection */}
+          {/* Client Selection — hidden by default; only revealed for delivery */}
+          {isClientSectionVisible && (
           <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-card-dark shrink-0 z-20 relative">
             <div className="relative">
               <div
@@ -1938,6 +1946,7 @@ const POSPage = () => {
               )}
             </div>
           </div>
+          )}
 
           <div
             className={`${
@@ -2028,16 +2037,22 @@ const POSPage = () => {
                     </button>
                     <button
                       onClick={() => {
-                        // Check if no client selected OR if it's the default "General Customer"
-                        if (
+                        // Delivery needs a real, identified client. The client
+                        // picker is hidden by default for direct in-store
+                        // sales; reveal it the first time delivery is started.
+                        const isWalkInClient =
                           !selectedClient ||
-                          selectedClient.name.includes("عميل عام")
-                        ) {
+                          selectedClient.id === cashClientRef.current?.id ||
+                          (selectedClient.name &&
+                            (selectedClient.name.includes("عميل نقدي") ||
+                              selectedClient.name.includes("عميل عام")));
+                        if (isWalkInClient) {
+                          setIsClientSectionVisible(true);
+                          setIsClientDropdownOpen(true);
+                          setTimeout(() => {
+                            clientInputRef.current?.focus();
+                          }, 0);
                           toast.error("يرجى اختيار عميل محدد للتوصيل");
-                          setIsClientDropdownOpen(true); // Open the dropdown
-                          if (clientInputRef.current) {
-                            clientInputRef.current.focus();
-                          }
                           return;
                         }
                         setIsDeliveryModalOpen(true);

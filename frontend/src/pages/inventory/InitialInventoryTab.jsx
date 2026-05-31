@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import Modal from "../../components/ui/Modal";
 import { initialInventoryService } from "../../services/initialInventoryService";
 import { warehouseService } from "../../services/warehouseService";
 import { branchService } from "../../services/branchService";
 import AuthService from "../../services/authService";
+import { useBranch } from "../../contexts/BranchContext";
 
 const InitialInventoryTab = () => {
+  const { activeBranch, isGlobalRole } = useBranch();
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -40,15 +42,6 @@ const InitialInventoryTab = () => {
         ]);
         setWarehouses(warehousesData);
         setBranches(branchesData);
-        if (branchesData.length > 0) {
-          setSelectedWarehouseId(branchesData[0].warehouseId);
-        }
-        if (warehousesData.length > 0) {
-          setFormData((prev) => ({
-            ...prev,
-            warehouseId: warehousesData[0].id,
-          }));
-        }
       } catch (error) {
         console.error("Failed to load warehouses/branches:", error);
         toast.error("فشل تحميل البيانات");
@@ -56,6 +49,32 @@ const InitialInventoryTab = () => {
     };
     init();
   }, []);
+
+  // Non-global users are pinned to their active branch's warehouse — they
+  // should never be able to filter or post opening balances to another branch.
+  const visibleBranches = useMemo(() => {
+    if (isGlobalRole) return branches;
+    if (!activeBranch?.warehouseId) return [];
+    return branches.filter((b) => b.warehouseId === activeBranch.warehouseId);
+  }, [isGlobalRole, activeBranch, branches]);
+
+  const visibleWarehouses = useMemo(() => {
+    if (isGlobalRole) return warehouses;
+    if (!activeBranch?.warehouseId) return [];
+    return warehouses.filter((w) => w.id === activeBranch.warehouseId);
+  }, [isGlobalRole, activeBranch, warehouses]);
+
+  // Default the filter to the active branch's warehouse (non-global) or the
+  // first available branch (global). Re-runs when branches load or the
+  // active branch changes (e.g. user switches branch from the top-bar picker).
+  useEffect(() => {
+    if (branches.length === 0) return;
+    if (!isGlobalRole && activeBranch?.warehouseId) {
+      setSelectedWarehouseId(activeBranch.warehouseId);
+    } else if (isGlobalRole && !selectedWarehouseId) {
+      setSelectedWarehouseId(branches[0].warehouseId);
+    }
+  }, [branches, isGlobalRole, activeBranch?.warehouseId]);
 
   // Fetch items whenever the warehouse filter changes (skips initial null state)
   useEffect(() => {
@@ -200,13 +219,14 @@ const InitialInventoryTab = () => {
           <div className="relative mb-3">
             <select
               value={selectedWarehouseId}
+              disabled={!isGlobalRole && visibleBranches.length <= 1}
               onChange={(e) => {
                 setSelectedWarehouseId(e.target.value);
                 setSelectedItem(null);
                 setEntries([]);
               }}
-              className="w-full appearance-none bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg px-3 py-2 text-sm pr-8">
-              {branches.map((branch) => (
+              className="w-full appearance-none bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg px-3 py-2 text-sm pr-8 disabled:opacity-70 disabled:cursor-not-allowed">
+              {visibleBranches.map((branch) => (
                 <option key={branch.id} value={branch.warehouseId}>
                   {branch.name}
                 </option>
@@ -413,13 +433,14 @@ const InitialInventoryTab = () => {
             <label className="block text-sm font-medium mb-1">المستودع *</label>
             <select
               value={formData.warehouseId}
+              disabled={!isGlobalRole && visibleWarehouses.length <= 1}
               onChange={(e) =>
                 setFormData({ ...formData, warehouseId: e.target.value })
               }
-              className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5"
+              className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5 disabled:opacity-70 disabled:cursor-not-allowed"
               required>
               <option value="">اختر المستودع...</option>
-              {warehouses.map((w) => (
+              {visibleWarehouses.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
                 </option>
