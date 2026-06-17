@@ -69,7 +69,7 @@ function buildBulkInvoicePrintStyles() {
       .${R} .sheet {
         font-family: "ERP Invoice Cairo", "Cairo", "Segoe UI", sans-serif;
         direction: rtl;
-        color: #0c0706;
+        color: #000;
         background: #ffffff;
         padding: 0;
         margin: 0;
@@ -81,21 +81,21 @@ function buildBulkInvoicePrintStyles() {
         font-weight: 700;
         letter-spacing: 0.32em;
         text-transform: uppercase;
-        color: #6b4423;
+        color: #000;
       }
 
       .${R} .display {
         font-weight: 900;
         font-size: 34px;
         line-height: 1.05;
-        color: #0c0706;
+        color: #000;
         letter-spacing: -0.01em;
         margin: 6px 0 4px;
       }
 
       .${R} .caption {
         font-size: 10px;
-        color: #6b4423;
+        color: #000;
         letter-spacing: 0.02em;
       }
 
@@ -104,7 +104,7 @@ function buildBulkInvoicePrintStyles() {
         font-weight: 700;
         letter-spacing: 0.28em;
         text-transform: uppercase;
-        color: #6b4423;
+        color: #000;
         margin-bottom: 4px;
       }
 
@@ -120,12 +120,12 @@ function buildBulkInvoicePrintStyles() {
         align-items: flex-start;
         gap: 24px;
         padding-bottom: 14px;
-        border-bottom: 3px solid #0c0706;
+        border-bottom: 3px solid #000;
       }
 
       .${R} .masthead-accent {
         height: 1px;
-        background: #0c0706;
+        background: #000;
         margin-top: 3px;
         margin-bottom: 20px;
       }
@@ -156,7 +156,7 @@ function buildBulkInvoicePrintStyles() {
       .${R} .meta-value {
         font-size: 12px;
         font-weight: 600;
-        color: #0c0706;
+        color: #000;
         margin-bottom: 8px;
       }
 
@@ -164,14 +164,14 @@ function buildBulkInvoicePrintStyles() {
         display: grid;
         grid-template-columns: 1.4fr 1fr 1fr;
         gap: 0;
-        border-bottom: 1px solid rgba(12, 7, 6, 0.18);
+        border-bottom: 1px solid #000;
         padding: 0 0 18px;
         margin-bottom: 20px;
       }
 
       .${R} .info-cell {
         padding: 0 18px;
-        border-inline-start: 1px solid rgba(12, 7, 6, 0.18);
+        border-inline-start: 1px solid #000;
       }
 
       .${R} .info-cell:first-child {
@@ -186,13 +186,13 @@ function buildBulkInvoicePrintStyles() {
       .${R} .info-cell .primary {
         font-size: 13px;
         font-weight: 700;
-        color: #0c0706;
+        color: #000;
         line-height: 1.3;
       }
 
       .${R} .info-cell .secondary {
         font-size: 10px;
-        color: #6b4423;
+        color: #000;
         margin-top: 2px;
       }
 
@@ -207,9 +207,9 @@ function buildBulkInvoicePrintStyles() {
         font-weight: 700;
         letter-spacing: 0.25em;
         text-transform: uppercase;
-        color: #6b4423;
+        color: #000;
         padding: 10px 6px;
-        border-bottom: 2px solid #0c0706;
+        border-bottom: 2px solid #000;
       }
 
       .${R} .items thead th.col-name { text-align: right; width: 44%; }
@@ -219,22 +219,22 @@ function buildBulkInvoicePrintStyles() {
 
       .${R} .items tbody td {
         padding: 10px 6px;
-        border-bottom: 1px solid rgba(12, 7, 6, 0.10);
+        border-bottom: 1px solid #000;
         font-size: 11px;
         vertical-align: top;
       }
 
       .${R} .items tbody tr:last-child td {
-        border-bottom: 2px solid #0c0706;
+        border-bottom: 2px solid #000;
       }
 
       .${R} .items .item-name {
         font-weight: 600;
-        color: #0c0706;
+        color: #000;
       }
 
       .${R} .items .item-unit {
-        color: #6b4423;
+        color: #000;
         font-size: 9.5px;
         margin-inline-start: 4px;
       }
@@ -257,11 +257,11 @@ function buildBulkInvoicePrintStyles() {
         align-items: baseline;
         padding: 6px 0;
         font-size: 11px;
-        color: #2a1a12;
+        color: #000;
       }
 
       .${R} .totals .row.muted {
-        color: #6b4423;
+        color: #000;
       }
 
       .${R} .totals .grand {
@@ -269,8 +269,8 @@ function buildBulkInvoicePrintStyles() {
         justify-content: space-between;
         align-items: baseline;
         padding: 11px 0 8px;
-        border-top: 2px solid #0c0706;
-        border-bottom: 0.5px solid #0c0706;
+        border-top: 2px solid #000;
+        border-bottom: 0.5px solid #000;
         margin-top: 6px;
         margin-bottom: 4px;
       }
@@ -280,13 +280,13 @@ function buildBulkInvoicePrintStyles() {
         font-weight: 700;
         letter-spacing: 0.28em;
         text-transform: uppercase;
-        color: #0c0706;
+        color: #000;
       }
 
       .${R} .totals .grand-value {
         font-size: 22px;
         font-weight: 900;
-        color: #7B2D1F;
+        color: #000;
         font-variant-numeric: tabular-nums;
         direction: ltr;
       }
@@ -296,22 +296,22 @@ function buildBulkInvoicePrintStyles() {
         top: -6px;
         inset-inline-end: 12mm;
         transform: rotate(-14deg);
-        border: 3px double #7B2D1F;
-        color: #7B2D1F;
+        border: 3px double #000;
+        color: #000;
         padding: 7px 22px;
         font-size: 20px;
         font-weight: 900;
         letter-spacing: 0.2em;
-        opacity: 0.82;
+        opacity: 1;
         pointer-events: none;
-        background: rgba(255, 255, 255, 0.4);
+        background: #fff;
       }
 
       .${R} .stamp::after {
         content: "";
         position: absolute;
         inset: 2px;
-        border: 1px solid rgba(123, 45, 31, 0.6);
+        border: 1px solid #000;
       }
 
       .${R} .footer {
@@ -323,7 +323,7 @@ function buildBulkInvoicePrintStyles() {
         height: 12px;
         background-image: radial-gradient(
           circle at center,
-          rgba(12, 7, 6, 0.45) 1.3px,
+          #000 1.3px,
           transparent 1.5px
         );
         background-size: 9px 12px;
@@ -334,7 +334,7 @@ function buildBulkInvoicePrintStyles() {
 
       .${R} .footer-note {
         font-size: 10px;
-        color: #6b4423;
+        color: #000;
         letter-spacing: 0.08em;
         margin-bottom: 6px;
       }
@@ -344,7 +344,7 @@ function buildBulkInvoicePrintStyles() {
         font-weight: 700;
         letter-spacing: 0.4em;
         text-transform: uppercase;
-        color: #0c0706;
+        color: #000;
       }
 
       .${R} thead { display: table-header-group; }

@@ -34,6 +34,11 @@ export default function BulkSalesReceipt({ order, onDone }) {
             direction: rtl;
             color: #000;
           }
+          .bulk-receipt, .bulk-receipt * { color: #000 !important; }
+          .bulk-receipt table, .bulk-receipt th, .bulk-receipt td,
+          .bulk-receipt .border-b, .bulk-receipt .border-t {
+            border-color: #000 !important;
+          }
           .no-print { display: none !important; }
         }
         .bulk-receipt { font-family: inherit; direction: rtl; padding: 16px; }

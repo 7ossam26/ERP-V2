@@ -2441,9 +2441,9 @@ const POSPage = () => {
             {(cartItems.length > 0 ? cartItems : lastSale?.items || []).map(
               (item, idx) => (
                 <tr key={idx}>
-                  <td style={{ textAlign: "right", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{item.name}</td>
-                  <td style={{ textAlign: "center", padding: "2px 1px", borderBottom: "1px dashed #999" }}>{item.quantity}</td>
-                  <td style={{ textAlign: "left", padding: "2px 1px", borderBottom: "1px dashed #999", whiteSpace: "nowrap" }}>{item.total.toFixed(2)}</td>
+                  <td style={{ textAlign: "right", padding: "2px 1px", borderBottom: "1px dashed #000" }}>{item.name}</td>
+                  <td style={{ textAlign: "center", padding: "2px 1px", borderBottom: "1px dashed #000" }}>{item.quantity}</td>
+                  <td style={{ textAlign: "left", padding: "2px 1px", borderBottom: "1px dashed #000", whiteSpace: "nowrap" }}>{item.total.toFixed(2)}</td>
                 </tr>
               ),
             )}

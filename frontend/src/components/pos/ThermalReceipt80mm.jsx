@@ -80,7 +80,7 @@ const PRINT_STYLES = `
 
     .${R} td {
       padding: 2px 1px;
-      border-bottom: 1px dashed #999;
+      border-bottom: 1px dashed #000;
       vertical-align: top;
     }
 

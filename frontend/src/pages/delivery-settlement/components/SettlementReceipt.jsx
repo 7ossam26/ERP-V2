@@ -6,7 +6,21 @@ const SettlementReceipt = forwardRef(({ data }, ref) => {
     const { driverName, settlementId, date, orders, totalAmount, notes, user, treasury } = data;
 
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-sans max-w-4xl mx-auto" style={{ direction: 'rtl' }}>
+        <>
+        <style>{`
+            @media print {
+                .settlement-receipt, .settlement-receipt * {
+                    color: #000 !important;
+                    background: #fff !important;
+                    border-color: #000 !important;
+                    opacity: 1 !important;
+                }
+                .settlement-receipt table, .settlement-receipt th, .settlement-receipt td {
+                    border: 1px solid #000 !important;
+                }
+            }
+        `}</style>
+        <div ref={ref} className="settlement-receipt p-8 bg-white text-black font-sans max-w-4xl mx-auto" style={{ direction: 'rtl' }}>
             {/* Header with Logo */}
             <div className="text-center mb-8 pb-6 border-b-2 border-gray-800">
                 <img
@@ -134,6 +148,7 @@ const SettlementReceipt = forwardRef(({ data }, ref) => {
                 <p>تم الطباعة في: {new Date().toLocaleString('ar-EG')}</p>
             </div>
         </div>
+        </>
     );
 });
 
