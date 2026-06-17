@@ -31,11 +31,11 @@ const generateTransferNumber = async () => {
   }
 };
 
-// Protect all routes with STOCK_TRANSFER permission
-router.use(authenticateToken, requirePermission("STOCK_TRANSFER"));
+// Authentication required on all routes. Per-endpoint permission below.
+router.use(authenticateToken);
 
 // GET all stock transfers
-router.get("/", async (req, res, next) => {
+router.get("/", requirePermission("STOCK_TRANSFER"), async (req, res, next) => {
   try {
     const {
       startDate,
@@ -72,6 +72,7 @@ router.get("/", async (req, res, next) => {
         fromWarehouse: true,
         toWarehouse: true,
         user: { select: { id: true, name: true, username: true } },
+        acceptedBy: { select: { id: true, name: true, username: true } },
         items: {
           include: {
             item: true,
@@ -86,7 +87,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // GET stock transfer by ID
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", requirePermission("STOCK_TRANSFER"), async (req, res, next) => {
   try {
     const transfer = await prisma.stockTransfer.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -94,6 +95,7 @@ router.get("/:id", async (req, res, next) => {
         fromWarehouse: true,
         toWarehouse: true,
         user: { select: { id: true, name: true, username: true } },
+        acceptedBy: { select: { id: true, name: true, username: true } },
         items: {
           include: {
             item: true,
@@ -112,8 +114,8 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-// POST create new stock transfer
-router.post("/", async (req, res, next) => {
+// POST create new stock transfer (creates PENDING request, locks source inventory)
+router.post("/", requirePermission("STOCK_TRANSFER"), async (req, res, next) => {
   try {
     // console.log("📦 ============ STOCK TRANSFER API CALLED ============");
     // console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
@@ -221,14 +223,14 @@ router.post("/", async (req, res, next) => {
         }
       }
 
-      // 2. Create Stock Transfer
+      // 2. Create Stock Transfer (PENDING — awaits approval)
       const transfer = await tx.stockTransfer.create({
         data: {
           transferNumber,
           fromWarehouseId: parseInt(sourceWarehouseId),
           toWarehouseId: parseInt(toWarehouseId),
           userId: parseInt(userId),
-          status: "COMPLETED", // Immediately complete as we're updating inventory
+          status: "PENDING",
           notes,
           items: {
             create: items.map((item) => ({
@@ -249,9 +251,8 @@ router.post("/", async (req, res, next) => {
         },
       });
 
-      // 3. Update Inventory (Decrement from source, Increment to destination)
+      // 3. Lock source inventory (decrement only — destination unchanged until approval)
       for (const item of items) {
-        //  Decrement from source warehouse
         await tx.inventory.update({
           where: {
             itemId_warehouseId: {
@@ -261,24 +262,6 @@ router.post("/", async (req, res, next) => {
           },
           data: {
             quantity: { decrement: parseFloat(item.quantity) },
-          },
-        });
-
-        // Increment to destination warehouse (upsert in case it doesn't exist)
-        await tx.inventory.upsert({
-          where: {
-            itemId_warehouseId: {
-              itemId: parseInt(item.itemId),
-              warehouseId: parseInt(toWarehouseId),
-            },
-          },
-          create: {
-            itemId: parseInt(item.itemId),
-            warehouseId: parseInt(toWarehouseId),
-            quantity: parseFloat(item.quantity),
-          },
-          update: {
-            quantity: { increment: parseFloat(item.quantity) },
           },
         });
       }
@@ -297,8 +280,138 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-// DELETE stock transfer — reverses inventory before deleting
-router.delete("/:id", async (req, res, next) => {
+// POST approve stock transfer — credits destination inventory and marks APPROVED
+router.post(
+  "/:id/approve",
+  requirePermission("WAREHOUSE_TRANSFER_MANAGEMENT"),
+  async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      const transfer = await prisma.stockTransfer.findUnique({
+        where: { id },
+        include: { items: true },
+      });
+
+      if (!transfer) {
+        return res.status(404).json({ error: "Stock transfer not found" });
+      }
+      if (transfer.status !== "PENDING") {
+        return res
+          .status(400)
+          .json({ error: "Only PENDING transfers can be approved" });
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        // Credit destination warehouse for each item
+        for (const item of transfer.items) {
+          await tx.inventory.upsert({
+            where: {
+              itemId_warehouseId: {
+                itemId: item.itemId,
+                warehouseId: transfer.toWarehouseId,
+              },
+            },
+            create: {
+              itemId: item.itemId,
+              warehouseId: transfer.toWarehouseId,
+              quantity: parseFloat(item.quantity),
+            },
+            update: {
+              quantity: { increment: parseFloat(item.quantity) },
+            },
+          });
+        }
+
+        return tx.stockTransfer.update({
+          where: { id },
+          data: {
+            status: "APPROVED",
+            acceptedById: req.user.id,
+          },
+          include: {
+            fromWarehouse: true,
+            toWarehouse: true,
+            user: { select: { id: true, name: true, username: true } },
+            acceptedBy: { select: { id: true, name: true, username: true } },
+            items: { include: { item: true } },
+          },
+        });
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST reject stock transfer — refunds source inventory and marks REJECTED
+router.post(
+  "/:id/reject",
+  requirePermission("WAREHOUSE_TRANSFER_MANAGEMENT"),
+  async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      const transfer = await prisma.stockTransfer.findUnique({
+        where: { id },
+        include: { items: true },
+      });
+
+      if (!transfer) {
+        return res.status(404).json({ error: "Stock transfer not found" });
+      }
+      if (transfer.status !== "PENDING") {
+        return res
+          .status(400)
+          .json({ error: "Only PENDING transfers can be rejected" });
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        // Refund source warehouse for each item
+        for (const item of transfer.items) {
+          await tx.inventory.upsert({
+            where: {
+              itemId_warehouseId: {
+                itemId: item.itemId,
+                warehouseId: transfer.fromWarehouseId,
+              },
+            },
+            create: {
+              itemId: item.itemId,
+              warehouseId: transfer.fromWarehouseId,
+              quantity: parseFloat(item.quantity),
+            },
+            update: {
+              quantity: { increment: parseFloat(item.quantity) },
+            },
+          });
+        }
+
+        return tx.stockTransfer.update({
+          where: { id },
+          data: {
+            status: "REJECTED",
+            acceptedById: req.user.id,
+          },
+          include: {
+            fromWarehouse: true,
+            toWarehouse: true,
+            user: { select: { id: true, name: true, username: true } },
+            acceptedBy: { select: { id: true, name: true, username: true } },
+            items: { include: { item: true } },
+          },
+        });
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// DELETE stock transfer — inventory reversal depends on current status
+router.delete("/:id", requirePermission("STOCK_TRANSFER"), async (req, res, next) => {
   try {
     await prisma.$transaction(async (tx) => {
       const transfer = await tx.stockTransfer.findUnique({
@@ -312,34 +425,55 @@ router.delete("/:id", async (req, res, next) => {
         throw err;
       }
 
-      // Reverse inventory: move items back from destination to source
-      for (const item of transfer.items) {
-        // Decrement from destination warehouse
-        await tx.inventory.update({
-          where: {
-            itemId_warehouseId: {
-              itemId: item.itemId,
-              warehouseId: transfer.toWarehouseId,
-            },
-          },
-          data: { quantity: { decrement: parseFloat(item.quantity) } },
-        });
+      // PENDING: source was decremented but destination never credited → refund source.
+      // APPROVED / COMPLETED: full move happened → pull from destination + refund source.
+      // REJECTED: source already refunded at rejection → no inventory change.
+      const status = transfer.status;
 
-        // Increment back to source warehouse
-        await tx.inventory.upsert({
-          where: {
-            itemId_warehouseId: {
+      if (status === "APPROVED" || status === "COMPLETED") {
+        for (const item of transfer.items) {
+          await tx.inventory.update({
+            where: {
+              itemId_warehouseId: {
+                itemId: item.itemId,
+                warehouseId: transfer.toWarehouseId,
+              },
+            },
+            data: { quantity: { decrement: parseFloat(item.quantity) } },
+          });
+
+          await tx.inventory.upsert({
+            where: {
+              itemId_warehouseId: {
+                itemId: item.itemId,
+                warehouseId: transfer.fromWarehouseId,
+              },
+            },
+            update: { quantity: { increment: parseFloat(item.quantity) } },
+            create: {
               itemId: item.itemId,
               warehouseId: transfer.fromWarehouseId,
+              quantity: parseFloat(item.quantity),
             },
-          },
-          update: { quantity: { increment: parseFloat(item.quantity) } },
-          create: {
-            itemId: item.itemId,
-            warehouseId: transfer.fromWarehouseId,
-            quantity: parseFloat(item.quantity),
-          },
-        });
+          });
+        }
+      } else if (status === "PENDING") {
+        for (const item of transfer.items) {
+          await tx.inventory.upsert({
+            where: {
+              itemId_warehouseId: {
+                itemId: item.itemId,
+                warehouseId: transfer.fromWarehouseId,
+              },
+            },
+            update: { quantity: { increment: parseFloat(item.quantity) } },
+            create: {
+              itemId: item.itemId,
+              warehouseId: transfer.fromWarehouseId,
+              quantity: parseFloat(item.quantity),
+            },
+          });
+        }
       }
 
       await tx.stockTransfer.delete({

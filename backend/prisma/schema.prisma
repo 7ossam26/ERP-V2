@@ -32,6 +32,7 @@ model User {
   appliedDiscounts            Sale[]                   @relation("SaleDiscountApplier")
   auditLogs                   AuditLog[]
   stockTransfers              StockTransfer[]
+  acceptedStockTransfers      StockTransfer[]          @relation("StockTransferAcceptedBy")
   createdTransfers            CashTransfer[]           @relation("TransferCreator")
   acceptedTransfers           CashTransfer[]           @relation("TransferAccepter")
   createdTransactions         EmployeeTransaction[]    @relation("TransactionCreator")
@@ -88,6 +89,7 @@ enum Module {
   TREASURIES
   CASH_TRANSFER
   TRANSFER_MANAGEMENT
+  WAREHOUSE_TRANSFER_MANAGEMENT
   BRANCHES
   EMPLOYEES
   CLIENTS
@@ -807,6 +809,7 @@ model StockTransfer {
   fromWarehouseId Int                 @map("from_warehouse_id")
   toWarehouseId   Int                 @map("to_warehouse_id")
   userId          Int                 @map("user_id")
+  acceptedById    Int?                @map("accepted_by_id")
   status          StockTransferStatus @default(PENDING)
   notes           String?             @db.Text
   createdAt       DateTime            @default(now()) @map("created_at")
@@ -816,6 +819,7 @@ model StockTransfer {
   fromWarehouse Warehouse           @relation("StockTransferFrom", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
   toWarehouse   Warehouse           @relation("StockTransferTo", fields: [toWarehouseId], references: [id], onDelete: Restrict)
   user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  acceptedBy    User?               @relation("StockTransferAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
   items         StockTransferItem[]
 
   @@map("stock_transfers")

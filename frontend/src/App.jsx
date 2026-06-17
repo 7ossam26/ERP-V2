@@ -47,6 +47,7 @@ import PurchaseHistory from "./pages/reports/history/PurchaseHistory";
 import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 import SettingsPage from "./pages/settings/SettingsPage";
 import TransferManagementPage from "./pages/treasuries/TransferManagementPage";
+import WarehouseTransferManagementPage from "./pages/stock/WarehouseTransferManagementPage";
 import ShiftManagementPage from "./pages/shifts/ShiftManagementPage";
 import SupplierAccountsPage from "./pages/suppliers/SupplierAccountsPage";
 import DeliveryMenPage from "./pages/delivery/DeliveryMenPage";
@@ -399,6 +400,14 @@ function App() {
               <ProtectedRoute
                 requiredPermission={["TREASURIES", "CASH_TRANSFER"]}>
                 <TransferManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/warehouse-transfer-management"
+            element={
+              <ProtectedRoute requiredPermission="WAREHOUSE_TRANSFER_MANAGEMENT">
+                <WarehouseTransferManagementPage />
               </ProtectedRoute>
             }
           />

@@ -29,6 +29,7 @@ const prisma = new PrismaClient();
 const ROLES = [
   { name: "Superadmin", description: "Full system access with developer controls" },
   { name: "Admin", description: "Company/Branch manager with administrative access" },
+  { name: "General Manager", description: "Cross-branch manager with multi-branch access" },
   { name: "Manager", description: "Department manager" },
   { name: "Employee", description: "Standard employee access" },
   {
@@ -41,7 +42,7 @@ const ROLES = [
 const SUPERADMIN_MODULES = [
   "HR", "INVENTORY", "INVENTORY_COUNT", "STOCK_TRANSFER",
   "POS", "PURCHASES", "SALES", "REPORTS",
-  "TREASURIES", "CASH_TRANSFER", "TRANSFER_MANAGEMENT",
+  "TREASURIES", "CASH_TRANSFER", "TRANSFER_MANAGEMENT", "WAREHOUSE_TRANSFER_MANAGEMENT",
   "BRANCHES", "EMPLOYEES", "CLIENTS", "SUPPLIERS", "SUPPLIER_ACCOUNTS",
   "CATEGORIES", "ITEMS", "WAREHOUSES", "SETTINGS", "EXPENSES",
   "SHIFTS", "DELIVERY_SETTLEMENT",
@@ -58,6 +59,15 @@ const SUPERADMIN_MODULES = [
 
 const ADMIN_MODULES = [
   "DEPOSITS", "CREATES_DEPOSITS", "WITHDRAWALS", "CREATES_WITHDRAWALS",
+  "WAREHOUSE_TRANSFER_MANAGEMENT",
+];
+
+const GENERAL_MANAGER_MODULES = [
+  "WAREHOUSE_TRANSFER_MANAGEMENT",
+];
+
+const MANAGER_MODULES = [
+  "WAREHOUSE_TRANSFER_MANAGEMENT",
 ];
 
 const EMPLOYEE_MODULES = [
@@ -69,6 +79,8 @@ const CALL_CENTER_MODULES = ["CALL_CENTER"];
 const PERMISSIONS_BY_ROLE = {
   Superadmin: SUPERADMIN_MODULES,
   Admin: ADMIN_MODULES,
+  "General Manager": GENERAL_MANAGER_MODULES,
+  Manager: MANAGER_MODULES,
   Employee: EMPLOYEE_MODULES,
   "Call Center": CALL_CENTER_MODULES,
 };

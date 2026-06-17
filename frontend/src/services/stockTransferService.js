@@ -21,4 +21,14 @@ export const stockTransferService = {
   delete: async (id) => {
     return api.delete(`/stock-transfers/${id}`);
   },
+
+  // Approve a pending stock transfer (credits destination inventory)
+  approve: async (id) => {
+    return api.post(`/stock-transfers/${id}/approve`);
+  },
+
+  // Reject a pending stock transfer (refunds source inventory)
+  reject: async (id) => {
+    return api.post(`/stock-transfers/${id}/reject`);
+  },
 };

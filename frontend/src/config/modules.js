@@ -219,6 +219,15 @@ export const MODULES = [
     category: "MANAGEMENT",
   },
   {
+    id: "warehouse_transfer_management",
+    code: "WAREHOUSE_TRANSFER_MANAGEMENT",
+    label: "إدارة التحويلات المخزنية",
+    description: "قبول ورفض تحويلات المخازن",
+    icon: "rule",
+    path: "/warehouse-transfer-management",
+    category: "MANAGEMENT",
+  },
+  {
     id: "shifts",
     code: "SHIFTS",
     label: "إدارة الورديات",
