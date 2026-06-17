@@ -288,6 +288,7 @@ router.get(
         include: {
           client: true,
           employee: true,
+          user: { select: { id: true, name: true, username: true } },
           branch: true,
           treasury: true,
           items: {

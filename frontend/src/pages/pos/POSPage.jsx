@@ -70,6 +70,7 @@ const POSPage = () => {
   const [taxRate, setTaxRate] = useState(0.14);
   const [companyTaxNumber, setCompanyTaxNumber] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [deliveryEnabled, setDeliveryEnabled] = useState(true);
 
   // Discount reasons loaded from API (falls back to hardcoded list on error)
   const [discountReasons, setDiscountReasons] = useState(DEFAULT_DISCOUNT_REASONS);
@@ -371,6 +372,8 @@ const POSPage = () => {
           if (settings.companyName) {
             setCompanyName(settings.companyName);
           }
+          // Treat missing/undefined as enabled; only explicit false hides delivery.
+          setDeliveryEnabled(settings.enablePOSDelivery !== false);
         }
       } catch (e) {
         console.error("Failed to load settings", e);
@@ -1075,9 +1078,7 @@ const POSPage = () => {
       setIsPaymentConfirmOpen(false);
       setPendingPaymentMethod(null);
       setCashPaidAmount("");
-      setCashPaidAmount("");
-      clearCart();
-      setSelectedClient(null);
+      clearCart(); // already resets selectedClient to walk-in cash client
       setSelectedDeliveryMan(null);
       setDeliveryData(null); // Always clear delivery data after sale
 
@@ -2010,7 +2011,7 @@ const POSPage = () => {
               <div className="bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-zinc-700">
                 {/* Payment Action Buttons - Only show when keypad is closed */}
                 {keypadMode === "default" && (
-                  <div className="grid grid-cols-4 gap-0 text-sm border-b border-gray-200 dark:border-zinc-700">
+                  <div className={`grid ${deliveryEnabled ? "grid-cols-4" : "grid-cols-3"} gap-0 text-sm border-b border-gray-200 dark:border-zinc-700`}>
                     <button
                       onClick={() => handleQuickPayment("cash")}
                       className="flex flex-col items-center justify-center p-3 bg-green-500 hover:bg-green-600 text-white transition-colors border-l border-white/10">
@@ -2035,34 +2036,36 @@ const POSPage = () => {
                       </span>
                       <span className="font-bold">فيزا</span>
                     </button>
-                    <button
-                      onClick={() => {
-                        // Delivery needs a real, identified client. The client
-                        // picker is hidden by default for direct in-store
-                        // sales; reveal it the first time delivery is started.
-                        const isWalkInClient =
-                          !selectedClient ||
-                          selectedClient.id === cashClientRef.current?.id ||
-                          (selectedClient.name &&
-                            (selectedClient.name.includes("عميل نقدي") ||
-                              selectedClient.name.includes("عميل عام")));
-                        if (isWalkInClient) {
-                          setIsClientSectionVisible(true);
-                          setIsClientDropdownOpen(true);
-                          setTimeout(() => {
-                            clientInputRef.current?.focus();
-                          }, 0);
-                          toast.error("يرجى اختيار عميل محدد للتوصيل");
-                          return;
-                        }
-                        setIsDeliveryModalOpen(true);
-                      }}
-                      className="flex flex-col items-center justify-center p-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors">
-                      <span className="material-symbols-outlined mb-1">
-                        local_shipping
-                      </span>
-                      <span className="font-bold">توصيل</span>
-                    </button>
+                    {deliveryEnabled && (
+                      <button
+                        onClick={() => {
+                          // Delivery needs a real, identified client. The client
+                          // picker is hidden by default for direct in-store
+                          // sales; reveal it the first time delivery is started.
+                          const isWalkInClient =
+                            !selectedClient ||
+                            selectedClient.id === cashClientRef.current?.id ||
+                            (selectedClient.name &&
+                              (selectedClient.name.includes("عميل نقدي") ||
+                                selectedClient.name.includes("عميل عام")));
+                          if (isWalkInClient) {
+                            setIsClientSectionVisible(true);
+                            setIsClientDropdownOpen(true);
+                            setTimeout(() => {
+                              clientInputRef.current?.focus();
+                            }, 0);
+                            toast.error("يرجى اختيار عميل محدد للتوصيل");
+                            return;
+                          }
+                          setIsDeliveryModalOpen(true);
+                        }}
+                        className="flex flex-col items-center justify-center p-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors">
+                        <span className="material-symbols-outlined mb-1">
+                          local_shipping
+                        </span>
+                        <span className="font-bold">توصيل</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -2483,7 +2486,13 @@ const POSPage = () => {
           )}
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>الدفع</span>
-            <span>{lastSale?.paymentMethod === "CASH" ? "نقدي" : "انستاباي"}</span>
+            <span>
+              {lastSale?.paymentMethod === "CASH"
+                ? "نقدي"
+                : lastSale?.paymentMethod === "VISA"
+                  ? "فيزا"
+                  : "انستاباي"}
+            </span>
           </div>
         </div>
 

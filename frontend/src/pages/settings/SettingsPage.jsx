@@ -26,6 +26,8 @@ const SettingsPage = () => {
     morningShiftEnd: "17:00",
     eveningShiftStart: "17:00",
     eveningShiftEnd: "01:00",
+    // POS feature toggles
+    enablePOSDelivery: true,
   });
 
   const [warehouses, setWarehouses] = useState([]);
@@ -64,6 +66,8 @@ const SettingsPage = () => {
         morningShiftEnd: settings.morningShiftEnd || "17:00",
         eveningShiftStart: settings.eveningShiftStart || "17:00",
         eveningShiftEnd: settings.eveningShiftEnd || "01:00",
+        // POS feature toggles (treat missing/undefined as enabled)
+        enablePOSDelivery: settings.enablePOSDelivery !== false,
       });
 
       setWarehouses(warehousesData);
@@ -392,6 +396,40 @@ const SettingsPage = () => {
               الوردية المسائية يمكن أن تمتد بعد منتصف الليل (مثلاً من 17:00 إلى 01:00).
             </p>
           </div>
+        </div>
+
+        {/* POS Feature Toggles */}
+        <div className="bg-surface-light dark:bg-surface-dark rounded-2xl p-6 shadow-sm border border-border-light dark:border-border-dark">
+          <h2 className="text-xl font-bold text-primary dark:text-accent mb-4 flex items-center gap-2">
+            <span className="material-icons-round">tune</span>
+            خصائص نقاط البيع (POS)
+          </h2>
+          <p className="text-sm text-text-secondary dark:text-gray-400 mb-6">
+            تفعيل أو إخفاء الخصائص الاختيارية في شاشة نقاط البيع
+          </p>
+
+          <label className="flex items-start gap-3 p-4 rounded-xl border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark/40 cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              name="enablePOSDelivery"
+              checked={formData.enablePOSDelivery}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  enablePOSDelivery: e.target.checked,
+                }))
+              }
+              className="mt-1 w-5 h-5 accent-primary"
+            />
+            <div className="flex-1">
+              <p className="font-bold text-text-primary dark:text-text-dark">
+                تفعيل التوصيل في نقاط البيع
+              </p>
+              <p className="text-xs text-text-secondary dark:text-gray-500 mt-1">
+                عند التفعيل يظهر زر "توصيل" في شاشة نقاط البيع للسماح بإنشاء طلبات توصيل من الفرع
+              </p>
+            </div>
+          </label>
         </div>
 
         {/* Submit Button */}

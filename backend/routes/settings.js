@@ -63,6 +63,7 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       salaryEndDay,
       shiftStartTime,
       shiftEndTime,
+      enablePOSDelivery,
     } = req.body;
 
     // Validate Tax Rate
@@ -81,6 +82,8 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
       salaryEndDay: safeInt(salaryEndDay),
       shiftStartTime,
       shiftEndTime,
+      enablePOSDelivery:
+        typeof enablePOSDelivery === "boolean" ? enablePOSDelivery : undefined,
     };
 
     // Remove undefined keys for update
@@ -104,6 +107,8 @@ router.put("/", requirePermission("SETTINGS"), async (req, res, next) => {
         salaryEndDay: safeInt(salaryEndDay) || 30,
         shiftStartTime: shiftStartTime || "09:00",
         shiftEndTime: shiftEndTime || "17:00",
+        enablePOSDelivery:
+          typeof enablePOSDelivery === "boolean" ? enablePOSDelivery : true,
       },
     });
 

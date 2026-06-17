@@ -1,12 +1,17 @@
 import React from "react";
 import GenericPageManager from "../../../components/shared/GenericPageManager";
-import { salesService, branchService } from "../../../services/domainServices";
+import {
+  salesService,
+  branchService,
+  settingsService,
+} from "../../../services/domainServices";
 import ReportFilterForm from "../../../components/shared/ReportFilterForm";
 import AuthService from "../../../services/authService";
 import BranchFilterHelper from "../../../utils/BranchFilterHelper";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import SaleDetailsModal from "./SaleDetailsModal";
+import printThermalReceipt from "../../../utils/printThermalReceipt";
 
 const DailyTransactions = () => {
   const currentUser = AuthService.getCurrentUser();
@@ -41,6 +46,30 @@ const DailyTransactions = () => {
 
   const handleFilter = (newFilters) => {
     setFilters(newFilters);
+  };
+
+  const handleReprint = async (sale) => {
+    const id = sale?.id;
+    if (!id) {
+      toast.error("لا يمكن العثور على الفاتورة");
+      return;
+    }
+    try {
+      // Fetch full sale (items, client, user) + current settings (company name/tax)
+      // in parallel. The list payload doesn't always include relations.
+      const [fullSale, settings] = await Promise.all([
+        salesService.getById(id),
+        settingsService.get().catch(() => ({})),
+      ]);
+      if (!fullSale) {
+        toast.error("لا يمكن العثور على الفاتورة");
+        return;
+      }
+      printThermalReceipt(fullSale, settings || {});
+    } catch (err) {
+      console.error("Reprint failed", err);
+      toast.error(err?.message || "تعذرت إعادة طباعة الفاتورة");
+    }
   };
 
   const columns = [
@@ -125,6 +154,13 @@ const DailyTransactions = () => {
       onClick: () => handleViewDetails(item),
       color: "text-blue-600 dark:text-blue-400",
       hoverColor: "hover:bg-blue-50 dark:hover:bg-blue-900/20",
+    },
+    {
+      icon: "print",
+      label: "إعادة طباعة الفاتورة",
+      onClick: () => handleReprint(item),
+      color: "text-emerald-600 dark:text-emerald-400",
+      hoverColor: "hover:bg-emerald-50 dark:hover:bg-emerald-900/20",
     },
   ];
 

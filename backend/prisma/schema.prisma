@@ -783,6 +783,9 @@ model SystemConfiguration {
   eveningShiftStart String @default("17:00") @map("evening_shift_start")
   eveningShiftEnd   String @default("01:00") @map("evening_shift_end")
 
+  // POS Feature Toggles
+  enablePOSDelivery Boolean @default(true) @map("enable_pos_delivery")
+
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations

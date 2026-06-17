@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import orderService from "../../services/orderService";
 import eventStream from "../../services/eventStreamService";
 import printDeliveryTicket from "../../utils/printDeliveryTicket";
+import { settingsService } from "../../services/settingsService";
 
 // ─── Stages ──────────────────────────────────────────────────────────────────
 // Only three active stages live in the prep room: new → preparing → ready.
@@ -300,7 +301,13 @@ function DetailDrawer({ order, onClose, onPrint }) {
           {sale.paymentMethod && (
             <div className="flex justify-between pt-1 text-xs text-gray-500 dark:text-gray-400">
               <span>طريقة الدفع</span>
-              <span className="font-bold">{sale.paymentMethod === "CASH" ? "نقدي" : sale.paymentMethod}</span>
+              <span className="font-bold">
+                {sale.paymentMethod === "CASH"
+                  ? "نقدي"
+                  : sale.paymentMethod === "VISA"
+                    ? "فيزا"
+                    : "انستاباي"}
+              </span>
             </div>
           )}
         </section>
@@ -317,6 +324,17 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [], branchId }) 
   const [busyId, setBusyId]       = useState(null);
   const [activeTab, setActiveTab] = useState("NEW");
   const [detailOrder, setDetailOrder] = useState(null);
+  const [printSettings, setPrintSettings] = useState(null);
+
+  // Load company name / tax number once when the modal opens so the delivery
+  // ticket header can mirror the regular POS receipt.
+  useEffect(() => {
+    if (!isOpen || printSettings) return;
+    settingsService
+      .get()
+      .then((s) => setPrintSettings(s || {}))
+      .catch(() => setPrintSettings({}));
+  }, [isOpen, printSettings]);
 
   const fetchOrders = useCallback(async () => {
     if (!branchId) return;
@@ -366,8 +384,8 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [], branchId }) 
 
   const handlePrint = useCallback(async (order) => {
     const full = await loadFullOrder(order);
-    printDeliveryTicket(full || order);
-  }, [loadFullOrder]);
+    printDeliveryTicket(full || order, printSettings);
+  }, [loadFullOrder, printSettings]);
 
   const handleTransition = async (orderId, nextStatus, deliveryManId, rider) => {
     setBusyId(orderId);
@@ -382,7 +400,7 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [], branchId }) 
         if (full && rider && !full.sale?.deliveryMan) {
           full.sale = { ...full.sale, deliveryMan: { id: rider.id, name: rider.name } };
         }
-        if (full) printDeliveryTicket(full);
+        if (full) printDeliveryTicket(full, printSettings);
       }
 
       if (nextStatus === "OUT_FOR_DELIVERY" || nextStatus === "DELIVERED" || nextStatus === "CANCELLED") {
@@ -391,6 +409,12 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [], branchId }) 
         setOrders((prev) =>
           prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
         );
+      }
+
+      // Auto-advance the active tab so the cashier follows the order to its
+      // next stage without having to click the tab manually.
+      if (nextStatus === "PREPARING" || nextStatus === "READY") {
+        setActiveTab(nextStatus);
       }
     } catch (err) {
       toast.error(err?.data?.error || err?.message || "تعذر تحديث الحالة");
@@ -512,7 +536,7 @@ const PreparationQueueModal = ({ isOpen, onClose, deliveryMen = [], branchId }) 
           <DetailDrawer
             order={detailOrder}
             onClose={() => setDetailOrder(null)}
-            onPrint={(o) => printDeliveryTicket(o)}
+            onPrint={(o) => printDeliveryTicket(o, printSettings)}
           />
         )}
       </div>
