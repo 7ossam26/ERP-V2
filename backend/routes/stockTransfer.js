@@ -161,6 +161,29 @@ router.post("/", async (req, res, next) => {
 
     console.log(`✅ Source Warehouse ID: ${sourceWarehouseId}`);
 
+    // Validate the requesting user is allowed to transfer FROM this warehouse
+    const GLOBAL_ROLES = ["Superadmin", "Admin", "General Manager"];
+    const requester = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      include: {
+        role: true,
+        branch: { select: { warehouseId: true } },
+        accessibleBranches: { select: { warehouseId: true } },
+      },
+    });
+
+    if (!requester || !GLOBAL_ROLES.includes(requester.role?.name)) {
+      const allowedWarehouseIds = new Set();
+      if (requester?.branch?.warehouseId)
+        allowedWarehouseIds.add(requester.branch.warehouseId);
+      for (const b of requester?.accessibleBranches ?? []) {
+        if (b.warehouseId) allowedWarehouseIds.add(b.warehouseId);
+      }
+      if (!allowedWarehouseIds.has(parseInt(sourceWarehouseId))) {
+        return res.status(403).json({ error: "غير مسموح بالتحويل من هذا المخزن" });
+      }
+    }
+
     // Prevent transfer to same warehouse
     if (parseInt(sourceWarehouseId) === parseInt(toWarehouseId)) {
       return res.status(400).json({

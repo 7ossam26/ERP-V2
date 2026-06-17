@@ -67,6 +67,8 @@ function isIgnorableDdlError(error) {
     "1061",
     "1091",
     "1146",
+    "121",
+    "Duplicate key",
     "ER_DUP_KEYNAME",
     "ER_DUP_FIELDNAME",
     "ER_CANT_DROP_FIELD_OR_KEY",
@@ -188,6 +190,12 @@ async function applyLegacyMigrationFixes() {
   `);
 
   // --- 20260419171241_add_call_center_orders_notifications ---
+  const validModules = ['HR','INVENTORY','INVENTORY_COUNT','STOCK_TRANSFER','POS','PURCHASES','SALES','REPORTS','TREASURIES','CASH_TRANSFER','TRANSFER_MANAGEMENT','BRANCHES','EMPLOYEES','CLIENTS','SUPPLIERS','SUPPLIER_ACCOUNTS','CATEGORIES','ITEMS','WAREHOUSES','SETTINGS','EXPENSES','SHIFTS','DELIVERY_SETTLEMENT','CREATES_WAREHOUSES','CREATES_EMPLOYEES','CREATES_SUPPLIERS','CREATES_CLIENTS','CREATES_CATEGORIES','CREATES_ITEMS','CREATES_TREASURIES','CREATES_BRANCHES','DEPOSITS','CREATES_DEPOSITS','WITHDRAWALS','CREATES_WITHDRAWALS','DELIVERY_MEN','CREATES_DELIVERY_MEN','DELIVERY_ZONES','CREATES_DELIVERY_ZONES','CREATES_PRODUCTION','PRODUCTION','INITIAL_INVENTORY','CALL_CENTER','BULK_POS','BULK_CUSTOMERS','BULK_PRICING','BULK_CREDIT','BULK_REPORTS'];
+  const placeholders = validModules.map(() => '?').join(',');
+  await prisma.$executeRawUnsafe(
+    `DELETE FROM \`permissions\` WHERE \`module\` NOT IN (${placeholders})`,
+    ...validModules
+  );
   await executeIgnoringDuplicate(`
     ALTER TABLE \`permissions\` MODIFY \`module\`
     ENUM('HR','INVENTORY','INVENTORY_COUNT','STOCK_TRANSFER','POS','PURCHASES','SALES','REPORTS','TREASURIES','CASH_TRANSFER','TRANSFER_MANAGEMENT','BRANCHES','EMPLOYEES','CLIENTS','SUPPLIERS','SUPPLIER_ACCOUNTS','CATEGORIES','ITEMS','WAREHOUSES','SETTINGS','EXPENSES','SHIFTS','DELIVERY_SETTLEMENT','CREATES_WAREHOUSES','CREATES_EMPLOYEES','CREATES_SUPPLIERS','CREATES_CLIENTS','CREATES_CATEGORIES','CREATES_ITEMS','CREATES_TREASURIES','CREATES_BRANCHES','DEPOSITS','CREATES_DEPOSITS','WITHDRAWALS','CREATES_WITHDRAWALS','DELIVERY_MEN','CREATES_DELIVERY_MEN','DELIVERY_ZONES','CREATES_DELIVERY_ZONES','CREATES_PRODUCTION','PRODUCTION','INITIAL_INVENTORY','CALL_CENTER','BULK_POS','BULK_CUSTOMERS','BULK_PRICING','BULK_CREDIT','BULK_REPORTS') NOT NULL
@@ -535,57 +543,69 @@ async function run() {
   console.log(">>> [FIX] Checking and applying missing schema changes...");
 
   // 1. Create purchase_returns table if missing
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS \`purchase_returns\` (
-      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
-      \`purchase_id\` INTEGER NOT NULL,
-      \`return_number\` VARCHAR(191) NOT NULL,
-      \`notes\` VARCHAR(500) NULL,
-      \`total_amount\` DECIMAL(10, 2) NOT NULL,
-      \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-      UNIQUE INDEX \`purchase_returns_return_number_key\`(\`return_number\`),
-      INDEX \`purchase_returns_purchase_id_fkey\`(\`purchase_id\`),
-      PRIMARY KEY (\`id\`)
-    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-  `);
-  console.log(">>> [FIX] purchase_returns: OK");
+  if (!(await tableExists("purchase_returns"))) {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`purchase_returns\` (
+        \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+        \`purchase_id\` INTEGER NOT NULL,
+        \`return_number\` VARCHAR(191) NOT NULL,
+        \`notes\` VARCHAR(500) NULL,
+        \`total_amount\` DECIMAL(10, 2) NOT NULL,
+        \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        UNIQUE INDEX \`purchase_returns_return_number_key\`(\`return_number\`),
+        INDEX \`purchase_returns_purchase_id_fkey\`(\`purchase_id\`),
+        PRIMARY KEY (\`id\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    console.log(">>> [FIX] purchase_returns: OK");
+  } else {
+    console.log(">>> [FIX] purchase_returns already exists: skipping creation");
+  }
 
   // 2. Create purchase_return_items table if missing
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS \`purchase_return_items\` (
-      \`id\` INTEGER NOT NULL AUTO_INCREMENT,
-      \`purchase_return_id\` INTEGER NOT NULL,
-      \`item_id\` INTEGER NOT NULL,
-      \`quantity\` DECIMAL(10, 4) NOT NULL,
-      \`purchase_price\` DECIMAL(10, 2) NOT NULL,
-      \`total\` DECIMAL(10, 2) NOT NULL,
-      INDEX \`purchase_return_items_purchase_return_id_fkey\`(\`purchase_return_id\`),
-      INDEX \`purchase_return_items_item_id_fkey\`(\`item_id\`),
-      PRIMARY KEY (\`id\`)
-    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-  `);
-  console.log(">>> [FIX] purchase_return_items: OK");
+  if (!(await tableExists("purchase_return_items"))) {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`purchase_return_items\` (
+        \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+        \`purchase_return_id\` INTEGER NOT NULL,
+        \`item_id\` INTEGER NOT NULL,
+        \`quantity\` DECIMAL(10, 4) NOT NULL,
+        \`purchase_price\` DECIMAL(10, 2) NOT NULL,
+        \`total\` DECIMAL(10, 2) NOT NULL,
+        INDEX \`purchase_return_items_purchase_return_id_fkey\`(\`purchase_return_id\`),
+        INDEX \`purchase_return_items_item_id_fkey\`(\`item_id\`),
+        PRIMARY KEY (\`id\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    console.log(">>> [FIX] purchase_return_items: OK");
+  } else {
+    console.log(">>> [FIX] purchase_return_items already exists: skipping creation");
+  }
 
   // 3. Add foreign keys (ignore error if they already exist)
-  const fkeys = [
-    `ALTER TABLE \`purchase_returns\` ADD CONSTRAINT \`purchase_returns_purchase_id_fkey\`
-      FOREIGN KEY (\`purchase_id\`) REFERENCES \`purchases\`(\`id\`) ON DELETE RESTRICT ON UPDATE CASCADE`,
-    `ALTER TABLE \`purchase_return_items\` ADD CONSTRAINT \`purchase_return_items_purchase_return_id_fkey\`
-      FOREIGN KEY (\`purchase_return_id\`) REFERENCES \`purchase_returns\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE`,
-    `ALTER TABLE \`purchase_return_items\` ADD CONSTRAINT \`purchase_return_items_item_id_fkey\`
-      FOREIGN KEY (\`item_id\`) REFERENCES \`items\`(\`id\`) ON DELETE RESTRICT ON UPDATE CASCADE`,
-  ];
-  for (const fk of fkeys) {
-    try {
-      await prisma.$executeRawUnsafe(fk);
-    } catch (e) {
-      if (!e.message.includes("Duplicate key name") && !e.message.includes("already exists") && e.meta?.code !== "ER_DUP_KEYNAME") {
-        // errno 1826 = duplicate FK name, errno 1061 = duplicate key — both are fine
-        if (!e.message.includes("1826") && !e.message.includes("1061")) throw e;
+  if (!(await tableExists("purchase_returns")) || !(await tableExists("purchase_return_items"))) {
+    const fkeys = [
+      `ALTER TABLE \`purchase_returns\` ADD CONSTRAINT \`purchase_returns_purchase_id_fkey\`
+        FOREIGN KEY (\`purchase_id\`) REFERENCES \`purchases\`(\`id\`) ON DELETE RESTRICT ON UPDATE CASCADE`,
+      `ALTER TABLE \`purchase_return_items\` ADD CONSTRAINT \`purchase_return_items_purchase_return_id_fkey\`
+        FOREIGN KEY (\`purchase_return_id\`) REFERENCES \`purchase_returns\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE \`purchase_return_items\` ADD CONSTRAINT \`purchase_return_items_item_id_fkey\`
+        FOREIGN KEY (\`item_id\`) REFERENCES \`items\`(\`id\`) ON DELETE RESTRICT ON UPDATE CASCADE`,
+    ];
+    for (const fk of fkeys) {
+      try {
+        await prisma.$executeRawUnsafe(fk);
+      } catch (e) {
+        if (!e.message.includes("Duplicate key name") && !e.message.includes("already exists") && e.meta?.code !== "ER_DUP_KEYNAME") {
+          // errno 1826 = duplicate FK name, errno 1061 = duplicate key — both are fine
+          if (!e.message.includes("1826") && !e.message.includes("1061") && !e.message.includes("121")) throw e;
+        }
       }
     }
+    console.log(">>> [FIX] foreign keys: OK");
+  } else {
+    console.log(">>> [FIX] purchase_returns/items foreign keys already exist: skipping");
   }
-  console.log(">>> [FIX] foreign keys: OK");
 
   // 4. Add RETURNED + CANCELLED to payment_status enum
   await prisma.$executeRawUnsafe(`
@@ -597,8 +617,12 @@ async function run() {
   console.log(">>> [FIX] payment_status enum (RETURNED + CANCELLED): OK");
 
   // 5. Repair baselined call-center notification migration drift.
-  await prisma.$executeRawUnsafe(createNotificationsTableSql);
-  console.log(">>> [FIX] notifications table: OK");
+  if (!(await tableExists("notifications"))) {
+    await prisma.$executeRawUnsafe(createNotificationsTableSql);
+    console.log(">>> [FIX] notifications table: OK");
+  } else {
+    console.log(">>> [FIX] notifications table already exists: skipping creation");
+  }
 
   // 6. Repair baselined treasury scope / digital treasury migration drift.
   for (const fix of requiredColumnFixes) {
