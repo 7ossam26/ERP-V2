@@ -749,7 +749,8 @@ router.get(
         (user.accessibleBranches &&
           user.accessibleBranches.some((b) => b.id === shift.branchId)) ||
         user.role.name === "Superadmin" ||
-        user.role.name === "General Manager"; // General Manager can access all branches
+        user.role.name === "Admin" ||
+        user.role.name === "General Manager"; // Global roles can access all branches
 
       if (!canAccessBranch) {
         return res.status(403).json({
