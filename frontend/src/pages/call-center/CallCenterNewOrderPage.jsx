@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import { CheckCircle2, MapPin, Phone, Save, Search, Sparkles, UserRound, X } from "lucide-react";
+import { CheckCircle2, ListOrdered, MapPin, Phone, Save, Search, Sparkles, UserRound, X } from "lucide-react";
 import { callCenterService } from "../../services/callCenterService";
 import { deliveryZoneService } from "../../services/deliveryZoneService";
 import { computeDiscountAmount } from "../../components/pos/DiscountPanel";
@@ -423,6 +424,13 @@ const CallCenterNewOrderPage = () => {
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
+            <Link
+              to="/call-center/orders"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 font-bold text-primary hover:bg-primary/20 transition-colors"
+            >
+              <ListOrdered size={14} />
+              الطلبات
+            </Link>
             <span className="rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-3 py-1.5 text-text-light/70 dark:text-text-dark/70">
               الفرع: <b className="text-text-light dark:text-text-dark">{selectedBranch?.name || "—"}</b>
             </span>
