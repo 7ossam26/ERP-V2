@@ -533,9 +533,11 @@ exports.cancelOrder = async (req, res, next) => {
     if (order.channel !== "CALL_CENTER") {
       return res.status(400).json({ error: "Not a call-center order" });
     }
-    if (order.status !== "NEW") {
+    const CANCELLABLE_STATUSES = ["NEW", "PREPARING", "READY"];
+    if (!CANCELLABLE_STATUSES.includes(order.status)) {
       return res.status(400).json({
-        error: "Only NEW orders can be cancelled",
+        error: "ORDER_NOT_CANCELLABLE",
+        message: "Cannot cancel after the order is dispatched",
         currentStatus: order.status,
       });
     }
@@ -587,6 +589,18 @@ exports.cancelOrder = async (req, res, next) => {
         data: { readAt: new Date() },
       });
     });
+
+    prisma.order
+      .findUnique({
+        where: { id: orderId },
+        include: { sale: { select: { id: true, saleNumber: true } } },
+      })
+      .then((updated) =>
+        broadcastStatusChange(prisma, { order: updated, sale: updated.sale })
+      )
+      .catch((err) =>
+        console.error("[CC] broadcastStatusChange (cancel) failed:", err.message)
+      );
 
     res.json({ orderId, status: "CANCELLED" });
   } catch (err) {

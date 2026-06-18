@@ -95,7 +95,14 @@ const CallCenterOrdersListPage = () => {
       setCancelId(null);
       load();
     } catch (err) {
-      toast.error(err?.data?.error || "تعذر الإلغاء");
+      const code = err?.data?.error;
+      if (code === "ORDER_NOT_CANCELLABLE") {
+        toast.error("لا يمكن إلغاء الطلب بعد خروجه مع الطيار");
+        setCancelId(null);
+        load();
+      } else {
+        toast.error(err?.data?.message || code || "تعذر الإلغاء");
+      }
     } finally {
       setCancelSubmitting(false);
     }
@@ -177,7 +184,7 @@ const CallCenterOrdersListPage = () => {
                         {statusUpdating === o.id ? "..." : ADVANCE_LABEL[o.status]}
                       </button>
                     )}
-                    {o.status === "NEW" && (
+                    {["NEW", "PREPARING", "READY"].includes(o.status) && (
                       <button
                         className="text-red-500 hover:underline text-xs"
                         disabled={statusUpdating === o.id}
