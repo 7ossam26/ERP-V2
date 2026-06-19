@@ -462,11 +462,12 @@ exports.settleDeliveryMan = async (req, res) => {
         const settlements = [];
         const treasuryUpdates = new Map(); // Track treasury updates per branch
         let totalOrdersUpdated = 0;
+        const now = new Date();
 
         for (const driver of deliveryMen) {
           if (!driver.id) continue;
 
-          // Fetch driver with branch info to get treasury
+          // Fetch driver with branch info to get treasury + name (for audit)
           const driverData = await tx.deliveryMan.findUnique({
             where: { id: parseInt(driver.id) },
             include: { branch: { select: { treasuryId: true } } },
@@ -494,7 +495,13 @@ exports.settleDeliveryMan = async (req, res) => {
               deliveryStatus: "OUT_FOR_DELIVERY",
               ...idFilter,
             },
-            select: { id: true, total: true, deliveryDriverShare: true },
+            select: {
+              id: true,
+              total: true,
+              deliveryDriverShare: true,
+              paymentMethod: true,
+              paidAt: true,
+            },
           });
 
           if (pendingSales.length === 0) continue;
@@ -503,6 +510,7 @@ exports.settleDeliveryMan = async (req, res) => {
             (sum, s) => sum + (Number(s.total || 0) - Number(s.deliveryDriverShare || 0)),
             0,
           );
+          const settledSaleIds = pendingSales.map((s) => s.id);
 
           // 1. Decrement Driver Wallet Balance
           const updatedDriver = await tx.deliveryMan.update({
@@ -521,10 +529,41 @@ exports.settleDeliveryMan = async (req, res) => {
             },
           });
 
-          // 3. Mark exactly those sales DELIVERED
-          const updateResult = await tx.sale.updateMany({
-            where: { id: { in: pendingSales.map((s) => s.id) } },
+          // 3. Mark sales DELIVERED + stamp paidAt for any not-yet-paid sales
+          await tx.sale.updateMany({
+            where: { id: { in: settledSaleIds } },
             data: { deliveryStatus: "DELIVERED" },
+          });
+          const unpaidSettled = pendingSales.filter(
+            (s) =>
+              !s.paidAt &&
+              (s.paymentMethod === "CASH" ||
+                s.paymentMethod === "VISA" ||
+                s.paymentMethod === "INSTAPAY"),
+          );
+          if (unpaidSettled.length > 0) {
+            await tx.sale.updateMany({
+              where: { id: { in: unpaidSettled.map((s) => s.id) } },
+              data: { paidAt: now },
+            });
+          }
+
+          // 4. Keep the Order workflow row in sync (mirrors sales.js mark-delivered).
+          const updateResult = await tx.order.updateMany({
+            where: { saleId: { in: settledSaleIds } },
+            data: { status: "DELIVERED", deliveredAt: now },
+          });
+
+          // 5. Audit trail — one Deposit row per driver settlement so the
+          //    treasury history and shift report "نقدي داخل" show it.
+          await tx.deposit.create({
+            data: {
+              amount: driverAmount,
+              description: `تسوية دليفري — ${driverData.name}`,
+              date: now,
+              treasuryId,
+              createdById: settledById,
+            },
           });
 
           // Track treasury amounts
@@ -546,7 +585,7 @@ exports.settleDeliveryMan = async (req, res) => {
           totalOrdersUpdated += updateResult.count;
         }
 
-        // 4. Increment Treasury Balances (per branch)
+        // 6. Increment Treasury Balances (per branch)
         for (const [treasuryId, amount] of treasuryUpdates.entries()) {
           await tx.treasury.update({
             where: { id: treasuryId },
@@ -574,6 +613,8 @@ exports.settleDeliveryMan = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      const now = new Date();
+
       // Fetch driver with branch treasury
       const driver = await tx.deliveryMan.findUnique({
         where: { id: parseInt(deliveryManId) },
@@ -605,7 +646,13 @@ exports.settleDeliveryMan = async (req, res) => {
           deliveryStatus: "OUT_FOR_DELIVERY",
           ...idFilter,
         },
-        select: { id: true, total: true, deliveryDriverShare: true },
+        select: {
+          id: true,
+          total: true,
+          deliveryDriverShare: true,
+          paymentMethod: true,
+          paidAt: true,
+        },
       });
 
       if (pendingSales.length === 0) {
@@ -620,6 +667,7 @@ exports.settleDeliveryMan = async (req, res) => {
         (sum, s) => sum + (Number(s.total || 0) - Number(s.deliveryDriverShare || 0)),
         0,
       );
+      const settledSaleIds = pendingSales.map((s) => s.id);
 
       // 1. Decrement Wallet Balance — by the trusted amount, not the client's
       const updatedDeliveryMan = await tx.deliveryMan.update({
@@ -644,10 +692,41 @@ exports.settleDeliveryMan = async (req, res) => {
         },
       });
 
-      // 4. Mark exactly those sales as DELIVERED
-      const updateResult = await tx.sale.updateMany({
-        where: { id: { in: pendingSales.map((s) => s.id) } },
+      // 4. Mark sales DELIVERED + stamp paidAt for any not-yet-paid sales
+      await tx.sale.updateMany({
+        where: { id: { in: settledSaleIds } },
         data: { deliveryStatus: "DELIVERED" },
+      });
+      const unpaidSettled = pendingSales.filter(
+        (s) =>
+          !s.paidAt &&
+          (s.paymentMethod === "CASH" ||
+            s.paymentMethod === "VISA" ||
+            s.paymentMethod === "INSTAPAY"),
+      );
+      if (unpaidSettled.length > 0) {
+        await tx.sale.updateMany({
+          where: { id: { in: unpaidSettled.map((s) => s.id) } },
+          data: { paidAt: now },
+        });
+      }
+
+      // 5. Keep the Order workflow row in sync (mirrors sales.js mark-delivered).
+      const updateResult = await tx.order.updateMany({
+        where: { saleId: { in: settledSaleIds } },
+        data: { status: "DELIVERED", deliveredAt: now },
+      });
+
+      // 6. Audit trail — one Deposit row per settlement so the treasury
+      //    history and the shift report "نقدي داخل" row reflect it.
+      await tx.deposit.create({
+        data: {
+          amount: trustedAmount,
+          description: `تسوية دليفري — ${driver.name}`,
+          date: now,
+          treasuryId,
+          createdById: settledById,
+        },
       });
 
       return {
@@ -656,7 +735,7 @@ exports.settleDeliveryMan = async (req, res) => {
         updatedOrdersCount: updateResult.count,
         amount: trustedAmount,
         treasuryId,
-        settledSaleIds: pendingSales.map((s) => s.id),
+        settledSaleIds,
       };
     });
 

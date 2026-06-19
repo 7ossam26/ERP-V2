@@ -91,9 +91,13 @@ const ExpensesPage = () => {
 
   const handleAddExpense = async (newExpense) => {
     try {
-      await expenseService.create(newExpense);
+      const result = await expenseService.create(newExpense);
       await fetchExpenses();
-      toast.success("تم إضافة المصروف بنجاح");
+      if (result?.shiftId) {
+        toast.success(`تم إضافة المصروف وربطه بالوردية رقم ${result.shiftId}`);
+      } else {
+        toast.success("تم إضافة المصروف بنجاح");
+      }
     } catch (error) {
       console.error("Failed to add expense", error);
       toast.error(error.message || "فشل إضافة المصروف");

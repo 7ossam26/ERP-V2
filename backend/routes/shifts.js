@@ -203,11 +203,12 @@ async function calculateSystemExpectedCash(shiftId) {
   let expectedInstapay = 0;
 
   // Add cash sales only (card sales don't go in drawer).
-  // S6: for sales linked to an Order (delivery flow), only count cash that's
-  // actually in the drawer — i.e. Order.status === DELIVERED. Sales already
-  // filter to this shift via the Shift.sales relation, so a row reaching us
-  // with shiftId=current implicitly satisfies the "this shift" half of the
-  // rule. In-flight COD stays attributed here but is excluded from expected.
+  // Source of truth for "cash is in the drawer" is sale.deliveryStatus:
+  //   - mark-delivered (sales.js:1100) flips both deliveryStatus and Order.status
+  //   - driver settlement (delivery.controller.js) flips deliveryStatus only
+  //     (cash returned from the driver is placed in the drawer by the cashier)
+  // Order.status used to be checked here but it was out of sync after
+  // settlement, producing phantom shortage/overage at shift close.
   shift.sales.forEach((sale) => {
     const amount = parseFloat(sale.total) || 0;
     if (sale.paymentMethod === "VISA") {
@@ -219,15 +220,21 @@ async function calculateSystemExpectedCash(shiftId) {
       return;
     }
     if (sale.paymentMethod !== "CASH") return;
-    if (!sale.order) {
-      // Walk-in POS cash — money in the drawer at sale time.
+    if (!sale.deliveryManId) {
+      // Walk-in / pickup cash — no driver involved, money in the drawer at
+      // sale time. POS sales create an Order row too, so we can't use
+      // !sale.order as the gate.
       posCash += amount;
       expected += amount;
       return;
     }
-    if (sale.order.status === "DELIVERED") {
-      codDeliveredThisShift += amount;
-      expected += amount;
+    if (sale.deliveryStatus === "DELIVERED") {
+      // The driver keeps deliveryDriverShare; only (total − share) physically
+      // returns to the drawer at settlement.
+      const driverShare = parseFloat(sale.deliveryDriverShare) || 0;
+      const netAmount = amount - driverShare;
+      codDeliveredThisShift += netAmount;
+      expected += netAmount;
     } else {
       codPendingExcluded += amount;
     }
@@ -840,12 +847,18 @@ router.get(
 
         const paymentMethod = sale.paymentMethod;
         if (paymentMethod === "CASH") {
-          if (!sale.order) {
+          if (!sale.deliveryManId) {
+            // Walk-in / pickup cash — no driver involved, drawer at sale time.
             posCashReport += saleTotal;
             cashSales += saleTotal;
-          } else if (sale.order.status === "DELIVERED") {
-            codDeliveredReport += saleTotal;
-            cashSales += saleTotal;
+          } else if (sale.deliveryStatus === "DELIVERED") {
+            // Settlement (or mark-delivered) flipped deliveryStatus → cash is
+            // now in the drawer. Driver keeps their share; only (total − share)
+            // physically returns to the cashier.
+            const driverShare = parseFloat(sale.deliveryDriverShare) || 0;
+            const netAmount = saleTotal - driverShare;
+            codDeliveredReport += netAmount;
+            cashSales += netAmount;
           } else {
             // In-flight COD: attributed to this shift but not yet in the drawer.
             codPendingReport += saleTotal;

@@ -81,7 +81,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
           </div>
 
           {/* Money Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Total Sales */}
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
               <div className="flex items-center gap-3 mb-2 text-blue-600">
@@ -104,14 +104,25 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               </p>
             </div>
 
+            {/* Visa Payments */}
+            <div className="bg-sky-50 p-4 rounded-xl border border-sky-100">
+              <div className="flex items-center gap-3 mb-2 text-sky-600">
+                <FaCreditCard />
+                <h4 className="font-bold">مبيعات فيزا</h4>
+              </div>
+              <p className="text-2xl font-bold text-gray-800">
+                {Number(report.expectedVisa ?? report.visaPayments ?? 0).toLocaleString()} ج.م
+              </p>
+            </div>
+
             {/* InstaPay Payments */}
             <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
               <div className="flex items-center gap-3 mb-2 text-purple-600">
                 <FaCreditCard />
-                <h4 className="font-bold">مبيعات InstaPay</h4>
+                <h4 className="font-bold">مبيعات انستاباي</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
-                {report.cardPayments.toLocaleString()} ج.م
+                {Number(report.expectedInstapay ?? report.instapayPayments ?? 0).toLocaleString()} ج.م
               </p>
             </div>
 
@@ -159,8 +170,18 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                         </td>
                         <td className="p-3">
                           <span
-                            className={`px-2 py-0.5 rounded text-xs ${order.paymentMethod === "CASH" ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"}`}>
-                            {order.paymentMethod === "CASH" ? "نقدي" : "InstaPay"}
+                            className={`px-2 py-0.5 rounded text-xs ${
+                              order.paymentMethod === "CASH"
+                                ? "bg-green-100 text-green-700"
+                                : order.paymentMethod === "VISA"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-purple-100 text-purple-700"
+                            }`}>
+                            {order.paymentMethod === "CASH"
+                              ? "نقدي"
+                              : order.paymentMethod === "VISA"
+                                ? "فيزا"
+                                : "انستاباي"}
                           </span>
                         </td>
                         <td className="p-3 font-bold">
@@ -201,29 +222,13 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               {report.cashBreakdown && (
                 <div className="ps-4 pb-2 border-b border-gray-100 text-xs text-gray-500 space-y-1">
                   <div className="flex justify-between">
-                    <span>• كاشير (POS)</span>
-                    <span className="font-mono">
-                      {Number(report.cashBreakdown.posCash || 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>• توصيل مُسلَّم في هذه الوردية</span>
+                    <span>• تسويات الدليفري</span>
                     <span className="font-mono">
                       {Number(
                         report.cashBreakdown.codDeliveredThisShift || 0,
                       ).toLocaleString()}
                     </span>
                   </div>
-                  {Number(report.cashBreakdown.codPendingExcluded || 0) > 0 && (
-                    <div className="flex justify-between text-amber-600">
-                      <span>• توصيل مع الطيارين (غير مشمول)</span>
-                      <span className="font-mono">
-                        {Number(
-                          report.cashBreakdown.codPendingExcluded,
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
                 </div>
               )}
               <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-red-600">
@@ -296,7 +301,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                       <tr key={index} className="hover:bg-gray-50/50">
                         <td className="p-3 font-medium">{expense.description}</td>
                         <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-xs ${expense.paymentMethod === "CASH" ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"}`}>
+                          <span className={`px-2 py-0.5 rounded text-xs ${expense.paymentMethod === "CASH" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
                             {expense.paymentMethod === "CASH" ? "نقدي" : "بطاقة"}
                           </span>
                         </td>

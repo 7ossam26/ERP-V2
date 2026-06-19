@@ -96,7 +96,22 @@ router.post("/", async (req, res, next) => {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
-        await prisma.$transaction(async (tx) => {
+        // Manager-tier users may legitimately log admin expenses with no shift open.
+        // Cashier-tier users must have an active shift on the treasury's branch —
+        // otherwise the expense saves with shiftId=null and disappears from every
+        // shift report it should belong to.
+        const requestingUser = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            include: { role: true }
+        });
+        const isManager =
+            requestingUser.role.name === "Superadmin" ||
+            requestingUser.role.name === "Admin" ||
+            requestingUser.role.name === "Manager" ||
+            requestingUser.role.name === "Branch Manager" ||
+            requestingUser.role.name === "General Manager";
+
+        const result = await prisma.$transaction(async (tx) => {
             // 1. Check treasury balance
             const treasury = await tx.treasury.findUnique({
                 where: { id: parseInt(treasuryId) }
@@ -135,6 +150,12 @@ router.post("/", async (req, res, next) => {
                 }
             }
 
+            if (!shiftId && !isManager) {
+                const err = new Error("لا يمكن إضافة مصروف بدون وردية مفتوحة على نفس الفرع");
+                err.status = 400;
+                throw err;
+            }
+
             // 4. Deduct from treasury
             await tx.treasury.update({
                 where: { id: parseInt(treasuryId) },
@@ -144,7 +165,7 @@ router.post("/", async (req, res, next) => {
             });
 
             // 5. Create Expense (with shift link if found)
-            await tx.expense.create({
+            const expense = await tx.expense.create({
                 data: {
                     description,
                     amount: Number(amount),
@@ -155,9 +176,15 @@ router.post("/", async (req, res, next) => {
                     paymentMethod: paymentMethod || "CASH"
                 }
             });
+
+            return { expense, shiftId };
         });
 
-        res.status(201).json({ message: "Expense created successfully" });
+        res.status(201).json({
+            message: "Expense created successfully",
+            expenseId: result.expense.id,
+            shiftId: result.shiftId
+        });
     } catch (error) {
         next(error);
     }

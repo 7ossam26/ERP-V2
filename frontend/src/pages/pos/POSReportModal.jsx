@@ -44,7 +44,6 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
   const delivery = reportData?.delivery || { count: 0, total: 0 };
   const returned = reportData?.returned || { count: 0, total: 0 };
   const netSales = reportData?.netSales || 0;
-  const deposits = reportData?.deposits || { count: 0, total: 0 };
   const expenseBreakdown = reportData?.expenseBreakdown || { count: 0, total: 0 };
   const drawerAmount = reportData?.drawerAmount || 0;
 
@@ -144,10 +143,8 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
               <span className="material-symbols-outlined text-lg">swap_vert</span>
               حركة النقدية
             </div>
-            <Row label="نقدي داخل :" count={deposits.count} amount={deposits.total} />
-            <Row label="مصروف خارج :" count={expenseBreakdown.count} amount={expenseBreakdown.total} negative />
-            <Row label="تحصيلات عملاء :" count={0} amount={0} />
-            <Row label="أجل عملاء :" count={0} amount={0} />
+            <Row label="نقدي داخل :" amount={cashReceived} />
+            <Row label="نقدي خارج :" count={expenseBreakdown.count} amount={expenseBreakdown.total} negative />
           </div>
 
           {/* Totals Section */}
@@ -229,7 +226,7 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
                 {expenses.map((exp, i) => (
                   <div key={i} className="px-4 py-2 flex items-center text-sm">
                     <span className="flex-1 text-right text-gray-700 dark:text-gray-300">{exp.description}</span>
-                    <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-zinc-700 rounded mx-2">{exp.paymentMethod === "CASH" ? "نقدي" : "InstaPay"}</span>
+                    <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-zinc-700 rounded mx-2">{exp.paymentMethod === "CASH" ? "نقدي" : "بطاقة"}</span>
                     <span className="w-28 text-left font-mono font-bold text-red-600 dark:text-red-400">{fmt(exp.amount)}</span>
                   </div>
                 ))}
