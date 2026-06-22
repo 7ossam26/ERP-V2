@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../../components/ui/Modal";
 import apiClient from "../../../services/apiClient";
+import { settingsService } from "../../../services/settingsService";
+import printShiftReport from "../../../utils/printShiftReport";
 import { toast } from "react-hot-toast";
 import {
   FaPrint,
@@ -13,6 +15,7 @@ import {
 const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     if (isOpen && shiftId) {
@@ -25,8 +28,12 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
   const fetchReport = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get(`/shifts/${shiftId}/report`);
-      setReport(res);
+      const [res, cfg] = await Promise.all([
+        apiClient.get(`/shifts/${shiftId}/report`),
+        settingsService.get().catch(() => null),
+      ]);
+      setReport({ ...res, shiftId });
+      setSettings(cfg || null);
     } catch (error) {
       console.error(error);
       toast.error(error.message || "فشل تحميل تقرير الوردية");
@@ -37,7 +44,8 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
   };
 
   const handlePrint = () => {
-    window.print();
+    if (!report) return;
+    printShiftReport(report, settings || {});
   };
 
   if (!isOpen) return null;

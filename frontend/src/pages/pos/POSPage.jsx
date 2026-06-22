@@ -1257,6 +1257,7 @@ const POSPage = () => {
           onConfirm={() => { setIsReportOpen(false); navigate("/dashboard"); }}
           reportData={shiftReportData}
           autoPrint
+          settings={{ companyName, taxNumber: companyTaxNumber }}
         />
       )}
 

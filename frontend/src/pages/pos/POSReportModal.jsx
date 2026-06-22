@@ -1,17 +1,21 @@
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import printPOSReport from "../../utils/printPOSReport";
 
-const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = false, confirmLabel = "تأكيد وإغلاق الوردية" }) => {
+const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = false, confirmLabel = "تأكيد وإغلاق الوردية", settings = {} }) => {
   const hasPrinted = useRef(false);
 
   useEffect(() => {
-    if (isOpen && autoPrint && !hasPrinted.current) {
+    if (isOpen && autoPrint && !hasPrinted.current && reportData) {
       hasPrinted.current = true;
-      const timer = setTimeout(() => window.print(), 600);
+      const timer = setTimeout(
+        () => printPOSReport(reportData, settings),
+        400,
+      );
       return () => clearTimeout(timer);
     }
     if (!isOpen) hasPrinted.current = false;
-  }, [isOpen, autoPrint]);
+  }, [isOpen, autoPrint, reportData, settings]);
 
   if (!isOpen) return null;
 
@@ -62,7 +66,10 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
 
   const fmt = (v) => Number(v).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    if (!reportData) return;
+    printPOSReport(reportData, settings);
+  };
 
   // Table row helper
   const Row = ({ label, count, amount, bold, border, negative }) => (
@@ -281,13 +288,6 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
         </div>
       </div>
 
-      <style>{`
-        @media print {
-          body > * { display: none !important; }
-          body > [data-print-root], body > div:last-child { display: flex !important; }
-          @page { size: A4; margin: 10mm; }
-        }
-      `}</style>
     </div>,
     document.body,
   );

@@ -41,7 +41,21 @@ const PrintTicket = ({ order, onDone }) => {
             width: 74mm;
             font-family: 'Cairo', 'Tajawal', sans-serif;
             font-size: 10px;
+            line-height: 1.35;
             direction: rtl;
+          }
+          .print-ticket, .print-ticket * {
+            color: #000 !important;
+            font-weight: 700 !important;
+          }
+          .print-ticket hr {
+            border-top-width: 1.5px !important;
+            border-color: #000 !important;
+          }
+          .print-ticket th { border-bottom: 1.5px solid #000 !important; }
+          .print-ticket .pt-num {
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
           }
           .no-print { display: none !important; }
         }
@@ -70,8 +84,8 @@ const PrintTicket = ({ order, onDone }) => {
           <thead>
             <tr>
               <th className="text-right">الصنف</th>
-              <th className="text-center">الكمية</th>
-              <th className="text-left">السعر</th>
+              <th className="text-center pt-num">الكمية</th>
+              <th className="text-left pt-num">السعر</th>
             </tr>
           </thead>
           <tbody>
@@ -80,8 +94,8 @@ const PrintTicket = ({ order, onDone }) => {
                 <td className="text-right">
                   {it.item?.name || it.bom?.name || "-"}
                 </td>
-                <td className="text-center">{Number(it.quantity)}</td>
-                <td className="text-left">{Number(it.total).toFixed(2)}</td>
+                <td className="text-center pt-num">{Number(it.quantity)}</td>
+                <td className="text-left pt-num">{Number(it.total).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -89,7 +103,7 @@ const PrintTicket = ({ order, onDone }) => {
         <hr className="border-dashed border-black my-1" />
         <div className="text-xs flex justify-between">
           <span>المجموع:</span>
-          <span>{Number(sale.subtotal || 0).toFixed(2)}</span>
+          <span className="pt-num">{Number(sale.subtotal || 0).toFixed(2)}</span>
         </div>
         {Number(sale.discountAmount || 0) > 0 && (
           <div className="text-xs flex justify-between">
@@ -101,18 +115,18 @@ const PrintTicket = ({ order, onDone }) => {
               {sale.discountReason ? ` — ${reasonLabel(sale.discountReason)}` : ""}
               :
             </span>
-            <span>-{Number(sale.discountAmount).toFixed(2)}</span>
+            <span className="pt-num">-{Number(sale.discountAmount).toFixed(2)}</span>
           </div>
         )}
         {sale.deliveryFee != null && (
           <div className="text-xs flex justify-between">
             <span>رسوم التوصيل:</span>
-            <span>{Number(sale.deliveryFee).toFixed(2)}</span>
+            <span className="pt-num">{Number(sale.deliveryFee).toFixed(2)}</span>
           </div>
         )}
         <div className="text-sm font-bold flex justify-between mt-1">
           <span>الإجمالي:</span>
-          <span>{Number(sale.total || 0).toFixed(2)}</span>
+          <span className="pt-num">{Number(sale.total || 0).toFixed(2)}</span>
         </div>
         {sale.notes && (
           <>

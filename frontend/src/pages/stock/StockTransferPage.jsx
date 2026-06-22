@@ -12,6 +12,7 @@ import {
   categoryService,
 } from "../../services/domainServices";
 import authService from "../../services/authService";
+import printStockTransfer from "../../utils/printStockTransfer";
 
 const DRAFT_KEY = (fromWH) => `stockTransferDraft_${fromWH}`;
 const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -21,7 +22,6 @@ const StockTransferPage = () => {
   const { activeBranchId, isGlobalRole, activeBranch } = useBranch();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [lastTransfer, setLastTransfer] = useState(null);
 
   // Data states
   const [products, setProducts] = useState([]);
@@ -393,12 +393,13 @@ const StockTransferPage = () => {
 
       const fromWh = allWarehouses.find((w) => w.id === parseInt(fromWarehouseId));
       const toWh = allWarehouses.find((w) => w.id === parseInt(selectedWarehouse));
-      setLastTransfer({
+      const transferForPrint = {
         ...result,
         fromWarehouseName: fromWh?.name || "مخزن",
         toWarehouseName: toWh?.name || "مخزن",
+        notes,
         items: selectedItems.map((i) => ({ name: i.name, quantity: i.transferQty, unit: i.unit })),
-      });
+      };
 
       toast.success(`تم التحويل بنجاح - رقم: ${result.transferNumber}`);
 
@@ -411,7 +412,7 @@ const StockTransferPage = () => {
       setBulkSelectedIds(new Set());
       setIsConfirmModalOpen(false);
 
-      setTimeout(() => window.print(), 300);
+      printStockTransfer(transferForPrint);
 
       const inventoryItems = await inventoryService.getInventory({ warehouseId: fromWarehouseId });
       setProducts(inventoryItems);
@@ -910,50 +911,6 @@ const StockTransferPage = () => {
         </div>
       </div>
 
-      {/* Print receipt — hidden on screen, shown only when printing */}
-      {lastTransfer && (
-        <div className="hidden print:block p-8 font-cairo" dir="rtl">
-          <style>{`@media print { @page { size: A4; margin: 15mm; } }`}</style>
-          <div className="text-center border-b-2 border-gray-800 pb-4 mb-4">
-            <h1 className="text-2xl font-bold">إيصال تحويل مخزني</h1>
-            <p className="text-gray-600 mt-1">رقم التحويل: {lastTransfer.transferNumber}</p>
-            <p className="text-gray-600 text-sm">
-              {new Date(lastTransfer.createdAt || Date.now()).toLocaleString("ar-EG")}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-            <div>
-              <span className="text-gray-500">من مخزن:</span>
-              <span className="font-bold mr-2">{lastTransfer.fromWarehouseName}</span>
-            </div>
-            <div>
-              <span className="text-gray-500">إلى مخزن:</span>
-              <span className="font-bold mr-2">{lastTransfer.toWarehouseName}</span>
-            </div>
-          </div>
-          <table className="w-full text-sm border-collapse mb-4">
-            <thead>
-              <tr className="border-b-2 border-gray-800">
-                <th className="text-right py-2">الصنف</th>
-                <th className="text-center py-2">الكمية</th>
-                <th className="text-center py-2">الوحدة</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lastTransfer.items?.map((item, i) => (
-                <tr key={i} className="border-b border-gray-300">
-                  <td className="py-2">{item.name}</td>
-                  <td className="py-2 text-center">{item.quantity}</td>
-                  <td className="py-2 text-center">{item.unit || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {lastTransfer.notes && (
-            <p className="text-sm text-gray-600">ملاحظات: {lastTransfer.notes}</p>
-          )}
-        </div>
-      )}
     </>
   );
 };

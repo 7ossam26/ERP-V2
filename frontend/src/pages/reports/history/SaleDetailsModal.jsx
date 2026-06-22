@@ -1,6 +1,13 @@
 import React from "react";
+import printThermalReceipt from "../../../utils/printThermalReceipt";
+import { settingsService } from "../../../services/settingsService";
 
-const SaleDetailsModal = ({ isOpen, onClose, sale }) => {
+const SaleDetailsModal = ({ isOpen, onClose, sale, settings }) => {
+  const handlePrint = async () => {
+    if (!sale) return;
+    const cfg = settings || (await settingsService.get().catch(() => ({})));
+    printThermalReceipt(sale, cfg || {});
+  };
   if (!sale) return null;
 
   const getPaymentMethodLabel = (method) => {
@@ -38,7 +45,7 @@ const SaleDetailsModal = ({ isOpen, onClose, sale }) => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => window.print()}
+                  onClick={handlePrint}
                   className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
                   <span className="material-icons-round text-lg">print</span>
                   <span className="font-bold">طباعة</span>

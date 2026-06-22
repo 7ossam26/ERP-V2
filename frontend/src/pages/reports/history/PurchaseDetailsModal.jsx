@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import AuthService from "../../../services/authService";
 import { settingsService, purchaseService } from "../../../services/domainServices";
 import ManagerAuthModal from "../../../components/common/ManagerAuthModal";
+import printPurchaseReceipt from "../../../utils/printPurchaseReceipt";
 
 const PurchaseDetailsModal = ({ isOpen, onClose, purchase, onPurchaseCancelled }) => {
   const [settings, setSettings] = useState(null);
@@ -67,141 +67,17 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase, onPurchaseCancelled }
     }
   };
 
+  const handlePrint = () => {
+    if (!purchase) return;
+    printPurchaseReceipt(purchase, settings || {});
+  };
+
   return (
     <>
       {isOpen && (
         <>
-          {/* Print Only Section */}
           <div
-            className="hidden print:block print:w-full p-8 bg-white text-black"
-            dir="rtl">
-            {/* Header Section */}
-            <div className="flex justify-between items-start mb-8 border-b-2 border-gray-800 pb-6">
-              <div className="flex items-center gap-4">
-                <img
-                  src="/assets/logo.png"
-                  alt="Company Logo"
-                  className="h-24 w-auto object-contain"
-                  onError={(e) => (e.target.style.display = "none")}
-                />
-                <div className="flex flex-col gap-1">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {settings?.companyName || "اسم الشركة"}
-                  </h2>
-                  {settings?.taxNumber && (
-                    <p className="text-sm text-gray-700 font-medium">
-                      الرقم الضريبي: {settings.taxNumber}
-                    </p>
-                  )}
-                  <p className="text-sm text-gray-600">تقرير تفصيلي</p>
-                </div>
-              </div>
-
-              <div className="text-left">
-                <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                  فاتورة مشتريات
-                </h1>
-                <div className="text-sm space-y-1 text-gray-600 font-medium">
-                  <p>
-                    <span className="font-bold text-gray-900">رقم الفاتورة:</span>{" "}
-                    #{purchase.id}
-                  </p>
-                  <p>
-                    <span className="font-bold text-gray-900">التاريخ:</span>{" "}
-                    {new Date(purchase.createdAt).toLocaleString("ar-EG")}
-                  </p>
-                  <p>
-                    <span className="font-bold text-gray-900">طبع بواسطة:</span>{" "}
-                    {AuthService.getCurrentUser()?.name || "مسؤول النظام"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-6 text-sm border-b-2 border-black pb-4">
-              <div>
-                <p><strong>المورد:</strong> {purchase.supplier?.name || "-"}</p>
-                <p><strong>المخزن:</strong> {purchase.warehouse?.name || "-"}</p>
-              </div>
-              <div className="text-left">
-                {purchase.supplierInvoiceNo && (
-                  <p>
-                    <strong>رقم فاتورة المورد:</strong>{" "}
-                    {purchase.supplierInvoiceNo}
-                  </p>
-                )}
-                <p>
-                  <strong>طريقة الدفع:</strong>{" "}
-                  {getPaymentMethodLabel(purchase.paymentMethod)}
-                </p>
-              </div>
-            </div>
-
-            <table className="w-full text-right border-collapse text-sm mb-6">
-              <thead>
-                <tr className="border-b-2 border-black">
-                  <th className="py-2 px-2 font-bold w-[5%]">#</th>
-                  <th className="py-2 px-2 font-bold w-[40%]">الصنف</th>
-                  <th className="py-2 px-2 font-bold w-[15%] text-center">الكمية</th>
-                  <th className="py-2 px-2 font-bold w-[20%] text-center">السعر</th>
-                  <th className="py-2 px-2 font-bold w-[20%] text-left">الإجمالي</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchase.items?.map((item, index) => (
-                  <tr key={index} className="border-b border-gray-300">
-                    <td className="py-2 px-2">{index + 1}</td>
-                    <td className="py-2 px-2">{item.name || item.item?.name}</td>
-                    <td className="py-2 px-2 text-center font-numbers">
-                      {Number(item.quantity).toFixed(2)}
-                    </td>
-                    <td className="py-2 px-2 text-center font-numbers">
-                      {Number(item.purchasePrice).toFixed(2)}
-                    </td>
-                    <td className="py-2 px-2 text-left font-bold font-numbers">
-                      {Number(item.total).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="flex justify-end mb-8">
-              <div className="w-1/3 border-t-2 border-black pt-2 text-sm text-left">
-                <div className="flex justify-between mb-1">
-                  <span>المجموع الفرعي:</span>
-                  <span className="font-numbers">{Number(purchase.subtotal).toFixed(2)}</span>
-                </div>
-                {purchase.discountAmount > 0 && (
-                  <div className="flex justify-between mb-1 text-red-600">
-                    <span>الخصم:</span>
-                    <span className="font-numbers">-{Number(purchase.discountAmount).toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-1 mt-1">
-                  <span>الصافي:</span>
-                  <span className="font-numbers">{Number(purchase.netTotal).toFixed(2)} ج.م</span>
-                </div>
-                <div className="flex justify-between mt-2 text-gray-600">
-                  <span>المدفوع:</span>
-                  <span className="font-numbers">{Number(purchase.paidAmount).toFixed(2)}</span>
-                </div>
-                {Number(purchase.remaining) > 0 && (
-                  <div className="flex justify-between mt-1 text-red-600 font-bold">
-                    <span>المتبقي:</span>
-                    <span className="font-numbers">{Number(purchase.remaining).toFixed(2)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-12 text-center text-sm text-gray-500 border-t border-gray-300 pt-4">
-              <p>تم استخراج هذه الفاتورة من النظام تلقائياً</p>
-            </div>
-          </div>
-
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 print:hidden"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
             role="dialog"
             aria-modal="true">
             <div
@@ -237,7 +113,7 @@ const PurchaseDetailsModal = ({ isOpen, onClose, purchase, onPurchaseCancelled }
                     </button>
                   )}
                   <button
-                    onClick={() => window.print()}
+                    onClick={handlePrint}
                     className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
                     <span className="material-icons-round text-lg">print</span>
                     <span className="font-bold">طباعة</span>

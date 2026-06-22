@@ -24,29 +24,18 @@ export function formatBulkInvoicePrintDate(value) {
 
 function buildBulkInvoicePrintStyles() {
   return `
-    @font-face {
-      font-family: "ERP Invoice Cairo";
-      src: local("Cairo"), url("/fonts/Cairo-Regular.woff2") format("woff2");
-      font-style: normal;
-      font-weight: 400 900;
-      font-display: swap;
-    }
-
     .${R} {
       position: fixed;
       top: 0;
       left: 0;
-      width: 210mm;
+      width: 74mm;
       opacity: 0;
       pointer-events: none;
       z-index: -1;
     }
 
     @media print {
-      @page {
-        size: A4;
-        margin: 16mm 14mm 18mm 14mm;
-      }
+      @page { size: 78mm auto; margin: 2mm 2mm; }
 
       body {
         margin: 0 !important;
@@ -60,308 +49,118 @@ function buildBulkInvoicePrintStyles() {
       .${R} {
         position: absolute;
         inset: 0;
-        width: auto;
+        width: 74mm;
+        margin: 0 auto;
         opacity: 1;
         pointer-events: auto;
         z-index: auto;
-      }
-
-      .${R} .sheet {
-        font-family: "ERP Invoice Cairo", "Cairo", "Segoe UI", sans-serif;
-        direction: rtl;
-        color: #000;
-        background: #ffffff;
-        padding: 0;
-        margin: 0;
-        font-feature-settings: "kern", "liga", "calt";
-      }
-
-      .${R} .eyebrow {
-        font-size: 8.5px;
-        font-weight: 700;
-        letter-spacing: 0.32em;
-        text-transform: uppercase;
-        color: #000;
-      }
-
-      .${R} .display {
-        font-weight: 900;
-        font-size: 34px;
-        line-height: 1.05;
-        color: #000;
-        letter-spacing: -0.01em;
-        margin: 6px 0 4px;
-      }
-
-      .${R} .caption {
+        font-family: "Cairo", "Segoe UI", sans-serif;
         font-size: 10px;
-        color: #000;
-        letter-spacing: 0.02em;
+        line-height: 1.35;
+        direction: rtl;
+        text-align: right;
+        color: #000 !important;
       }
 
-      .${R} .label {
-        font-size: 8.5px;
-        font-weight: 700;
-        letter-spacing: 0.28em;
-        text-transform: uppercase;
-        color: #000;
+      .${R}, .${R} * {
+        color: #000 !important;
+        font-weight: 700 !important;
+      }
+
+      .${R} .bi-meta {
+        font-weight: 500 !important;
+        font-style: italic;
+      }
+
+      .${R} .bi-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+      }
+
+      .${R} .bi-num {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .${R} .bi-divider-dashed {
+        border-top: 1.5px dashed #000;
+        margin: 3px 0;
+      }
+
+      .${R} .bi-divider-solid {
+        border-top: 1.5px solid #000;
+        margin: 3px 0;
+      }
+
+      .${R} .bi-section-title {
+        font-size: 11px;
+        text-align: center;
+        margin: 3px 0 2px;
+      }
+
+      .${R} .bi-header {
+        text-align: center;
         margin-bottom: 4px;
       }
 
-      .${R} .num {
-        font-variant-numeric: tabular-nums;
-        direction: ltr;
-        unicode-bidi: isolate;
-      }
-
-      .${R} .masthead {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 24px;
-        padding-bottom: 14px;
-        border-bottom: 3px solid #000;
-      }
-
-      .${R} .masthead-accent {
-        height: 1px;
-        background: #000;
-        margin-top: 3px;
-        margin-bottom: 20px;
-      }
-
-      .${R} .masthead-left {
-        flex: 1;
-      }
-
-      .${R} .masthead-right {
-        display: flex;
-        gap: 14px;
-        align-items: flex-start;
-      }
-
-      .${R} .brand-logo {
-        width: 56px;
-        height: 56px;
-        object-fit: contain;
-        flex-shrink: 0;
-        image-rendering: -webkit-optimize-contrast;
-      }
-
-      .${R} .meta {
-        text-align: start;
-        min-width: 120px;
-      }
-
-      .${R} .meta-value {
-        font-size: 12px;
-        font-weight: 600;
-        color: #000;
-        margin-bottom: 8px;
-      }
-
-      .${R} .info-band {
-        display: grid;
-        grid-template-columns: 1.4fr 1fr 1fr;
-        gap: 0;
-        border-bottom: 1px solid #000;
-        padding: 0 0 18px;
-        margin-bottom: 20px;
-      }
-
-      .${R} .info-cell {
-        padding: 0 18px;
-        border-inline-start: 1px solid #000;
-      }
-
-      .${R} .info-cell:first-child {
-        border-inline-start: 0;
-        padding-inline-start: 0;
-      }
-
-      .${R} .info-cell:last-child {
-        padding-inline-end: 0;
-      }
-
-      .${R} .info-cell .primary {
+      .${R} .bi-header .bi-co {
         font-size: 13px;
-        font-weight: 700;
-        color: #000;
-        line-height: 1.3;
+        margin: 2px 0;
       }
 
-      .${R} .info-cell .secondary {
-        font-size: 10px;
-        color: #000;
-        margin-top: 2px;
+      .${R} .bi-header .bi-title {
+        font-size: 12px;
+        margin: 2px 0;
       }
 
-      .${R} .items {
+      .${R} table.bi-items {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 22px;
+        font-size: 10px;
       }
 
-      .${R} .items thead th {
-        font-size: 8.5px;
-        font-weight: 700;
-        letter-spacing: 0.25em;
-        text-transform: uppercase;
-        color: #000;
-        padding: 10px 6px;
-        border-bottom: 2px solid #000;
+      .${R} table.bi-items th {
+        padding: 2px 1px;
+        border-bottom: 1.5px solid #000;
       }
 
-      .${R} .items thead th.col-name { text-align: right; width: 44%; }
-      .${R} .items thead th.col-qty  { text-align: right; width: 18%; }
-      .${R} .items thead th.col-rate { text-align: right; width: 19%; }
-      .${R} .items thead th.col-sum  { text-align: right; width: 19%; }
-
-      .${R} .items tbody td {
-        padding: 10px 6px;
-        border-bottom: 1px solid #000;
-        font-size: 11px;
+      .${R} table.bi-items td {
+        padding: 2px 1px;
+        border-bottom: 1px dashed #000;
         vertical-align: top;
       }
 
-      .${R} .items tbody tr:last-child td {
-        border-bottom: 2px solid #000;
-      }
-
-      .${R} .items .item-name {
-        font-weight: 600;
-        color: #000;
-      }
-
-      .${R} .items .item-unit {
-        color: #000;
-        font-size: 9.5px;
-        margin-inline-start: 4px;
-      }
-
-      .${R} .totals-wrap {
-        display: flex;
-        justify-content: flex-start;
-        position: relative;
-        margin-bottom: 26px;
-      }
-
-      .${R} .totals {
-        width: 58%;
-        min-width: 260px;
-      }
-
-      .${R} .totals .row {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        padding: 6px 0;
-        font-size: 11px;
-        color: #000;
-      }
-
-      .${R} .totals .row.muted {
-        color: #000;
-      }
-
-      .${R} .totals .grand {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        padding: 11px 0 8px;
-        border-top: 2px solid #000;
-        border-bottom: 0.5px solid #000;
-        margin-top: 6px;
-        margin-bottom: 4px;
-      }
-
-      .${R} .totals .grand-label {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.28em;
-        text-transform: uppercase;
-        color: #000;
-      }
-
-      .${R} .totals .grand-value {
-        font-size: 22px;
-        font-weight: 900;
-        color: #000;
+      .${R} table.bi-items td.bi-num,
+      .${R} table.bi-items th.bi-num {
         font-variant-numeric: tabular-nums;
-        direction: ltr;
+        white-space: nowrap;
+        text-align: left;
       }
 
-      .${R} .stamp {
-        position: absolute;
-        top: -6px;
-        inset-inline-end: 12mm;
-        transform: rotate(-14deg);
-        border: 3px double #000;
-        color: #000;
-        padding: 7px 22px;
-        font-size: 20px;
-        font-weight: 900;
+      .${R} .bi-stamp {
+        display: inline-block;
+        border: 2px solid #000;
+        padding: 2px 10px;
+        font-size: 13px;
         letter-spacing: 0.2em;
-        opacity: 1;
-        pointer-events: none;
-        background: #fff;
+        margin: 4px auto;
       }
 
-      .${R} .stamp::after {
-        content: "";
-        position: absolute;
-        inset: 2px;
-        border: 1px solid #000;
-      }
-
-      .${R} .footer {
-        margin-top: 10px;
-        text-align: center;
-      }
-
-      .${R} .perforation {
-        height: 12px;
-        background-image: radial-gradient(
-          circle at center,
-          #000 1.3px,
-          transparent 1.5px
-        );
-        background-size: 9px 12px;
-        background-repeat: repeat-x;
-        background-position: 0 50%;
-        margin-bottom: 12px;
-      }
-
-      .${R} .footer-note {
-        font-size: 10px;
-        color: #000;
-        letter-spacing: 0.08em;
-        margin-bottom: 6px;
-      }
-
-      .${R} .footer-mark {
-        font-size: 8.5px;
-        font-weight: 700;
-        letter-spacing: 0.4em;
-        text-transform: uppercase;
-        color: #000;
-      }
-
-      .${R} thead { display: table-header-group; }
-      .${R} tr,
-      .${R} .info-band,
-      .${R} .totals-wrap,
-      .${R} .footer {
-        page-break-inside: avoid;
-        break-inside: avoid;
+      .${R} img {
+        max-width: 42mm;
+        margin: 0 auto 4px auto;
+        display: block;
+        filter: grayscale(100%) contrast(180%);
       }
     }
   `;
 }
 
 function itemRow(line, index) {
-  const quantity = `${formatNumber(line?.quantity)}`;
+  const quantity = formatNumber(line?.quantity);
   const unit = line?.item?.unit;
+  const qtyText = unit ? `${quantity} ${unit}` : quantity;
 
   return h(
     "tr",
@@ -369,38 +168,44 @@ function itemRow(line, index) {
     [
       h(
         "td",
-        { key: "name", className: "item-name", style: { textAlign: "right" } },
+        { key: "name", style: { textAlign: "right" } },
         line?.item?.name || "—"
       ),
       h(
         "td",
-        { key: "qty", style: { textAlign: "right" } },
-        [
-          h("span", { key: "n", className: "num" }, quantity),
-          unit ? h("span", { key: "u", className: "item-unit" }, unit) : null,
-        ].filter(Boolean)
+        { key: "qty", className: "bi-num", style: { textAlign: "center" } },
+        qtyText
       ),
       h(
         "td",
-        { key: "rate", className: "num", style: { textAlign: "right" } },
-        formatEGP(line?.unitPrice)
-      ),
-      h(
-        "td",
-        { key: "sum", className: "num", style: { textAlign: "right" } },
+        { key: "sum", className: "bi-num", style: { textAlign: "left" } },
         formatEGP(line?.lineTotal)
       ),
     ]
   );
 }
 
-function totalsRow(label, value, key, muted = false) {
+function infoRow(label, value, key) {
   return h(
     "div",
-    { key, className: `row${muted ? " muted" : ""}` },
+    { key, className: "bi-row" },
     [
       h("span", { key: "l" }, label),
-      h("span", { key: "v", className: "num" }, value),
+      h("span", { key: "v" }, value),
+    ]
+  );
+}
+
+function totalsRow(label, value, key, opts = {}) {
+  const style = opts.bold
+    ? { fontSize: 12, marginTop: 2, paddingTop: 2, borderTop: "1.5px solid #000" }
+    : undefined;
+  return h(
+    "div",
+    { key, className: "bi-row", style },
+    [
+      h("span", { key: "l" }, label),
+      h("span", { key: "v", className: "bi-num" }, value),
     ]
   );
 }
@@ -431,89 +236,83 @@ export default function BulkInvoicePrint({ order, doc, settings }) {
     h(
       "div",
       { key: "root", className: R, dir: "rtl", lang: "ar" },
-      h("article", { className: "sheet" }, [
-        h("header", { key: "masthead", className: "masthead" }, [
-          h("div", { key: "left", className: "masthead-left" }, [
-            h("div", { key: "eyebrow", className: "eyebrow" }, companyName),
-            h("h1", { key: "title", className: "display" }, title),
-            docNumber
-              ? h("div", { key: "doc", className: "caption" }, `رقم المستند · ${docNumber}`)
-              : null,
-            companyTaxNumber
-              ? h("div", { key: "co-tax", className: "caption" }, `الرقم الضريبي للبائع · ${companyTaxNumber}`)
-              : null,
-          ].filter(Boolean)),
-          h("div", { key: "right", className: "masthead-right" }, [
-            h("div", { key: "meta", className: "meta" }, [
-              h("div", { key: "l1", className: "label" }, "رقم الطلب"),
-              h("div", { key: "v1", className: "meta-value num" }, orderRef),
-              h("div", { key: "l2", className: "label" }, "التاريخ"),
-              h("div", { key: "v2", className: "meta-value" }, issueDate),
-            ]),
-            h("img", {
-              key: "logo",
-              className: "brand-logo",
-              src: logoSrc,
-              alt: companyName,
-            }),
-          ]),
+      [
+        // Header
+        h("div", { key: "header", className: "bi-header" }, [
+          h("img", { key: "logo", src: logoSrc, alt: companyName }),
+          h("div", { key: "co", className: "bi-co" }, companyName),
+          h("div", { key: "title", className: "bi-title" }, title),
+          docNumber
+            ? h("div", { key: "doc", className: "bi-meta", style: { fontSize: 9 } }, `رقم المستند: ${docNumber}`)
+            : null,
+          companyTaxNumber
+            ? h("div", { key: "co-tax", className: "bi-meta", style: { fontSize: 9 } }, `الر. الضريبي: ${companyTaxNumber}`)
+            : null,
+        ].filter(Boolean)),
+
+        h("div", { key: "div1", className: "bi-divider-solid" }),
+
+        // Meta
+        h("div", { key: "meta", style: { fontSize: 10 } }, [
+          infoRow("رقم الطلب:", orderRef, "ord"),
+          infoRow("التاريخ:", issueDate, "date"),
+          infoRow("المخزن:", warehouseName, "wh"),
+          infoRow("أصدر بواسطة:", createdByName, "by"),
         ]),
 
-        h("div", { key: "accent", className: "masthead-accent" }),
+        h("div", { key: "div2", className: "bi-divider-dashed" }),
 
-        h("section", { key: "info", className: "info-band" }, [
-          h("div", { key: "customer", className: "info-cell" }, [
-            h("div", { key: "l", className: "label" }, "العميل"),
-            h("div", { key: "name", className: "primary" }, customerName),
-            customerTaxNumber
-              ? h("div", { key: "tax", className: "secondary" }, `ر. ضريبي · ${customerTaxNumber}`)
-              : null,
-            phone
-              ? h("div", { key: "phone", className: "secondary num" }, phone)
-              : null,
-          ].filter(Boolean)),
-          h("div", { key: "warehouse", className: "info-cell" }, [
-            h("div", { key: "l", className: "label" }, "المخزن"),
-            h("div", { key: "name", className: "primary" }, warehouseName),
-          ]),
-          h("div", { key: "createdBy", className: "info-cell" }, [
-            h("div", { key: "l", className: "label" }, "أصدر بواسطة"),
-            h("div", { key: "name", className: "primary" }, createdByName),
-          ]),
-        ]),
+        // Customer
+        h("div", { key: "cust", style: { fontSize: 10 } }, [
+          h("div", { key: "l", className: "bi-section-title" }, "العميل"),
+          h("div", { key: "n", style: { fontSize: 11 } }, customerName),
+          customerTaxNumber
+            ? h("div", { key: "t", className: "bi-meta", style: { fontSize: 9 } }, `الر. الضريبي: ${customerTaxNumber}`)
+            : null,
+          phone
+            ? h("div", { key: "p", style: { fontSize: 9 } }, `الهاتف: ${phone}`)
+            : null,
+        ].filter(Boolean)),
 
-        h("table", { key: "items", className: "items" }, [
+        h("div", { key: "div3", className: "bi-divider-solid" }),
+
+        // Items
+        h("table", { key: "items", className: "bi-items" }, [
           h("thead", { key: "head" },
             h("tr", null, [
-              h("th", { key: "n", className: "col-name" }, "الصنف"),
-              h("th", { key: "q", className: "col-qty" }, "الكمية"),
-              h("th", { key: "r", className: "col-rate" }, "سعر الوحدة"),
-              h("th", { key: "s", className: "col-sum" }, "الإجمالي"),
+              h("th", { key: "n", style: { textAlign: "right" } }, "الصنف"),
+              h("th", { key: "q", className: "bi-num", style: { textAlign: "center" } }, "الكمية"),
+              h("th", { key: "s", className: "bi-num", style: { textAlign: "left" } }, "الإجمالي"),
             ])
           ),
           h("tbody", { key: "body" }, (order?.items || []).map(itemRow)),
         ]),
 
-        h("section", { key: "totals", className: "totals-wrap" }, [
-          isPaid ? h("div", { key: "stamp", className: "stamp" }, "مدفوع") : null,
-          h("div", { key: "t", className: "totals" }, [
-            totalsRow("الصافي قبل الضريبة", formatEGP(order?.netAmount), "net", true),
-            totalsRow(`الضريبة · ${taxPct}%`, formatEGP(order?.taxAmount), "tax", true),
-            h("div", { key: "grand", className: "grand" }, [
-              h("span", { key: "l", className: "grand-label" }, "الإجمالي شامل الضريبة"),
-              h("span", { key: "v", className: "grand-value" }, formatEGP(order?.total)),
-            ]),
-            totalsRow("المدفوع", formatEGP(order?.paidAmount), "paid"),
-            totalsRow("المتبقي", formatEGP(order?.balanceDue), "balance"),
-          ]),
-        ].filter(Boolean)),
-
-        h("footer", { key: "footer", className: "footer" }, [
-          h("div", { key: "perf", className: "perforation" }),
-          h("div", { key: "note", className: "footer-note" }, "شكرًا لتعاملكم معنا"),
-          h("div", { key: "mark", className: "footer-mark" }, companyName),
+        // Totals
+        h("div", { key: "totals", style: { marginTop: 4, fontSize: 10 } }, [
+          totalsRow("الصافي قبل الضريبة", formatEGP(order?.netAmount), "net"),
+          totalsRow(`الضريبة (${taxPct}%)`, formatEGP(order?.taxAmount), "tax"),
+          totalsRow("الإجمالي شامل الضريبة", formatEGP(order?.total), "grand", { bold: true }),
+          totalsRow("المدفوع", formatEGP(order?.paidAmount), "paid"),
+          totalsRow("المتبقي", formatEGP(order?.balanceDue), "balance"),
         ]),
-      ])
+
+        isPaid
+          ? h(
+              "div",
+              { key: "stamp", style: { textAlign: "center", marginTop: 4 } },
+              h("span", { className: "bi-stamp" }, "مدفوع")
+            )
+          : null,
+
+        h("div", { key: "div4", className: "bi-divider-dashed" }),
+
+        // Footer
+        h("div", { key: "footer", style: { textAlign: "center", marginTop: 4 } }, [
+          h("div", { key: "n", style: { fontSize: 10, margin: "1px 0" } }, "شكراً لتعاملكم معنا"),
+          h("div", { key: "co", className: "bi-meta", style: { fontSize: 9, margin: "1px 0" } }, companyName),
+        ]),
+      ].filter(Boolean)
     ),
   ]);
 }

@@ -37,10 +37,20 @@ const PRINT_STYLES = `
       width: 74mm !important;
       font-family: "Cairo", sans-serif;
       font-size: 10px;
-      line-height: 1.3;
+      line-height: 1.35;
       direction: rtl;
       text-align: right;
       color: #000 !important;
+    }
+
+    .${R}, .${R} * {
+      color: #000 !important;
+      font-weight: 700 !important;
+    }
+
+    .${R} .dt-meta {
+      font-weight: 500 !important;
+      font-style: italic;
     }
 
     .${R} .dt-row {
@@ -51,12 +61,12 @@ const PRINT_STYLES = `
     }
 
     .${R} .dt-divider-dashed {
-      border-top: 1px dashed #000;
+      border-top: 1.5px dashed #000;
       margin: 3px 0;
     }
 
     .${R} .dt-divider-solid {
-      border-top: 1px solid #000;
+      border-top: 1.5px solid #000;
       margin: 3px 0;
     }
 
@@ -68,14 +78,19 @@ const PRINT_STYLES = `
 
     .${R} th {
       padding: 2px 1px;
-      border-bottom: 1px solid #000;
-      font-weight: bold;
+      border-bottom: 1.5px solid #000;
     }
 
     .${R} td {
       padding: 2px 1px;
       border-bottom: 1px dashed #000;
       vertical-align: top;
+    }
+
+    .${R} td.dt-num,
+    .${R} th.dt-num {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
 
     .${R} img {
@@ -192,8 +207,8 @@ export default function DeliveryTicketPrint({ order, settings }) {
         <thead>
           <tr>
             <th style={{ textAlign: "right" }}>الصنف</th>
-            <th style={{ textAlign: "center" }}>كمية</th>
-            <th style={{ textAlign: "left" }}>سعر</th>
+            <th className="dt-num" style={{ textAlign: "center" }}>كمية</th>
+            <th className="dt-num" style={{ textAlign: "left" }}>سعر</th>
           </tr>
         </thead>
         <tbody>
@@ -206,8 +221,8 @@ export default function DeliveryTicketPrint({ order, settings }) {
             return (
               <tr key={si.id || i}>
                 <td style={{ textAlign: "right" }}>{name}</td>
-                <td style={{ textAlign: "center" }}>{qty}</td>
-                <td style={{ textAlign: "left" }}>{fmt(line)}</td>
+                <td className="dt-num" style={{ textAlign: "center" }}>{qty}</td>
+                <td className="dt-num" style={{ textAlign: "left" }}>{fmt(line)}</td>
               </tr>
             );
           })}
@@ -218,22 +233,22 @@ export default function DeliveryTicketPrint({ order, settings }) {
       <div style={{ marginTop: 4, fontSize: 10 }}>
         <div className="dt-row">
           <span>المجموع الفرعي</span>
-          <span>{fmt(subtotal)} ج.م</span>
+          <span className="dt-num">{fmt(subtotal)} ج.م</span>
         </div>
         {discount > 0 && (
           <div className="dt-row">
             <span>خصم</span>
-            <span>-{fmt(discount)} ج.م</span>
+            <span className="dt-num">-{fmt(discount)} ج.م</span>
           </div>
         )}
         <div className="dt-row">
           <span>ضريبة</span>
-          <span>{fmt(taxAmount)} ج.م</span>
+          <span className="dt-num">{fmt(taxAmount)} ج.م</span>
         </div>
         {fee > 0 && (
           <div className="dt-row">
             <span>رسوم التوصيل</span>
-            <span>{fmt(fee)} ج.م</span>
+            <span className="dt-num">{fmt(fee)} ج.م</span>
           </div>
         )}
         <div className="dt-row">
@@ -245,11 +260,9 @@ export default function DeliveryTicketPrint({ order, settings }) {
       <div className="dt-divider-solid" />
 
       {/* Grand total */}
-      <div
-        className="dt-row"
-        style={{ fontSize: 13, fontWeight: "bold", margin: "3px 0" }}>
+      <div className="dt-row" style={{ fontSize: 13, margin: "3px 0" }}>
         <span>الإجمالي المستحق</span>
-        <span>{fmt(total)} ج.م</span>
+        <span className="dt-num">{fmt(total)} ج.م</span>
       </div>
 
       <div className="dt-divider-dashed" />

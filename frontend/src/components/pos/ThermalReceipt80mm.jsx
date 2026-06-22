@@ -45,24 +45,35 @@ const PRINT_STYLES = `
       z-index: auto;
       font-family: "Cairo", sans-serif;
       font-size: 10px;
-      line-height: 1.3;
+      line-height: 1.35;
       direction: rtl;
       text-align: right;
       color: #000 !important;
     }
 
+    .${R}, .${R} * {
+      color: #000 !important;
+      font-weight: 700 !important;
+    }
+
+    .${R} .tr-meta {
+      font-weight: 500 !important;
+      font-style: italic;
+    }
+
     .${R} .tr-row {
       display: flex;
       justify-content: space-between;
+      gap: 6px;
     }
 
     .${R} .tr-divider-dashed {
-      border-top: 1px dashed #000;
+      border-top: 1.5px dashed #000;
       margin: 3px 0;
     }
 
     .${R} .tr-divider-solid {
-      border-top: 1px solid #000;
+      border-top: 1.5px solid #000;
       margin: 3px 0;
     }
 
@@ -74,14 +85,19 @@ const PRINT_STYLES = `
 
     .${R} th {
       padding: 2px 1px;
-      border-bottom: 1px solid #000;
-      font-weight: bold;
+      border-bottom: 1.5px solid #000;
     }
 
     .${R} td {
       padding: 2px 1px;
       border-bottom: 1px dashed #000;
       vertical-align: top;
+    }
+
+    .${R} td.tr-num,
+    .${R} th.tr-num {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
 
     .${R} img {
@@ -135,7 +151,9 @@ const ThermalReceipt80mm = ({ sale, settings = {} }) => {
             الرقم الضريبي: {companyTaxNumber}
           </p>
         )}
-        <p style={{ fontSize: 9, margin: "1px 0", fontStyle: "italic" }}>
+        <p
+          className="tr-meta"
+          style={{ fontSize: 9, margin: "1px 0" }}>
           (إعادة طباعة)
         </p>
       </div>
@@ -183,8 +201,8 @@ const ThermalReceipt80mm = ({ sale, settings = {} }) => {
         <thead>
           <tr>
             <th style={{ textAlign: "right" }}>الصنف</th>
-            <th style={{ textAlign: "center" }}>كمية</th>
-            <th style={{ textAlign: "left" }}>سعر</th>
+            <th className="tr-num" style={{ textAlign: "center" }}>كمية</th>
+            <th className="tr-num" style={{ textAlign: "left" }}>سعر</th>
           </tr>
         </thead>
         <tbody>
@@ -193,10 +211,12 @@ const ThermalReceipt80mm = ({ sale, settings = {} }) => {
               <td style={{ textAlign: "right" }}>
                 {si.item?.name || si.name || "-"}
               </td>
-              <td style={{ textAlign: "center" }}>
+              <td className="tr-num" style={{ textAlign: "center" }}>
                 {Number(si.quantity || 0)}
               </td>
-              <td style={{ textAlign: "left" }}>{fmt(si.total)}</td>
+              <td className="tr-num" style={{ textAlign: "left" }}>
+                {fmt(si.total)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -206,22 +226,22 @@ const ThermalReceipt80mm = ({ sale, settings = {} }) => {
       <div style={{ marginTop: 4, fontSize: 10 }}>
         <div className="tr-row">
           <span>المجموع الفرعي</span>
-          <span>{fmt(subtotal)} ج.م</span>
+          <span className="tr-num">{fmt(subtotal)} ج.م</span>
         </div>
         {discountAmount > 0 && (
           <div className="tr-row">
             <span>خصم</span>
-            <span>-{fmt(discountAmount)} ج.م</span>
+            <span className="tr-num">-{fmt(discountAmount)} ج.م</span>
           </div>
         )}
         <div className="tr-row">
           <span>ضريبة</span>
-          <span>{fmt(taxAmount)} ج.م</span>
+          <span className="tr-num">{fmt(taxAmount)} ج.م</span>
         </div>
         {deliveryFee > 0 && (
           <div className="tr-row">
             <span>توصيل</span>
-            <span>{fmt(deliveryFee)} ج.م</span>
+            <span className="tr-num">{fmt(deliveryFee)} ج.م</span>
           </div>
         )}
         <div className="tr-row">
@@ -233,11 +253,9 @@ const ThermalReceipt80mm = ({ sale, settings = {} }) => {
       <div className="tr-divider-solid" />
 
       {/* Grand total */}
-      <div
-        className="tr-row"
-        style={{ fontSize: 13, fontWeight: "bold", margin: "3px 0" }}>
+      <div className="tr-row" style={{ fontSize: 13, margin: "3px 0" }}>
         <span>الإجمالي</span>
-        <span>{fmt(grandTotal)} ج.م</span>
+        <span className="tr-num">{fmt(grandTotal)} ج.م</span>
       </div>
 
       <div className="tr-divider-dashed" />
