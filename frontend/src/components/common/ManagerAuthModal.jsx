@@ -17,15 +17,17 @@ const ManagerAuthModal = ({
   const [selectedManager, setSelectedManager] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchingManagers, setFetchingManagers] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       fetchManagers();
     }
-  }, [isOpen]);
+  }, [isOpen, branchId]);
 
   const fetchManagers = async () => {
+    setFetchingManagers(true);
     try {
       const data = branchId
         ? await userService.getBranchManagers(branchId)
@@ -36,6 +38,10 @@ const ManagerAuthModal = ({
       }
     } catch (error) {
       console.error("Failed to fetch managers:", error);
+      setManagers([]);
+      toast.error(error.message || "فشل تحميل قائمة المديرين");
+    } finally {
+      setFetchingManagers(false);
     }
   };
 
@@ -88,7 +94,11 @@ const ManagerAuthModal = ({
                 className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 required>
                 {managers.length === 0 ? (
-                  <option value="">جاري التحميل...</option>
+                  <option value="">
+                    {fetchingManagers
+                      ? "جاري التحميل..."
+                      : "لا يوجد مديرين متاحين"}
+                  </option>
                 ) : (
                   managers.map((manager) => (
                     <option key={manager.id} value={manager.username}>
