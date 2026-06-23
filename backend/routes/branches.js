@@ -6,6 +6,25 @@ const { authenticateToken, requirePermission, requireCreatePermission, getUserBr
 // Protect all routes with authentication
 router.use(authenticateToken);
 
+// Africa/Cairo is UTC+2 with no DST. Date filters from the UI ("YYYY-MM-DD")
+// are Cairo wall-clock dates; convert to UTC instants by subtracting 2h so the
+// query is correct regardless of the server's local timezone.
+const CAIRO_OFFSET_MS = 2 * 60 * 60 * 1000;
+
+const cairoTodayISO = () => {
+  const nowCairoMs = Date.now() + CAIRO_OFFSET_MS;
+  return new Date(nowCairoMs).toISOString().slice(0, 10);
+};
+
+const parseDateStart = (s) => {
+  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(s || "") ? s : cairoTodayISO();
+  return new Date(Date.parse(`${ymd}T00:00:00.000Z`) - CAIRO_OFFSET_MS);
+};
+const parseDateEnd = (s) => {
+  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(s || "") ? s : cairoTodayISO();
+  return new Date(Date.parse(`${ymd}T23:59:59.999Z`) - CAIRO_OFFSET_MS);
+};
+
 // GET all branches
 router.get("/", async (req, res, next) => {
   try {
@@ -71,8 +90,7 @@ router.get("/summary", async (req, res, next) => {
     );
 
     // 2. Calculate Today's Net Change (Income - Expense) to derive Yesterday's Balance
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = parseDateStart(undefined); // Cairo 00:00 today
 
     // Income: Sum of 'paidAmount' from Sales created today
     // Note: Assuming Sales affect treasury directly via paidAmount
@@ -162,20 +180,8 @@ router.get("/balances", async (req, res, next) => {
       orderBy: { createdAt: "asc" },
     });
 
-    // Date range: accept ?from=YYYY-MM-DD&to=YYYY-MM-DD (server local tz).
-    // Defaults to "today" when omitted. Sale.createdAt is stored in UTC but
-    // comparisons here use the server's local-day boundaries which is acceptable
-    // for Africa/Cairo (no DST) per Phase 5 spec.
-    const parseDateStart = (s) => {
-      const d = s ? new Date(s) : new Date();
-      d.setHours(0, 0, 0, 0);
-      return d;
-    };
-    const parseDateEnd = (s) => {
-      const d = s ? new Date(s) : new Date();
-      d.setHours(23, 59, 59, 999);
-      return d;
-    };
+    // Date range: accept ?from=YYYY-MM-DD&to=YYYY-MM-DD as Cairo local dates.
+    // Defaults to Cairo "today" when omitted (see parseDate helpers at top of file).
     const rangeStart = parseDateStart(req.query.from);
     const rangeEnd = parseDateEnd(req.query.to);
 
@@ -189,7 +195,10 @@ router.get("/balances", async (req, res, next) => {
     const branchWarehouseIds = Object.keys(warehouseToBranch).map(Number);
 
     // Aggregate Visa + Instapay sales per branch for the window.
-    // D6: use paidAmount (what actually hit the till) instead of total.
+    // Sum `total` to mirror what sales.js:759,788 actually increments into the
+    // treasury. `paidAmount` is unreliable for VISA/INSTAPAY because the card is
+    // charged externally and the POS form commonly leaves `paidAmount` blank
+    // while still completing the sale — that produced phantom-zero figures.
     const cardSalesByMethod = await prisma.sale.groupBy({
       by: ["branchId", "paymentMethod"],
       where: {
@@ -198,7 +207,7 @@ router.get("/balances", async (req, res, next) => {
         createdAt: { gte: rangeStart, lte: rangeEnd },
         branchId: { in: branchIds },
       },
-      _sum: { paidAmount: true },
+      _sum: { total: true },
     });
     const instapaySales = cardSalesByMethod.filter((r) => r.paymentMethod === "INSTAPAY");
     const visaSales     = cardSalesByMethod.filter((r) => r.paymentMethod === "VISA");
@@ -242,7 +251,7 @@ router.get("/balances", async (req, res, next) => {
           { deliveryStatus: "DELIVERED" },
         ],
       },
-      _sum: { paidAmount: true },
+      _sum: { total: true },
     });
 
     // Bulk orders per branch (via warehouseId). Mirrors retail logic — sum
@@ -264,13 +273,34 @@ router.get("/balances", async (req, res, next) => {
     );
 
     const instapayMap = Object.fromEntries(
-      instapaySales.map((r) => [r.branchId, Number(r._sum.paidAmount || 0)]),
+      instapaySales.map((r) => [r.branchId, Number(r._sum.total || 0)]),
     );
     const visaMap = Object.fromEntries(
-      visaSales.map((r) => [r.branchId, Number(r._sum.paidAmount || 0)]),
+      visaSales.map((r) => [r.branchId, Number(r._sum.total || 0)]),
     );
     const cashMap = Object.fromEntries(
-      cashSales.map((r) => [r.branchId, Number(r._sum.paidAmount || 0)]),
+      cashSales.map((r) => [r.branchId, Number(r._sum.total || 0)]),
+    );
+
+    // Expenses per branch — Expense links to Treasury (not Branch directly), so
+    // build a treasuryId → branchId map and aggregate via treasuryId.
+    const treasuryToBranch = Object.fromEntries(
+      branches.filter((b) => b.treasuryId).map((b) => [b.treasuryId, b.id]),
+    );
+    const branchTreasuryIds = Object.keys(treasuryToBranch).map(Number);
+
+    const expenses = branchTreasuryIds.length
+      ? await prisma.expense.groupBy({
+          by: ["treasuryId"],
+          where: {
+            treasuryId: { in: branchTreasuryIds },
+            date: { gte: rangeStart, lte: rangeEnd },
+          },
+          _sum: { amount: true },
+        })
+      : [];
+    const expensesMap = Object.fromEntries(
+      expenses.map((r) => [treasuryToBranch[r.treasuryId], Number(r._sum.amount || 0)]),
     );
 
     const result = branches.map((branch) => {
@@ -278,6 +308,7 @@ router.get("/balances", async (req, res, next) => {
       const visa     = visaMap[branch.id] || 0;
       const instapay = instapayMap[branch.id] || 0;
       const bulkSales = bulkMap[branch.id] || 0;
+      const totalExpenses = expensesMap[branch.id] || 0;
       // Stock: cash physically/logically in this branch's treasury right now.
       // Independent of the date window — D3.
       const currentCashBalance = Number(branch.treasury?.balance || 0);
@@ -291,6 +322,7 @@ router.get("/balances", async (req, res, next) => {
         visa,                  // flow — paid VISA revenue in window
         instapay,              // flow — paid INSTAPAY revenue in window
         bulkSales,             // flow — paid bulk-order revenue in window
+        totalExpenses,         // flow — branch expenses in window
         // Combined total of the window's flow figures (no stock mixed in).
         total: Math.round((cashSalesInWindow + visa + instapay + bulkSales) * 100) / 100,
         treasuryName: branch.treasury?.name || "الخزينة",

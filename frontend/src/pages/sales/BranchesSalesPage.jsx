@@ -21,11 +21,12 @@ function BranchCard({ branch, windowLabel }) {
   // Four flow stats (paid sales in window) so the breakdown adds up to the
   // "مبيعات {windowLabel}" header. The branch's current cash balance (stock)
   // is shown separately in the header strip — it doesn't belong in the flow row.
-  const visa      = Number(branch.visa || 0);
-  const instapay  = Number(branch.instapay || 0);
-  const cashSales = Number(branch.cashSales || 0);
-  const bulkSales = Number(branch.bulkSales || 0);
-  const cashNow   = Number(branch.currentCashBalance || 0);
+  const visa          = Number(branch.visa || 0);
+  const instapay      = Number(branch.instapay || 0);
+  const cashSales     = Number(branch.cashSales || 0);
+  const bulkSales     = Number(branch.bulkSales || 0);
+  const totalExpenses = Number(branch.totalExpenses || 0);
+  const cashNow       = Number(branch.currentCashBalance || 0);
   // Window-only total (flow). The header cash card carries the stock.
   const windowTotal = Number(branch.total ?? (cashSales + visa + instapay + bulkSales));
 
@@ -70,7 +71,7 @@ function BranchCard({ branch, windowLabel }) {
       </div>
 
       {/* Stats row — captioned with time domain */}
-      <div className="grid grid-cols-4 divide-x divide-x-reverse divide-border-light dark:divide-border-dark px-0 py-0 flex-1">
+      <div className="grid grid-cols-5 divide-x divide-x-reverse divide-border-light dark:divide-border-dark px-0 py-0 flex-1">
         <div className="flex flex-col items-center gap-0.5 py-4 px-2">
           <div className="flex items-center gap-1 mb-0.5">
             <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -115,6 +116,17 @@ function BranchCard({ branch, windowLabel }) {
             <span className="text-[10px] font-normal block text-amber-700/60 dark:text-amber-400/60">ج.م</span>
           </p>
         </div>
+        <div className="flex flex-col items-center gap-0.5 py-4 px-2">
+          <div className="flex items-center gap-1 mb-0.5">
+            <div className="w-2 h-2 rounded-full bg-rose-500" />
+            <p className="text-[11px] font-bold text-rose-700 dark:text-rose-400">مصروفات</p>
+          </div>
+          <p className="text-[9px] font-black uppercase tracking-wider text-rose-700/60 dark:text-rose-400/60">{windowLabel}</p>
+          <p className="font-black text-sm text-rose-700 dark:text-rose-300 tabular-nums text-center leading-tight mt-0.5">
+            {fmt(totalExpenses)}
+            <span className="text-[10px] font-normal block text-rose-700/60 dark:text-rose-400/60">ج.م</span>
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -142,6 +154,7 @@ function TotalsCard({ totals, count, windowLabel }) {
         <Stat label="فيزا" caption={windowLabel} value={fmt(totals.visa)} color="text-blue-700 dark:text-blue-400" />
         <Stat label="انستاباي" caption={windowLabel} value={fmt(totals.instapay)} color="text-purple-700 dark:text-purple-400" />
         <Stat label="جملة" caption={windowLabel} value={fmt(totals.bulkSales)} color="text-amber-700 dark:text-amber-400" />
+        <Stat label="مصروفات" caption={windowLabel} value={fmt(totals.totalExpenses)} color="text-rose-700 dark:text-rose-400" />
       </div>
     </div>
   );
@@ -226,14 +239,15 @@ const BranchesSalesPage = () => {
   // window). visa/instapay/cashSales are flow (paid sales in window).
   const totals = branches.reduce(
     (acc, b) => ({
-      cashNow:     acc.cashNow     + Number(b.currentCashBalance || 0),
-      cashSales:   acc.cashSales   + Number(b.cashSales || 0),
-      visa:        acc.visa        + Number(b.visa || 0),
-      instapay:    acc.instapay    + Number(b.instapay || 0),
-      bulkSales:   acc.bulkSales   + Number(b.bulkSales || 0),
-      windowTotal: acc.windowTotal + Number(b.total || 0),
+      cashNow:       acc.cashNow       + Number(b.currentCashBalance || 0),
+      cashSales:     acc.cashSales     + Number(b.cashSales || 0),
+      visa:          acc.visa          + Number(b.visa || 0),
+      instapay:      acc.instapay      + Number(b.instapay || 0),
+      bulkSales:     acc.bulkSales     + Number(b.bulkSales || 0),
+      totalExpenses: acc.totalExpenses + Number(b.totalExpenses || 0),
+      windowTotal:   acc.windowTotal   + Number(b.total || 0),
     }),
-    { cashNow: 0, cashSales: 0, visa: 0, instapay: 0, bulkSales: 0, windowTotal: 0 },
+    { cashNow: 0, cashSales: 0, visa: 0, instapay: 0, bulkSales: 0, totalExpenses: 0, windowTotal: 0 },
   );
 
   // Short label that captions every "للفترة" slot. /summary's totalBalance is
