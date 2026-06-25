@@ -294,6 +294,9 @@ const POSPage = () => {
   const [isPaymentConfirmOpen, setIsPaymentConfirmOpen] = useState(false);
   const [pendingPaymentMethod, setPendingPaymentMethod] = useState(null);
   const [cashPaidAmount, setCashPaidAmount] = useState(""); // For cash payment input
+  // When true, the thermal receipt renders the last completed invoice even if
+  // a new cart is in progress (used by the manual print button).
+  const [printingLastSale, setPrintingLastSale] = useState(false);
 
   // Quantity/Weight Selection State
   const [keypadMode, setKeypadMode] = useState("default"); // 'default', 'piece', 'weight', 'payment'
@@ -901,17 +904,24 @@ const POSPage = () => {
     return unit; // Return original if not recognized
   };
 
-  // Handle print button - prints current cart or last sale
+  // Handle print button - always reprints the latest completed invoice,
+  // even when a new order is already being built in the cart.
   const handlePrintClick = () => {
-    if (cartItems.length > 0) {
-      window.print();
-    } else if (lastSale) {
-      toast.success("طباعة آخر فاتورة...");
-      window.print();
-    } else {
-      toast.error("لا توجد مبيعات لطباعتها");
+    if (!lastSale) {
+      toast.error("لا توجد فاتورة سابقة لطباعتها");
+      return;
     }
+    toast.success("طباعة آخر فاتورة...");
+    setPrintingLastSale(true);
   };
+
+  // Once the receipt has re-rendered with the last sale forced, fire the print
+  // dialog, then clear the flag so the receipt reverts to the live cart.
+  useEffect(() => {
+    if (!printingLastSale) return;
+    window.print();
+    setPrintingLastSale(false);
+  }, [printingLastSale]);
 
   // Handle payment method selection
   const handlePaymentSelected = (method) => {
@@ -1096,9 +1106,10 @@ const POSPage = () => {
   const handleConfirmPayment = async () => {
     const methodName = pendingPaymentMethod === "cash" ? "نقدي" : "InstaPay";
 
-    // For cash, validate paid amount
+    // For cash, an empty amount means "exact cash" (pay total, no change) so
+    // that pressing Enter immediately confirms without typing a number.
     if (pendingPaymentMethod === "cash") {
-      const paid = parseFloat(cashPaidAmount);
+      const paid = cashPaidAmount === "" ? total : parseFloat(cashPaidAmount);
       if (isNaN(paid) || paid < total) {
         toast.error("المبلغ المدفوع أقل من الإجمالي");
         return;
@@ -1108,7 +1119,7 @@ const POSPage = () => {
     // Calculate final amounts with rounding for cash only
     let finalPaidAmount, finalChangeAmount;
     if (pendingPaymentMethod === "cash") {
-      const paid = parseFloat(cashPaidAmount);
+      const paid = cashPaidAmount === "" ? total : parseFloat(cashPaidAmount);
       finalPaidAmount = Math.round(paid);
       finalChangeAmount = Math.round(paid - total);
     } else {
@@ -1130,6 +1141,100 @@ const POSPage = () => {
       finalChangeAmount,
     );
   };
+
+  // Complete the current order instantly as an exact cash payment. Used by the
+  // Enter shortcut so a single keypress checks out with cash (no change).
+  const completeCashSaleInstant = () => {
+    if (cartItems.length === 0) {
+      toast.error("السلة فارغة");
+      return;
+    }
+    if (Number(discountValue) > 0 && !discountReason) {
+      toast.error("يجب اختيار سبب الخصم");
+      return;
+    }
+    // Auto-fill the walk-in cash client when none is selected (matches the
+    // cash branch of handleQuickPayment). handleCompleteSale falls back to the
+    // walk-in client id regardless, so the API call is safe either way.
+    if (!selectedClient && cashClientRef.current) {
+      setSelectedClient(cashClientRef.current);
+    }
+    const exact = parseFloat(total.toFixed(2));
+    handleCompleteSale("CASH", null, exact, 0);
+  };
+
+  // Global Enter shortcut for fast checkout:
+  //  - If the payment confirmation modal is open, Enter confirms it.
+  //  - Otherwise, Enter completes the in-progress order as exact cash.
+  useEffect(() => {
+    const blockingOverlayOpen =
+      isStartShiftModalOpen ||
+      isShiftBlocked ||
+      isClientModalOpen ||
+      isHeldCartsModalOpen ||
+      isDeliveryModalOpen ||
+      isDeliveryDebtsModalOpen ||
+      isPreparationQueueOpen ||
+      isReportOpen ||
+      isEndShiftModalOpen ||
+      isVerificationModalOpen ||
+      isRefundModalOpen ||
+      isHistoryModalOpen ||
+      isPendingDeliveriesModalOpen;
+
+    const handleEnter = (e) => {
+      if (e.key !== "Enter" || e.repeat) return;
+
+      // Confirm an already-open payment modal.
+      if (isPaymentConfirmOpen) {
+        e.preventDefault();
+        handleConfirmPayment();
+        return;
+      }
+
+      // Don't hijack Enter while another overlay is open or while the user is
+      // picking a client from the search dropdown.
+      if (blockingOverlayOpen || isClientDropdownOpen) return;
+
+      // Don't fire while editing the quantity/weight keypad inputs (they have
+      // their own Enter handler).
+      const tag = document.activeElement?.tagName;
+      if ((tag === "INPUT" || tag === "TEXTAREA") && keypadMode !== "default") {
+        return;
+      }
+
+      if (cartItems.length === 0) return;
+      e.preventDefault();
+      completeCashSaleInstant();
+    };
+
+    window.addEventListener("keydown", handleEnter);
+    return () => window.removeEventListener("keydown", handleEnter);
+  }, [
+    isPaymentConfirmOpen,
+    isClientDropdownOpen,
+    isStartShiftModalOpen,
+    isShiftBlocked,
+    isClientModalOpen,
+    isHeldCartsModalOpen,
+    isDeliveryModalOpen,
+    isDeliveryDebtsModalOpen,
+    isPreparationQueueOpen,
+    isReportOpen,
+    isEndShiftModalOpen,
+    isVerificationModalOpen,
+    isRefundModalOpen,
+    isHistoryModalOpen,
+    isPendingDeliveriesModalOpen,
+    keypadMode,
+    cartItems,
+    pendingPaymentMethod,
+    cashPaidAmount,
+    total,
+    selectedClient,
+    discountValue,
+    discountReason,
+  ]);
 
   const handleConfirmShift = async () => {
     if (!currentShiftId) return;
@@ -1238,6 +1343,15 @@ const POSPage = () => {
       proceedRetrieval();
     }
   };
+
+  // When the manual print button forces the last invoice (printingLastSale),
+  // the receipt must ignore the in-progress cart/client/delivery state.
+  const receiptShowCart = cartItems.length > 0 && !printingLastSale;
+  const receiptClientName =
+    (printingLastSale
+      ? lastSale?.clientName
+      : selectedClient?.name || lastSale?.clientName) || "عميل نقدي";
+  const receiptDelivery = printingLastSale ? null : deliveryData;
 
   return (
     <div
@@ -2389,7 +2503,7 @@ const POSPage = () => {
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>العميل:</span>
-            <span>{selectedClient?.name || lastSale?.clientName || "عميل نقدي"}</span>
+            <span>{receiptClientName}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>البائع:</span>
@@ -2398,29 +2512,29 @@ const POSPage = () => {
         </div>
 
         {/* Delivery section */}
-        {(deliveryData || lastSale?.deliveryAddress) && (
+        {(receiptDelivery || lastSale?.deliveryAddress) && (
           <>
             <div className="divider-dashed"></div>
             <div className="delivery-section">
               <div style={{ fontWeight: "bold", marginBottom: "2px" }}>معلومات التوصيل</div>
-              {(deliveryData?.riderName || lastSale?.riderName) && (
+              {(receiptDelivery?.riderName || lastSale?.riderName) && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>الطيار:</span>
                   <span style={{ fontWeight: "bold" }}>
-                    {deliveryData?.riderName || lastSale?.riderName}
+                    {receiptDelivery?.riderName || lastSale?.riderName}
                   </span>
                 </div>
               )}
-              {(deliveryData?.zoneName || lastSale?.zoneName) && (
+              {(receiptDelivery?.zoneName || lastSale?.zoneName) && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>المنطقة:</span>
-                  <span>{deliveryData?.zoneName || lastSale?.zoneName}</span>
+                  <span>{receiptDelivery?.zoneName || lastSale?.zoneName}</span>
                 </div>
               )}
-              {(deliveryData?.address || lastSale?.deliveryAddress) && (
+              {(receiptDelivery?.address || lastSale?.deliveryAddress) && (
                 <div style={{ marginTop: "2px" }}>
                   <span style={{ fontWeight: "bold" }}>العنوان: </span>
-                  <span>{deliveryData?.address || lastSale?.deliveryAddress}</span>
+                  <span>{receiptDelivery?.address || lastSale?.deliveryAddress}</span>
                 </div>
               )}
             </div>
@@ -2439,7 +2553,7 @@ const POSPage = () => {
             </tr>
           </thead>
           <tbody>
-            {(cartItems.length > 0 ? cartItems : lastSale?.items || []).map(
+            {(receiptShowCart ? cartItems : lastSale?.items || []).map(
               (item, idx) => (
                 <tr key={idx}>
                   <td style={{ textAlign: "right", padding: "2px 1px", borderBottom: "1px dashed #000" }}>{item.name}</td>
@@ -2455,11 +2569,11 @@ const POSPage = () => {
         <div style={{ marginTop: "4px", fontSize: "10px" }}>
           {(() => {
             const printDiscountAmount =
-              cartItems.length > 0
+              receiptShowCart
                 ? discountAmount
                 : parseFloat(lastSale?.discountAmount || 0);
             const printDiscountReason =
-              cartItems.length > 0 ? discountReason : lastSale?.discountReason;
+              receiptShowCart ? discountReason : lastSale?.discountReason;
             if (printDiscountAmount > 0) {
               return (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -2477,12 +2591,12 @@ const POSPage = () => {
           })()}
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>ضريبة</span>
-            <span>{(cartItems.length > 0 ? tax : lastSale?.taxAmount || 0).toFixed(2)} ج.م</span>
+            <span>{(receiptShowCart ? tax : lastSale?.taxAmount || 0).toFixed(2)} ج.م</span>
           </div>
-          {(deliveryData?.zoneFee || lastSale?.deliveryFee) && (
+          {(receiptDelivery?.zoneFee || lastSale?.deliveryFee) && (
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>توصيل</span>
-              <span>{parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0).toFixed(2)} ج.م</span>
+              <span>{parseFloat(receiptDelivery?.zoneFee || lastSale?.deliveryFee || 0).toFixed(2)} ج.م</span>
             </div>
           )}
           <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -2504,8 +2618,8 @@ const POSPage = () => {
           <span>الإجمالي</span>
           <span>
             {(
-              (cartItems.length > 0 ? total : parseFloat(lastSale?.total || 0)) +
-              parseFloat(deliveryData?.zoneFee || lastSale?.deliveryFee || 0)
+              (receiptShowCart ? total : parseFloat(lastSale?.total || 0)) +
+              parseFloat(receiptDelivery?.zoneFee || lastSale?.deliveryFee || 0)
             ).toFixed(2)} ج.م
           </span>
         </div>
