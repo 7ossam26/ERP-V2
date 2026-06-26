@@ -135,6 +135,10 @@ const probes = {
   "20260424170714_make_bulk_payment_order_optional": async () =>
     (await tableExists("bulk_payments")) &&
     (await columnIsNullable("bulk_payments", "order_id")),
+
+  "20260626030300_add_expense_categories": async () =>
+    (await tableExists("expense_categories")) &&
+    (await columnExists("expenses", "category_id")),
 };
 
 // --- Main ---------------------------------------------------------

@@ -85,6 +85,15 @@ const DetailedReportsPage = () => {
       darkBg: "dark:bg-cyan-900/20",
     },
     {
+      title: "تحليل المصروفات",
+      description: "إجماليات حسب التصنيف والفرع",
+      icon: "analytics",
+      path: "/reports/custom/expense-analysis",
+      color: "text-rose-600",
+      bg: "bg-rose-100",
+      darkBg: "dark:bg-rose-900/20",
+    },
+    {
       title: "سجل الإيداعات والسحوبات",
       description: "عمليات الإيداع والسحب للخزائن",
       icon: "currency_exchange",

@@ -15,6 +15,7 @@ import { stockTransferService } from "./stockTransferService";
 import shiftService from "./shiftService";
 import { reportService } from "./reportService";
 import { expenseService } from "./expenseService";
+import { expenseCategoryService } from "./expenseCategoryService";
 import { supplierAccountService } from "./supplierAccountService";
 import { deliveryService } from "./deliveryService";
 import { deliveryZoneService } from "./deliveryZoneService";
@@ -38,6 +39,7 @@ export {
   shiftService,
   reportService,
   expenseService,
+  expenseCategoryService,
   supplierAccountService,
   deliveryService,
   deliveryZoneService,

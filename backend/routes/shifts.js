@@ -730,7 +730,9 @@ router.get(
           user: true,
           branch: true,
           reviewedBy: true,
-          expenses: true,
+          expenses: {
+            include: { category: { select: { id: true, name: true } } }
+          },
         },
       });
 

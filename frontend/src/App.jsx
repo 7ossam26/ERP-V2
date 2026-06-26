@@ -38,6 +38,8 @@ import DetailedReportsPage from "./pages/reports/DetailedReportsPage";
 import GeneralReportPage from "./pages/reports/GeneralReportPage"; // Import General Report
 import AdvancePaymentsHistory from "./pages/reports/history/AdvancePaymentsHistory";
 import ExpensesPage from "./pages/expenses/ExpensesPage";
+import ExpenseCategoryManager from "./pages/expenses/ExpenseCategoryManager";
+import ExpenseAnalysisReport from "./pages/reports/history/ExpenseAnalysisReport";
 import DepositPage from "./pages/deposits/DepositPage";
 import CashTransferHistory from "./pages/reports/history/CashTransferHistory";
 import CreationHistory from "./pages/reports/history/CreationHistory";
@@ -313,6 +315,14 @@ function App() {
             }
           />
           <Route
+            path="/expenses/categories"
+            element={
+              <ProtectedRoute requiredPermission="EXPENSES">
+                <ExpenseCategoryManager />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/deposits"
             element={
               <ProtectedRoute requiredPermission="DEPOSITS">
@@ -375,6 +385,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="REPORTS">
                 <StockTransferHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/custom/expense-analysis"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <ExpenseAnalysisReport />
               </ProtectedRoute>
             }
           />

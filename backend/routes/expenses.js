@@ -46,6 +46,131 @@ router.get("/treasuries", async (req, res, next) => {
     }
 });
 
+// GET expense analysis report (grouped by category and branch)
+router.get("/report", async (req, res, next) => {
+    try {
+        const { startDate, endDate, branchId, categoryId, paymentMethod } = req.query;
+        const branchFilter = await getUserBranchFilter(req.user.id, req);
+        const whereClause = {};
+
+        // Branch scoping via treasury
+        let allowedBranchIds = null;
+        if (branchFilter) {
+            const branchWhere = { ...branchFilter };
+            const branches = await prisma.branch.findMany({
+                where: branchWhere,
+                select: { id: true, treasuryId: true }
+            });
+            allowedBranchIds = branches.map(b => b.id);
+            const treasuryIds = branches.map(b => b.treasuryId).filter(id => id != null);
+            whereClause.treasuryId = treasuryIds.length > 0 ? { in: treasuryIds } : -1;
+        }
+
+        // Apply branchId filter (must be within user's accessible branches)
+        if (branchId && branchId !== "all") {
+            const targetBranch = await prisma.branch.findUnique({
+                where: { id: parseInt(branchId) },
+                select: { treasuryId: true }
+            });
+            if (targetBranch) {
+                const targetTreasuryId = targetBranch.treasuryId;
+                // Intersect with allowed treasuries
+                if (whereClause.treasuryId && whereClause.treasuryId.in) {
+                    if (!whereClause.treasuryId.in.includes(targetTreasuryId)) {
+                        return res.json({ rows: [], total: 0, byCategory: [], byCategoryBranch: [] });
+                    }
+                }
+                whereClause.treasuryId = targetTreasuryId;
+            }
+        }
+
+        // Date range filter
+        if (startDate || endDate) {
+            whereClause.date = {};
+            if (startDate) whereClause.date.gte = new Date(startDate);
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                whereClause.date.lte = end;
+            }
+        }
+
+        // Category filter
+        if (categoryId && categoryId !== "all") {
+            whereClause.categoryId = categoryId === "uncategorized" ? null : parseInt(categoryId);
+        }
+
+        // Payment method filter
+        if (paymentMethod && paymentMethod !== "all") {
+            whereClause.paymentMethod = paymentMethod;
+        }
+
+        const expenses = await prisma.expense.findMany({
+            where: whereClause,
+            orderBy: { date: "desc" },
+            include: {
+                treasury: {
+                    include: { branch: { select: { id: true, name: true } } }
+                },
+                category: { select: { id: true, name: true } }
+            }
+        });
+
+        // Enrich each row with branch info
+        const rows = expenses.map(e => ({
+            id: e.id,
+            date: e.date,
+            description: e.description,
+            amount: Number(e.amount),
+            paymentMethod: e.paymentMethod,
+            type: e.type,
+            treasuryId: e.treasuryId,
+            treasuryName: e.treasury?.name || "-",
+            branchId: e.treasury?.branch?.id || null,
+            branchName: e.treasury?.branch?.name || "-",
+            categoryId: e.categoryId,
+            categoryName: e.category?.name || "غير مصنف",
+        }));
+
+        const total = rows.reduce((sum, r) => sum + r.amount, 0);
+
+        // Aggregate by category
+        const catMap = {};
+        for (const r of rows) {
+            const key = r.categoryId ?? "uncategorized";
+            if (!catMap[key]) {
+                catMap[key] = { categoryId: r.categoryId, name: r.categoryName, total: 0, count: 0 };
+            }
+            catMap[key].total += r.amount;
+            catMap[key].count += 1;
+        }
+        const byCategory = Object.values(catMap).sort((a, b) => b.total - a.total);
+
+        // Aggregate by category × branch
+        const catBranchMap = {};
+        for (const r of rows) {
+            const key = `${r.categoryId ?? "uncategorized"}_${r.branchId ?? "none"}`;
+            if (!catBranchMap[key]) {
+                catBranchMap[key] = {
+                    categoryId: r.categoryId,
+                    name: r.categoryName,
+                    branchId: r.branchId,
+                    branchName: r.branchName,
+                    total: 0,
+                    count: 0,
+                };
+            }
+            catBranchMap[key].total += r.amount;
+            catBranchMap[key].count += 1;
+        }
+        const byCategoryBranch = Object.values(catBranchMap).sort((a, b) => b.total - a.total);
+
+        res.json({ rows, total, byCategory, byCategoryBranch });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // GET all expenses
 router.get("/", async (req, res, next) => {
     try {
@@ -63,9 +188,6 @@ router.get("/", async (req, res, next) => {
                 const treasuryIds = branches.map(b => b.treasuryId).filter(id => id != null);
                 whereClause.treasuryId = { in: treasuryIds };
             } else {
-                // User has branch access but no branches found (shouldn't happen technically due to auth middleware but good for safety)
-                // or branches have no treasuries
-                // Make sure we return nothing if we can't find relevant treasuries
                 whereClause.treasuryId = -1;
             }
         }
@@ -76,7 +198,8 @@ router.get("/", async (req, res, next) => {
             where: whereClause,
             orderBy: { date: "desc" },
             include: {
-                treasury: true
+                treasury: true,
+                category: { select: { id: true, name: true } }
             }
         });
 
@@ -89,17 +212,17 @@ router.get("/", async (req, res, next) => {
 
 // POST create new manual expense
 router.post("/", async (req, res, next) => {
-    const { description, amount, date, treasuryId, paymentMethod } = req.body;
+    const { description, amount, date, treasuryId, paymentMethod, categoryId } = req.body;
 
     try {
         if (!amount || !treasuryId || !description) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
-        // Manager-tier users may legitimately log admin expenses with no shift open.
-        // Cashier-tier users must have an active shift on the treasury's branch —
-        // otherwise the expense saves with shiftId=null and disappears from every
-        // shift report it should belong to.
+        if (!categoryId) {
+            return res.status(400).json({ error: "يرجى اختيار تصنيف المصروف" });
+        }
+
         const requestingUser = await prisma.user.findUnique({
             where: { id: req.user.id },
             include: { role: true }
@@ -164,7 +287,7 @@ router.post("/", async (req, res, next) => {
                 }
             });
 
-            // 5. Create Expense (with shift link if found)
+            // 5. Create Expense
             const expense = await tx.expense.create({
                 data: {
                     description,
@@ -172,7 +295,8 @@ router.post("/", async (req, res, next) => {
                     date: new Date(date || new Date()),
                     type: "MANUAL",
                     treasuryId: parseInt(treasuryId),
-                    shiftId: shiftId, // Link to shift if found
+                    shiftId,
+                    categoryId: parseInt(categoryId),
                     paymentMethod: paymentMethod || "CASH"
                 }
             });
@@ -193,7 +317,7 @@ router.post("/", async (req, res, next) => {
 // PUT update expense
 router.put("/:id", async (req, res, next) => {
     const { id } = req.params;
-    const { description, amount, date, treasuryId, paymentMethod } = req.body;
+    const { description, amount, date, treasuryId, paymentMethod, categoryId } = req.body;
 
     try {
         const existingExpense = await prisma.expense.findUnique({
@@ -243,15 +367,20 @@ router.put("/:id", async (req, res, next) => {
             });
 
             // 4. Update Expense
+            const updateData = {
+                description,
+                amount: Number(amount),
+                date: new Date(date),
+                treasuryId: parseInt(treasuryId),
+                paymentMethod: paymentMethod || "CASH"
+            };
+            if (categoryId !== undefined) {
+                updateData.categoryId = categoryId ? parseInt(categoryId) : null;
+            }
+
             await tx.expense.update({
                 where: { id: parseInt(id) },
-                data: {
-                    description,
-                    amount: Number(amount),
-                    date: new Date(date),
-                    treasuryId: parseInt(treasuryId),
-                    paymentMethod: paymentMethod || "CASH"
-                }
+                data: updateData
             });
         });
 

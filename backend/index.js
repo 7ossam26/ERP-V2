@@ -230,6 +230,7 @@ app.use("/api/warehouses", warehousesRouter);
 app.use("/api/treasuries", treasuriesRouter);
 app.use("/api/branches", branchesRouter);
 app.use("/api/expenses", require("./routes/expenses"));
+app.use("/api/expense-categories", require("./routes/expenseCategories"));
 app.use("/api/clients", clientsRouter);
 app.use("/api/suppliers", suppliersRouter);
 app.use("/api/categories", categoriesRouter);

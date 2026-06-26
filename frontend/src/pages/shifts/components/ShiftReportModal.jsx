@@ -300,6 +300,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                   <thead className="bg-gray-50 text-gray-500 font-medium">
                     <tr>
                       <th className="p-3">الوصف</th>
+                      <th className="p-3">التصنيف</th>
                       <th className="p-3">طريقة الدفع</th>
                       <th className="p-3">المبلغ (ج.م)</th>
                     </tr>
@@ -308,6 +309,9 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                     {report.expenses.map((expense, index) => (
                       <tr key={index} className="hover:bg-gray-50/50">
                         <td className="p-3 font-medium">{expense.description}</td>
+                        <td className="p-3 text-sm text-gray-600">
+                          {expense.category?.name || "غير مصنف"}
+                        </td>
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded text-xs ${expense.paymentMethod === "CASH" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
                             {expense.paymentMethod === "CASH" ? "نقدي" : "بطاقة"}
@@ -321,7 +325,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                   </tbody>
                   <tfoot className="bg-gray-50 border-t border-gray-200">
                     <tr>
-                      <td colSpan="2" className="p-3 font-bold text-gray-700">الإجمالي</td>
+                      <td colSpan="3" className="p-3 font-bold text-gray-700">الإجمالي</td>
                       <td className="p-3 font-bold text-red-600">
                         {report.totalExpenses.toLocaleString()}
                       </td>

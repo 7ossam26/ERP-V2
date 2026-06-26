@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { expenseService } from "../../services/domainServices";
+import { expenseCategoryService } from "../../services/expenseCategoryService";
 import toast from "react-hot-toast";
 
 const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
@@ -9,8 +10,13 @@ const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
         amount: "",
         treasuryId: "",
         paymentMethod: "CASH",
+        categoryId: "",
     });
     const [treasuries, setTreasuries] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [newCategoryName, setNewCategoryName] = useState("");
+    const [showQuickAdd, setShowQuickAdd] = useState(false);
+    const [savingCategory, setSavingCategory] = useState(false);
 
     useEffect(() => {
         if (expenseToEdit) {
@@ -20,31 +26,58 @@ const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
                 amount: expenseToEdit.amount,
                 treasuryId: expenseToEdit.treasuryId,
                 paymentMethod: expenseToEdit.paymentMethod,
+                categoryId: expenseToEdit.categoryId || "",
             });
         }
     }, [expenseToEdit]);
 
     useEffect(() => {
-        const fetchTreasuries = async () => {
+        const fetchData = async () => {
             try {
-                const data = await expenseService.getTreasuries();
-                setTreasuries(data);
+                const [treasuryData, categoryData] = await Promise.all([
+                    expenseService.getTreasuries(),
+                    expenseCategoryService.getActive(),
+                ]);
+                setTreasuries(treasuryData);
+                setCategories(categoryData);
 
-                // Auto-select treasury if not editing
-                if (!expenseToEdit && data.length > 0) {
-                    setFormData(prev => ({ ...prev, treasuryId: data[0].id }));
+                if (!expenseToEdit) {
+                    setFormData(prev => ({
+                        ...prev,
+                        treasuryId: treasuryData.length > 0 ? treasuryData[0].id : "",
+                    }));
                 }
             } catch (error) {
-                console.error("Failed to fetch treasuries", error);
-                toast.error("فشل تحميل الخزينة");
+                console.error("Failed to fetch data", error);
+                toast.error("فشل تحميل البيانات");
             }
         };
-        fetchTreasuries();
+        fetchData();
     }, [expenseToEdit]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleQuickAddCategory = async () => {
+        if (!newCategoryName.trim()) {
+            toast.error("يرجى إدخال اسم التصنيف");
+            return;
+        }
+        setSavingCategory(true);
+        try {
+            const created = await expenseCategoryService.create({ name: newCategoryName.trim() });
+            setCategories(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, "ar")));
+            setFormData(prev => ({ ...prev, categoryId: created.id }));
+            setNewCategoryName("");
+            setShowQuickAdd(false);
+            toast.success(`تم إضافة التصنيف "${created.name}"`);
+        } catch (error) {
+            toast.error(error.message || "فشل إضافة التصنيف");
+        } finally {
+            setSavingCategory(false);
+        }
     };
 
     const handleSubmit = () => {
@@ -58,6 +91,10 @@ const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
         }
         if (!formData.treasuryId) {
             toast.error("يرجى اختيار الخزينة");
+            return;
+        }
+        if (!formData.categoryId) {
+            toast.error("يرجى اختيار تصنيف المصروف");
             return;
         }
         if (expenseToEdit) {
@@ -115,6 +152,61 @@ const AddExpenseModal = ({ onClose, onAdd, onUpdate, expenseToEdit }) => {
                                 <option value="CARD">بطاقة بنكية</option>
                             </select>
                         </div>
+                    </div>
+
+                    {/* Category selector */}
+                    <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-bold text-text-light block">
+                                التصنيف <span className="text-red-500">*</span>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setShowQuickAdd(!showQuickAdd)}
+                                className="text-xs text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
+                                <span className="material-symbols-outlined text-[14px]">add_circle</span>
+                                تصنيف جديد
+                            </button>
+                        </div>
+                        <select
+                            name="categoryId"
+                            value={formData.categoryId}
+                            onChange={handleChange}
+                            className="w-full bg-background-light border border-border-light rounded-lg px-4 py-2.5 text-text-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer">
+                            <option value="">-- اختر التصنيف --</option>
+                            {categories.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name}
+                                </option>
+                            ))}
+                        </select>
+
+                        {showQuickAdd && (
+                            <div className="flex gap-2 mt-2">
+                                <input
+                                    type="text"
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && handleQuickAddCategory()}
+                                    placeholder="اسم التصنيف الجديد..."
+                                    className="flex-1 bg-background-light border border-primary/40 rounded-lg px-3 py-2 text-sm text-text-light focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleQuickAddCategory}
+                                    disabled={savingCategory}
+                                    className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-hover transition-colors disabled:opacity-50">
+                                    {savingCategory ? "..." : "إضافة"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowQuickAdd(false); setNewCategoryName(""); }}
+                                    className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                                    إلغاء
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-1.5">

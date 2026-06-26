@@ -7,9 +7,11 @@ import shiftService from "../../services/shiftService";
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 import { confirmAction } from "../../utils/toastUtils";
+import { useNavigate } from "react-router-dom";
 
 const ExpensesPage = () => {
   const { activeBranchId } = useBranch();
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenses, setExpenses] = useState([]);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -155,11 +157,12 @@ const ExpensesPage = () => {
         <table className="w-full text-right border-collapse text-sm">
           <thead>
             <tr className="border-b-2 border-black">
-              <th className="py-2 px-2 font-bold w-[15%]">التاريخ</th>
-              <th className="py-2 px-2 font-bold w-[35%]">الوصف</th>
-              <th className="py-2 px-2 font-bold w-[15%]">طريقة الدفع</th>
-              <th className="py-2 px-2 font-bold w-[15%]">الخزينة</th>
-              <th className="py-2 px-2 font-bold w-[20%] text-left">المبلغ</th>
+              <th className="py-2 px-2 font-bold w-[13%]">التاريخ</th>
+              <th className="py-2 px-2 font-bold w-[28%]">الوصف</th>
+              <th className="py-2 px-2 font-bold w-[14%]">التصنيف</th>
+              <th className="py-2 px-2 font-bold w-[13%]">طريقة الدفع</th>
+              <th className="py-2 px-2 font-bold w-[13%]">الخزينة</th>
+              <th className="py-2 px-2 font-bold w-[19%] text-left">المبلغ</th>
             </tr>
           </thead>
           <tbody>
@@ -171,6 +174,9 @@ const ExpensesPage = () => {
                 <td className="py-2 px-2">
                   {expense.description}
                   {expense.type === "PURCHASE" && " (مشتريات)"}
+                </td>
+                <td className="py-2 px-2 text-gray-600">
+                  {expense.category?.name || "غير مصنف"}
                 </td>
                 <td className="py-2 px-2">
                   {expense.paymentMethod === "CASH" ? "نقدي" : "بطاقة/أخرى"}
@@ -236,6 +242,14 @@ const ExpensesPage = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={() => navigate("/expenses/categories")}
+                className="flex items-center gap-2 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark hover:bg-accent/20 text-text-light/70 dark:text-text-dark/70 hover:text-primary px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">
+                <span className="material-symbols-outlined text-[20px]">
+                  label
+                </span>
+                <span>إدارة التصنيفات</span>
+              </button>
               <button
                 onClick={() => window.print()}
                 className="flex items-center gap-2 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark hover:bg-accent/20 text-text-light/70 dark:text-text-dark/70 hover:text-primary px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">
@@ -312,8 +326,11 @@ const ExpensesPage = () => {
                     <th className="px-6 py-4 rounded-tr-lg" scope="col">
                       التاريخ
                     </th>
-                    <th className="px-6 py-4 w-1/3" scope="col">
+                    <th className="px-6 py-4 w-1/4" scope="col">
                       الوصف
+                    </th>
+                    <th className="px-6 py-4" scope="col">
+                      التصنيف
                     </th>
                     <th className="px-6 py-4" scope="col">
                       طريقة الدفع
@@ -349,6 +366,15 @@ const ExpensesPage = () => {
                               </span>
                             )}
                           </div>
+                        </td>
+                        <td className="px-6 py-3 text-text-light/70 dark:text-text-dark/70">
+                          {expense.category ? (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                              {expense.category.name}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">غير مصنف</span>
+                          )}
                         </td>
                         <td className="px-6 py-3 text-text-light/70 dark:text-text-dark/70">
                           {expense.paymentMethod === "CASH"
@@ -398,7 +424,7 @@ const ExpensesPage = () => {
                   ) : (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="7"
                         className="text-center py-8 text-gray-500">
                         لا توجد مصروفات لعرضها
                       </td>

@@ -394,6 +394,17 @@ model Supplier {
 // Category Management
 // ============================================
 
+model ExpenseCategory {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  expenses  Expense[]
+
+  @@map("expense_categories")
+}
+
 model Category {
   id        Int            @id @default(autoincrement())
   name      String         @unique
@@ -904,14 +915,16 @@ model Expense {
   treasuryId    Int                  @map("treasury_id")
   purchaseId    Int?                 @unique @map("purchase_id")
   shiftId       Int?                 @map("shift_id")
+  categoryId    Int?                 @map("category_id")
   paymentMethod ExpensePaymentMethod @default(CASH) @map("payment_method")
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @updatedAt @map("updated_at")
 
   // Relations
-  treasury Treasury  @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
-  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  shift    Shift?    @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  treasury Treasury         @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
+  purchase Purchase?        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  shift    Shift?           @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  category ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@map("expenses")
 }

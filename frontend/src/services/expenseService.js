@@ -56,4 +56,17 @@ export const expenseService = {
         await api.delete(`${EXPENSES_URL}/${id}`);
         return true;
     },
+
+    /**
+     * Get expense analysis report with aggregations by category and branch
+     * @param {Object} filters - startDate, endDate, branchId, categoryId, paymentMethod
+     */
+    async getReport(filters = {}) {
+        const params = new URLSearchParams();
+        Object.entries(filters).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== "") params.append(k, v);
+        });
+        const qs = params.toString();
+        return await api.get(`${EXPENSES_URL}/report${qs ? `?${qs}` : ""}`);
+    },
 };
