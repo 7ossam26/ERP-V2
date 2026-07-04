@@ -36,6 +36,7 @@ import DiscountPanel, {
   reasonLabel,
   computeDiscountAmount,
 } from "../../components/pos/DiscountPanel";
+import { roundMoney } from "../../utils/money";
 
 const POSPage = () => {
   const navigate = useNavigate();
@@ -693,13 +694,7 @@ const POSPage = () => {
     toast.success("تم حذف الصنف من السلة");
   };
 
-  // Helper function to round amounts for cash payments only
-  const roundForCash = (amount, paymentMethod) => {
-    if (paymentMethod === "cash") {
-      return Math.round(amount);
-    }
-    return amount;
-  };
+  const roundForCash = (amount) => roundMoney(amount);
 
   // Calculations
   const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
@@ -710,7 +705,7 @@ const POSPage = () => {
   const deliveryFee = deliveryData?.zoneFee
     ? parseFloat(deliveryData.zoneFee)
     : 0;
-  const total = Math.round(discountedSubtotal + tax + deliveryFee); // Total includes delivery fee if set
+  const total = roundMoney(discountedSubtotal + tax + deliveryFee);
 
   // Clear discount when cart empties; clamp VALUE if it now exceeds subtotal.
   useEffect(() => {
@@ -725,7 +720,7 @@ const POSPage = () => {
       Number(discountValue) > 0 &&
       Number(discountValue) > subtotal
     ) {
-      setDiscountValue(String(Math.round(subtotal)));
+      setDiscountValue(String(roundMoney(subtotal)));
       toast("تم تعديل الخصم ليتناسب مع الإجمالي", { icon: "ℹ️" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1120,8 +1115,8 @@ const POSPage = () => {
     let finalPaidAmount, finalChangeAmount;
     if (pendingPaymentMethod === "cash") {
       const paid = cashPaidAmount === "" ? total : parseFloat(cashPaidAmount);
-      finalPaidAmount = Math.round(paid);
-      finalChangeAmount = Math.round(paid - total);
+      finalPaidAmount = roundMoney(paid);
+      finalChangeAmount = roundMoney(paid - total);
     } else {
       finalPaidAmount = parseFloat(total.toFixed(2));
       finalChangeAmount = 0;
@@ -1583,7 +1578,7 @@ const POSPage = () => {
                   {cashPaidAmount &&
                   !isNaN(parseFloat(cashPaidAmount)) &&
                   parseFloat(cashPaidAmount) >= total
-                    ? Math.round(parseFloat(cashPaidAmount) - total)
+                    ? roundMoney(parseFloat(cashPaidAmount) - total)
                     : 0}{" "}
                   ج.م
                 </div>

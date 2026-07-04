@@ -1,6 +1,7 @@
 // controllers/callCenter.controller.js
 const prisma = require("../config/database");
 const { createOrderInTx, publishNewOrderNotifications, broadcastStatusChange } = require("../lib/orderService");
+const { roundMoney } = require("../utils/money");
 
 // -------------------------------------------------------------------------
 // helpers
@@ -350,7 +351,7 @@ exports.createOrder = async (req, res, next) => {
       }
       discType = type;
       discValue = val;
-      discAmount = Math.round(discAmount); // round to nearest 1 EGP
+      discAmount = roundMoney(discAmount);
       discReason = String(discountReason).trim().slice(0, 32);
       discAppliedBy = req.user && req.user.id ? req.user.id : null;
     }
