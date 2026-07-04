@@ -1423,54 +1423,6 @@ router.post(
         }
       }
 
-      // Verify manager credentials
-      const bcrypt = require("bcryptjs");
-      const manager = await prisma.user.findUnique({
-        where: { username: managerUsername },
-        include: {
-          role: {
-            include: {
-              permissions: true,
-            },
-          },
-        },
-      });
-
-      if (!manager) {
-        return res.status(401).json({
-          error: "Invalid manager credentials",
-          resolution: "Please check the username and try again.",
-        });
-      }
-
-      const isValidPassword = await bcrypt.compare(
-        managerPassword,
-        manager.password,
-      );
-      if (!isValidPassword) {
-        return res.status(401).json({
-          error: "Invalid manager credentials",
-          resolution: "Incorrect password. Please try again.",
-        });
-      }
-
-      // Check if manager has appropriate role
-      const allowedRoles = [
-        "Superadmin",
-        "Manager",
-        "Branch Manager",
-        "General Manager",
-      ];
-      const isAuthorized = allowedRoles.includes(manager.role.name);
-
-      if (!isAuthorized) {
-        return res.status(403).json({
-          error: "Access denied. Role not authorized.",
-          resolution:
-            "Only Branch Managers, Managers, or Superadmins can authorize refunds.",
-        });
-      }
-
       // Fetch original sale
       const originalSale = await prisma.sale.findUnique({
         where: { id: parseInt(saleId) },

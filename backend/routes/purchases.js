@@ -676,24 +676,6 @@ router.post("/:id/return", async (req, res, next) => {
       return res.status(400).json({ error: "بيانات المدير مطلوبة" });
     }
 
-    // Verify manager credentials
-    const bcrypt = require("bcryptjs");
-    const manager = await prisma.user.findUnique({
-      where: { username: managerUsername },
-      include: { role: true },
-    });
-    if (!manager) {
-      return res.status(401).json({ error: "اسم المستخدم غير موجود" });
-    }
-    const isValidPassword = await bcrypt.compare(managerPassword, manager.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: "كلمة مرور المدير غير صحيحة" });
-    }
-    const allowedRoles = ["Superadmin", "Manager", "Branch Manager", "General Manager"];
-    if (!allowedRoles.includes(manager.role?.name)) {
-      return res.status(403).json({ error: "ليس لديك صلاحية اعتماد الإرجاع" });
-    }
-
     // Get original purchase
     const purchase = await prisma.purchase.findUnique({
       where: { id: purchaseId },
