@@ -237,7 +237,8 @@ router.post("/", async (req, res, next) => {
         const result = await prisma.$transaction(async (tx) => {
             // 1. Check treasury balance
             const treasury = await tx.treasury.findUnique({
-                where: { id: parseInt(treasuryId) }
+                where: { id: parseInt(treasuryId) },
+                include: { branch: true }
             });
 
             if (!treasury) {
@@ -253,9 +254,7 @@ router.post("/", async (req, res, next) => {
             }
 
             // 2. Find the treasury's branch
-            const branch = treasury.branchId ? await tx.branch.findUnique({
-                where: { id: treasury.branchId }
-            }) : null;
+            const branch = treasury.branch ?? null;
 
             // 3. Find active shift for this branch (if exists)
             let shiftId = null;
