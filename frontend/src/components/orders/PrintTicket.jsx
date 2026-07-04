@@ -46,7 +46,9 @@ const PrintTicket = ({ order, onDone }) => {
           }
           .print-ticket, .print-ticket * {
             color: #000 !important;
-            font-weight: 700 !important;
+            font-weight: 800 !important;
+            -webkit-text-stroke: 0.2px #000;
+            text-stroke: 0.2px #000;
           }
           .print-ticket hr {
             border-top-width: 1.5px !important;

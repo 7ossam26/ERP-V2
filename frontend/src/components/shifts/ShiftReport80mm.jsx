@@ -74,11 +74,13 @@ const PRINT_STYLES = `
 
     .${R}, .${R} * {
       color: #000 !important;
-      font-weight: 700 !important;
+      font-weight: 800 !important;
+      -webkit-text-stroke: 0.2px #000;
+      text-stroke: 0.2px #000;
     }
 
     .${R} .sr-meta {
-      font-weight: 500 !important;
+      font-weight: 800 !important;
       font-style: italic;
     }
 
