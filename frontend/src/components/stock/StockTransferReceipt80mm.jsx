@@ -98,6 +98,10 @@ const PRINT_STYLES = `
       margin: 0 auto 4px auto;
       display: block;
       filter: grayscale(100%) contrast(180%);
+      -webkit-text-stroke: 0 !important;
+      text-stroke: 0 !important;
+      color: unset !important;
+      font-weight: unset !important;
     }
   }
 `;
