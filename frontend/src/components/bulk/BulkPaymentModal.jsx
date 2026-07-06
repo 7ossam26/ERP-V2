@@ -2,7 +2,12 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { treasuryService } from "../../services/treasuryService";
+import AuthService from "../../services/authService";
 import { formatEGP } from "../../utils/bulkMoney";
+
+// Global treasuries are not branch-bound and stay visible for all users
+// (used by Bank Transfer & Cheque methods).
+const GLOBAL_SCOPES = new Set(["GLOBAL_VISA", "GLOBAL_INSTAPAY", "MAIN"]);
 
 const METHOD_LABELS = {
   CASH: "نقدي",
@@ -25,10 +30,25 @@ export default function BulkPaymentModal({ order, onSuccess, onClose }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // Only show cash boxes for the branch(es) the current user is assigned to,
+    // plus the shared global treasuries. This tightens the admin case, where the
+    // /treasuries endpoint would otherwise return every branch's cash box.
+    const user = AuthService.getCurrentUser();
+    const assignedBranchIds = new Set();
+    if (user?.branch?.id) assignedBranchIds.add(user.branch.id);
+    (user?.accessibleBranches || []).forEach((b) => b?.id && assignedBranchIds.add(b.id));
+
     treasuryService.getAll().then((list) => {
-      const active = list.filter((t) => t.isActive !== false);
-      setTreasuries(active);
-      if (active.length > 0) setTreasuryId(String(active[0].id));
+      const visible = list.filter(
+        (t) =>
+          t.isActive !== false &&
+          (GLOBAL_SCOPES.has(t.scope) ||
+            (t.branch?.id != null && assignedBranchIds.has(t.branch.id)))
+      );
+      setTreasuries(visible);
+      // Default to the branch cash box so CASH payments target the drawer, not a global box.
+      const defaultTreasury = visible.find((t) => t.scope === "BRANCH_CASH") || visible[0];
+      if (defaultTreasury) setTreasuryId(String(defaultTreasury.id));
     }).catch(() => {});
   }, []);
 
