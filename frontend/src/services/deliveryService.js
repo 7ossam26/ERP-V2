@@ -12,4 +12,9 @@ export const deliveryService = {
   settleBulk: (data) => api.post("/delivery-men/settle", data), // Uses same endpoint, backend detects bulk
   getHistory: (id, params) => api.get(`/delivery-men/${id}/history`, { params }),
   getDailyReport: (params) => api.get("/delivery-men/daily-report", { params }),
+  // Convert a CASH delivery sale to INSTAPAY (customer paid online on delivery).
+  convertSaleToInstapay: (saleId, data) =>
+    api.post(`/delivery-men/sales/${saleId}/convert-instapay`, data),
+  // Pay a rider their accrued online dues from the branch cash treasury.
+  payDues: (id, data) => api.post(`/delivery-men/${id}/pay-dues`, data),
 };

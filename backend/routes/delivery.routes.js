@@ -27,6 +27,20 @@ router.post(
   deliveryController.verifyManagerCredentials,
 );
 
+// Convert a CASH delivery sale to INSTAPAY (customer paid online on delivery).
+router.post(
+  "/sales/:saleId/convert-instapay",
+  requireAnyPermission(["DELIVERY_SETTLEMENT", "POS"]),
+  deliveryController.convertDeliverySaleToInstapay,
+);
+
+// Pay a rider their accrued online dues out of the branch cash treasury.
+router.post(
+  "/:id/pay-dues",
+  requireAnyPermission(["DELIVERY_SETTLEMENT", "POS"]),
+  deliveryController.payDeliveryManDues,
+);
+
 router.get("/stats", deliveryController.getDeliveryStats);
 
 router.get(

@@ -109,10 +109,41 @@ const PRINT_STYLES = `
   }
 `;
 
+const money = (n) => (parseFloat(n) || 0).toFixed(2);
+
 const SettlementReceipt = forwardRef(({ data }, ref) => {
     if (!data) return null;
 
-    const { driverName, settlementId, date, orders, totalAmount, notes, user, treasury } = data;
+    const {
+        driverName,
+        settlementId,
+        date,
+        notes,
+        user,
+        treasury,
+    } = data;
+
+    // Back-compat: older callers passed { orders, totalAmount }.
+    const cashOrders = data.cashOrders || data.orders || [];
+    const cashTotal =
+        data.cashTotal != null
+            ? parseFloat(data.cashTotal) || 0
+            : parseFloat(data.totalAmount) || 0;
+    const instapayOrders = data.instapayOrders || [];
+    const dues = data.dues || { total: 0, paidNow: 0 };
+
+    const instapayTotal = instapayOrders.reduce(
+        (s, o) => s + (parseFloat(o.total) || 0),
+        0,
+    );
+    const instapaySharesTotal = instapayOrders.reduce(
+        (s, o) => s + (parseFloat(o.share ?? o.deliveryDriverShare) || 0),
+        0,
+    );
+    const duesTotal = parseFloat(dues.total) || 0;
+    const duesPaidNow = parseFloat(dues.paidNow) || 0;
+    const duesCarried = Math.max(0, duesTotal - duesPaidNow);
+    const orderCount = cashOrders.length + instapayOrders.length;
 
     return (
         <>
@@ -122,9 +153,9 @@ const SettlementReceipt = forwardRef(({ data }, ref) => {
                 <div style={{ textAlign: 'center', marginBottom: 4 }}>
                     <img src="/assets/logo.png" alt="Logo" />
                     <div style={{ fontSize: 12, margin: '2px 0' }}>
-                        إيصال توريد نقدية
+                        إيصال تسوية طيار
                     </div>
-                    <div style={{ fontSize: 10, margin: '1px 0' }}>تسوية طيار</div>
+                    <div style={{ fontSize: 10, margin: '1px 0' }}>توريد نقدي / تحويلات أنستاباي</div>
                     <div className="sr-meta" style={{ fontSize: 9, margin: '1px 0' }}>
                         رقم العملية: #{settlementId}
                     </div>
@@ -153,57 +184,121 @@ const SettlementReceipt = forwardRef(({ data }, ref) => {
                     )}
                     <div className="sr-row">
                         <span>عدد الطلبات:</span>
-                        <span>{orders.length}</span>
+                        <span>{orderCount}</span>
                     </div>
                 </div>
 
-                <div className="sr-divider-solid" />
-
-                {/* Orders */}
-                <div className="sr-section-title">تفاصيل الطلبات</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>الطلب</th>
-                            <th className="sr-num">الإجمالي</th>
-                            <th className="sr-num">حصة</th>
-                            <th className="sr-num">صافي</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {orders.map((order, index) => {
-                            const total = parseFloat(order.total) || 0;
-                            const share = parseFloat(order.deliveryDriverShare) || 0;
-                            const netDebt = total - share;
-                            return (
-                                <tr key={index}>
-                                    <td>#{order.saleNumber}</td>
-                                    <td className="sr-num">{total.toFixed(2)}</td>
-                                    <td className="sr-num">-{share.toFixed(2)}</td>
-                                    <td className="sr-num">{netDebt.toFixed(2)}</td>
+                {/* Section A — cash deposit */}
+                {cashOrders.length > 0 && (
+                    <>
+                        <div className="sr-divider-solid" />
+                        <div className="sr-section-title">توريد نقدي</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الطلب</th>
+                                    <th className="sr-num">الإجمالي</th>
+                                    <th className="sr-num">حصة</th>
+                                    <th className="sr-num">صافي</th>
                                 </tr>
-                            );
-                        })}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td
-                                colSpan={3}
-                                style={{ borderTop: '1.5px solid #000', fontSize: 11 }}>
-                                إجمالي التوريد
-                            </td>
-                            <td
-                                className="sr-num"
-                                style={{ borderTop: '1.5px solid #000', fontSize: 12 }}>
-                                {totalAmount.toFixed(2)}
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
+                            </thead>
+                            <tbody>
+                                {cashOrders.map((order, index) => {
+                                    const total = parseFloat(order.total) || 0;
+                                    const share = parseFloat(order.deliveryDriverShare) || 0;
+                                    const netDebt = total - share;
+                                    return (
+                                        <tr key={index}>
+                                            <td>#{order.saleNumber}</td>
+                                            <td className="sr-num">{total.toFixed(2)}</td>
+                                            <td className="sr-num">-{share.toFixed(2)}</td>
+                                            <td className="sr-num">{netDebt.toFixed(2)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colSpan={3} style={{ borderTop: '1.5px solid #000', fontSize: 11 }}>
+                                        إجمالي التوريد النقدي
+                                    </td>
+                                    <td className="sr-num" style={{ borderTop: '1.5px solid #000', fontSize: 12 }}>
+                                        {cashTotal.toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div className="sr-meta" style={{ fontSize: 9, textAlign: 'center', marginTop: 2 }}>
+                            صافي الدين = إجمالي الطلب − حصة الطيار · إلى خزنة الفرع
+                        </div>
+                    </>
+                )}
 
-                <div className="sr-meta" style={{ fontSize: 9, textAlign: 'center', marginTop: 4 }}>
-                    صافي الدين = إجمالي الطلب − حصة الطيار
-                </div>
+                {/* Section B — InstaPay conversions */}
+                {instapayOrders.length > 0 && (
+                    <>
+                        <div className="sr-divider-solid" />
+                        <div className="sr-section-title">تحويلات أنستاباي</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الطلب</th>
+                                    <th className="sr-num">→ أنستاباي</th>
+                                    <th className="sr-num">حصة الطيار</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {instapayOrders.map((order, index) => (
+                                    <tr key={index}>
+                                        <td>#{order.saleNumber}</td>
+                                        <td className="sr-num">{money(order.total)}</td>
+                                        <td className="sr-num">{money(order.share ?? order.deliveryDriverShare)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td style={{ borderTop: '1.5px solid #000', fontSize: 11 }}>
+                                        إجمالي محوّل لأنستاباي
+                                    </td>
+                                    <td className="sr-num" style={{ borderTop: '1.5px solid #000', fontSize: 12 }}>
+                                        {instapayTotal.toFixed(2)}
+                                    </td>
+                                    <td className="sr-num" style={{ borderTop: '1.5px solid #000', fontSize: 11 }}>
+                                        {instapaySharesTotal.toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div className="sr-meta" style={{ fontSize: 9, textAlign: 'center', marginTop: 2 }}>
+                            كامل المبلغ إلى خزنة أنستاباي · الحصة مستحقة للطيار
+                        </div>
+                    </>
+                )}
+
+                {/* Section C — rider dues */}
+                {duesTotal > 0 && (
+                    <>
+                        <div className="sr-divider-solid" />
+                        <div className="sr-section-title">مستحق الطيار (حصص أونلاين)</div>
+                        <div style={{ fontSize: 10 }}>
+                            <div className="sr-row">
+                                <span>إجمالي المستحق:</span>
+                                <span className="sr-num">{duesTotal.toFixed(2)}</span>
+                            </div>
+                            {duesPaidNow > 0 && (
+                                <div className="sr-row">
+                                    <span>مدفوع نقداً الآن:</span>
+                                    <span className="sr-num">-{duesPaidNow.toFixed(2)}</span>
+                                </div>
+                            )}
+                            <div className="sr-row" style={{ borderTop: '1px dashed #000', marginTop: 2, paddingTop: 2 }}>
+                                <span>مُرحّل للتسوية القادمة:</span>
+                                <span className="sr-num">{duesCarried.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 {notes && (
                     <>

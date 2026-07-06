@@ -1,6 +1,7 @@
 const prisma = require("../config/database");
 const bcrypt = require("bcryptjs");
 const { getUserBranchFilter } = require("../middleware/auth");
+const { writeAudit } = require("../utils/auditLogger");
 
 // Create a new delivery man
 exports.createDeliveryMan = async (req, res) => {
@@ -282,6 +283,28 @@ exports.getDeliveryMenWithDebt = async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
+    // Online dues owed to each rider = Σ DUES_ACCRUED − Σ DUES_PAYOUT. This is
+    // tracked independently from pendingCash so the settlement page can show the
+    // two figures split (cash to collect vs. share owed back on InstaPay orders)
+    // instead of a single netted walletBalance that hides the composition.
+    const duesTx = await prisma.deliveryManTransaction.groupBy({
+      by: ["deliveryManId", "type"],
+      where: {
+        deliveryManId: { in: driverIds },
+        type: { in: ["DUES_ACCRUED", "DUES_PAYOUT"] },
+      },
+      _sum: { amount: true },
+    });
+    const duesByDriver = new Map();
+    for (const row of duesTx) {
+      const cur = duesByDriver.get(row.deliveryManId) || 0;
+      const v = Number(row._sum.amount || 0);
+      duesByDriver.set(
+        row.deliveryManId,
+        cur + (row.type === "DUES_ACCRUED" ? v : -v),
+      );
+    }
+
     const ordersByDriver = new Map();
     for (const s of pendingSales) {
       if (!ordersByDriver.has(s.deliveryManId)) ordersByDriver.set(s.deliveryManId, []);
@@ -316,6 +339,7 @@ exports.getDeliveryMenWithDebt = async (req, res) => {
         );
         const pendingOrders = orders.length;
         const effectiveDebt = Math.max(wallet, pendingCash);
+        const dues = Math.max(0, duesByDriver.get(d.id) || 0);
         return {
           id: d.id,
           name: d.name,
@@ -327,6 +351,8 @@ exports.getDeliveryMenWithDebt = async (req, res) => {
           pendingCash,
           pendingOrders,
           effectiveDebt,
+          // Online share owed back to the rider (InstaPay-converted orders).
+          dues,
           // Aliases so callers expecting the legacy getStats shape work too:
           totalCash: effectiveDebt,
           totalAmount: pendingCash,
@@ -334,7 +360,7 @@ exports.getDeliveryMenWithDebt = async (req, res) => {
           orders,
         };
       })
-      .filter((d) => d.effectiveDebt > 0)
+      .filter((d) => d.effectiveDebt > 0 || d.dues > 0.001)
       .sort((a, b) => b.effectiveDebt - a.effectiveDebt);
 
     res.json(enriched);
@@ -752,6 +778,266 @@ exports.settleDeliveryMan = async (req, res) => {
   }
 };
 
+// Convert a CASH delivery sale to INSTAPAY — the customer paid online on
+// delivery, so the rider collected no cash. Records the full order total into
+// the global InstaPay treasury, reverses the rider's cash debt, and accrues the
+// rider's share as online dues. Mirrors settleDeliveryMan's transaction discipline.
+exports.convertDeliverySaleToInstapay = async (req, res) => {
+  try {
+    const saleId = parseInt(req.params.saleId);
+    const actorId = req.user?.id || (req.body?.userId ? parseInt(req.body.userId) : null);
+    if (!saleId) return res.status(400).json({ error: "Sale ID is required" });
+
+    const result = await prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      const sale = await tx.sale.findUnique({
+        where: { id: saleId },
+        select: {
+          id: true,
+          saleNumber: true,
+          total: true,
+          deliveryDriverShare: true,
+          deliveryManId: true,
+          deliveryStatus: true,
+          paymentMethod: true,
+          branchId: true,
+        },
+      });
+
+      if (!sale) {
+        const err = new Error("الطلب غير موجود");
+        err.code = "NOT_CONVERTIBLE";
+        throw err;
+      }
+      // Guard: only a still-pending CASH delivery order can be converted. This
+      // also blocks a stale tab from double-applying (idempotency).
+      if (
+        !sale.deliveryManId ||
+        sale.deliveryStatus !== "OUT_FOR_DELIVERY" ||
+        sale.paymentMethod !== "CASH"
+      ) {
+        const err = new Error(
+          "لا يمكن تحويل هذا الطلب — يجب أن يكون طلب دليفري نقدي معلق (خارج للتوصيل)",
+        );
+        err.code = "NOT_CONVERTIBLE";
+        throw err;
+      }
+
+      const total = Number(sale.total || 0);
+      const share = Number(sale.deliveryDriverShare || 0);
+      const netDebt = total - share;
+
+      // Resolve the global InstaPay treasury (same routing as routes/sales.js).
+      const config = await tx.systemConfiguration.findFirst({
+        select: { instapayTreasuryId: true },
+      });
+      const instapayTreasuryId = config?.instapayTreasuryId;
+      if (!instapayTreasuryId) {
+        const err = new Error(
+          "إعدادات النظام غير مكتملة: لا يوجد خزينة انستاباي مرتبطة لاستلام المدفوعات. يرجى مراجعة المسؤول.",
+        );
+        err.code = "INSTAPAY_NOT_CONFIGURED";
+        throw err;
+      }
+
+      // 1. Full order total into the InstaPay treasury.
+      await tx.treasury.update({
+        where: { id: instapayTreasuryId },
+        data: { balance: { increment: total } },
+      });
+
+      // 2. Net the wallet by the full total: reverses the dispatch cash debt
+      //    (netDebt) AND credits the rider their share as dues (−share).
+      await tx.deliveryMan.update({
+        where: { id: sale.deliveryManId },
+        data: { walletBalance: { decrement: total } },
+      });
+
+      // 3. Ledger rows — each amount equals its wallet delta, and the dues
+      //    ledger (DUES_ACCRUED − DUES_PAYOUT) stays cleanly queryable.
+      if (netDebt !== 0) {
+        await tx.deliveryManTransaction.create({
+          data: {
+            deliveryManId: sale.deliveryManId,
+            amount: netDebt,
+            type: "DEBT_REVERSAL",
+            description: `تحويل طلب #${sale.saleNumber} لأنستاباي — عكس عهدة نقدية`,
+            createdById: actorId,
+          },
+        });
+      }
+      if (share > 0) {
+        await tx.deliveryManTransaction.create({
+          data: {
+            deliveryManId: sale.deliveryManId,
+            amount: share,
+            type: "DUES_ACCRUED",
+            description: `تحويل طلب #${sale.saleNumber} لأنستاباي — حصة مستحقة للطيار`,
+            createdById: actorId,
+          },
+        });
+      }
+
+      // 4. Flip the sale + order workflow to delivered/paid via InstaPay.
+      await tx.sale.update({
+        where: { id: sale.id },
+        data: {
+          paymentMethod: "INSTAPAY",
+          deliveryStatus: "DELIVERED",
+          paidAt: now,
+        },
+      });
+      await tx.order.updateMany({
+        where: { saleId: sale.id },
+        data: { status: "DELIVERED", deliveredAt: now },
+      });
+
+      // 5. Deposit row so the InstaPay treasury history / reports show it.
+      await tx.deposit.create({
+        data: {
+          amount: total,
+          description: `تحويل دفع لأنستاباي — طلب #${sale.saleNumber}`,
+          date: now,
+          treasuryId: instapayTreasuryId,
+          createdById: actorId,
+        },
+      });
+
+      return { saleNumber: sale.saleNumber, total, share, branchId: sale.branchId };
+    });
+
+    // Post-commit immutable audit trail for the payment-method change.
+    await writeAudit({
+      action: "UPDATE",
+      targetEntity: "sale",
+      targetId: saleId,
+      userId: actorId,
+      branchId: result.branchId ?? null,
+      oldValues: { paymentMethod: "CASH", deliveryStatus: "OUT_FOR_DELIVERY" },
+      newValues: {
+        paymentMethod: "INSTAPAY",
+        deliveryStatus: "DELIVERED",
+        reason: "delivery_instapay_conversion",
+        total: result.total,
+        riderShareAccrued: result.share,
+      },
+      ipAddress: req.ip,
+    });
+
+    res.json(result);
+  } catch (error) {
+    if (error?.code === "NOT_CONVERTIBLE") {
+      return res.status(409).json({ error: error.message, code: "NOT_CONVERTIBLE" });
+    }
+    if (error?.code === "INSTAPAY_NOT_CONFIGURED") {
+      return res
+        .status(422)
+        .json({ error: error.message, code: "INSTAPAY_NOT_CONFIGURED" });
+    }
+    console.error("❌ Error converting delivery sale to InstaPay:", error);
+    res.status(500).json({ error: "Failed to convert sale to InstaPay" });
+  }
+};
+
+// Pay a rider their accrued online dues (share on InstaPay-converted orders)
+// out of the branch cash treasury. Settles a credit that the normal settle path
+// can't — that path requires pending OUT_FOR_DELIVERY sales.
+exports.payDeliveryManDues = async (req, res) => {
+  try {
+    const deliveryManId = parseInt(req.params.id);
+    const actorId = req.user?.id || (req.body?.userId ? parseInt(req.body.userId) : null);
+    const requested = req.body?.amount != null ? Number(req.body.amount) : null;
+    if (!deliveryManId) {
+      return res.status(400).json({ error: "Delivery Man ID is required" });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      const driver = await tx.deliveryMan.findUnique({
+        where: { id: deliveryManId },
+        include: { branch: { select: { treasuryId: true } } },
+      });
+      if (!driver || !driver.branch?.treasuryId) {
+        throw new Error("Driver not found or branch has no associated treasury");
+      }
+      const treasuryId = driver.branch.treasuryId;
+
+      // Trust the ledger: dues = Σ DUES_ACCRUED − Σ DUES_PAYOUT.
+      const grouped = await tx.deliveryManTransaction.groupBy({
+        by: ["type"],
+        where: { deliveryManId, type: { in: ["DUES_ACCRUED", "DUES_PAYOUT"] } },
+        _sum: { amount: true },
+      });
+      let accrued = 0;
+      let paid = 0;
+      for (const g of grouped) {
+        const v = Number(g._sum.amount || 0);
+        if (g.type === "DUES_ACCRUED") accrued = v;
+        else if (g.type === "DUES_PAYOUT") paid = v;
+      }
+      const dues = accrued - paid;
+
+      if (dues <= 0.001) {
+        const err = new Error("لا يوجد مستحق للطيار");
+        err.code = "NO_DUES";
+        throw err;
+      }
+
+      const amount =
+        requested != null && requested > 0 ? Math.min(requested, dues) : dues;
+
+      // 1. Pay from the branch cash treasury.
+      await tx.treasury.update({
+        where: { id: treasuryId },
+        data: { balance: { decrement: amount } },
+      });
+
+      // 2. Return the credit to the wallet ledger.
+      await tx.deliveryMan.update({
+        where: { id: deliveryManId },
+        data: { walletBalance: { increment: amount } },
+      });
+
+      // 3. Ledger + treasury audit rows.
+      await tx.deliveryManTransaction.create({
+        data: {
+          deliveryManId,
+          amount,
+          type: "DUES_PAYOUT",
+          description: req.body?.notes || "صرف مستحق طيار (حصص أونلاين)",
+          createdById: actorId,
+        },
+      });
+      await tx.withdrawal.create({
+        data: {
+          amount,
+          description: `صرف مستحق طيار — ${driver.name}`,
+          date: now,
+          treasuryId,
+          createdById: actorId,
+        },
+      });
+
+      return {
+        deliveryManId,
+        amountPaid: amount,
+        remainingDues: dues - amount,
+        treasuryId,
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    if (error?.code === "NO_DUES") {
+      return res.status(409).json({ error: error.message, code: "NO_DUES" });
+    }
+    console.error("❌ Error paying delivery man dues:", error);
+    res.status(500).json({ error: "Failed to pay delivery man dues" });
+  }
+};
+
 // Get delivery man history (Detailed breakdown)
 exports.getDeliveryHistory = async (req, res) => {
   try {
@@ -779,6 +1065,7 @@ exports.getDeliveryHistory = async (req, res) => {
         deliveryFee: true, // Decimal
         deliveryDriverShare: true, // Decimal
         deliveryStatus: true,
+        paymentMethod: true,
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },

@@ -2,7 +2,10 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useBranch } from "../../contexts/BranchContext";
 import { useReactToPrint } from "react-to-print";
 import { deliveryService } from "../../services/deliveryService";
+import { salesService } from "../../services/salesService";
+import { settingsService } from "../../services/settingsService";
 import AuthService from "../../services/authService";
+import printThermalReceipt from "../../utils/printThermalReceipt";
 import SettlementReceipt from "./components/SettlementReceipt";
 import ManagerVerificationModal from "../../components/shared/ManagerVerificationModal";
 import { toast } from "react-hot-toast";
@@ -15,10 +18,11 @@ const todayIso = () => new Date().toISOString().split("T")[0];
 
 // ─── driver row in sidebar ───────────────────────────────────────────────────
 function DriverRow({ driver, isChecked, isFocused, onToggle, onFocus }) {
-  const debt = Number(driver.effectiveDebt ?? driver.walletBalance ?? 0);
   const wallet = Number(driver.walletBalance || 0);
   const cash = Number(driver.pendingCash || 0);
-  const drift = Math.abs(wallet - cash) > 0.01;
+  const dues = Number(driver.dues || 0);
+  // walletBalance should net to (cash − dues); a larger gap is legacy drift.
+  const drift = Math.abs(wallet - (cash - dues)) > 0.01;
 
   return (
     <div
@@ -54,11 +58,24 @@ function DriverRow({ driver, isChecked, isFocused, onToggle, onFocus }) {
             {driver.branch?.name && <span>· {driver.branch.name}</span>}
           </div>
         </div>
-        <div className="text-left flex-shrink-0">
-          <p className="font-black text-sm text-rose-600 dark:text-rose-400 tabular-nums">{fmt(debt)}</p>
-          <p className="text-[10px] text-gray-400">ج.م</p>
+        <div className="text-left flex-shrink-0 space-y-0.5">
+          {cash > 0 && (
+            <div>
+              <p className="font-black text-sm text-rose-600 dark:text-rose-400 tabular-nums leading-none">{fmt(cash)}</p>
+              <p className="text-[9px] text-gray-400 leading-tight">نقدي مستحق</p>
+            </div>
+          )}
+          {dues > 0 && (
+            <div>
+              <p className="font-black text-sm text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">{fmt(dues)}</p>
+              <p className="text-[9px] text-emerald-500/80 leading-tight">مستحق للطيار</p>
+            </div>
+          )}
+          {cash <= 0 && dues <= 0 && (
+            <p className="font-black text-sm text-gray-400 tabular-nums">{fmt(0)}</p>
+          )}
           {drift && (
-            <span title={`محفظة ${fmt(wallet)} · نقدية ${fmt(cash)}`} className="inline-block mt-0.5 text-[9px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-1">
+            <span title={`محفظة ${fmt(wallet)} · نقدية ${fmt(cash)} · مستحق ${fmt(dues)}`} className="inline-block mt-0.5 text-[9px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-1">
               فرق
             </span>
           )}
@@ -93,6 +110,12 @@ const DeliverySettlementPage = () => {
   const [history, setHistory] = useState({ salesByDate: [], payments: [] });
   const [selectedSales, setSelectedSales] = useState([]);
   const [notes, setNotes] = useState("");
+
+  // InstaPay conversions performed during the current focused-driver session,
+  // accumulated so the single combined settlement receipt can list them.
+  const [convertedThisSession, setConvertedThisSession] = useState([]);
+  const [payDuesNow, setPayDuesNow] = useState(false);
+  const [rowBusy, setRowBusy] = useState(null); // saleId currently being acted on
 
   const [dailyReport, setDailyReport] = useState([]);
 
@@ -185,13 +208,77 @@ const DeliverySettlementPage = () => {
     [drivers],
   );
 
+  // Always read the focused driver's live pendingCash/dues from the refreshed
+  // list (fetchDrivers runs after each conversion/payout), not the stale
+  // snapshot captured at focus time.
+  const focusedLive = useMemo(
+    () => drivers.find((d) => d.id === focusedDriver?.id) || focusedDriver,
+    [drivers, focusedDriver],
+  );
+  const focusedDues = Number(focusedLive?.dues || 0);
+
   // ─── selection ─────────────────────────────────────────────────────────────
   const handleFocusDriver = async (driver) => {
     setFocusedDriver(driver);
     setSelectedSales([]);
     setNotes("");
+    setConvertedThisSession([]);
+    setPayDuesNow(false);
     setShowDriverList(false);
     await refreshHistory(driver.id, dateRange);
+  };
+
+  // ─── reprint invoice + convert to InstaPay ───────────────────────────────────
+  const handleReprintInvoice = async (order) => {
+    try {
+      setRowBusy(order.id);
+      const sale = await salesService.getById(order.id);
+      const cfg = await settingsService.get().catch(() => ({}));
+      printThermalReceipt(sale, cfg || {});
+    } catch (error) {
+      console.error("Reprint failed", error);
+      toast.error("تعذّرت إعادة طباعة الفاتورة");
+    } finally {
+      setRowBusy(null);
+    }
+  };
+
+  const handleConvertToInstapay = async (order) => {
+    const ok = window.confirm(
+      `تحويل طلب #${order.saleNumber} إلى دفع أنستاباي؟\n` +
+        `سيُسجّل كامل المبلغ في خزينة أنستاباي وتُحتسب حصة الطيار كمستحق له.`,
+    );
+    if (!ok) return;
+    try {
+      setRowBusy(order.id);
+      const user = AuthService.getCurrentUser();
+      const res = await deliveryService.convertSaleToInstapay(order.id, {
+        userId: user?.id,
+      });
+      setConvertedThisSession((prev) => [
+        ...prev,
+        {
+          saleNumber: res?.saleNumber ?? order.saleNumber,
+          total: Number(res?.total ?? order.total ?? 0),
+          share: Number(res?.share ?? order.deliveryDriverShare ?? 0),
+        },
+      ]);
+      setSelectedSales((prev) => prev.filter((id) => id !== order.id));
+      toast.success(`تم تحويل الطلب #${order.saleNumber} إلى أنستاباي`);
+      await refreshHistory(focusedDriver.id, dateRange);
+      fetchDrivers();
+    } catch (error) {
+      console.error("Convert to InstaPay failed", error);
+      const msg = error?.data?.error || error?.data?.message;
+      const code = error?.data?.code;
+      toast.error(msg || "فشل تحويل الطلب إلى أنستاباي");
+      if (code === "NOT_CONVERTIBLE") {
+        await refreshHistory(focusedDriver.id, dateRange);
+        fetchDrivers();
+      }
+    } finally {
+      setRowBusy(null);
+    }
   };
 
   const toggleDriverSelection = (driver) => {
@@ -235,9 +322,14 @@ const DeliverySettlementPage = () => {
     if (selectedDrivers.length > 1) {
       setSettlementType("bulk");
       await handleBulkSettle({});
-    } else if (focusedDriver && selectedSales.length > 0) {
+    } else if (
+      focusedDriver &&
+      (selectedSales.length > 0 ||
+        convertedThisSession.length > 0 ||
+        (payDuesNow && focusedDues > 0))
+    ) {
       setSettlementType("single");
-      await handleSingleSettle({});
+      await handleSingleSettle();
     }
   };
 
@@ -246,46 +338,69 @@ const DeliverySettlementPage = () => {
     else if (settlementType === "single") await handleSingleSettle(credentials);
   };
 
-  const handleSingleSettle = async (credentials) => {
-    if (selectedSales.length === 0) return;
-    const amount = calculateSelectedTotal();
+  const handleSingleSettle = async () => {
     const settledIdsSnapshot = [...selectedSales];
+    const hasCash = settledIdsSnapshot.length > 0;
+    const conversions = [...convertedThisSession];
+    const duesOutstanding = focusedDues;
+    const willPayDues = payDuesNow && duesOutstanding > 0;
+
+    if (!hasCash && conversions.length === 0 && !willPayDues) return;
+
+    const cashAmount = calculateSelectedTotal();
     try {
       setSettling(true);
       const user = AuthService.getCurrentUser();
-      const res = await deliveryService.settleDeliveryMan({
-        deliveryManId: focusedDriver.id,
-        amount,
-        userId: user?.id,
-        notes,
-        saleIds: settledIdsSnapshot,
-        ...credentials,
-      });
 
-      // Server is the source of truth for the actual settled amount.
-      const trustedAmount = Number(res?.amount ?? amount);
-
+      // 1. Settle selected CASH orders into the branch treasury (if any).
+      let trustedCashAmount = 0;
       const settledOrders = [];
-      history.salesByDate.forEach((day) => {
-        day.orders.forEach((order) => {
-          if (settledIdsSnapshot.includes(order.id)) settledOrders.push(order);
+      if (hasCash) {
+        const res = await deliveryService.settleDeliveryMan({
+          deliveryManId: focusedDriver.id,
+          amount: cashAmount,
+          userId: user?.id,
+          notes,
+          saleIds: settledIdsSnapshot,
         });
-      });
+        // Server is the source of truth for the actual settled amount.
+        trustedCashAmount = Number(res?.amount ?? cashAmount);
+        history.salesByDate.forEach((day) => {
+          day.orders.forEach((order) => {
+            if (settledIdsSnapshot.includes(order.id)) settledOrders.push(order);
+          });
+        });
+      }
 
+      // 2. Pay the rider's online dues from branch cash (if requested).
+      let duesPaid = 0;
+      if (willPayDues) {
+        const dres = await deliveryService.payDues(focusedDriver.id, {
+          userId: user?.id,
+          notes,
+        });
+        duesPaid = Number(dres?.amountPaid ?? 0);
+      }
+
+      // 3. One combined settlement receipt documenting the whole session.
       setPrintData({
         driverName: focusedDriver.name,
         settlementId: Date.now(),
         date: new Date(),
-        orders: settledOrders,
-        totalAmount: trustedAmount,
-        notes,
         user,
+        notes,
         treasury: { name: `خزنة فرع ${focusedDriver.branch?.name || "الفرع"}` },
+        cashOrders: settledOrders,
+        cashTotal: trustedCashAmount,
+        instapayOrders: conversions,
+        dues: { total: duesOutstanding, paidNow: duesPaid },
       });
 
-      // Clear so the same orders can't be re-submitted.
+      // Clear so nothing can be re-submitted.
       setSelectedSales([]);
       setNotes("");
+      setPayDuesNow(false);
+      setConvertedThisSession([]);
 
       setTimeout(() => {
         handlePrint();
@@ -369,7 +484,10 @@ const DeliverySettlementPage = () => {
   const canSettle =
     !settling &&
     ((selectedDrivers.length > 1 && totalSelectedDebt > 0) ||
-      (focusedDriver && selectedSales.length > 0));
+      (focusedDriver &&
+        (selectedSales.length > 0 ||
+          convertedThisSession.length > 0 ||
+          (payDuesNow && focusedDues > 0))));
 
   // ─── render ────────────────────────────────────────────────────────────────
   return (
@@ -538,8 +656,25 @@ const DeliverySettlementPage = () => {
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                     {selectedDrivers.length > 1
                       ? "ستتم تسوية كل المديونيات المعلقة لهؤلاء الطيارين"
-                      : "حدّد الطلبات المراد تسويتها من السجل أدناه"}
+                      : "حدّد الطلبات المراد تسويتها، أو حوّل طلباً لأنستاباي"}
                   </p>
+                  {selectedDrivers.length <= 1 && focusedLive && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-[10px] font-black rounded-md px-1.5 py-0.5 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 tabular-nums">
+                        نقدي مستحق: {fmt(focusedLive.pendingCash || 0)}
+                      </span>
+                      {focusedDues > 0 && (
+                        <span className="text-[10px] font-black rounded-md px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 tabular-nums">
+                          مستحق للطيار: {fmt(focusedDues)}
+                        </span>
+                      )}
+                      {convertedThisSession.length > 0 && (
+                        <span className="text-[10px] font-black rounded-md px-1.5 py-0.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300">
+                          حُوِّل لأنستاباي: {convertedThisSession.length}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-left">
@@ -688,12 +823,16 @@ const DeliverySettlementPage = () => {
                               const share = parseFloat(order.deliveryDriverShare) || 0;
                               const netDebt = total - share;
                               const settled = order.deliveryStatus === "DELIVERED";
+                              const isInstapay = order.paymentMethod === "INSTAPAY";
+                              const canConvert =
+                                !settled && (order.paymentMethod || "CASH") === "CASH";
+                              const busy = rowBusy === order.id;
                               return (
                                 <div
                                   key={order.id}
                                   onClick={() => !settled && toggleSaleSelection(order.id)}
                                   className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                                    settled ? "opacity-50" : "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                                    settled ? "opacity-60" : "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40"
                                   } ${selectedSales.includes(order.id) ? "bg-blue-50/60 dark:bg-blue-900/15" : ""}`}
                                 >
                                   <input
@@ -704,14 +843,43 @@ const DeliverySettlementPage = () => {
                                     className="w-4 h-4 rounded text-blue-600"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-black text-sm text-gray-800 dark:text-gray-100">طلب #{order.saleNumber}</p>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className="font-black text-sm text-gray-800 dark:text-gray-100">طلب #{order.saleNumber}</p>
+                                      {isInstapay && (
+                                        <span className="text-[9px] font-black rounded px-1.5 py-0.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">أنستاباي</span>
+                                      )}
+                                    </div>
                                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 tabular-nums">
                                       <span>المبلغ {fmt(total)}</span>
                                       <span className="text-emerald-600 dark:text-emerald-400">+{fmt(fee)} رسوم</span>
                                       <span className="text-rose-600 dark:text-rose-400">-{fmt(share)} حصة</span>
                                     </div>
                                   </div>
-                                  <div className="text-left flex-shrink-0">
+                                  {/* Per-order actions — don't toggle row selection */}
+                                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleReprintInvoice(order)}
+                                      disabled={busy}
+                                      title="إعادة طباعة الفاتورة"
+                                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-50"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">print</span>
+                                    </button>
+                                    {canConvert && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleConvertToInstapay(order)}
+                                        disabled={busy}
+                                        title="تحويل الدفع إلى أنستاباي"
+                                        className="h-8 px-2 flex items-center gap-1 rounded-lg bg-violet-100 dark:bg-violet-900/30 hover:bg-violet-200 dark:hover:bg-violet-900/50 text-violet-700 dark:text-violet-300 disabled:opacity-50"
+                                      >
+                                        <span className={`material-symbols-outlined text-[16px] ${busy ? "animate-spin" : ""}`}>{busy ? "sync" : "swap_horiz"}</span>
+                                        <span className="text-[10px] font-black">أنستاباي</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="text-left flex-shrink-0 w-14">
                                     <p className="font-black text-base text-gray-900 dark:text-gray-50 tabular-nums">{fmt(netDebt)}</p>
                                     <p className="text-[10px] text-gray-400">صافي الدين</p>
                                   </div>
@@ -728,7 +896,25 @@ const DeliverySettlementPage = () => {
               )}
 
               {/* Notes footer */}
-              <div className="px-5 py-3 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+              <div className="px-5 py-3 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 space-y-3">
+                {/* Rider online dues — pay now (from InstaPay conversions) */}
+                {selectedDrivers.length <= 1 && focusedDues > 0 && (
+                  <label className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/15 border border-emerald-100 dark:border-emerald-900/40 px-3 py-2 cursor-pointer">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={payDuesNow}
+                        onChange={(e) => setPayDuesNow(e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-600"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-emerald-700 dark:text-emerald-300">صرف المستحق للطيار الآن</p>
+                        <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">حصص أونلاين — تُصرف من خزنة الفرع</p>
+                      </div>
+                    </div>
+                    <span className="font-black text-sm text-emerald-700 dark:text-emerald-300 tabular-nums flex-shrink-0">{fmt(focusedDues)} ج.م</span>
+                  </label>
+                )}
                 <label className="flex items-center gap-1.5 text-[11px] font-black text-gray-700 dark:text-gray-200 mb-1.5">
                   <span className="material-symbols-outlined text-[14px] text-gray-500">edit_note</span>
                   ملاحظات التسوية
