@@ -13,6 +13,7 @@ const {
   foreignKeyFixes,
   requiredColumnFixes,
 } = require("./schema-fix-definitions");
+const { buildModuleEnumSql } = require("../config/modules");
 
 const prisma = new PrismaClient();
 
@@ -190,16 +191,20 @@ async function applyLegacyMigrationFixes() {
   `);
 
   // --- 20260419171241_add_call_center_orders_notifications ---
-  const validModules = ['HR','INVENTORY','INVENTORY_COUNT','STOCK_TRANSFER','POS','PURCHASES','SALES','REPORTS','TREASURIES','CASH_TRANSFER','TRANSFER_MANAGEMENT','BRANCHES','EMPLOYEES','CLIENTS','SUPPLIERS','SUPPLIER_ACCOUNTS','CATEGORIES','ITEMS','WAREHOUSES','SETTINGS','EXPENSES','SHIFTS','DELIVERY_SETTLEMENT','CREATES_WAREHOUSES','CREATES_EMPLOYEES','CREATES_SUPPLIERS','CREATES_CLIENTS','CREATES_CATEGORIES','CREATES_ITEMS','CREATES_TREASURIES','CREATES_BRANCHES','DEPOSITS','CREATES_DEPOSITS','WITHDRAWALS','CREATES_WITHDRAWALS','DELIVERY_MEN','CREATES_DELIVERY_MEN','DELIVERY_ZONES','CREATES_DELIVERY_ZONES','CREATES_PRODUCTION','PRODUCTION','INITIAL_INVENTORY','CALL_CENTER','BULK_POS','BULK_CUSTOMERS','BULK_PRICING','BULK_CREDIT','BULK_REPORTS'];
-  const placeholders = validModules.map(() => '?').join(',');
-  await prisma.$executeRawUnsafe(
-    `DELETE FROM \`permissions\` WHERE \`module\` NOT IN (${placeholders})`,
-    ...validModules
+  // Idempotent, NON-DESTRUCTIVE enum repair. Enlarge `permissions.module` to the
+  // canonical superset from config/modules.js (the single source of truth).
+  // Enlarging a MySQL ENUM to a superset preserves every existing row, so this
+  // is safe to run on every boot against the live DB.
+  //
+  // We intentionally do NOT delete rows here anymore. The old code ran
+  // `DELETE FROM permissions WHERE module NOT IN (<hardcoded list>)` against a
+  // STALE list that omitted WAREHOUSE_TRANSFER_MANAGEMENT — that stripped the
+  // value out of the enum on every boot and caused the production 500 on
+  // `PUT /superadmin/roles/:id/permissions`. Sourcing the enum from the registry
+  // keeps it from ever drifting again.
+  await executeIgnoringDuplicate(
+    `ALTER TABLE \`permissions\` MODIFY \`module\` ${buildModuleEnumSql()} NOT NULL`
   );
-  await executeIgnoringDuplicate(`
-    ALTER TABLE \`permissions\` MODIFY \`module\`
-    ENUM('HR','INVENTORY','INVENTORY_COUNT','STOCK_TRANSFER','POS','PURCHASES','SALES','REPORTS','TREASURIES','CASH_TRANSFER','TRANSFER_MANAGEMENT','BRANCHES','EMPLOYEES','CLIENTS','SUPPLIERS','SUPPLIER_ACCOUNTS','CATEGORIES','ITEMS','WAREHOUSES','SETTINGS','EXPENSES','SHIFTS','DELIVERY_SETTLEMENT','CREATES_WAREHOUSES','CREATES_EMPLOYEES','CREATES_SUPPLIERS','CREATES_CLIENTS','CREATES_CATEGORIES','CREATES_ITEMS','CREATES_TREASURIES','CREATES_BRANCHES','DEPOSITS','CREATES_DEPOSITS','WITHDRAWALS','CREATES_WITHDRAWALS','DELIVERY_MEN','CREATES_DELIVERY_MEN','DELIVERY_ZONES','CREATES_DELIVERY_ZONES','CREATES_PRODUCTION','PRODUCTION','INITIAL_INVENTORY','CALL_CENTER','BULK_POS','BULK_CUSTOMERS','BULK_PRICING','BULK_CREDIT','BULK_REPORTS') NOT NULL
-  `);
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS \`orders\` (
       \`id\` INTEGER NOT NULL AUTO_INCREMENT,

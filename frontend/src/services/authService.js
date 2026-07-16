@@ -1,6 +1,7 @@
 import apiClient from "./apiClient";
 import eventStream from "./eventStreamService.js";
 import { emitAuthChanged } from "../utils/authEvents.js";
+import { isAdminRole } from "../config/roles";
 
 const AuthService = {
   // Login with username and password
@@ -60,7 +61,7 @@ const AuthService = {
     if (!user) return false;
 
     // Superadmin and Admin have all permissions
-    if (user.role === "Superadmin" || user.role === "Admin") return true;
+    if (isAdminRole(user.role)) return true;
 
     // Check permissions object if available
     // Backend returns simplified boolean map: { "INVENTORY": true, "Sales": false }

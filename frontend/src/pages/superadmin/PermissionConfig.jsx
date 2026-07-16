@@ -80,7 +80,14 @@ const PermissionConfig = () => {
             navigate("/superadmin/roles");
         } catch (error) {
             console.error("Save error:", error);
-            toast.error(error.message || "Failed to save permissions");
+            // Surface the backend's `details` (e.g. which module was rejected)
+            // instead of only the generic top-line message.
+            const detail = error?.data?.details;
+            toast.error(
+                detail
+                    ? `${error.message}: ${detail}`
+                    : error.message || "Failed to save permissions"
+            );
         }
     };
 

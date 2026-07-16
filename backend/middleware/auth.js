@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/database");
+const { isGlobalRole, isAdminRole } = require("../config/roles");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -58,7 +59,7 @@ const requirePermission = (module) => {
   return async (req, res, next) => {
     try {
       // Superadmin and Admin have all permissions
-      if (req.user.role === "Superadmin" || req.user.role === "Admin") {
+      if (isAdminRole(req.user.role)) {
         return next();
       }
 
@@ -105,7 +106,7 @@ const requirePermission = (module) => {
 const requireAnyPermission = (modules) => {
   return async (req, res, next) => {
     try {
-      if (req.user.role === "Superadmin" || req.user.role === "Admin") return next();
+      if (isAdminRole(req.user.role)) return next();
 
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
@@ -140,7 +141,7 @@ const requireCreatePermission = (createModule) => {
   return async (req, res, next) => {
     try {
       // Superadmin and Admin have all permissions
-      if (req.user.role === "Superadmin" || req.user.role === "Admin") {
+      if (isAdminRole(req.user.role)) {
         return next();
       }
 
@@ -183,7 +184,7 @@ const requireCreatePermission = (createModule) => {
 // Check if user has sensitive access (for update/delete operations)
 const requireSensitiveAccess = async (req, res, next) => {
   // Superadmin and Admin always have sensitive access
-  if (req.user.role === "Superadmin" || req.user.role === "Admin") {
+  if (isAdminRole(req.user.role)) {
     return next();
   }
 
@@ -228,11 +229,11 @@ const getUserBranchFilter = async (userId, req = null) => {
       throw err;
     }
 
-    const isGlobalRole = user.role && ["Superadmin", "Admin", "General Manager", "Call Center"].includes(user.role.name);
+    const userIsGlobal = user.role && isGlobalRole(user.role.name);
 
     // Collect all allowed branch IDs (for non-global roles)
     const allowedBranchIds = [];
-    if (!isGlobalRole) {
+    if (!userIsGlobal) {
       if (user.branchId) allowedBranchIds.push(user.branchId);
       if (user.accessibleBranches && user.accessibleBranches.length > 0) {
         user.accessibleBranches.forEach(b => allowedBranchIds.push(b.id));
@@ -246,7 +247,7 @@ const getUserBranchFilter = async (userId, req = null) => {
       const activeBranchId = parseInt(activeBranchHeader, 10);
       if (!isNaN(activeBranchId) && activeBranchId > 0) {
         // Global roles can filter to any branch
-        if (isGlobalRole) {
+        if (userIsGlobal) {
           return { id: activeBranchId };
         }
         // Non-global roles: validate the branch is in their allowed list
@@ -258,7 +259,7 @@ const getUserBranchFilter = async (userId, req = null) => {
     }
 
     // No active branch header — use default behavior
-    if (isGlobalRole) {
+    if (userIsGlobal) {
       return null; // See all branches
     }
 

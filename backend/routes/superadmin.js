@@ -4,6 +4,8 @@ const prisma = require("../config/database");
 const bcrypt = require("bcryptjs");
 const { authenticateToken, isSuperadmin } = require("../middleware/auth");
 const { body, validationResult } = require("express-validator");
+const { isValidModule } = require("../config/modules");
+const { isGlobalRole, isAdminRole, defaultsToSensitiveAccess } = require("../config/roles");
 
 // Middleware to ensure all routes here are protected and for superadmin only
 router.use(authenticateToken, isSuperadmin);
@@ -82,9 +84,9 @@ router.post("/users", createUserValidation, async (req, res) => {
       return res.status(400).json({ error: "Invalid role selected" });
     }
 
-    const isGlobalRole = ["Superadmin", "Admin", "General Manager", "Call Center"].includes(role.name);
+    const roleIsGlobal = isGlobalRole(role.name);
 
-    if (!isGlobalRole && !branchId) {
+    if (!roleIsGlobal && !branchId) {
       return res.status(400).json({ error: "Branch is required for this role" });
     }
 
@@ -100,7 +102,7 @@ router.post("/users", createUserValidation, async (req, res) => {
     let hasSensitiveAccess =
       req.body.hasSensitiveAccess !== undefined
         ? req.body.hasSensitiveAccess
-        : ["Superadmin", "Admin", "Manager", "General Manager"].includes(role.name);
+        : defaultsToSensitiveAccess(role.name);
 
     // Prepare accessible branches connect
     const accessibleBranchesConnect =
@@ -154,10 +156,10 @@ router.put("/users/:id", async (req, res) => {
       where: { id: parseInt(roleToCheckId) }
     });
 
-    const isGlobalRole = ["Superadmin", "Admin", "General Manager", "Call Center"].includes(role?.name);
+    const roleIsGlobal = isGlobalRole(role?.name);
 
     // Validate Branch requirement
-    if (!branchId && !isGlobalRole && roleId) { // Only enforce if role is explicitly being set/checked
+    if (!branchId && !roleIsGlobal && roleId) { // Only enforce if role is explicitly being set/checked
       // If branchId is not provided, we need to check if it's an update where branch is optional or not.
       // But for simplicity, if role is changing to a non-global one, branch is required.
       return res.status(400).json({ error: "Branch is required for this role" });
@@ -170,7 +172,7 @@ router.put("/users/:id", async (req, res) => {
       // If global role, allow branchId to be null. If not global, strict parse.
       // If branchId is explicitly passed as null/empty string and it's a global role, we should set it to null in DB.
       // If it's undefined (not passed), we leave it alone (handled by delete undefined keys).
-      branchId: branchId ? parseInt(branchId) : (isGlobalRole && branchId !== undefined ? null : undefined),
+      branchId: branchId ? parseInt(branchId) : (roleIsGlobal && branchId !== undefined ? null : undefined),
       isActive: req.body.isActive !== undefined ? req.body.isActive : undefined,
       hasSensitiveAccess:
         req.body.hasSensitiveAccess !== undefined
@@ -414,13 +416,46 @@ router.get("/roles/:id/permissions", async (req, res) => {
 // PUT update permissions for a role
 router.put("/roles/:id/permissions", async (req, res) => {
   try {
-    const { id } = req.params;
+    const roleId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(roleId) || roleId <= 0) {
+      return res.status(400).json({ error: "Invalid role id" });
+    }
+
     // permissions is an array of { module, canAccess }
     const { permissions } = req.body;
+    if (!Array.isArray(permissions)) {
+      return res
+        .status(400)
+        .json({ error: "`permissions` must be an array of { module, canAccess }" });
+    }
 
-    const roleId = parseInt(id);
+    // Validate every module against the canonical registry BEFORE touching the
+    // DB. Previously an unknown module value (e.g. one missing from the DB enum)
+    // made the whole $transaction throw a 500 — a single bad value blocked every
+    // permission save. Now we reject it up front with a clear, actionable 400.
+    const invalidModules = [
+      ...new Set(
+        permissions
+          .map((p) => p && p.module)
+          .filter((m) => !isValidModule(m))
+      ),
+    ];
+    if (invalidModules.length > 0) {
+      return res.status(400).json({
+        error: "Unknown permission module(s)",
+        details: `These module codes are not recognized: ${invalidModules.join(", ")}`,
+        invalidModules,
+      });
+    }
+
+    // Ensure the role exists so we return a clean 404 instead of an FK 500.
+    const role = await prisma.role.findUnique({ where: { id: roleId } });
+    if (!role) {
+      return res.status(404).json({ error: "Role not found" });
+    }
 
     const transaction = permissions.map((perm) => {
+      const canAccess = Boolean(perm.canAccess); // coerce — never reject a valid save
       return prisma.permission.upsert({
         where: {
           roleId_module: {
@@ -429,12 +464,12 @@ router.put("/roles/:id/permissions", async (req, res) => {
           },
         },
         update: {
-          canAccess: perm.canAccess,
+          canAccess,
         },
         create: {
           roleId: roleId,
           module: perm.module,
-          canAccess: perm.canAccess,
+          canAccess,
         },
       });
     });
@@ -477,7 +512,7 @@ async function verifyManager(managerUsername, managerPassword) {
   const roleName = manager.role?.name;
   const hasSensitive =
     manager.hasSensitiveAccess ||
-    ["Superadmin", "Admin"].includes(roleName);
+    isAdminRole(roleName);
   if (!hasSensitive) {
     const err = new Error("Manager does not have sufficient access for this operation");
     err.status = 403;
