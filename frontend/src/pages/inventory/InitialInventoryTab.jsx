@@ -24,9 +24,17 @@ const InitialInventoryTab = () => {
   const [formData, setFormData] = useState({
     warehouseId: "",
     quantity: "",
+    unitCost: "",
     date: new Date().toISOString().split("T")[0],
     notes: "",
   });
+
+  // BOM (manufactured) opening-production state
+  const [bomRecipe, setBomRecipe] = useState(null); // { outputQuantity, components[] }
+  const [componentCosts, setComponentCosts] = useState({}); // itemId -> cost string
+  const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
+
+  const isBomItem = !!selectedItem?.isBom;
 
   const currentUser = AuthService.getCurrentUser();
   const canDelete =
@@ -113,16 +121,61 @@ const InitialInventoryTab = () => {
     }
   };
 
-  const handleOpenModal = () => {
+  const handleOpenModal = async () => {
     if (!selectedItem) return;
     setFormData({
       warehouseId: selectedWarehouseId || (warehouses[0]?.id ?? ""),
       quantity: "",
+      unitCost: "",
       date: new Date().toISOString().split("T")[0],
       notes: "",
     });
+    setBomRecipe(null);
+    setComponentCosts({});
     setIsModalOpen(true);
+
+    // For manufactured (BOM) items, load the recipe so the user can enter a
+    // purchase cost per raw material (prefilled with each component's cost).
+    if (selectedItem.isBom) {
+      setIsLoadingRecipe(true);
+      try {
+        const recipe = await initialInventoryService.getBomExplosion(
+          selectedItem.id,
+        );
+        setBomRecipe(recipe);
+        const prefilled = {};
+        recipe.components.forEach((c) => {
+          prefilled[c.itemId] = c.costPrice ? String(c.costPrice) : "";
+        });
+        setComponentCosts(prefilled);
+      } catch (error) {
+        console.error("Failed to load BOM recipe:", error);
+        toast.error("فشل تحميل مكونات الصنف المصنّع");
+      } finally {
+        setIsLoadingRecipe(false);
+      }
+    }
   };
+
+  // Raw-material quantity needed for the entered finished quantity.
+  const componentNeedQty = (component) => {
+    const qty = Number(formData.quantity) || 0;
+    const outputQty = Number(bomRecipe?.outputQuantity) || 1;
+    return (Number(component.quantityPerBatch) * qty) / outputQty;
+  };
+
+  // Derived finished unit cost = Σ(component cost × needQty) / finished qty.
+  const bomFinishedUnitCost = useMemo(() => {
+    if (!bomRecipe) return 0;
+    const qty = Number(formData.quantity) || 0;
+    if (qty <= 0) return 0;
+    const total = bomRecipe.components.reduce((sum, c) => {
+      const cost = Number(componentCosts[c.itemId]) || 0;
+      return sum + cost * componentNeedQty(c);
+    }, 0);
+    return total / qty;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bomRecipe, componentCosts, formData.quantity]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -134,13 +187,34 @@ const InitialInventoryTab = () => {
 
     setIsSubmitting(true);
     try {
-      await initialInventoryService.add({
-        itemId: selectedItem.id,
-        warehouseId: parseInt(formData.warehouseId),
-        quantity: Number(formData.quantity),
-        date: formData.date,
-        notes: formData.notes,
-      });
+      if (isBomItem) {
+        // Opening production: seed raw materials at cost, then produce the good.
+        await initialInventoryService.addBom({
+          outputItemId: selectedItem.id,
+          warehouseId: parseInt(formData.warehouseId),
+          quantity: Number(formData.quantity),
+          date: formData.date,
+          notes: formData.notes,
+          components: (bomRecipe?.components || []).map((c) => ({
+            itemId: c.itemId,
+            unitCost:
+              componentCosts[c.itemId] === "" ||
+              componentCosts[c.itemId] === undefined
+                ? null
+                : Number(componentCosts[c.itemId]),
+          })),
+        });
+      } else {
+        await initialInventoryService.add({
+          itemId: selectedItem.id,
+          warehouseId: parseInt(formData.warehouseId),
+          quantity: Number(formData.quantity),
+          unitCost:
+            formData.unitCost === "" ? null : Number(formData.unitCost),
+          date: formData.date,
+          notes: formData.notes,
+        });
+      }
 
       toast.success("تم إضافة الكمية الافتتاحية بنجاح");
       setIsModalOpen(false);
@@ -357,6 +431,7 @@ const InitialInventoryTab = () => {
                         <th className="px-4 py-3 text-right">التاريخ</th>
                         <th className="px-4 py-3 text-right">المستودع</th>
                         <th className="px-4 py-3 text-right">الكمية</th>
+                        <th className="px-4 py-3 text-right">التكلفة</th>
                         <th className="px-4 py-3 text-right">بواسطة</th>
                         <th className="px-4 py-3 text-right">ملاحظات</th>
                         {canDelete && <th className="px-4 py-3"></th>}
@@ -376,6 +451,11 @@ const InitialInventoryTab = () => {
                           <td className="px-4 py-3 font-bold text-amber-600 dark:text-amber-400">
                             +{Number(entry.quantity).toFixed(2)}{" "}
                             {selectedItem.unit}
+                          </td>
+                          <td className="px-4 py-3 text-text-muted whitespace-nowrap">
+                            {entry.unitCost != null
+                              ? Number(entry.unitCost).toFixed(2)
+                              : "—"}
                           </td>
                           <td className="px-4 py-3 text-text-muted text-xs">
                             {entry.user.name}
@@ -416,8 +496,9 @@ const InitialInventoryTab = () => {
             info
           </span>
           <p className="text-sm text-amber-800 dark:text-amber-300">
-            هذا الخيار لتسجيل كميات سابقة لنظام ERP. ستُضاف الكمية للمخزون
-            الحالي.
+            {isBomItem
+              ? "هذا صنف مصنّع (BOM). سيتم إضافة المواد الخام بالتكلفة ثم إنتاج الكمية النهائية تلقائياً، بحيث يُقيَّم الرصيد بتكلفة المكونات."
+              : "هذا الخيار لتسجيل كميات سابقة لنظام ERP. ستُضاف الكمية للمخزون الحالي."}
           </p>
         </div>
 
@@ -463,7 +544,108 @@ const InitialInventoryTab = () => {
               required
               autoFocus
             />
+            {isBomItem && (
+              <p className="text-xs text-text-muted mt-1">
+                الكمية المصنّعة النهائية — سيتم حساب المواد الخام تلقائياً من
+                مكونات الصنف.
+              </p>
+            )}
           </div>
+
+          {/* Plain item: single purchase cost */}
+          {!isBomItem && (
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                سعر الشراء (تكلفة الوحدة)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.unitCost}
+                onChange={(e) =>
+                  setFormData({ ...formData, unitCost: e.target.value })
+                }
+                className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5"
+                placeholder="0.00"
+              />
+              <p className="text-xs text-text-muted mt-1">
+                تُستخدم لتقييم المخزون وحساب الأرباح. ستحل محل تكلفة الصنف
+                الحالية.
+              </p>
+            </div>
+          )}
+
+          {/* BOM item: raw materials with a purchase cost each */}
+          {isBomItem && (
+            <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
+              <div className="px-3 py-2 bg-background-light dark:bg-background-dark/50 text-sm font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-base">
+                  category
+                </span>
+                المواد الخام المطلوبة وتكلفتها
+              </div>
+              {isLoadingRecipe ? (
+                <div className="p-6 text-center text-text-muted">
+                  <span className="material-symbols-outlined animate-spin text-2xl">
+                    progress_activity
+                  </span>
+                </div>
+              ) : !bomRecipe || bomRecipe.components.length === 0 ? (
+                <div className="p-4 text-center text-text-muted text-sm">
+                  لا توجد مكونات لهذا الصنف
+                </div>
+              ) : (
+                <>
+                  <table className="w-full text-sm" dir="rtl">
+                    <thead className="text-xs bg-accent/20 dark:bg-surface-dark/80">
+                      <tr>
+                        <th className="px-3 py-2 text-right">المادة</th>
+                        <th className="px-3 py-2 text-right">الكمية</th>
+                        <th className="px-3 py-2 text-right">تكلفة الوحدة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bomRecipe.components.map((c) => (
+                        <tr
+                          key={c.itemId}
+                          className="border-t border-border-light dark:border-border-dark">
+                          <td className="px-3 py-2 font-medium">{c.name}</td>
+                          <td className="px-3 py-2 text-text-muted whitespace-nowrap">
+                            {componentNeedQty(c).toFixed(3)} {c.unit}
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={componentCosts[c.itemId] ?? ""}
+                              onChange={(e) =>
+                                setComponentCosts((prev) => ({
+                                  ...prev,
+                                  [c.itemId]: e.target.value,
+                                }))
+                              }
+                              className="w-28 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg p-1.5 text-sm"
+                              placeholder="0.00"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="px-3 py-2 bg-background-light dark:bg-background-dark/50 text-sm flex justify-between border-t border-border-light dark:border-border-dark">
+                    <span className="text-text-muted">
+                      تكلفة الوحدة المصنّعة (محسوبة)
+                    </span>
+                    <span className="font-bold text-primary">
+                      {bomFinishedUnitCost.toFixed(2)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-1">التاريخ *</label>

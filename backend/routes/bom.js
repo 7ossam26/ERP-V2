@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
+const { executeProductionInTx } = require("../lib/productionService");
 const {
   authenticateToken,
   requirePermission,
@@ -549,10 +550,6 @@ router.post(
           .status(400)
           .json({ error: "الكمية الفعلية لا يمكن أن تتجاوز الكمية المستهدفة" });
 
-      const parsedTarget = parseFloat(targetOutputQty);
-      const parsedActual = parseFloat(actualOutputQty);
-      const parsedWaste = parseFloat((parsedTarget - parsedActual).toFixed(3));
-
       // Load BOM with items
       const bom = await prisma.bOM.findUnique({
         where: { id: bomId },
@@ -560,122 +557,30 @@ router.post(
       });
       if (!bom) return res.status(404).json({ error: "BOM not found" });
 
-      // Each material quantity is BOMItem.quantity * (targetOutputQty / bom.outputQuantity)
-      const multiplier = parsedTarget / parseFloat(bom.outputQuantity);
-      const materialUsage = bom.items.map((bi) => ({
-        itemId: bi.itemId,
-        itemName: bi.item.name,
-        quantityUsed: parseFloat(
-          (parseFloat(bi.quantity) * multiplier).toFixed(6),
-        ),
-        costPrice: parseFloat(bi.item.costPrice || 0),
-      }));
-
-      // Validate stock in source warehouse
-      const inventoryChecks = await prisma.inventory.findMany({
-        where: {
-          warehouseId: parseInt(sourceWarehouseId),
-          itemId: { in: materialUsage.map((m) => m.itemId) },
-        },
-      });
-
-      const shortages = [];
-      for (const mat of materialUsage) {
-        const inv = inventoryChecks.find((i) => i.itemId === mat.itemId);
-        const available = inv ? parseFloat(inv.quantity) : 0;
-        if (available < mat.quantityUsed) {
-          shortages.push({
-            itemId: mat.itemId,
-            itemName: mat.itemName,
-            available,
-            required: mat.quantityUsed,
-          });
-        }
-      }
-      if (shortages.length > 0) {
-        return res
-          .status(400)
-          .json({ error: "رصيد غير كافٍ لبعض المواد الخام", shortages });
-      }
-
-      // Calculate total cost
-      const totalCost = materialUsage.reduce(
-        (sum, m) => sum + m.costPrice * m.quantityUsed,
-        0,
-      );
-
-      // Execute in transaction
-      const result = await prisma.$transaction(async (tx) => {
-        // 1. Deduct raw materials from source warehouse
-        for (const mat of materialUsage) {
-          await tx.inventory.upsert({
-            where: {
-              itemId_warehouseId: {
-                itemId: mat.itemId,
-                warehouseId: parseInt(sourceWarehouseId),
-              },
-            },
-            update: { quantity: { decrement: mat.quantityUsed } },
-            create: {
-              itemId: mat.itemId,
-              warehouseId: parseInt(sourceWarehouseId),
-              quantity: 0, // Stock validated before transaction; create path shouldn't occur
-            },
-          });
-        }
-
-        // 2. Add finished goods to dest warehouse (if BOM has output item and destWarehouse is set)
-        if (bom.outputItemId && destWarehouseId) {
-          await tx.inventory.upsert({
-            where: {
-              itemId_warehouseId: {
-                itemId: bom.outputItemId,
-                warehouseId: parseInt(destWarehouseId),
-              },
-            },
-            update: { quantity: { increment: parsedActual } },
-            create: {
-              itemId: bom.outputItemId,
-              warehouseId: parseInt(destWarehouseId),
-              quantity: parsedActual,
-            },
-          });
-        }
-
-        // 3. Create production order record
-        const order = await tx.productionOrder.create({
-          data: {
-            bomId,
-            sourceWarehouseId: parseInt(sourceWarehouseId),
-            destWarehouseId: destWarehouseId ? parseInt(destWarehouseId) : null,
-            targetOutputQty: parsedTarget,
-            actualOutputQty: parsedActual,
-            outputWasteQty: parsedWaste,
-            totalCost: parseFloat(totalCost.toFixed(2)),
-            notes: notes || null,
+      // Deduct components, add finished goods, refresh finished-item cost and
+      // record the ProductionOrder — all via the shared production routine.
+      const result = await prisma.$transaction(async (tx) =>
+        (
+          await executeProductionInTx(tx, {
+            bom,
+            sourceWarehouseId,
+            destWarehouseId,
+            targetOutputQty,
+            actualOutputQty,
             createdById: req.user.id,
-            items: {
-              create: materialUsage.map((m) => ({
-                itemId: m.itemId,
-                quantityUsed: m.quantityUsed,
-              })),
-            },
-          },
-          include: {
-            bom: { select: { name: true } },
-            sourceWarehouse: { select: { name: true } },
-            destWarehouse: { select: { name: true } },
-            items: {
-              include: { item: { select: { name: true, unit: true } } },
-            },
-          },
-        });
-
-        return order;
-      });
+            notes: notes || null,
+          })
+        ).order,
+      );
 
       res.status(201).json(result);
     } catch (error) {
+      // Insufficient raw material — surface the shortage detail (was a 400 before).
+      if (error.shortages) {
+        return res
+          .status(400)
+          .json({ error: error.message, shortages: error.shortages });
+      }
       console.error("[BOM EXECUTE]", error);
       res
         .status(500)

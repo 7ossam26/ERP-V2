@@ -727,6 +727,9 @@ model SaleItem {
   quantity  Decimal @db.Decimal(10, 4)
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
   total     Decimal @db.Decimal(10, 2)
+  // COGS snapshot: the item's cost-per-unit at the moment of sale, so profit
+  // reporting subtracts the historical cost rather than the current one.
+  costPrice Decimal @default(0) @map("cost_price") @db.Decimal(10, 2)
 
   // Relations
   sale Sale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
@@ -1127,6 +1130,9 @@ model InitialInventory {
   itemId      Int      @map("item_id")
   warehouseId Int      @map("warehouse_id")
   quantity    Decimal  @db.Decimal(10, 6)
+  // Purchase cost per unit for this opening-stock entry — values the stock and
+  // seeds Item.costPrice. Nullable so pre-existing rows stay valid.
+  unitCost    Decimal? @map("unit_cost") @db.Decimal(10, 2)
   date        DateTime @default(now())
   notes       String?  @db.Text
   userId      Int      @map("user_id")

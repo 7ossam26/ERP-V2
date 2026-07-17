@@ -294,9 +294,10 @@ exports.createOrder = async (req, res, next) => {
     const itemIds = items.map((i) => parseInt(i.itemId)).filter(Boolean);
     const dbItems = await prisma.item.findMany({
       where: { id: { in: itemIds } },
-      select: { id: true, name: true, price: true },
+      select: { id: true, name: true, price: true, costPrice: true },
     });
     const priceMap = new Map(dbItems.map((it) => [it.id, Number(it.price)]));
+    const costMap = new Map(dbItems.map((it) => [it.id, Number(it.costPrice || 0)]));
 
     const saleItems = [];
     let subtotal = 0;
@@ -312,7 +313,14 @@ exports.createOrder = async (req, res, next) => {
       const unitPrice = priceMap.get(itemId);
       const total = unitPrice * qty;
       subtotal += total;
-      saleItems.push({ itemId, quantity: qty, unitPrice, total });
+      // COGS snapshot for profit reporting.
+      saleItems.push({
+        itemId,
+        quantity: qty,
+        unitPrice,
+        total,
+        costPrice: costMap.get(itemId) || 0,
+      });
     }
 
     // Discount (optional). Validate and cap at subtotal.

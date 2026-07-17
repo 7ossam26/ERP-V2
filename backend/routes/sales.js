@@ -9,6 +9,7 @@ const {
 } = require("../middleware/auth");
 const { createOrderInTx, broadcastStatusChange } = require("../lib/orderService");
 const { roundMoney } = require("../utils/money");
+const { resolveSaleLineUnitCost } = require("../lib/costing");
 
 // Helper function to generate unique sale number
 const generateSaleNumber = async () => {
@@ -620,6 +621,21 @@ router.post(
 
       // EXECUTE TRANSACTION
       const result = await prisma.$transaction(async (tx) => {
+        // COGS snapshot: resolve each line's cost-per-unit at sale time so
+        // profit reporting subtracts the historical cost (see lib/costing.js).
+        const lineCosts = await Promise.all(
+          items.map((item) => {
+            const isBomOnly = String(item.itemId).startsWith("bom_");
+            const bomId = item.bomId
+              ? parseInt(item.bomId)
+              : isBomOnly
+                ? parseInt(String(item.itemId).replace("bom_", ""))
+                : null;
+            const lineItemId = isBomOnly ? null : parseInt(item.itemId);
+            return resolveSaleLineUnitCost(tx, { itemId: lineItemId, bomId });
+          }),
+        );
+
         // 1. Create Sale
         const sale = await tx.sale.create({
           data: {
@@ -651,7 +667,7 @@ router.post(
             status: status || "COMPLETED",
             notes,
             items: {
-              create: items.map((item) => {
+              create: items.map((item, idx) => {
                 const isBomOnly = String(item.itemId).startsWith("bom_");
                 const bomId = item.bomId
                   ? parseInt(item.bomId)
@@ -665,6 +681,7 @@ router.post(
                   quantity: parseFloat(item.quantity),
                   unitPrice: parseFloat(item.unitPrice),
                   total: parseFloat(item.total),
+                  costPrice: parseFloat(Number(lineCosts[idx] || 0).toFixed(2)),
                 };
               }),
             },
@@ -1002,6 +1019,19 @@ router.post(
                   },
                 });
 
+                // Refresh the finished item's cost to the per-unit make-cost so
+                // COGS snapshots and valuation reflect what it cost to produce.
+                if (totalProduced > 0) {
+                  await tx.item.update({
+                    where: { id: saleItemId },
+                    data: {
+                      costPrice: parseFloat(
+                        (autoTotalCost / totalProduced).toFixed(2),
+                      ),
+                    },
+                  });
+                }
+
                 // Record auto-production in warnings for frontend toast
                 if (!sale.warnings) sale.warnings = [];
                 sale.warnings.push(
@@ -1310,8 +1340,21 @@ router.put(
           });
 
           if (items.length > 0) {
+            // COGS snapshot for the rewritten lines.
+            const editLineCosts = await Promise.all(
+              items.map((item) => {
+                const isBomOnly = String(item.itemId).startsWith("bom_");
+                const bomId = item.bomId
+                  ? parseInt(item.bomId)
+                  : isBomOnly
+                    ? parseInt(String(item.itemId).replace("bom_", ""))
+                    : null;
+                const lineItemId = isBomOnly ? null : parseInt(item.itemId);
+                return resolveSaleLineUnitCost(prisma, { itemId: lineItemId, bomId });
+              }),
+            );
             await prisma.saleItem.createMany({
-              data: items.map((item) => {
+              data: items.map((item, idx) => {
                 const isBomOnly = String(item.itemId).startsWith("bom_");
                 const bomId = item.bomId
                   ? parseInt(item.bomId)
@@ -1326,6 +1369,7 @@ router.put(
                   quantity: parseFloat(item.quantity),
                   unitPrice: parseFloat(item.unitPrice),
                   total: parseFloat(item.total),
+                  costPrice: parseFloat(Number(editLineCosts[idx] || 0).toFixed(2)),
                 };
               }),
             });
@@ -1610,6 +1654,9 @@ router.post(
                   total:
                     -parseFloat(originalItem.unitPrice) *
                     parseFloat(item.quantity), // Negative
+                  // Reverse COGS by the original line's cost (negative quantity
+                  // × positive unit cost) so refunds unwind profit symmetrically.
+                  costPrice: parseFloat(Number(originalItem.costPrice || 0).toFixed(2)),
                 };
               }),
             },

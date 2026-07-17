@@ -139,6 +139,10 @@ const probes = {
   "20260626030300_add_expense_categories": async () =>
     (await tableExists("expense_categories")) &&
     (await columnExists("expenses", "category_id")),
+
+  "20260717000000_add_opening_cost_and_cogs": async () =>
+    (await columnExists("initial_inventory", "unit_cost")) &&
+    (await columnExists("sale_items", "cost_price")),
 };
 
 // --- Main ---------------------------------------------------------

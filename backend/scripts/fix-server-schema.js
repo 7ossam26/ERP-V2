@@ -649,6 +649,22 @@ async function run() {
   await applyLegacyMigrationFixes();
   console.log(">>> [FIX] legacy migration fixes (20260418→20260424): OK");
 
+  // 9. Opening-inventory purchase cost + sale-line COGS snapshot columns.
+  //    Additive only — guarded so it's safe to re-run on every boot.
+  //    Pairs with migration 20260717000000_add_opening_cost_and_cogs and its
+  //    probe in baseline-migrations.js.
+  if (!(await columnExists("initial_inventory", "unit_cost"))) {
+    await prisma.$executeRawUnsafe(
+      "ALTER TABLE `initial_inventory` ADD COLUMN `unit_cost` DECIMAL(10,2) NULL"
+    );
+  }
+  if (!(await columnExists("sale_items", "cost_price"))) {
+    await prisma.$executeRawUnsafe(
+      "ALTER TABLE `sale_items` ADD COLUMN `cost_price` DECIMAL(10,2) NOT NULL DEFAULT 0"
+    );
+  }
+  console.log(">>> [FIX] opening cost + sale COGS columns: OK");
+
   console.log(">>> [FIX] All schema fixes applied successfully.");
 }
 

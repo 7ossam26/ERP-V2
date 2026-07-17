@@ -159,12 +159,28 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
       (sum, sale) => sum + parseFloat(sale.total),
       0,
     );
-    const totalExpenses = expenses.reduce(
-      (sum, exp) => sum + parseFloat(exp.amount),
+    // Operating expenses EXCLUDE inventory purchases (type "PURCHASE"): a
+    // purchase's cost is recognized as cost of goods sold when the stock is
+    // sold, not when it's bought — counting both would double-count it.
+    const operatingExpenses = expenses
+      .filter((exp) => exp.type !== "PURCHASE")
+      .reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+
+    // Cost of goods sold from each sale line's cost snapshot (SaleItem.costPrice).
+    // Refund lines carry negative quantity, so they unwind COGS automatically.
+    const totalCOGS = sales.reduce(
+      (sum, sale) =>
+        sum +
+        sale.items.reduce(
+          (s, it) => s + Number(it.costPrice || 0) * Number(it.quantity),
+          0,
+        ),
       0,
     );
-    // Rough Net Profit = Sales - Expenses (ignores COGS for now as it's complex)
-    const netProfit = totalSales - totalExpenses;
+
+    // Net Profit = Sales − COGS − operating expenses.
+    const grossProfit = totalSales - totalCOGS;
+    const netProfit = grossProfit - operatingExpenses;
     const invoiceCount = sales.length;
 
     // Inventory Alerts (Items below reorder point)
@@ -252,6 +268,9 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     res.json({
       summary: {
         totalSales,
+        cogs: totalCOGS,
+        grossProfit,
+        operatingExpenses,
         netProfit,
         invoiceCount,
         stockAlerts,

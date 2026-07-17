@@ -137,9 +137,9 @@ router.get("/", async (req, res, next) => {
       if (totalPurchasedQty > 0) {
         avgPurchasePrice = totalCost / totalPurchasedQty;
       } else {
-        // Fallback to current item price if no purchase history exists
-        // (This might be the case for manually added items)
-        avgPurchasePrice = Number(item.price);
+        // No purchase history (e.g. opening-inventory-only or manufactured
+        // items): use the stored cost, NOT the selling price.
+        avgPurchasePrice = Number(item.costPrice || 0);
       }
 
       // Determine Category Name & Color (First category found)
@@ -290,7 +290,8 @@ router.get("/stats", async (req, res, next) => {
       if (totalPurchasedQty > 0) {
         avgPurchasePrice = totalCost / totalPurchasedQty;
       } else {
-        avgPurchasePrice = Number(item.price);
+        // No purchase history: use stored cost, not the selling price.
+        avgPurchasePrice = Number(item.costPrice || 0);
       }
 
       totalValue += totalQuantity * avgPurchasePrice;
