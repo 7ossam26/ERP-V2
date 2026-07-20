@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { treasuryService } from "../../services/treasuryService";
 import { formatEGP } from "../../utils/bulkMoney";
+import { useBranch } from "../../contexts/BranchContext";
 
 const METHOD_LABELS = {
   CASH: "نقدي",
@@ -27,6 +28,7 @@ export default function BulkConfirmOrderModal({
   onConfirm,
   onClose,
 }) {
+  const { userBranches } = useBranch();
   const [treasuries, setTreasuries] = useState([]);
   const [method, setMethod] = useState("CASH");
   const [amount, setAmount] = useState(String(Number(totalAmount ?? 0).toFixed(2)));
@@ -39,12 +41,16 @@ export default function BulkConfirmOrderModal({
   const [creditError, setCreditError] = useState(null);
 
   useEffect(() => {
+    const allowedBranchIds = new Set(userBranches.map((b) => b.id));
     treasuryService.getAll().then((list) => {
       const active = list.filter((t) => t.isActive !== false);
-      setTreasuries(active);
-      if (active.length > 0) setTreasuryId(String(active[0].id));
+      const filtered = allowedBranchIds.size > 0
+        ? active.filter((t) => !t.branch || allowedBranchIds.has(t.branch.id))
+        : active;
+      setTreasuries(filtered);
+      if (filtered.length > 0) setTreasuryId(String(filtered[0].id));
     }).catch(() => {});
-  }, []);
+  }, [userBranches]);
 
   // Sync amount when method changes
   useEffect(() => {

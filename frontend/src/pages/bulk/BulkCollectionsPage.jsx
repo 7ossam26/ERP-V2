@@ -6,6 +6,7 @@ import { treasuryService } from "../../services/treasuryService";
 import { formatEGP } from "../../utils/bulkMoney";
 import BulkSectionTabs from "../../components/bulk/BulkSectionTabs";
 import StatusChip from "../../components/bulk/StatusChip";
+import { useBranch } from "../../contexts/BranchContext";
 
 const TYPE_BADGE = {
   ORDER:   { label: "مبيعات",  cls: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400" },
@@ -24,6 +25,7 @@ const METHOD_BADGE = {
 // ─── modals ──────────────────────────────────────────────────────────────────
 
 function PayDebtModal({ customer, openBalance, onSuccess, onClose }) {
+  const { userBranches } = useBranch();
   const [amount, setAmount]         = useState(openBalance > 0 ? String(openBalance.toFixed(2)) : "");
   const [treasuryId, setTreasuryId] = useState("");
   const [notes, setNotes]           = useState("");
@@ -31,12 +33,16 @@ function PayDebtModal({ customer, openBalance, onSuccess, onClose }) {
   const [loading, setLoading]       = useState(false);
 
   useEffect(() => {
+    const allowedBranchIds = new Set(userBranches.map((b) => b.id));
     treasuryService.getAll().then((list) => {
       const active = list.filter((t) => t.isActive !== false);
-      setTreasuries(active);
-      if (active.length > 0) setTreasuryId(String(active[0].id));
+      const filtered = allowedBranchIds.size > 0
+        ? active.filter((t) => !t.branch || allowedBranchIds.has(t.branch.id))
+        : active;
+      setTreasuries(filtered);
+      if (filtered.length > 0) setTreasuryId(String(filtered[0].id));
     });
-  }, []);
+  }, [userBranches]);
 
   const submit = async (e) => {
     e.preventDefault();
