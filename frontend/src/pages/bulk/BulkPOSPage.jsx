@@ -3,13 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { itemService } from "../../services/itemService";
-import { warehouseService } from "../../services/warehouseService";
 import { settingsService } from "../../services/settingsService";
 import { inventoryService } from "../../services/inventoryService";
 import { formatEGP, splitInclusive } from "../../utils/bulkMoney";
 import BulkConfirmOrderModal from "../../components/bulk/BulkConfirmOrderModal";
 import BulkCreditBadge from "../../components/bulk/BulkCreditBadge";
 import BulkSectionTabs from "../../components/bulk/BulkSectionTabs";
+import { useBranch } from "../../contexts/BranchContext";
 
 
 const PIECE_UNITS = new Set(["piece", "قطعة", "pcs", "unit", "وحدة", "علبة", "box", "carton"]);
@@ -22,32 +22,36 @@ export default function BulkPOSPage() {
 
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
   const [contractPrices, setContractPrices] = useState(new Map());
   const [stock, setStock] = useState(new Map()); // itemId → onHand qty
   const [stockLoading, setStockLoading] = useState(false);
 
   const [customerId, setCustomerId] = useState(initialCustomerId ? Number(initialCustomerId) : null);
-  const [warehouseId, setWarehouseId] = useState(null);
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [taxRate, setTaxRate] = useState(0.14);
 
-  // Initial load: customers, base items, warehouses, settings
+  // The warehouse always follows the active branch — it is never chosen by hand.
+  // Employees are assigned to a single branch, so BranchContext resolves it for
+  // them automatically and there is nothing to pick. The backend derives the
+  // warehouse the same way and ignores any client-sent warehouseId, so this is
+  // display/stock-lookup only, not a trust boundary.
+  const { activeBranch } = useBranch();
+  const warehouseId = activeBranch?.warehouseId ?? null;
+
+  // Initial load: customers, base items, settings
   useEffect(() => {
     (async () => {
       try {
-        const [cs, its, whs, cfg] = await Promise.all([
+        const [cs, its, cfg] = await Promise.all([
           bulkService.listCustomers({ active: true }),
           itemService.getAll(),
-          warehouseService.getAll(),
           settingsService.get(),
         ]);
         setCustomers(cs);
         setItems(its);
-        setWarehouses(whs);
         if (cfg?.taxRate != null) setTaxRate(Number(cfg.taxRate) / 100);
       } catch (err) {
         toast.error(err?.data?.error || "تعذر تحميل البيانات");
@@ -167,9 +171,10 @@ export default function BulkPOSPage() {
 
   const canSubmit = customerId && warehouseId && cart.length > 0 && !submitting;
 
+  // No warehouseId: the backend derives it from the operator's branch and
+  // ignores anything the client sends.
   const buildOrderPayload = (status = "DRAFT") => ({
     customerId,
-    warehouseId,
     status,
     taxRate, // send the settings-derived tax rate so backend stores it correctly
     items: cart.map((l) => ({
@@ -254,16 +259,6 @@ export default function BulkPOSPage() {
               <option value="">اختر العميل...</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>{c.companyName}</option>
-              ))}
-            </select>
-            <select
-              className="border border-border-light dark:border-border-dark rounded-xl p-2.5 bg-surface-light dark:bg-surface-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
-              value={warehouseId || ""}
-              onChange={(e) => setWarehouseId(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">اختر المخزن...</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
               ))}
             </select>
             <input

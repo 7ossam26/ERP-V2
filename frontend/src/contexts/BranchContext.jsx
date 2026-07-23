@@ -92,6 +92,17 @@ export const BranchProvider = ({ children }) => {
     [userId]
   );
 
+  // Drop a stored branch that no longer exists (e.g. it was deleted server-side).
+  // The stored id is trusted on init because branches load async, and the backend
+  // lets global roles filter to any id — so a stale id silently filters every
+  // query down to nothing instead of failing loudly.
+  useEffect(() => {
+    if (!userId || activeBranchId === null || activeBranchId === 0) return;
+    if (!userBranches.length) return; // not loaded yet
+    if (userBranches.some((b) => b.id === activeBranchId)) return;
+    setActiveBranch(isGlobalRole ? 0 : user?.branch?.id || userBranches[0].id);
+  }, [userId, activeBranchId, userBranches.length, isGlobalRole]);
+
   // Sync if user changes (e.g. profile refresh)
   useEffect(() => {
     if (!userId) return;

@@ -24,12 +24,7 @@ router.get("/", async (req, res) => {
     });
 
     // All authenticated users can see all warehouses for stock transfers
-    // Exclude "All Branches Warehouse" - it's a system warehouse, not for transfers
-    const filteredWarehouses = warehouses.filter(
-      (w) => w.name !== "All Branches Warehouse",
-    );
-
-    res.json(filteredWarehouses);
+    res.json(warehouses);
   } catch (error) {
     res
       .status(500)

@@ -55,19 +55,31 @@ const SUPERADMIN_MODULES = [
   "PRODUCTION", "CREATES_PRODUCTION", "INITIAL_INVENTORY",
   "CALL_CENTER",
   "BULK_POS", "BULK_CUSTOMERS", "BULK_PRICING", "BULK_CREDIT", "BULK_REPORTS",
+  "SALES_RETURNS", "PURCHASE_RETURNS",
 ];
+
+// Returns are manager-level: they move money out of a treasury and stock back
+// into a warehouse. Granted to every role above Employee, and deliberately
+// withheld from EMPLOYEE_MODULES / CALL_CENTER_MODULES — the cashier-facing
+// roles. seedPermissions only ever grants (upsert with canAccess: true), never
+// revokes, but both codes are new so every other role, including any custom
+// "Cashier" role, starts with no row and is denied by default.
+const RETURN_MODULES = ["SALES_RETURNS", "PURCHASE_RETURNS"];
 
 const ADMIN_MODULES = [
   "DEPOSITS", "CREATES_DEPOSITS", "WITHDRAWALS", "CREATES_WITHDRAWALS",
   "WAREHOUSE_TRANSFER_MANAGEMENT",
+  ...RETURN_MODULES,
 ];
 
 const GENERAL_MANAGER_MODULES = [
   "WAREHOUSE_TRANSFER_MANAGEMENT",
+  ...RETURN_MODULES,
 ];
 
 const MANAGER_MODULES = [
   "WAREHOUSE_TRANSFER_MANAGEMENT",
+  ...RETURN_MODULES,
 ];
 
 const EMPLOYEE_MODULES = [
@@ -131,6 +143,25 @@ async function ensureNamed(model, name, createData) {
   const existing = await prisma[model].findFirst({ where: { name } });
   if (existing) return existing;
   return prisma[model].create({ data: { name, ...createData } });
+}
+
+// Databases created before commit f5def62 (2026-02-04) contain a virtual
+// "All Branches" branch + its paired warehouse/treasury. This seed matches
+// infrastructure by name, so it would happily seed the current Arabic set
+// *alongside* those legacy rows instead of replacing them — leaving the
+// virtual branch visible in every branch dropdown. Refuse to run instead.
+async function assertNoLegacyAllBranches() {
+  const legacy = await prisma.branch.findFirst({
+    where: { name: { contains: "All Branch" } },
+    select: { id: true, name: true },
+  });
+  if (!legacy) return;
+  throw new Error(
+    `Legacy virtual branch #${legacy.id} "${legacy.name}" is still present.\n` +
+      `   The 'All Branches' feature was removed in migration 20260204113521; these rows are stale data.\n` +
+      `   Run: node scripts/remove_all_branches_logic.js   (add --dry-run to preview)\n` +
+      `   Then re-run the seed.`
+  );
 }
 
 async function seedInfrastructure() {
@@ -254,6 +285,7 @@ async function seedSuperadminUser(superadminRole) {
 
 async function main() {
   console.log("🌱 Seeding…");
+  await assertNoLegacyAllBranches();
   const roles = await seedRoles();
   await seedPermissions(roles);
   await seedInfrastructure();

@@ -752,8 +752,20 @@ router.get(
         },
       });
 
-      // Check if user has access to this shift's branch
-      const canAccessBranch =
+      // A shift permanently records the branch it was OPENED in, but
+      // `user.branchId` reflects the user's CURRENT assignment. Those diverge
+      // the moment an employee is moved between branches, which locked them out
+      // of the report for their own shift — including the one they are standing
+      // at the register running right now.
+      //
+      // Owning the shift is a strictly stronger claim than sharing its branch:
+      // it is the operator's own record, so it is checked first. The branch and
+      // global-role checks below are unchanged, so access to OTHER people's
+      // shifts is still restricted to the user's own branch(es).
+      const ownsShift = shift.userId === user.id;
+
+      const canAccessReport =
+        ownsShift ||
         user.branchId === shift.branchId ||
         (user.accessibleBranches &&
           user.accessibleBranches.some((b) => b.id === shift.branchId)) ||
@@ -761,7 +773,7 @@ router.get(
         user.role.name === "Admin" ||
         user.role.name === "General Manager"; // Global roles can access all branches
 
-      if (!canAccessBranch) {
+      if (!canAccessReport) {
         return res.status(403).json({
           error: "Access denied. You cannot view reports for this branch.",
         });

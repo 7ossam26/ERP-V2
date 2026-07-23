@@ -14,10 +14,9 @@ const AdvancePaymentsHistory = () => {
     const fetchBranches = async () => {
       try {
         const data = await branchService.getAll();
-        // Filter out "Main Branch" and "All Branches" as requested
+        // Filter out the legacy "Main Branch" seed row
         const filteredBranches = data.filter(
-          (branch) =>
-            branch.name !== "Main Branch" && branch.name !== "All Branches",
+          (branch) => branch.name !== "Main Branch",
         );
         setBranches(filteredBranches);
       } catch (error) {

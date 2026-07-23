@@ -26,6 +26,23 @@
 const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+
+// Load env before instantiating the client. In production DATABASE_URL comes
+// from the host, but locally it lives in .env — and `npm start` runs this
+// script before index.js, so without this the whole chain dies here.
+//
+// Deliberately NOT `override: true`, mirroring start.js: this script runs in
+// the boot chain, so a stray .env must never be able to repoint it away from
+// the database the platform handed us.
+for (const f of [
+  path.resolve(__dirname, "../../.env"),
+  path.resolve(__dirname, "../.env"),
+  path.resolve(__dirname, "../../.env.local"),
+  path.resolve(__dirname, "../.env.local"),
+]) {
+  if (fs.existsSync(f)) require("dotenv").config({ path: f });
+}
+
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
@@ -90,9 +107,16 @@ async function rowExists(table, whereSql, ...params) {
 // Older, definitely-applied migrations don't need entries.
 
 const probes = {
+  // Do NOT probe for sales.payment_method = 'CARD' here: the later migration
+  // 20260421000000 deliberately migrates CARD rows to VISA and drops CARD from
+  // the enum again. Probing for it made this entry unpassable on any
+  // fully-migrated DB, so every run deleted the row and `migrate deploy`
+  // re-ran a migration whose first statement drops an already-dropped FK.
+  // Probe instead on what this migration added and nothing later undid:
+  // the refresh_tokens drop and purchases.payment_status = 'CANCELLED'.
   "20260418071621_add_card_to_sale_payment_method": async () =>
-    (await enumHasValue("sales", "payment_method", "CARD")) &&
-    !(await tableExists("refresh_tokens")),
+    !(await tableExists("refresh_tokens")) &&
+    (await enumHasValue("purchases", "payment_status", "CANCELLED")),
 
   "20260419171241_add_call_center_orders_notifications": async () =>
     (await tableExists("orders")) &&

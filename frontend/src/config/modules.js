@@ -272,9 +272,34 @@ export const MODULES = [
     path: "/bulk/customers",
     category: "CREATION",
   },
+
+  // --- Action Permissions ---
+  // These gate an ACTION inside an existing page, not a page of their own, so
+  // they carry no `path` and use their own category. MainDashboard turns every
+  // MANAGEMENT module into a clickable nav card via `m.path`; filing these under
+  // MANAGEMENT would render dead cards. PermissionConfig renders them in their
+  // own table so they stay grantable per role.
+  {
+    id: "sales_returns",
+    code: "SALES_RETURNS",
+    label: "مرتجعات المبيعات",
+    description: "تنفيذ مرتجع فاتورة مبيعات أو طلب جملة",
+    icon: "assignment_return",
+    category: "ACTION",
+  },
+  {
+    id: "purchase_returns",
+    code: "PURCHASE_RETURNS",
+    label: "مرتجعات المشتريات",
+    description: "تنفيذ مرتجع فاتورة مشتريات للمورد",
+    icon: "assignment_return",
+    category: "ACTION",
+  },
 ];
 
 export const getCreationModules = () =>
   MODULES.filter((m) => m.category === "CREATION");
 export const getManagementModules = () =>
   MODULES.filter((m) => m.category === "MANAGEMENT");
+export const getActionModules = () =>
+  MODULES.filter((m) => m.category === "ACTION");

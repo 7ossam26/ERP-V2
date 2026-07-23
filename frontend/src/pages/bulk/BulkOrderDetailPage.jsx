@@ -159,6 +159,8 @@ export default function BulkOrderDetailPage() {
   const canConfirm = order.status === "DRAFT" || order.status === "QUOTED";
   const canCancel  = order.status === "DRAFT" || order.status === "QUOTED";
   const canPay     = order.status === "CONFIRMED" || order.status === "PARTIALLY_PAID";
+  // Visible to any BULK_POS user: the employee prepares the return, and the
+  // modal's manager-approval step gates actually executing it.
   const canReturn  = ["CONFIRMED", "PARTIALLY_PAID", "PAID"].includes(order.status);
   const receipt    = order.documents?.find((d) => d.type === "SALES_RECEIPT");
   const taxInvoice = order.documents?.find((d) => d.type === "TAX_INVOICE");
