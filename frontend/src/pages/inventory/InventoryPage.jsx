@@ -13,7 +13,7 @@ const InventoryPage = () => {
   const [branches, setBranches] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState(
-    isGlobalRole ? "all" : (activeBranch?.warehouseId?.toString() || "all"),
+    isGlobalRole ? "all" : (activeBranch?.warehouseId?.toString() || ""),
   );
 
   const [stats, setStats] = useState({
@@ -42,6 +42,11 @@ const InventoryPage = () => {
 
   // Fetch when filters change
   useEffect(() => {
+    // A non-global user with no resolved warehouse must not fall back to "all" —
+    // that widens the scope instead of narrowing it. Hold the initial empty state
+    // and wait for the branch to resolve instead.
+    if (!isGlobalRole && !activeBranch?.warehouseId) return;
+
     const fetchData = async () => {
       try {
         const filters = {};
@@ -49,7 +54,7 @@ const InventoryPage = () => {
         // ignore any stale selectedWarehouse and use the active branch directly.
         const effectiveWarehouse = isGlobalRole
           ? selectedWarehouse
-          : activeBranch?.warehouseId?.toString() || "all";
+          : activeBranch.warehouseId.toString();
         if (effectiveWarehouse !== "all")
           filters.warehouseId = effectiveWarehouse;
         if (filter !== "الكل") filters.category = filter;

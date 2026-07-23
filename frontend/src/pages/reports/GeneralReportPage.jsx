@@ -58,10 +58,9 @@ const GeneralReportPage = () => {
           data,
           currentUser,
         );
-        // Filter out "Main Branch" and "All Branches"
+        // Filter out the legacy "Main Branch" seed row
         const filteredBranches = available.filter(
-          (branch) =>
-            branch.name !== "Main Branch" && branch.name !== "All Branches",
+          (branch) => branch.name !== "Main Branch",
         );
         setBranches(filteredBranches || []);
       } catch (err) {

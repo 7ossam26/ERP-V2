@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { treasuryService } from "../../services/treasuryService";
 import { formatEGP } from "../../utils/bulkMoney";
+import ManagerAuthModal from "../common/ManagerAuthModal";
 
 export default function BulkReturnModal({ order, onSuccess, onClose }) {
   const [treasuries, setTreasuries] = useState([]);
@@ -11,6 +12,7 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
   const [treasuryId, setTreasuryId] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   useEffect(() => {
     treasuryService.getAll().then((list) => {
@@ -20,7 +22,9 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
     }).catch(() => {});
   }, []);
 
-  const onSubmit = async (e) => {
+  // Validate the return details, then hand off to manager approval — executing
+  // the return is manager-gated, preparing it is not.
+  const onSubmit = (e) => {
     e.preventDefault();
     const amt = Number(amount);
     if (!Number.isFinite(amt) || amt <= 0) {
@@ -31,15 +35,26 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
       toast.error("اختر الخزينة");
       return;
     }
+    setIsAuthOpen(true);
+  };
+
+  const handleVerificationSuccess = async (managerUsername, managerPassword) => {
+    setIsAuthOpen(false);
     setSaving(true);
     try {
-      const body = { method, amount: amt, reason: reason.trim() || undefined };
+      const body = {
+        method,
+        amount: Number(amount),
+        reason: reason.trim() || undefined,
+        managerUsername,
+        managerPassword,
+      };
       if (method === "CASH_REFUND") body.treasuryId = Number(treasuryId);
       const updated = await bulkService.returnOrder(order.id, body);
       toast.success("تم الإرجاع");
       onSuccess && onSuccess(updated);
     } catch (err) {
-      toast.error(err?.data?.error || "تعذر الإرجاع");
+      toast.error(err?.message || err?.data?.error || "تعذر الإرجاع");
     } finally {
       setSaving(false);
     }
@@ -133,6 +148,15 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
           </div>
         </form>
       </div>
+
+      <ManagerAuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onVerify={handleVerificationSuccess}
+        title="تأكيد الإرجاع"
+        message="عملية الإرجاع تتطلب موافقة المدير. يرجى إدخال البيانات."
+        actionLabel="تأكيد الإرجاع"
+      />
     </div>
   );
 }

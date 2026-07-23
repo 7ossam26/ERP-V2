@@ -3,6 +3,7 @@ const prisma = require("../../config/database");
 const { allocateNumber } = require("../../services/bulkNumbering.service");
 const { applyBulkOrderStockMovement } = require("../../services/bulkStock.service");
 const { writeAudit } = require("../../utils/auditLogger");
+const { verifyManagerApproval } = require("../../middleware/auth");
 
 function clientIp(req) {
   return (
@@ -47,6 +48,16 @@ exports.createReturn = async (req, res, next) => {
     if (method === "CASH_REFUND" && (!Number.isInteger(treasuryId) || treasuryId <= 0)) {
       return res.status(400).json({ error: "treasuryId is required for CASH_REFUND" });
     }
+
+    // Manager approval is the gate on EXECUTING the return — the employee
+    // prepares it, a manager signs off. Brings bulk returns to parity with the
+    // sales-refund and purchase-return flows, which already required this.
+    // Throws with .status (400/401/403); errorHandler maps it.
+    const approver = await verifyManagerApproval(
+      body.managerUsername,
+      body.managerPassword,
+      "SALES_RETURNS",
+    );
 
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.bulkOrder.findUnique({
@@ -134,7 +145,8 @@ exports.createReturn = async (req, res, next) => {
 
     console.log(
       `[bulk-order] return #${result.updated.orderNumber} ` +
-      `by user=${actorId} method=${method} amount=${amount} ` +
+      `by user=${actorId} approved by ${approver.username}/${approver.role} ` +
+      `method=${method} amount=${amount} ` +
       `status=${result.orderBefore.status}→RETURNED`,
     );
 
@@ -152,6 +164,8 @@ exports.createReturn = async (req, res, next) => {
         creditNoteNumber: result.creditNoteNumber,
         refundId: result.refund.id,
         treasuryId,
+        approvedByUserId: approver.id,
+        approvedByUsername: approver.username,
       },
       ipAddress: ip,
     }).catch(() => {});

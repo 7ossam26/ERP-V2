@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { treasuryService } from "../../services/treasuryService";
 import { formatEGP } from "../../utils/bulkMoney";
+import { scopeTreasuriesToBranches } from "../../utils/treasuryScope";
 import { useBranch } from "../../contexts/BranchContext";
 
 const METHOD_LABELS = {
@@ -41,12 +42,8 @@ export default function BulkConfirmOrderModal({
   const [creditError, setCreditError] = useState(null);
 
   useEffect(() => {
-    const allowedBranchIds = new Set(userBranches.map((b) => b.id));
     treasuryService.getAll().then((list) => {
-      const active = list.filter((t) => t.isActive !== false);
-      const filtered = allowedBranchIds.size > 0
-        ? active.filter((t) => !t.branch || allowedBranchIds.has(t.branch.id))
-        : active;
+      const filtered = scopeTreasuriesToBranches(list, userBranches);
       setTreasuries(filtered);
       if (filtered.length > 0) setTreasuryId(String(filtered[0].id));
     }).catch(() => {});

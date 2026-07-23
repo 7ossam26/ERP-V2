@@ -133,6 +133,10 @@ enum Module {
   BULK_PRICING
   BULK_CREDIT
   BULK_REPORTS
+
+  // Return authorization (manager-level; NOT implied by POS/SALES/PURCHASES)
+  SALES_RETURNS
+  PURCHASE_RETURNS
 }
 
 model Permission {

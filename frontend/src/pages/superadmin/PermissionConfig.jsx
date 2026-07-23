@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SuperadminService from "../../services/superadminService";
 import { toast } from "react-hot-toast";
-import { getManagementModules, getCreationModules } from "../../config/modules";
+import { getManagementModules, getCreationModules, getActionModules } from "../../config/modules";
 
 const PermissionConfig = () => {
     const { id } = useParams();
@@ -13,11 +13,12 @@ const PermissionConfig = () => {
 
     const managementModules = getManagementModules();
     const creationModules = getCreationModules();
+    const actionModules = getActionModules();
 
     // Helper to get all unique permission codes
     const getAllPermissionCodes = () => {
         const codes = new Set();
-        [...managementModules, ...creationModules].forEach(m => codes.add(m.code));
+        [...managementModules, ...creationModules, ...actionModules].forEach(m => codes.add(m.code));
         return Array.from(codes);
     };
 
@@ -153,6 +154,7 @@ const PermissionConfig = () => {
             <div className="grid grid-cols-1 gap-6">
                 {renderPermissionTable(managementModules, "Management Modules", "apps")}
                 {renderPermissionTable(creationModules, "Creation Permissions", "add_circle")}
+                {renderPermissionTable(actionModules, "Action Permissions", "gavel")}
             </div>
 
             {/* Sticky bottom action bar — sticks within the scrollable content area */}

@@ -5,6 +5,7 @@ const { applyBulkOrderStockMovement } = require("../../services/bulkStock.servic
 const { assertCreditLimitOk } = require("../../services/bulkCredit.service");
 const { recomputeOrderBalance } = require("../../services/bulkPayments.service");
 const { writeAudit } = require("../../utils/auditLogger");
+const { resolveOperatingBranch } = require("../../middleware/auth");
 
 function clientIp(req) {
   return (
@@ -143,13 +144,22 @@ exports.create = async (req, res, next) => {
   try {
     const body = req.body || {};
     const customerId = Number(body.customerId);
-    const warehouseId = Number(body.warehouseId);
     if (!Number.isInteger(customerId) || customerId <= 0) {
       return res.status(400).json({ error: "customerId is required" });
     }
-    if (!Number.isInteger(warehouseId) || warehouseId <= 0) {
-      return res.status(400).json({ error: "warehouseId is required" });
+
+    // The warehouse is derived from the operator's branch, never from the
+    // request body. `body.warehouseId` was previously used verbatim, which let
+    // any BULK_POS user place an order against any warehouse in the system.
+    const operatingBranch = await resolveOperatingBranch(req.user.id, req);
+    if (!operatingBranch) {
+      return res.status(400).json({
+        error: "Branch selection required",
+        message: "برجاء اختيار الفرع أولاً",
+      });
     }
+    const warehouseId = operatingBranch.warehouseId;
+
     const status = body.status === "QUOTED" ? "QUOTED" : "DRAFT";
     const lines = validateLines(body.items);
 
@@ -166,12 +176,10 @@ exports.create = async (req, res, next) => {
       return res.status(400).json({ error: "taxRate must be between 0 and 1" });
     }
 
-    const [customer, warehouse] = await Promise.all([
-      prisma.bulkCustomer.findUnique({ where: { id: customerId } }),
-      prisma.warehouse.findUnique({ where: { id: warehouseId } }),
-    ]);
+    // The warehouse comes from the branch record itself (Branch.warehouseId is a
+    // required 1:1 FK), so it needs no separate existence check.
+    const customer = await prisma.bulkCustomer.findUnique({ where: { id: customerId } });
     if (!customer || !customer.isActive) return res.status(404).json({ error: "Customer not found" });
-    if (!warehouse) return res.status(404).json({ error: "Warehouse not found" });
 
     const totals = computeTotals(lines, taxRate);
 

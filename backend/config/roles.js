@@ -35,16 +35,28 @@ const SENSITIVE_ACCESS_DEFAULT_ROLES = [
   "General Manager",
 ];
 
+// Roles allowed to act as the manager approver on a manager-gated action (e.g.
+// executing a sales/purchase return). A hard allowlist by design: even if a
+// role is granted SALES_RETURNS/PURCHASE_RETURNS via the Superadmin permission
+// UI, it can only approve if its NAME is also here. Deliberately a separate
+// list from SENSITIVE_ACCESS_DEFAULT_ROLES above — that one is a *default* at
+// user-creation time and the file header warns it's pending a product decision;
+// this one is a hard approval gate and must not drift if that one changes.
+const RETURN_APPROVAL_ROLES = ["Superadmin", "Admin", "General Manager", "Manager"];
+
 const isGlobalRole = (roleName) => GLOBAL_ROLES.includes(roleName);
 const isAdminRole = (roleName) => ADMIN_ROLES.includes(roleName);
 const defaultsToSensitiveAccess = (roleName) =>
   SENSITIVE_ACCESS_DEFAULT_ROLES.includes(roleName);
+const isReturnApprovalRole = (roleName) => RETURN_APPROVAL_ROLES.includes(roleName);
 
 module.exports = {
   GLOBAL_ROLES,
   ADMIN_ROLES,
   SENSITIVE_ACCESS_DEFAULT_ROLES,
+  RETURN_APPROVAL_ROLES,
   isGlobalRole,
   isAdminRole,
   defaultsToSensitiveAccess,
+  isReturnApprovalRole,
 };

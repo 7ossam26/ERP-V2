@@ -548,17 +548,8 @@ const UserManagement = () => {
                           {isAdminRole ? "No specific branch (global)" : "Select a branch"}
                         </option>
                         {branches.map((branch) => (
-                          <option
-                            key={branch.id}
-                            value={branch.id}
-                            className={
-                              branch.isAllBranches
-                                ? "font-bold text-primary"
-                                : ""
-                            }>
-                            {branch.isAllBranches
-                              ? `★ ${branch.name}`
-                              : branch.name}
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
                           </option>
                         ))}
                       </select>

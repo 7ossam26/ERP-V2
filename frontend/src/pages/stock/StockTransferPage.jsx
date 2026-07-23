@@ -75,6 +75,9 @@ const StockTransferPage = () => {
         if (!isGlobalRole && activeBranch?.warehouseId) {
           initialSourceId = activeBranch.warehouseId.toString();
         } else if (!isGlobalRole && user?.branch?.warehouseId) {
+          // Belt and braces: BranchContext now resolves activeBranch on login
+          // rather than only after a refresh, so this rarely fires — but a
+          // branch-scoped user must never fall through to the main warehouse.
           initialSourceId = user.branch.warehouseId.toString();
         } else if (settings && settings.mainWarehouseId) {
           initialSourceId = settings.mainWarehouseId.toString();

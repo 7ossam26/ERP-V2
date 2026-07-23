@@ -71,6 +71,13 @@ const MODULE_CODES = [
   "BULK_PRICING",
   "BULK_CREDIT",
   "BULK_REPORTS",
+
+  // --- Return authorization (manager-level) ---
+  // Deliberately NOT implied by POS/SALES/PURCHASES: creating a return moves
+  // money out of a treasury and stock back into a warehouse, so it is gated
+  // separately from the ability to ring up a sale or record a purchase.
+  "SALES_RETURNS",
+  "PURCHASE_RETURNS",
 ];
 
 const MODULE_CODE_SET = new Set(MODULE_CODES);

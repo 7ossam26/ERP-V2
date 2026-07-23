@@ -195,10 +195,6 @@ router.post("/transfer", async (req, res) => {
       throw new Error("Cannot transfer from Treasury to itself");
     }
 
-    // Block transfers from "All Branches Treasury" (ID 4 or Name check)
-    // We fetch source details in transaction anyway, but let's check basic ID first if known,
-    // or better, check after fetching source.
-
     // Use transaction to ensure data integrity
     const result = await prisma.$transaction(async (tx) => {
       // 1. Check source balance

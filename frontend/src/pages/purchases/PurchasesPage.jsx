@@ -15,6 +15,7 @@ import Modal from "../../components/ui/Modal";
 import { ItemForm } from "../items/ItemManager";
 import PurchaseDetailsModal from "../reports/history/PurchaseDetailsModal";
 import PurchaseReturnModal from "./PurchaseReturnModal";
+import AuthService from "../../services/authService";
 
 const PurchasesPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("CASH"); // CASH, CREDIT, DEFERRED, MIXED
@@ -625,12 +626,14 @@ const PurchasesPage = () => {
               <span className="material-symbols-outlined text-sm">receipt_long</span>
               <span className="hidden sm:inline">سجل المشتريات</span>
             </button>
-            <button
-              onClick={() => setIsReturnModalOpen(true)}
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg transition-colors shadow-sm font-bold text-sm">
-              <span className="material-symbols-outlined text-sm">assignment_return</span>
-              <span className="hidden sm:inline">مرتجع</span>
-            </button>
+            {AuthService.hasPermission("PURCHASE_RETURNS") && (
+              <button
+                onClick={() => setIsReturnModalOpen(true)}
+                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg transition-colors shadow-sm font-bold text-sm">
+                <span className="material-symbols-outlined text-sm">assignment_return</span>
+                <span className="hidden sm:inline">مرتجع</span>
+              </button>
+            )}
             <button
               onClick={handleHoldPurchase}
               className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg transition-colors shadow-sm font-bold text-sm">

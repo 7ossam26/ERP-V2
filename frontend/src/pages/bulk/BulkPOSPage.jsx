@@ -3,13 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { itemService } from "../../services/itemService";
-import { warehouseService } from "../../services/warehouseService";
 import { settingsService } from "../../services/settingsService";
 import { inventoryService } from "../../services/inventoryService";
 import { formatEGP, splitInclusive } from "../../utils/bulkMoney";
 import BulkConfirmOrderModal from "../../components/bulk/BulkConfirmOrderModal";
 import BulkCreditBadge from "../../components/bulk/BulkCreditBadge";
 import BulkSectionTabs from "../../components/bulk/BulkSectionTabs";
+import { useBranch } from "../../contexts/BranchContext";
 
 
 const PIECE_UNITS = new Set(["piece", "قطعة", "pcs", "unit", "وحدة", "علبة", "box", "carton"]);
@@ -22,43 +22,59 @@ export default function BulkPOSPage() {
 
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [contractPrices, setContractPrices] = useState(new Map());
-  const [stock, setStock] = useState(new Map()); // itemId → onHand qty
+  // null until the inventory response lands. An empty Map here would be
+  // indistinguishable from "everything is at zero", which paints the whole
+  // catalog as نفد and disabled on the first paint after a branch resolves.
+  const [stock, setStock] = useState(null); // itemId → onHand qty
   const [stockLoading, setStockLoading] = useState(false);
 
   const [customerId, setCustomerId] = useState(initialCustomerId ? Number(initialCustomerId) : null);
-  const [warehouseId, setWarehouseId] = useState(null);
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [taxRate, setTaxRate] = useState(0.14);
 
-  // Initial load: customers, base items, warehouses, settings
+  // The warehouse always follows the active branch — it is never chosen by hand.
+  // Employees are assigned to a single branch, so BranchContext resolves it for
+  // them automatically and there is nothing to pick. The backend derives the
+  // warehouse the same way and ignores any client-sent warehouseId, so this is
+  // display/stock-lookup only, not a trust boundary.
+  const { activeBranch } = useBranch();
+  const warehouseId = activeBranch?.warehouseId ?? null;
+
+  // Initial load: customers, base items, settings
   useEffect(() => {
     (async () => {
-      try {
-        const [cs, its, whs, cfg] = await Promise.all([
-          bulkService.listCustomers({ active: true }),
-          itemService.getAll(),
-          warehouseService.getAll(),
-          settingsService.get(),
-        ]);
-        setCustomers(cs);
-        setItems(its);
-        setWarehouses(whs);
-        if (cfg?.taxRate != null) setTaxRate(Number(cfg.taxRate) / 100);
-      } catch (err) {
-        toast.error(err?.data?.error || "تعذر تحميل البيانات");
+      // allSettled, not all: a failing settings call used to blank the customer
+      // and item lists too, leaving a page with nothing to click and no clue why.
+      const [cs, its, cfg] = await Promise.allSettled([
+        bulkService.listCustomers({ active: true }),
+        itemService.getAll(),
+        settingsService.get(),
+      ]);
+      if (cs.status === "fulfilled") setCustomers(cs.value || []);
+      if (its.status === "fulfilled") setItems(its.value || []);
+      if (cfg.status === "fulfilled" && cfg.value?.taxRate != null) {
+        setTaxRate(Number(cfg.value.taxRate) / 100);
       }
+      setCatalogLoading(false);
+
+      const failed = [
+        cs.status === "rejected" && "العملاء",
+        its.status === "rejected" && "الأصناف",
+        cfg.status === "rejected" && "الإعدادات",
+      ].filter(Boolean);
+      if (failed.length) toast.error(`تعذر تحميل: ${failed.join("، ")}`);
     })();
   }, []);
 
   // Fetch warehouse stock when warehouse changes
   useEffect(() => {
     if (!warehouseId) {
-      setStock(new Map());
+      setStock(null);
       return;
     }
     let cancelled = false;
@@ -99,7 +115,11 @@ export default function BulkPOSPage() {
     return items.filter((i) => (i.name || "").toLowerCase().includes(s));
   }, [items, search]);
 
-  const getOnHand = (itemId) => (warehouseId ? (stock.get(itemId) ?? 0) : Infinity);
+  // Infinity means "no known constraint": either no warehouse is in play, or the
+  // balances haven't arrived yet. Nothing can be spent against an unknown balance
+  // because every action is gated on stockReady below.
+  const stockReady = stock !== null;
+  const getOnHand = (itemId) => (warehouseId && stock ? (stock.get(itemId) ?? 0) : Infinity);
 
   const addToCart = (item) => {
     const overridePrice = contractPrices.get(item.id);
@@ -165,11 +185,12 @@ export default function BulkPOSPage() {
   );
   const totals = splitInclusive(subtotalInclusive, taxRate);
 
-  const canSubmit = customerId && warehouseId && cart.length > 0 && !submitting;
+  const canSubmit = customerId && warehouseId && stockReady && cart.length > 0 && !submitting;
 
+  // No warehouseId: the backend derives it from the operator's branch and
+  // ignores anything the client sends.
   const buildOrderPayload = (status = "DRAFT") => ({
     customerId,
-    warehouseId,
     status,
     taxRate, // send the settings-derived tax rate so backend stores it correctly
     items: cart.map((l) => ({
@@ -256,16 +277,6 @@ export default function BulkPOSPage() {
                 <option key={c.id} value={c.id}>{c.companyName}</option>
               ))}
             </select>
-            <select
-              className="border border-border-light dark:border-border-dark rounded-xl p-2.5 bg-surface-light dark:bg-surface-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
-              value={warehouseId || ""}
-              onChange={(e) => setWarehouseId(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">اختر المخزن...</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
-              ))}
-            </select>
             <input
               type="search"
               placeholder="بحث صنف..."
@@ -281,20 +292,39 @@ export default function BulkPOSPage() {
             </div>
           )}
 
+          {/* A global role sitting on "كل الفروع" has no single warehouse, so every
+              card below is disabled. Say so instead of leaving a dead grid. */}
+          {!warehouseId && (
+            <div className="mb-2 rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+              اختر فرعًا محددًا من أعلى الصفحة لبدء البيع — لا يمكن تحديد المخزن في وضع "كل الفروع".
+            </div>
+          )}
+
           {stockLoading && (
             <div className="text-xs text-text-light/40 dark:text-text-dark/40 mb-2">جارٍ تحميل الأرصدة...</div>
           )}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[70vh] overflow-y-auto">
+            {catalogLoading && (
+              <div className="col-span-full text-center text-sm text-text-light/40 dark:text-text-dark/40 p-6">
+                جارٍ تحميل الأصناف...
+              </div>
+            )}
+            {!catalogLoading && filteredItems.length === 0 && (
+              <div className="col-span-full text-center text-sm text-text-light/40 dark:text-text-dark/40 p-6">
+                لا توجد أصناف
+              </div>
+            )}
             {filteredItems.map((it) => {
               const overridden = contractPrices.has(it.id);
               const price = overridden ? contractPrices.get(it.id) : Number(it.price);
-              const onHand = warehouseId ? (stock.get(it.id) ?? 0) : null;
+              // null while balances are unknown — never render that as zero/نفد
+              const onHand = warehouseId && stock ? (stock.get(it.id) ?? 0) : null;
               const outOfStock = onHand !== null && onHand <= 0;
               return (
                 <button
                   key={it.id}
-                  disabled={!customerId || !warehouseId || outOfStock}
+                  disabled={!customerId || !warehouseId || !stockReady || outOfStock}
                   onClick={() => addToCart(it)}
                   className={`text-right border rounded-xl p-2.5 transition-colors duration-200 ${
                     outOfStock

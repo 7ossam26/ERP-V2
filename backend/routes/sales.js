@@ -5,6 +5,7 @@ const {
   authenticateToken,
   requirePermission,
   requireAnyPermission,
+  verifyManagerApproval,
   getUserBranchFilter,
 } = require("../middleware/auth");
 const { createOrderInTx, broadcastStatusChange } = require("../lib/orderService");
@@ -1400,7 +1401,17 @@ router.put(
   },
 );
 
-// POST refund sale - Requires SALES or POS permission + Manager Authentication
+// POST refund sale — visible/reachable to any POS/SALES user; execution itself
+// is manager-gated.
+//
+// The employee prepares the return (search sale, pick items, review) and the
+// UI collects it all before this endpoint is ever called — only the final
+// execution requires manager sign-off. That approval is enforced below via
+// verifyManagerApproval(), which independently re-checks the *approver's*
+// password, role, and permission on every call — it is not spoofable by
+// omitting the button in the UI, since this route accepts any authenticated
+// POS/SALES caller and relies entirely on the manager-credential check to
+// gate the actual write.
 router.post(
   "/refund",
   authenticateToken,
@@ -1425,13 +1436,14 @@ router.post(
         });
       }
 
-      if (!managerUsername || !managerPassword) {
-        return res.status(400).json({
-          error: "Manager authentication is required",
-          resolution:
-            "Please provide manager credentials to authorize the refund.",
-        });
-      }
+      // Second factor: a real manager password check. This previously only
+      // asserted the fields were non-empty, so any string passed.
+      // Throws with .status (400/401/403); errorHandler maps it.
+      const approver = await verifyManagerApproval(
+        managerUsername,
+        managerPassword,
+        "SALES_RETURNS",
+      );
 
       // Normalize + validate refund method (Cash | Visa | Instapay, defaults to Cash)
       const normalizedRefundMethod = (refundMethod || "CASH").toUpperCase();
@@ -1709,7 +1721,10 @@ router.post(
         return refundSale;
       });
 
-      console.log(`✅ Refund completed successfully: ${result.saleNumber}`);
+      console.log(
+        `✅ Refund completed successfully: ${result.saleNumber} ` +
+          `(requested by user=${req.user.id}, approved by ${approver.username}/${approver.role})`,
+      );
       res.status(201).json(result);
     } catch (error) {
       console.error("❌ Refund error:", error.message);

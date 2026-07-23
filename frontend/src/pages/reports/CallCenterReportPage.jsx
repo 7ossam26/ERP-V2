@@ -42,7 +42,8 @@ const CallCenterReportPage = () => {
   useEffect(() => {
     branchService.getAll().then((all) => {
       const available = BranchFilterHelper.getAvailableBranches(all, currentUser);
-      setBranches(available.filter((b) => b.name !== "Main Branch" && b.name !== "All Branches"));
+      // Filter out the legacy "Main Branch" seed row
+      setBranches(available.filter((b) => b.name !== "Main Branch"));
     }).catch(() => {});
   }, []);
 

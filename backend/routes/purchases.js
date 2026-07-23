@@ -1,7 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
+const {
+  authenticateToken,
+  requirePermission,
+  verifyManagerApproval,
+  getUserBranchFilter,
+} = require("../middleware/auth");
 
 // Protect all routes with PURCHASES permission
 router.use(authenticateToken, requirePermission("PURCHASES"));
@@ -663,8 +668,13 @@ router.delete("/:id", async (req, res, next) => {
   }
 });
 
-// POST create a purchase return (مرتجع)
-router.post("/:id/return", async (req, res, next) => {
+// POST create a purchase return (مرتجع) — manager-level only.
+//
+// PURCHASE_RETURNS is required on top of the router-level PURCHASES permission:
+// recording a purchase and reversing one are different privileges. The check
+// runs before the handler, so calling this endpoint directly with a non-manager
+// token is rejected regardless of what the UI shows.
+router.post("/:id/return", requirePermission("PURCHASE_RETURNS"), async (req, res, next) => {
   try {
     const purchaseId = parseInt(req.params.id);
     const { items, managerUsername, managerPassword, notes } = req.body;
@@ -672,9 +682,14 @@ router.post("/:id/return", async (req, res, next) => {
     if (!items || items.length === 0) {
       return res.status(400).json({ error: "يرجى اختيار صنف واحد على الأقل للإرجاع" });
     }
-    if (!managerUsername || !managerPassword) {
-      return res.status(400).json({ error: "بيانات المدير مطلوبة" });
-    }
+
+    // Second factor: a real manager password check. This previously only
+    // asserted the fields were non-empty, so any string passed.
+    await verifyManagerApproval(
+      managerUsername,
+      managerPassword,
+      "PURCHASE_RETURNS",
+    );
 
     // Get original purchase
     const purchase = await prisma.purchase.findUnique({
