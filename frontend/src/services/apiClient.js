@@ -78,8 +78,24 @@ export const apiClient = async (endpoint, options = {}) => {
       }
 
       // Use the structured error message from backend if available
-      const errorMessage =
+      let errorMessage =
         data.message || data.error || "An unexpected error occurred";
+
+      // Make technical errors (like Prisma DB errors) explainable to the user
+      if (typeof errorMessage === "string") {
+        if (errorMessage.includes("Unique constraint failed")) {
+          errorMessage = "هذا السجل موجود بالفعل ولا يمكن تكراره.";
+        } else if (errorMessage.includes("Argument") && errorMessage.includes("is missing")) {
+          errorMessage = "توجد بيانات مطلوبة لم يتم إدخالها. يرجى مراجعة الحقول.";
+        } else if (errorMessage.includes("Foreign key constraint failed")) {
+          errorMessage = "العملية مرفوضة: السجل مرتبط ببيانات أخرى في النظام.";
+        } else if (errorMessage.includes("Record to update not found") || errorMessage.includes("Record to delete does not exist")) {
+          errorMessage = "هذا السجل غير موجود أو تم حذفه مسبقاً.";
+        } else if (errorMessage.includes("Invalid `prisma.") || errorMessage.includes("PrismaClient")) {
+          errorMessage = "حدث خطأ في معالجة البيانات. يرجى التحقق من المدخلات والمحاولة مرة أخرى.";
+        }
+      }
+
       const errorDetails = data;
 
       throw new APIError(errorMessage, response.status, errorDetails);

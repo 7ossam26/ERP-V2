@@ -24,13 +24,13 @@ const SuperadminLayout = () => {
   const SidebarContent = () => (
     <>
       <div className="h-16 sm:h-20 flex items-center px-4 sm:px-6 border-b border-slate-800 shrink-0">
-        <div className="flex items-center gap-3">
+        <Link to="/dashboard" className="flex items-center gap-3">
           <img
             src="/assets/logo.png"
             alt="Elghonemy Logo"
             className="h-10 sm:h-12 w-auto object-contain"
           />
-        </div>
+        </Link>
       </div>
 
       <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
