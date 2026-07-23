@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
 import { treasuryService } from "../../services/treasuryService";
 import { formatEGP } from "../../utils/bulkMoney";
+import { scopeTreasuriesToBranches } from "../../utils/treasuryScope";
 import BulkSectionTabs from "../../components/bulk/BulkSectionTabs";
 import StatusChip from "../../components/bulk/StatusChip";
 import { useBranch } from "../../contexts/BranchContext";
@@ -33,15 +34,11 @@ function PayDebtModal({ customer, openBalance, onSuccess, onClose }) {
   const [loading, setLoading]       = useState(false);
 
   useEffect(() => {
-    const allowedBranchIds = new Set(userBranches.map((b) => b.id));
     treasuryService.getAll().then((list) => {
-      const active = list.filter((t) => t.isActive !== false);
-      const filtered = allowedBranchIds.size > 0
-        ? active.filter((t) => !t.branch || allowedBranchIds.has(t.branch.id))
-        : active;
+      const filtered = scopeTreasuriesToBranches(list, userBranches);
       setTreasuries(filtered);
       if (filtered.length > 0) setTreasuryId(String(filtered[0].id));
-    });
+    }).catch(() => {});
   }, [userBranches]);
 
   const submit = async (e) => {

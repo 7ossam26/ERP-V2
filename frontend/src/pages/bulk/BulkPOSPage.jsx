@@ -22,8 +22,12 @@ export default function BulkPOSPage() {
 
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [contractPrices, setContractPrices] = useState(new Map());
-  const [stock, setStock] = useState(new Map()); // itemId → onHand qty
+  // null until the inventory response lands. An empty Map here would be
+  // indistinguishable from "everything is at zero", which paints the whole
+  // catalog as نفد and disabled on the first paint after a branch resolves.
+  const [stock, setStock] = useState(null); // itemId → onHand qty
   const [stockLoading, setStockLoading] = useState(false);
 
   const [customerId, setCustomerId] = useState(initialCustomerId ? Number(initialCustomerId) : null);
@@ -44,25 +48,33 @@ export default function BulkPOSPage() {
   // Initial load: customers, base items, settings
   useEffect(() => {
     (async () => {
-      try {
-        const [cs, its, cfg] = await Promise.all([
-          bulkService.listCustomers({ active: true }),
-          itemService.getAll(),
-          settingsService.get(),
-        ]);
-        setCustomers(cs);
-        setItems(its);
-        if (cfg?.taxRate != null) setTaxRate(Number(cfg.taxRate) / 100);
-      } catch (err) {
-        toast.error(err?.data?.error || "تعذر تحميل البيانات");
+      // allSettled, not all: a failing settings call used to blank the customer
+      // and item lists too, leaving a page with nothing to click and no clue why.
+      const [cs, its, cfg] = await Promise.allSettled([
+        bulkService.listCustomers({ active: true }),
+        itemService.getAll(),
+        settingsService.get(),
+      ]);
+      if (cs.status === "fulfilled") setCustomers(cs.value || []);
+      if (its.status === "fulfilled") setItems(its.value || []);
+      if (cfg.status === "fulfilled" && cfg.value?.taxRate != null) {
+        setTaxRate(Number(cfg.value.taxRate) / 100);
       }
+      setCatalogLoading(false);
+
+      const failed = [
+        cs.status === "rejected" && "العملاء",
+        its.status === "rejected" && "الأصناف",
+        cfg.status === "rejected" && "الإعدادات",
+      ].filter(Boolean);
+      if (failed.length) toast.error(`تعذر تحميل: ${failed.join("، ")}`);
     })();
   }, []);
 
   // Fetch warehouse stock when warehouse changes
   useEffect(() => {
     if (!warehouseId) {
-      setStock(new Map());
+      setStock(null);
       return;
     }
     let cancelled = false;
@@ -103,7 +115,11 @@ export default function BulkPOSPage() {
     return items.filter((i) => (i.name || "").toLowerCase().includes(s));
   }, [items, search]);
 
-  const getOnHand = (itemId) => (warehouseId ? (stock.get(itemId) ?? 0) : Infinity);
+  // Infinity means "no known constraint": either no warehouse is in play, or the
+  // balances haven't arrived yet. Nothing can be spent against an unknown balance
+  // because every action is gated on stockReady below.
+  const stockReady = stock !== null;
+  const getOnHand = (itemId) => (warehouseId && stock ? (stock.get(itemId) ?? 0) : Infinity);
 
   const addToCart = (item) => {
     const overridePrice = contractPrices.get(item.id);
@@ -169,7 +185,7 @@ export default function BulkPOSPage() {
   );
   const totals = splitInclusive(subtotalInclusive, taxRate);
 
-  const canSubmit = customerId && warehouseId && cart.length > 0 && !submitting;
+  const canSubmit = customerId && warehouseId && stockReady && cart.length > 0 && !submitting;
 
   // No warehouseId: the backend derives it from the operator's branch and
   // ignores anything the client sends.
@@ -276,20 +292,39 @@ export default function BulkPOSPage() {
             </div>
           )}
 
+          {/* A global role sitting on "كل الفروع" has no single warehouse, so every
+              card below is disabled. Say so instead of leaving a dead grid. */}
+          {!warehouseId && (
+            <div className="mb-2 rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+              اختر فرعًا محددًا من أعلى الصفحة لبدء البيع — لا يمكن تحديد المخزن في وضع "كل الفروع".
+            </div>
+          )}
+
           {stockLoading && (
             <div className="text-xs text-text-light/40 dark:text-text-dark/40 mb-2">جارٍ تحميل الأرصدة...</div>
           )}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[70vh] overflow-y-auto">
+            {catalogLoading && (
+              <div className="col-span-full text-center text-sm text-text-light/40 dark:text-text-dark/40 p-6">
+                جارٍ تحميل الأصناف...
+              </div>
+            )}
+            {!catalogLoading && filteredItems.length === 0 && (
+              <div className="col-span-full text-center text-sm text-text-light/40 dark:text-text-dark/40 p-6">
+                لا توجد أصناف
+              </div>
+            )}
             {filteredItems.map((it) => {
               const overridden = contractPrices.has(it.id);
               const price = overridden ? contractPrices.get(it.id) : Number(it.price);
-              const onHand = warehouseId ? (stock.get(it.id) ?? 0) : null;
+              // null while balances are unknown — never render that as zero/نفد
+              const onHand = warehouseId && stock ? (stock.get(it.id) ?? 0) : null;
               const outOfStock = onHand !== null && onHand <= 0;
               return (
                 <button
                   key={it.id}
-                  disabled={!customerId || !warehouseId || outOfStock}
+                  disabled={!customerId || !warehouseId || !stockReady || outOfStock}
                   onClick={() => addToCart(it)}
                   className={`text-right border rounded-xl p-2.5 transition-colors duration-200 ${
                     outOfStock
