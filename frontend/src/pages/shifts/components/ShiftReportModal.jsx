@@ -144,6 +144,19 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                 {report.totalExpenses.toLocaleString()} ج.م
               </p>
             </div>
+
+            {/* Employee Advances */}
+            {(report.totalAdvances ?? 0) > 0 && (
+              <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                <div className="flex items-center gap-3 mb-2 text-orange-600">
+                  <FaCoins />
+                  <h4 className="font-bold">سلف الموظفين</h4>
+                </div>
+                <p className="text-2xl font-bold text-gray-800">
+                  {Number(report.totalAdvances).toLocaleString()} ج.م
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Order History */}
@@ -245,6 +258,14 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                   {report.totalExpenses.toLocaleString()}
                 </span>
               </div>
+              {(report.totalAdvances ?? 0) > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-orange-600">
+                  <span>- سلف الموظفين (كاش)</span>
+                  <span className="font-mono font-bold">
+                    {Number(report.totalAdvances).toLocaleString()}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center py-2 bg-gray-50 rounded px-2 font-bold">
                 <span>= المتوقع في الدرج</span>
                 <span className="font-mono text-xl">
@@ -328,6 +349,52 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                       <td colSpan="3" className="p-3 font-bold text-gray-700">الإجمالي</td>
                       <td className="p-3 font-bold text-red-600">
                         {report.totalExpenses.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Advances Breakdown */}
+          {report.advances && report.advances.length > 0 && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-3 font-bold text-gray-700 border-b border-gray-200 flex justify-between items-center">
+                <span>تفاصيل سلف الموظفين</span>
+                <span className="text-xs font-normal bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                  {report.advances.length} سلفة
+                </span>
+              </div>
+              <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-gray-50 text-gray-500 font-medium">
+                    <tr>
+                      <th className="p-3">الموظف</th>
+                      <th className="p-3">السبب</th>
+                      <th className="p-3">المبلغ (ج.م)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {report.advances.map((adv, index) => (
+                      <tr key={index} className="hover:bg-gray-50/50">
+                        <td className="p-3 font-medium">{adv.employeeName}</td>
+                        <td className="p-3 text-sm text-gray-600">
+                          {adv.reason || "—"}
+                        </td>
+                        <td className="p-3 font-bold text-orange-600">
+                          {Number(adv.amount).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t border-gray-200">
+                    <tr>
+                      <td colSpan="2" className="p-3 font-bold text-gray-700">
+                        الإجمالي
+                      </td>
+                      <td className="p-3 font-bold text-orange-600">
+                        {Number(report.totalAdvances).toLocaleString()}
                       </td>
                     </tr>
                   </tfoot>

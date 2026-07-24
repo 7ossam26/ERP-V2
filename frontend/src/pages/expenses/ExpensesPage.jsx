@@ -237,9 +237,6 @@ const ExpensesPage = () => {
               <h1 className="text-text-light dark:text-text-dark text-3xl font-bold tracking-tight">
                 لوحة المصروفات
               </h1>
-              <p className="text-text-light/70 dark:text-text-dark/70 text-sm">
-                نظرة عامة على النفقات المالية وإدارتها لشهر يناير 2024
-              </p>
             </div>
             <div className="flex gap-2">
               <button

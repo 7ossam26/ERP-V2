@@ -211,11 +211,15 @@ model EmployeeTransaction {
   reason      String?         @db.Text
   date        DateTime        @default(now())
   createdById Int?            @map("created_by_id")
+  branchId    Int?            @map("branch_id")
+  shiftId     Int?            @map("shift_id")
   createdAt   DateTime        @default(now()) @map("created_at")
 
   // Relations
   employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdBy User?    @relation("TransactionCreator", fields: [createdById], references: [id])
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  shift     Shift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@map("employee_transactions")
 }
@@ -237,11 +241,15 @@ model Payroll {
   status      PayrollStatus @default(PENDING)
   paymentDate DateTime?     @map("payment_date")
   createdById Int?          @map("created_by_id")
+  treasuryId  Int?          @map("treasury_id")
+  shiftId     Int?          @map("shift_id")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  createdBy User?    @relation("PayrollCreator", fields: [createdById], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy User?     @relation("PayrollCreator", fields: [createdById], references: [id])
+  treasury  Treasury? @relation(fields: [treasuryId], references: [id], onDelete: SetNull)
+  shift     Shift?    @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@unique([employeeId, month, year])
   @@map("payrolls")
@@ -304,6 +312,7 @@ model Treasury {
   supplierPayments SupplierPayment[]
   deposits         Deposit[]
   withdrawals      Withdrawal[]
+  payrolls         Payroll[]
 
   bulkPayments BulkPayment[] @relation("BulkPaymentTreasury")
   bulkRefunds  BulkRefund[]  @relation("BulkRefundTreasury")
@@ -341,6 +350,7 @@ model Branch {
   warehouse       Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   treasury        Treasury       @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   employees       Employee[]
+  employeeTransactions EmployeeTransaction[]
   users           User[] // Main branch users (employees, branch managers)
   accessibleUsers User[]         @relation("AccessibleBranches") // Users who have access to this branch (e.g. Area Managers)
   sales           Sale[]
@@ -625,6 +635,8 @@ model Shift {
   reviewedBy User?     @relation("ShiftReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
   sales      Sale[]
   expenses   Expense[]
+  employeeTransactions EmployeeTransaction[]
+  payrolls   Payroll[]
 
   @@map("shifts")
 }

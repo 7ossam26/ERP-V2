@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { branchService, employeeService } from "../../services/domainServices";
+import { treasuryService } from "../../services/treasuryService";
+import shiftService from "../../services/shiftService";
 import AuthService from "../../services/authService";
 import BranchFilterHelper from "../../utils/BranchFilterHelper";
 import Modal from "../../components/ui/Modal";
+import NoShiftModal from "../expenses/NoShiftModal";
+import PrintableReport from "../../components/shared/PrintableReport";
 
 const TransactionForm = ({
   type,
   employees,
+  branches = [],
   isSingleEmployee,
   onClose,
   onSave,
@@ -16,6 +21,10 @@ const TransactionForm = ({
     employeeId: isSingleEmployee && employees.length > 0 ? employees[0].id : "",
     amount: "",
     reason: "",
+    // Branch the operation belongs to. Defaults to the selected employee's
+    // branch (editable below).
+    branchId:
+      isSingleEmployee && employees.length > 0 ? employees[0].branchId : "",
     type:
       type === "entry"
         ? "ADVANCE"
@@ -31,7 +40,11 @@ const TransactionForm = ({
 
   useEffect(() => {
     if (isSingleEmployee && employees.length > 0) {
-      setFormData((prev) => ({ ...prev, employeeId: employees[0].id }));
+      setFormData((prev) => ({
+        ...prev,
+        employeeId: employees[0].id,
+        branchId: employees[0].branchId ?? prev.branchId,
+      }));
       setSelectedEmployeeName(employees[0].name);
     }
   }, [isSingleEmployee, employees]);
@@ -43,7 +56,8 @@ const TransactionForm = ({
   );
 
   const handleSelectEmployee = (emp) => {
-    setFormData({ ...formData, employeeId: emp.id });
+    // Auto-select the employee's branch by default (still editable).
+    setFormData({ ...formData, employeeId: emp.id, branchId: emp.branchId });
     setSelectedEmployeeName(emp.name);
     setSearchTerm("");
     setIsDropdownOpen(false);
@@ -134,6 +148,29 @@ const TransactionForm = ({
           className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-gray-500 dark:text-gray-400 font-mono cursor-not-allowed"
           placeholder="يظهر تلقائياً عند اختيار الموظف"
         />
+      </div>
+
+      {/* Branch Selection — defaults to the employee's branch, editable */}
+      <div className="space-y-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+          الفرع
+        </label>
+        <select
+          value={formData.branchId || ""}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              branchId: e.target.value ? parseInt(e.target.value) : "",
+            })
+          }
+          className="w-full bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+          <option value="">اختر الفرع...</option>
+          {branches.map((branch) => (
+            <option key={branch.id} value={branch.id}>
+              {branch.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Type Selection if 'entry' mode */}
@@ -236,8 +273,24 @@ const HRPage = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'advance', 'deduction', 'history', 'transaction_entry'
+  const [modalType, setModalType] = useState(null); // 'advance', 'deduction', 'history', 'transaction_entry', 'confirm_payment', 'report'
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  // Shift gating (mirrors the Expenses page): non-managers must have an OPEN
+  // shift to record advances/deductions or pay salaries.
+  const [activeShift, setActiveShift] = useState(null);
+  const [shiftLoading, setShiftLoading] = useState(true);
+  const [showNoShiftModal, setShowNoShiftModal] = useState(false);
+  const isManager = AuthService.hasSensitiveAccess();
+  const canOperate = isManager || !!activeShift;
+
+  // Treasury selection for salary payments (choose any system treasury).
+  const [treasuries, setTreasuries] = useState([]);
+  const [selectedTreasuryId, setSelectedTreasuryId] = useState("");
+
+  // Monthly operations report.
+  const [reportRows, setReportRows] = useState([]);
+  const [reportLoading, setReportLoading] = useState(false);
 
   // Filter available branches based on user role
   const filteredBranches = useMemo(() => {
@@ -261,6 +314,31 @@ const HRPage = () => {
   useEffect(() => {
     fetchData();
   }, [selectedMonth, selectedYear]);
+
+  // Shift gate on page init (same pattern as ExpensesPage). Managers bypass.
+  useEffect(() => {
+    if (isManager) {
+      setShiftLoading(false);
+      return;
+    }
+    const checkShift = async () => {
+      try {
+        const user = AuthService.getCurrentUser();
+        if (!user) return;
+        const shift = await shiftService.checkActive(user.id);
+        setActiveShift(shift);
+        if (!shift) {
+          setShowNoShiftModal(true);
+        }
+      } catch (err) {
+        console.error("Failed to check active shift", err);
+        setActiveShift(null);
+      } finally {
+        setShiftLoading(false);
+      }
+    };
+    checkShift();
+  }, [isManager]);
 
   // Calculations based on fetched data (which already has this month's stats)
   const processedEmployees = employees.filter(
@@ -299,6 +377,7 @@ const HRPage = () => {
         amount: parseFloat(data.amount),
         reason: data.reason,
         date: new Date().toISOString(), // Or user selected date
+        branchId: data.branchId || null, // defaults to employee branch, editable
       };
 
       let empId = data.employeeId;
@@ -312,29 +391,52 @@ const HRPage = () => {
         return;
       }
 
-      await employeeService.addTransaction(empId, transactionData);
+      const result = await employeeService.addTransaction(
+        empId,
+        transactionData
+      );
 
       await fetchData(); // Refresh data
       setIsModalOpen(false);
-      toast.success("تم تسجيل المعاملة بنجاح");
+      if (transactionData.type === "ADVANCE" && result?.shiftId) {
+        toast.success(
+          `تم صرف السلفة وربطها بالوردية رقم ${result.shiftId}`
+        );
+      } else {
+        toast.success("تم تسجيل المعاملة بنجاح");
+      }
     } catch (error) {
       console.error("Failed to save transaction", error);
       toast.error(error.message || "حدث خطأ أثناء حفظ المعاملة");
     }
   };
 
-  const handlePaySalary = (employee) => {
+  const handlePaySalary = async (employee) => {
     setSelectedEmployee(employee);
+    setSelectedTreasuryId("");
     setModalType("confirm_payment");
     setIsModalOpen(true);
+    // Load all system treasuries so the payer can pick which one to debit.
+    try {
+      const data = await treasuryService.getAllUnfiltered();
+      setTreasuries(data || []);
+    } catch (error) {
+      console.error("Failed to load treasuries", error);
+      toast.error(error.message || "فشل في تحميل الخزائن");
+    }
   };
 
   const confirmPaySalary = async () => {
     if (!selectedEmployee) return;
+    if (Number(selectedEmployee.remaining) > 0 && !selectedTreasuryId) {
+      toast.error("يرجى اختيار الخزينة أولاً");
+      return;
+    }
     try {
       await employeeService.paySalary(selectedEmployee.id, {
         month: selectedMonth,
         year: selectedYear,
+        treasuryId: selectedTreasuryId || null,
       });
       toast.success("تم دفع الراتب بنجاح");
       fetchData();
@@ -343,6 +445,101 @@ const HRPage = () => {
       console.error("Payment failed", error);
       toast.error(error.message || "فشل دفع الراتب");
     }
+  };
+
+  // Build the monthly operations report: advances + deductions + salary
+  // payments for the selected month/year, honoring the branch filter.
+  const handleOpenReport = async () => {
+    setModalType("report");
+    setIsModalOpen(true);
+    setReportLoading(true);
+    setReportRows([]);
+    try {
+      const startDate = new Date(
+        selectedYear,
+        selectedMonth - 1,
+        1
+      ).toISOString();
+      const endDate = new Date(
+        selectedYear,
+        selectedMonth,
+        0,
+        23,
+        59,
+        59,
+        999
+      ).toISOString();
+      const branchId = selectedBranch; // "all" or a branch id
+
+      const [transactions, payrolls] = await Promise.all([
+        employeeService.getAllTransactions({ startDate, endDate, branchId }),
+        employeeService.getPayrolls({
+          month: selectedMonth,
+          year: selectedYear,
+          branchId,
+        }),
+      ]);
+
+      const txRows = transactions.map((t) => ({
+        id: `t-${t.id}`,
+        originalDate: t.originalDate,
+        date: t.date,
+        time: t.time,
+        typeLabel: t.type === "ADVANCE" ? "سلفة" : "خصم",
+        typeKey: t.type,
+        employeeName: t.employeeName,
+        branchName: t.branchName,
+        amount: Number(t.amount),
+        detail: t.reason || "-",
+        createdBy: t.createdBy,
+      }));
+
+      const payRows = payrolls.map((p) => ({
+        id: `p-${p.id}`,
+        originalDate: p.originalDate,
+        date: p.date,
+        time: p.time,
+        typeLabel: "دفع راتب",
+        typeKey: "PAYROLL",
+        employeeName: p.employeeName,
+        branchName: p.branchName,
+        amount: Number(p.netSalary),
+        detail: p.treasuryName ? `خزينة: ${p.treasuryName}` : "-",
+        createdBy: p.createdBy,
+      }));
+
+      const merged = [...txRows, ...payRows].sort(
+        (a, b) => new Date(b.originalDate) - new Date(a.originalDate)
+      );
+      setReportRows(merged);
+    } catch (error) {
+      console.error("Failed to build report", error);
+      toast.error(error.message || "فشل في تحميل التقرير");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const reportMonthLabel = `${new Date(0, selectedMonth - 1).toLocaleString(
+    "ar-EG",
+    { month: "long" }
+  )} ${selectedYear}`;
+
+  const reportColumns = [
+    { header: "التاريخ", render: (r) => `${r.date} ${r.time}` },
+    { header: "النوع", accessor: "typeLabel" },
+    { header: "الموظف", accessor: "employeeName" },
+    { header: "الفرع", accessor: "branchName" },
+    {
+      header: "المبلغ",
+      render: (r) => `${Number(r.amount).toLocaleString()} ج.م`,
+    },
+    { header: "التفاصيل", accessor: "detail" },
+    { header: "بواسطة", accessor: "createdBy" },
+  ];
+
+  const handlePrintReport = () => {
+    window.print();
   };
 
   return (
@@ -413,8 +610,19 @@ const HRPage = () => {
 
             {/* Action Buttons */}
             <button
+              onClick={handleOpenReport}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md">
+              <span className="material-symbols-outlined text-[20px]">
+                description
+              </span>
+              <span>تقرير</span>
+            </button>
+
+            <button
               onClick={() => openModal("advance")}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#FF7043] hover:bg-[#F4511E] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md">
+              disabled={!canOperate || shiftLoading}
+              title={!canOperate ? "يجب فتح وردية أولاً" : undefined}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#FF7043] hover:bg-[#F4511E] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FF7043]">
               <span className="material-symbols-outlined text-[20px]">
                 money_off
               </span>
@@ -423,7 +631,9 @@ const HRPage = () => {
 
             <button
               onClick={() => openModal("deduction")}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md">
+              disabled={!canOperate || shiftLoading}
+              title={!canOperate ? "يجب فتح وردية أولاً" : undefined}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600">
               <span className="material-symbols-outlined text-[20px]">
                 remove_circle
               </span>
@@ -589,8 +799,11 @@ const HRPage = () => {
                           ) : (
                             <button
                               onClick={() => handlePaySalary(employee)}
-                              className="p-1 text-green-600 hover:bg-green-50 rounded"
-                              title="دفع الراتب">
+                              disabled={!canOperate || shiftLoading}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                              title={
+                                !canOperate ? "يجب فتح وردية أولاً" : "دفع الراتب"
+                              }>
                               <span className="material-symbols-outlined text-[20px]">
                                 payments
                               </span>
@@ -609,8 +822,13 @@ const HRPage = () => {
                             onClick={() =>
                               openModal("transaction_entry", employee)
                             }
-                            className="p-1 text-orange-600 hover:bg-orange-50 rounded"
-                            title="إضافة سلفة/خصم">
+                            disabled={!canOperate || shiftLoading}
+                            className="p-1 text-orange-600 hover:bg-orange-50 rounded disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={
+                              !canOperate
+                                ? "يجب فتح وردية أولاً"
+                                : "إضافة سلفة/خصم"
+                            }>
                             <span className="material-symbols-outlined text-[20px]">
                               add_circle
                             </span>
@@ -647,6 +865,8 @@ const HRPage = () => {
             ? `سجل معاملات ${selectedEmployee?.name}`
             : modalType === "confirm_payment"
             ? "تأكيد دفع الراتب"
+            : modalType === "report"
+            ? `تقرير العمليات - ${reportMonthLabel}`
             : "تسجيل معاملة مالية"
         }>
         {modalType === "history" && selectedEmployee ? (
@@ -753,6 +973,30 @@ const HRPage = () => {
               </div>
             </div>
 
+            {/* Treasury selector — pick any system treasury to debit */}
+            {Number(selectedEmployee.remaining) > 0 && (
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                  الخزينة المدفوع منها <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedTreasuryId}
+                  onChange={(e) =>
+                    setSelectedTreasuryId(
+                      e.target.value ? parseInt(e.target.value) : ""
+                    )
+                  }
+                  className="w-full bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                  <option value="">اختر الخزينة...</option>
+                  {treasuries.map((tr) => (
+                    <option key={tr.id} value={tr.id}>
+                      {tr.name} — {Number(tr.balance).toLocaleString()} ج.م
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <p className="text-sm text-gray-500 dark:text-gray-400">
               هل أنت متأكد من دفع الراتب؟ سيتم تسجيله كمدفوع ولن يمكن تعديل
               المعاملات الخاصة بهذا الشهر بعد ذلك.
@@ -766,9 +1010,81 @@ const HRPage = () => {
               </button>
               <button
                 onClick={confirmPaySalary}
-                className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-md">
+                disabled={
+                  Number(selectedEmployee.remaining) > 0 && !selectedTreasuryId
+                }
+                className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600">
                 تأكيد الدفع
               </button>
+            </div>
+          </div>
+        ) : modalType === "report" ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {reportLoading
+                  ? "جاري تحميل التقرير..."
+                  : `عدد العمليات: ${reportRows.length}`}
+              </div>
+              <button
+                onClick={handlePrintReport}
+                disabled={reportLoading || reportRows.length === 0}
+                className="flex items-center gap-2 bg-primary hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <span className="material-symbols-outlined text-[20px]">
+                  print
+                </span>
+                <span>طباعة</span>
+              </button>
+            </div>
+
+            <div className="max-h-[55vh] overflow-auto custom-scrollbar border border-border-light dark:border-border-dark rounded-xl">
+              <table className="w-full text-sm min-w-[720px]">
+                <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
+                  <tr>
+                    {reportColumns.map((col, i) => (
+                      <th
+                        key={i}
+                        className="p-2 text-right font-bold text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                        {col.header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-border-light dark:border-border-dark">
+                      {reportColumns.map((col, i) => (
+                        <td
+                          key={i}
+                          className={`p-2 text-right whitespace-nowrap ${
+                            col.header === "النوع" && row.typeKey === "ADVANCE"
+                              ? "text-orange-600 font-bold"
+                              : col.header === "النوع" &&
+                                row.typeKey === "DEDUCTION"
+                              ? "text-red-600 font-bold"
+                              : col.header === "النوع" &&
+                                row.typeKey === "PAYROLL"
+                              ? "text-green-600 font-bold"
+                              : "text-gray-700 dark:text-gray-200"
+                          }`}>
+                          {col.render ? col.render(row) : row[col.accessor]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  {!reportLoading && reportRows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={reportColumns.length}
+                        className="p-6 text-center text-gray-500">
+                        لا توجد عمليات في هذا الشهر
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         ) : (
@@ -779,6 +1095,7 @@ const HRPage = () => {
                 ? [selectedEmployee]
                 : employees
             }
+            branches={filteredBranches}
             isSingleEmployee={
               modalType === "transaction_entry" && selectedEmployee
             }
@@ -787,6 +1104,43 @@ const HRPage = () => {
           />
         )}
       </Modal>
+
+      {/* Shift gate — soft block for non-managers with no open shift */}
+      <NoShiftModal
+        isOpen={showNoShiftModal}
+        onViewOnly={() => setShowNoShiftModal(false)}
+        subtitle="يجب فتح وردية أولاً لتسجيل معاملات الموظفين"
+        bodyTitle="تسجيل المعاملات محظور"
+        bodyText="لا يمكن تسجيل سلف أو خصومات أو دفع رواتب بدون وردية مفتوحة. توجه إلى نقطة البيع لبدء وردية جديدة."
+        footerSecondary="أو الاستمرار لعرض البيانات فقط."
+        viewOnlyLabel="عرض البيانات فقط"
+      />
+
+      {/* Hidden printable surface for the monthly report (A4). */}
+      <PrintableReport
+        title="تقرير عمليات الموارد البشرية"
+        subtitle={`الشهر: ${reportMonthLabel}`}
+        data={reportRows}
+        columns={reportColumns}
+      />
+
+      {/* Scoped print isolation: hide everything except the report and force A4,
+          overriding the global 78mm thermal @page from index.css. */}
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 12mm; }
+          body * { visibility: hidden !important; }
+          #printable-report, #printable-report * { visibility: visible !important; }
+          #printable-report {
+            display: block !important;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   );
 };

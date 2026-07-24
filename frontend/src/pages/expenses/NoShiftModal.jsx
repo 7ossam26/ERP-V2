@@ -3,7 +3,17 @@ import { createPortal } from "react-dom";
 import { FaLock, FaArrowLeft, FaEye } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
-const NoShiftModal = ({ isOpen, onViewOnly }) => {
+const NoShiftModal = ({
+  isOpen,
+  onViewOnly,
+  title = "لا توجد وردية نشطة",
+  subtitle = "يجب فتح وردية أولاً لإضافة مصاريف",
+  bodyTitle = "إضافة المصاريف محظورة",
+  bodyText = "لا يمكن تسجيل مصاريف جديدة بدون وردية مفتوحة. توجه إلى نقطة البيع لبدء وردية جديدة.",
+  footerPrimary = "يمكنك العودة للوحة التحكم وبدء وردية من نقطة البيع،",
+  footerSecondary = "أو الاستمرار لعرض المصاريف السابقة فقط.",
+  viewOnlyLabel = "عرض المصاريف السابقة فقط",
+}) => {
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -16,10 +26,8 @@ const NoShiftModal = ({ isOpen, onViewOnly }) => {
           <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm animate-pulse">
             <FaLock className="w-10 h-10" />
           </div>
-          <h2 className="text-3xl font-extrabold mb-2">لا توجد وردية نشطة</h2>
-          <p className="text-orange-100 font-medium text-lg">
-            يجب فتح وردية أولاً لإضافة مصاريف
-          </p>
+          <h2 className="text-3xl font-extrabold mb-2">{title}</h2>
+          <p className="text-orange-100 font-medium text-lg">{subtitle}</p>
         </div>
 
         {/* Content */}
@@ -31,18 +39,18 @@ const NoShiftModal = ({ isOpen, onViewOnly }) => {
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-gray-100 text-lg mb-1">
-                  إضافة المصاريف محظورة
+                  {bodyTitle}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  لا يمكن تسجيل مصاريف جديدة بدون وردية مفتوحة. توجه إلى نقطة البيع لبدء وردية جديدة.
+                  {bodyText}
                 </p>
               </div>
             </div>
           </div>
 
           <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
-            <p>يمكنك العودة للوحة التحكم وبدء وردية من نقطة البيع،</p>
-            <p>أو الاستمرار لعرض المصاريف السابقة فقط.</p>
+            <p>{footerPrimary}</p>
+            <p>{footerSecondary}</p>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -56,7 +64,7 @@ const NoShiftModal = ({ isOpen, onViewOnly }) => {
               onClick={onViewOnly}
               className="w-full bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/40 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800 p-3 rounded-xl font-bold transition-all flex items-center justify-center gap-3">
               <FaEye className="w-5 h-5" />
-              <span>عرض المصاريف السابقة فقط</span>
+              <span>{viewOnlyLabel}</span>
             </button>
           </div>
         </div>

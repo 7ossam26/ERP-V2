@@ -112,7 +112,7 @@ export const employeeService = {
   /**
    * Add transaction (Advance/Deduction)
    * @param {number} id - Employee ID
-   * @param {Object} data - { type: "ADVANCE"|"DEDUCTION", amount: number, reason: string, date: string }
+   * @param {Object} data - { type: "ADVANCE"|"DEDUCTION", amount: number, reason: string, date: string, branchId?: number }
    */
   addTransaction: async (id, data) => {
     return await api.post(`/employees/${id}/transactions`, data);
@@ -121,7 +121,7 @@ export const employeeService = {
   /**
    * Pay Salary for a month
    * @param {number} id - Employee ID
-   * @param {Object} data - { month: number, year: number }
+   * @param {Object} data - { month: number, year: number, treasuryId?: number }
    */
   paySalary: async (id, data) => {
     return await api.post(`/employees/${id}/pay`, data);
@@ -161,6 +161,37 @@ export const employeeService = {
         employeeName: t.employee?.name || "Unknown",
         branchName: t.employee?.branch?.name || "Unknown",
         createdBy: t.createdBy?.name || "Unknown",
+      };
+    });
+  },
+
+  /**
+   * Get all payrolls / salary payments for a month (for the monthly report)
+   * @param {Object} params - Query params (month, year, branchId)
+   */
+  getPayrolls: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const payrolls = await api.get(`/employees/payrolls/all?${query}`);
+    return payrolls.map((p) => {
+      const dateObj = new Date(p.paymentDate || p.createdAt);
+      return {
+        id: p.id,
+        employeeId: p.employeeId,
+        employeeName: p.employee?.name || "Unknown",
+        branchName: p.employee?.branch?.name || "Unknown",
+        treasuryName: p.treasury?.name || null,
+        netSalary: p.netSalary,
+        baseSalary: p.baseSalary,
+        advances: p.advances,
+        deductions: p.deductions,
+        month: p.month,
+        year: p.year,
+        // Format Date as DD/MM/YYYY
+        date: dateObj.toLocaleDateString("en-GB"),
+        // Format Time as HH:MM:SS
+        time: dateObj.toLocaleTimeString("en-GB"),
+        originalDate: p.paymentDate || p.createdAt,
+        createdBy: p.createdBy?.name || "Unknown",
       };
     });
   },

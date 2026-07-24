@@ -187,10 +187,11 @@ async function calculateSystemExpectedCash(shiftId) {
         include: { order: { select: { status: true } } },
       },
       expenses: true,
+      employeeTransactions: { where: { type: "ADVANCE" } },
     },
   });
 
-  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0, expectedVisa: 0, expectedInstapay: 0 };
+  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0, advances: 0, expectedVisa: 0, expectedInstapay: 0 };
 
   // Start with opening cash
   let startCash = parseFloat(shift.startCash) || 0;
@@ -249,6 +250,14 @@ async function calculateSystemExpectedCash(shiftId) {
     }
   });
 
+  // Subtract employee advances (cash handed to employees from the drawer)
+  let advances = 0;
+  shift.employeeTransactions.forEach((t) => {
+    const amount = parseFloat(t.amount) || 0;
+    advances += amount;
+    expected -= amount;
+  });
+
   const round = (n) => Math.round(n * 100) / 100;
   const cashSales = round(posCash + codDeliveredThisShift);
   return {
@@ -258,6 +267,7 @@ async function calculateSystemExpectedCash(shiftId) {
     codDeliveredThisShift: round(codDeliveredThisShift),
     codPendingExcluded: round(codPendingExcluded),
     cashExpenses: round(cashExpenses),
+    advances: round(advances),
     startCash: round(startCash),
     expectedVisa: round(expectedVisa),
     expectedInstapay: round(expectedInstapay),
@@ -439,6 +449,7 @@ router.post("/end", async (req, res, next) => {
       codDeliveredThisShift,
       codPendingExcluded,
       cashExpenses,
+      advances,
       startCash,
       expectedVisa,
       expectedInstapay,
@@ -506,6 +517,7 @@ router.post("/end", async (req, res, next) => {
         codDeliveredThisShift,
         codPendingExcluded,
         cashExpenses,
+        advances,
         systemExpectedCash,
         expectedVisa,
         expectedInstapay,
@@ -732,6 +744,10 @@ router.get(
           reviewedBy: true,
           expenses: {
             include: { category: { select: { id: true, name: true } } }
+          },
+          employeeTransactions: {
+            where: { type: "ADVANCE" },
+            include: { employee: { select: { id: true, name: true } } },
           },
         },
       });
@@ -983,6 +999,14 @@ router.get(
         }
       });
 
+      // Calculate employee advances (cash out of the drawer during the shift)
+      let totalAdvances = 0;
+      let advanceCount = 0;
+      shift.employeeTransactions.forEach((t) => {
+        totalAdvances += parseFloat(t.amount);
+        advanceCount++;
+      });
+
       // Query deposits during this shift's time range for the branch treasury
       let depositCount = 0;
       let depositTotal = 0;
@@ -1005,7 +1029,7 @@ router.get(
 
       const netSales = Math.round((takeawayTotal + deliveryTotal) * 100) / 100;
       const drawerAmount = Math.round(
-        ((parseFloat(shift.startCash) || 0) + cashSales - cashExpenseTotal + depositTotal) * 100
+        ((parseFloat(shift.startCash) || 0) + cashSales - cashExpenseTotal - totalAdvances + depositTotal) * 100
       ) / 100;
 
       const report = {
@@ -1071,6 +1095,18 @@ router.get(
           description: e.description,
           amount: parseFloat(e.amount),
           paymentMethod: e.paymentMethod,
+        })),
+
+        // Employee advances (cash handed out during this shift)
+        totalAdvances: Math.round(totalAdvances * 100) / 100,
+        advanceBreakdown: {
+          count: advanceCount,
+          total: Math.round(totalAdvances * 100) / 100,
+        },
+        advances: shift.employeeTransactions.map((t) => ({
+          employeeName: t.employee?.name || "—",
+          amount: parseFloat(t.amount),
+          reason: t.reason || "",
         })),
 
         // Review info

@@ -167,6 +167,12 @@ const probes = {
   "20260717000000_add_opening_cost_and_cogs": async () =>
     (await columnExists("initial_inventory", "unit_cost")) &&
     (await columnExists("sale_items", "cost_price")),
+
+  "20260724000000_add_hr_branch_treasury_shift": async () =>
+    (await columnExists("employee_transactions", "branch_id")) &&
+    (await columnExists("employee_transactions", "shift_id")) &&
+    (await columnExists("payrolls", "treasury_id")) &&
+    (await columnExists("payrolls", "shift_id")),
 };
 
 // --- Main ---------------------------------------------------------

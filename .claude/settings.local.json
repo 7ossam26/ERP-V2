@@ -13,7 +13,9 @@
       "Bash(xxd d:/ERP-V2/backend/routes/reports.js)",
       "Bash(grep -E \"\\\\.js$\")",
       "Bash(npx eslint *)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(npx prisma *)",
+      "Bash(powershell.exe -NoProfile -Command 'Get-CimInstance Win32_Process -Filter \"name='\\\\''node.exe'\\\\''\" | Select-Object ProcessId, @{n='\\\\''Cmd'\\\\'';e={$_.CommandLine.Substring\\(0,[Math]::Min\\(120,$_.CommandLine.Length\\)\\)}} | Format-Table -AutoSize -Wrap')"
     ]
   }
 }

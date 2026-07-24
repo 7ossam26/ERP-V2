@@ -164,6 +164,8 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
 
   const orders = Array.isArray(report.orders) ? report.orders : [];
   const expenses = Array.isArray(report.expenses) ? report.expenses : [];
+  const advances = Array.isArray(report.advances) ? report.advances : [];
+  const totalAdvances = Number(report.totalAdvances || 0);
 
   const shortageLabel =
     report.shortage > 0
@@ -241,6 +243,12 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
           <span>المصروفات</span>
           <span className="sr-num">{fmt(report.totalExpenses)} ج.م</span>
         </div>
+        {totalAdvances > 0 && (
+          <div className="sr-row">
+            <span>سلف الموظفين</span>
+            <span className="sr-num">{fmt(totalAdvances)} ج.م</span>
+          </div>
+        )}
       </div>
 
       <div className="sr-divider-solid" />
@@ -268,6 +276,12 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
           <span>− المصروفات (كاش)</span>
           <span className="sr-num">{fmt(report.totalExpenses)} ج.م</span>
         </div>
+        {totalAdvances > 0 && (
+          <div className="sr-row">
+            <span>− سلف الموظفين (كاش)</span>
+            <span className="sr-num">{fmt(totalAdvances)} ج.م</span>
+          </div>
+        )}
         <div
           className="sr-row"
           style={{ fontSize: 12, marginTop: 2, paddingTop: 2, borderTop: "1px dashed #000" }}>
@@ -366,6 +380,41 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
                   className="sr-num"
                   style={{ borderTop: "1.5px solid #000" }}>
                   {fmt(report.totalExpenses)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </>
+      )}
+
+      {advances.length > 0 && (
+        <>
+          <div className="sr-divider-solid" />
+          <div className="sr-section-title">
+            تفاصيل سلف الموظفين ({advances.length})
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>الموظف</th>
+                <th className="sr-num">المبلغ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {advances.map((a, i) => (
+                <tr key={i}>
+                  <td>{a.employeeName || "—"}</td>
+                  <td className="sr-num">{fmt(a.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td style={{ borderTop: "1.5px solid #000" }}>الإجمالي</td>
+                <td
+                  className="sr-num"
+                  style={{ borderTop: "1.5px solid #000" }}>
+                  {fmt(totalAdvances)}
                 </td>
               </tr>
             </tfoot>
