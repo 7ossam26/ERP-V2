@@ -40,7 +40,7 @@ const BranchForm = ({ initialData, onClose, onSave, data, showToast }) => {
     const fetchData = async () => {
       try {
         const [fetchedWarehouses, fetchedTreasuries] = await Promise.all([
-          warehouseService.getAll(),
+          warehouseService.getAll(true),
           treasuryService.getAll(),
         ]);
         setWarehouses(fetchedWarehouses);
@@ -242,7 +242,7 @@ const BranchManager = () => {
     const fetchData = async () => {
       try {
         const [fetchedWarehouses, fetchedTreasuries] = await Promise.all([
-          warehouseService.getAll(),
+          warehouseService.getAll(true),
           treasuryService.getAll(),
         ]);
         const wMap = fetchedWarehouses.reduce(

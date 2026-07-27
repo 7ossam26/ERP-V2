@@ -66,7 +66,7 @@ const StockTransferPage = () => {
     const fetchData = async () => {
       try {
         const settings = await settingsService.get();
-        const warehousesList = await warehouseService.getAll();
+        const warehousesList = await warehouseService.getAll(true);
         setAllWarehouses(warehousesList);
 
         const user = authService.getCurrentUser();

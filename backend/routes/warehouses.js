@@ -13,17 +13,29 @@ const {
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// GET all warehouses - Accessible to all auth users (for transfers etc)
+// GET all warehouses — scoped to the caller's assigned branch(es) by default so
+// each user sees their own branch warehouse. Cross-branch flows (stock transfer,
+// production, admin/settings) pass ?all=true to get every warehouse. Global
+// roles (Superadmin/Admin/…) always see all via getUserBranchFilter → null.
 router.get("/", async (req, res) => {
   try {
+    // Don't pass req — scope to the user's assigned branch(es), not the active-branch header.
+    const branchFilter = await getUserBranchFilter(req.user.id);
+    const showAll = String(req.query.all || "").toLowerCase() === "true";
+
     const where = { isActive: true };
+    if (branchFilter && !showAll) {
+      // Warehouse has an optional 1:1 back-relation to Branch (Branch.warehouseId).
+      where.branch = branchFilter.id.in
+        ? { id: { in: branchFilter.id.in } }
+        : { id: branchFilter.id };
+    }
 
     const warehouses = await prisma.warehouse.findMany({
       where,
       orderBy: { createdAt: "asc" },
     });
 
-    // All authenticated users can see all warehouses for stock transfers
     res.json(warehouses);
   } catch (error) {
     res

@@ -41,7 +41,7 @@ const SettingsPage = () => {
     try {
       const [settings, warehousesData, treasuriesData] = await Promise.all([
         settingsService.get(),
-        warehouseService.getAll(),
+        warehouseService.getAll(true),
         treasuryService.getAll(),
       ]);
 

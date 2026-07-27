@@ -113,7 +113,7 @@ const PurchasesPage = () => {
           supplierService.getAll(),
           itemService.getAll(),
           treasuryService.getAll(),
-          warehouseService.getAll(),
+          warehouseService.getAll(true),
         ]);
         setSuppliers(fetchedSuppliers);
         setAllItems(fetchedItems.filter((i) => !i.isBom && !(i.bomOutputs?.length > 0)));

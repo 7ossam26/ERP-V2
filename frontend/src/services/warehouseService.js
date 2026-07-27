@@ -3,9 +3,11 @@ import api from "./apiClient";
 const WAREHOUSES_URL = "/warehouses";
 
 export const warehouseService = {
-  // Get all warehouses
-  getAll: async () => {
-    return await api.get(WAREHOUSES_URL);
+  // Get all warehouses. By default the backend scopes the result to the caller's
+  // assigned branch(es). Pass all=true for cross-branch flows (stock transfer,
+  // production, admin/settings) that must see every warehouse.
+  getAll: async (all = false) => {
+    return await api.get(all ? `${WAREHOUSES_URL}?all=true` : WAREHOUSES_URL);
   },
 
   // Get warehouse by ID

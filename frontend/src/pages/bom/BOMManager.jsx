@@ -803,7 +803,7 @@ const BOMManager = () => {
     try {
       const [bomsData, warehousesData] = await Promise.all([
         bomService.getAll(),
-        warehouseService.getAll(),
+        warehouseService.getAll(true),
       ]);
       setBoms(bomsData);
       setWarehouses(warehousesData);
