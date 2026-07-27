@@ -12,8 +12,17 @@ const {
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// GET all treasuries (readable by roles that need treasury selection: purchases, sales, cash transfer, etc.)
-router.get("/", requireAnyPermission(["TREASURIES", "PURCHASES", "SALES", "CASH_TRANSFER", "DEPOSITS", "WITHDRAWALS", "REPORTS"]), async (req, res) => {
+// GET all treasuries — a shared lookup used to populate treasury dropdowns
+// across the app. Readable by any role whose page legitimately needs to select
+// a treasury. This list MUST stay in sync with every page that calls
+// treasuryService.getAll(); a missing module here 403s that page's dropdown
+// even though the user was granted the page in the access module.
+router.get("/", requireAnyPermission([
+  "TREASURIES", "CREATES_TREASURIES",
+  "PURCHASES", "SALES", "CASH_TRANSFER", "DEPOSITS", "WITHDRAWALS", "REPORTS",
+  "SUPPLIER_ACCOUNTS", "BRANCHES", "CREATES_BRANCHES",
+  "SETTINGS", "BULK_POS", "BULK_CUSTOMERS", "EMPLOYEES",
+]), async (req, res) => {
   try {
     // Don't pass req — show all accessible treasuries for dropdowns, not just the active branch's
     const branchFilter = await getUserBranchFilter(req.user.id);
