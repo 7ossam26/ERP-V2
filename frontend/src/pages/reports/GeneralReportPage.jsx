@@ -368,6 +368,71 @@ const GeneralReportPage = () => {
         </div>
       </div>
 
+      {/* Profit & Loss Statement */}
+      <div className="bg-surface-light dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm mb-8 overflow-hidden">
+        <div className="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-[#3E332F]/50">
+          <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+            <span className="material-icons-round">summarize</span>
+            قائمة الأرباح والخسائر
+          </h3>
+        </div>
+        <div className="p-6">
+          <div className="max-w-xl mx-auto space-y-1 text-sm">
+            {/* Sales */}
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-600 dark:text-gray-300">
+                إجمالي المبيعات
+              </span>
+              <span className="font-bold text-gray-900 dark:text-white">
+                {(reportData?.summary?.totalSales || 0).toLocaleString()} ج.م
+              </span>
+            </div>
+            {/* COGS */}
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-600 dark:text-gray-300">
+                (-) تكلفة البضاعة المباعة
+              </span>
+              <span className="font-bold text-danger">
+                {(reportData?.summary?.cogs || 0).toLocaleString()} ج.م
+              </span>
+            </div>
+            {/* Gross Profit */}
+            <div className="flex justify-between items-center py-2.5 border-y border-dashed border-border-light dark:border-border-dark">
+              <span className="font-bold text-gray-900 dark:text-white">
+                مجمل الربح
+              </span>
+              <span className="font-bold text-gray-900 dark:text-white">
+                {(reportData?.summary?.grossProfit || 0).toLocaleString()} ج.م
+              </span>
+            </div>
+            {/* Operating Expenses */}
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-600 dark:text-gray-300">
+                (-) المصروفات التشغيلية
+              </span>
+              <span className="font-bold text-danger">
+                {(reportData?.summary?.operatingExpenses || 0).toLocaleString()}{" "}
+                ج.م
+              </span>
+            </div>
+            {/* Net Profit */}
+            <div className="flex justify-between items-center py-3 mt-1 px-4 rounded-lg bg-gray-50 dark:bg-[#2C2522]">
+              <span className="text-base font-bold text-gray-900 dark:text-white">
+                صافي الربح
+              </span>
+              <span
+                className={`text-base font-bold ${
+                  (reportData?.summary?.netProfit || 0) >= 0
+                    ? "text-success"
+                    : "text-danger"
+                }`}>
+                {(reportData?.summary?.netProfit || 0).toLocaleString()} ج.م
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         <div className="lg:col-span-2 bg-surface-light dark:bg-surface-dark p-6 rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
