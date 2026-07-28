@@ -259,6 +259,7 @@ const GeneralReportPage = () => {
                   setFilters({ ...filters, branchId: e.target.value })
                 }
                 className="block w-full rounded-lg border-gray-300 dark:border-border-dark bg-white dark:bg-[#3E332F] py-2.5 pr-3 pl-10 text-sm focus:border-primary focus:ring-primary dark:text-text-dark shadow-sm">
+                <option value="all">كل الفروع</option>
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
