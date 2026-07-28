@@ -1638,6 +1638,13 @@ router.post(
             branchId: originalSale.branchId,
             treasuryId: refundTreasuryId || originalSale.treasuryId,
             warehouseId: originalSale.warehouseId,
+            // KNOWN LIMITATION (by design): the refund is booked to the ORIGINAL
+            // sale's shift, but the treasury decrement below hits the drawer at
+            // refund time. Refunding an order from an earlier/closed shift thus
+            // removes cash from the CURRENT drawer while the refund row lands on
+            // the old shift — so the current shift shows an unexplained shortage
+            // and the old shift's report shifts retroactively. Left as-is per
+            // product decision; revisit if refunds should follow the active shift.
             shiftId: originalSale.shiftId,
             subtotal: -refundSubtotal, // Negative for refund
             discountType: refundDiscountAmount > 0 ? originalSale.discountType : null,

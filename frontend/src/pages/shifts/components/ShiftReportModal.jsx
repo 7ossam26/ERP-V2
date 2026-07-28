@@ -255,7 +255,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-red-600">
                 <span>- المصروفات (كاش)</span>
                 <span className="font-mono font-bold">
-                  {report.totalExpenses.toLocaleString()}
+                  {Number(report.expenseBreakdown?.total ?? 0).toLocaleString()}
                 </span>
               </div>
               {(report.totalAdvances ?? 0) > 0 && (
@@ -263,6 +263,14 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                   <span>- سلف الموظفين (كاش)</span>
                   <span className="font-mono font-bold">
                     {Number(report.totalAdvances).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {(report.pilotSettlementDifference ?? 0) > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-orange-600">
+                  <span>- فرق تسوية الطيارين (كاش)</span>
+                  <span className="font-mono font-bold">
+                    {Number(report.pilotSettlementDifference).toLocaleString()}
                   </span>
                 </div>
               )}

@@ -136,6 +136,8 @@ const POSReport80mm = ({ report, settings = {} }) => {
   const returned = report.returned || { count: 0, total: 0 };
   const discounts = report.discounts || { count: 0, total: 0, byReason: [] };
   const expenseBreakdown = report.expenseBreakdown || { count: 0, total: 0 };
+  const totalAdvances = Number(report.totalAdvances || 0);
+  const pilotSettlementDifference = Number(report.pilotSettlementDifference || 0);
   const expenses = Array.isArray(report.expenses) ? report.expenses : [];
   const deliveryDetails = Array.isArray(report.deliveryDetails)
     ? report.deliveryDetails
@@ -312,6 +314,18 @@ const POSReport80mm = ({ report, settings = {} }) => {
           <span>− مصروفات نقدي</span>
           <span className="pr-num">-{fmt(expenseBreakdown.total)}</span>
         </div>
+        {totalAdvances > 0 && (
+          <div className="pr-row">
+            <span>− سلف الموظفين</span>
+            <span className="pr-num">-{fmt(totalAdvances)}</span>
+          </div>
+        )}
+        {pilotSettlementDifference > 0 && (
+          <div className="pr-row">
+            <span>− فرق تسوية الطيارين</span>
+            <span className="pr-num">-{fmt(pilotSettlementDifference)}</span>
+          </div>
+        )}
         <div
           className="pr-row"
           style={{

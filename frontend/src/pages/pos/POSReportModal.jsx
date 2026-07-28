@@ -50,6 +50,8 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
   const netSales = reportData?.netSales || 0;
   const expenseBreakdown = reportData?.expenseBreakdown || { count: 0, total: 0 };
   const drawerAmount = reportData?.drawerAmount || 0;
+  const totalAdvances = reportData?.totalAdvances || 0;
+  const pilotSettlementDifference = reportData?.pilotSettlementDifference || 0;
 
   const expenses = reportData?.expenses || [];
   const deliveryDetails = reportData?.deliveryDetails || [];
@@ -203,6 +205,18 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
                 <span className="flex-1 text-right">- مصروفات نقدي</span>
                 <span className="w-32 text-left font-mono font-bold">-{fmt(expenseBreakdown.total)}</span>
               </div>
+              {totalAdvances > 0 && (
+                <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-orange-600 dark:text-orange-400">
+                  <span className="flex-1 text-right">- سلف الموظفين</span>
+                  <span className="w-32 text-left font-mono font-bold">-{fmt(totalAdvances)}</span>
+                </div>
+              )}
+              {pilotSettlementDifference > 0 && (
+                <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-orange-600 dark:text-orange-400">
+                  <span className="flex-1 text-right">- فرق تسوية الطيارين</span>
+                  <span className="w-32 text-left font-mono font-bold">-{fmt(pilotSettlementDifference)}</span>
+                </div>
+              )}
               <div className="flex items-center py-2.5 px-4 bg-gray-50 dark:bg-zinc-800 font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-zinc-700">
                 <span className="flex-1 text-right">= المتوقع في الدرج</span>
                 <span className="w-32 text-left font-mono text-base">{fmt(systemExpectedCash)}</span>

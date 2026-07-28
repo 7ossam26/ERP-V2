@@ -183,7 +183,10 @@ async function calculateSystemExpectedCash(shiftId) {
     where: { id: shiftId },
     include: {
       sales: {
-        where: { status: "COMPLETED" },
+        // isVoided:false mirrors the report's sales query so both derive the
+        // same drawer figure (no void feature sets isVoided=true today, but
+        // keep them aligned).
+        where: { status: "COMPLETED", isVoided: false },
         include: { order: { select: { status: true } } },
       },
       expenses: true,
@@ -191,7 +194,7 @@ async function calculateSystemExpectedCash(shiftId) {
     },
   });
 
-  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0, advances: 0, expectedVisa: 0, expectedInstapay: 0 };
+  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0, advances: 0, expectedVisa: 0, expectedInstapay: 0, pilotSettlementDifference: 0 };
 
   // Start with opening cash
   let startCash = parseFloat(shift.startCash) || 0;
@@ -258,6 +261,29 @@ async function calculateSystemExpectedCash(shiftId) {
     expected -= amount;
   });
 
+  // Subtract driver ("pilot") InstaPay dues paid out of the drawer this shift.
+  // When a COD order is converted to InstaPay the driver's share becomes a due
+  // that is later collected as cash from the branch drawer (payDeliveryManDues
+  // → DUES_PAYOUT + a Withdrawal). That cash physically leaves the drawer, so
+  // it must reduce expected cash or it reads as a phantom shortage. Payouts are
+  // not linked to a shiftId, so attribute by branch + shift time window (the
+  // same approach the report uses for deposits). endTime is not set yet when
+  // this runs at close, so fall back to now.
+  let pilotSettlementDifference = 0;
+  if (shift.startTime && shift.branchId) {
+    const endFilter = shift.endTime || new Date();
+    const duesAgg = await prisma.deliveryManTransaction.aggregate({
+      where: {
+        type: "DUES_PAYOUT",
+        createdAt: { gte: shift.startTime, lte: endFilter },
+        deliveryMan: { branchId: shift.branchId },
+      },
+      _sum: { amount: true },
+    });
+    pilotSettlementDifference = Number(duesAgg._sum.amount || 0);
+    expected -= pilotSettlementDifference;
+  }
+
   const round = (n) => Math.round(n * 100) / 100;
   const cashSales = round(posCash + codDeliveredThisShift);
   return {
@@ -268,6 +294,7 @@ async function calculateSystemExpectedCash(shiftId) {
     codPendingExcluded: round(codPendingExcluded),
     cashExpenses: round(cashExpenses),
     advances: round(advances),
+    pilotSettlementDifference: round(pilotSettlementDifference),
     startCash: round(startCash),
     expectedVisa: round(expectedVisa),
     expectedInstapay: round(expectedInstapay),
@@ -450,6 +477,7 @@ router.post("/end", async (req, res, next) => {
       codPendingExcluded,
       cashExpenses,
       advances,
+      pilotSettlementDifference,
       startCash,
       expectedVisa,
       expectedInstapay,
@@ -518,6 +546,7 @@ router.post("/end", async (req, res, next) => {
         codPendingExcluded,
         cashExpenses,
         advances,
+        pilotSettlementDifference,
         systemExpectedCash,
         expectedVisa,
         expectedInstapay,
@@ -862,7 +891,18 @@ router.get(
 
       sales.forEach((sale) => {
         const saleTotal = parseFloat(sale.total);
-        totalSales += saleTotal;
+        // Refunds are stored as negative COMPLETED sales (saleNumber "REFUND-…").
+        // They must stay in the cash/card reconciliation sums below (a cash
+        // refund really does leave the drawer), but they are NOT gross sales —
+        // so they are excluded from totalSales / takeaway / delivery / item
+        // details and instead surfaced on their own "returns" line.
+        const isRefund = (sale.saleNumber || "").startsWith("REFUND-");
+        if (isRefund) {
+          returnCount += 1;
+          returnTotal += Math.abs(saleTotal);
+        } else {
+          totalSales += saleTotal;
+        }
 
         const discAmt = sale.discountAmount != null ? parseFloat(sale.discountAmount) : 0;
         if (discAmt > 0) {
@@ -899,17 +939,21 @@ router.get(
           else if (paymentMethod === "INSTAPAY") instapaySales += saleTotal;
         }
 
-        // Breakdown by type: takeaway vs delivery
-        if (sale.deliveryManId) {
-          deliveryCount++;
-          deliveryTotal += saleTotal;
-        } else {
-          takeawayCount++;
-          takeawayTotal += saleTotal;
+        // Breakdown by type: takeaway vs delivery — gross only (refunds are
+        // reported separately on the returns line, and a refund row has no
+        // deliveryManId so it would otherwise inflate the takeaway count).
+        if (!isRefund) {
+          if (sale.deliveryManId) {
+            deliveryCount++;
+            deliveryTotal += saleTotal;
+          } else {
+            takeawayCount++;
+            takeawayTotal += saleTotal;
+          }
         }
 
-        // Aggregate Items
-        sale.items.forEach((saleItem) => {
+        // Aggregate Items (gross only — skip refund lines)
+        if (!isRefund) sale.items.forEach((saleItem) => {
           let itemKey = "Unknown";
           let categoryName = "أخرى";
           let itemName = "Unknown Item";
@@ -974,17 +1018,10 @@ router.get(
 
       const salesDetails = Array.from(itemsMap.values());
 
-      // Count returned/cancelled sales for this shift
-      const cancelledSales = await prisma.sale.findMany({
-        where: {
-          shiftId: shiftId,
-          status: "CANCELLED",
-        },
-      });
-      cancelledSales.forEach((s) => {
-        returnCount++;
-        returnTotal += parseFloat(s.total);
-      });
+      // Returns (returnCount / returnTotal) are accumulated in the sales loop
+      // above from refund rows (negative COMPLETED "REFUND-…" sales). The old
+      // status:"CANCELLED" query never matched a refund, so this line always
+      // read 0.
 
       // Calculate expenses
       let totalExpenses = 0;
@@ -1027,9 +1064,34 @@ router.get(
         });
       }
 
-      const netSales = Math.round((takeawayTotal + deliveryTotal) * 100) / 100;
+      // Driver ("pilot") InstaPay dues paid out of the drawer this shift.
+      // Recomputed live from the DUES_PAYOUT ledger (branch + shift window),
+      // matching the subtraction baked into the stored systemExpectedCash at
+      // close. See calculateSystemExpectedCash for the rationale.
+      let pilotSettlementDifference = 0;
+      if (shift.startTime && shift.branchId) {
+        const endFilter = shift.endTime || new Date();
+        const duesAgg = await prisma.deliveryManTransaction.aggregate({
+          where: {
+            type: "DUES_PAYOUT",
+            createdAt: { gte: shift.startTime, lte: endFilter },
+            deliveryMan: { branchId: shift.branchId },
+          },
+          _sum: { amount: true },
+        });
+        pilotSettlementDifference = Math.round(Number(duesAgg._sum.amount || 0) * 100) / 100;
+      }
+
+      // netSales = gross sales − returns (takeaway/delivery are already gross).
+      const netSales = Math.round((takeawayTotal + deliveryTotal - returnTotal) * 100) / 100;
+      // drawerAmount uses the SAME reconciled formula as systemExpectedCash so
+      // the report's "المبلغ في الدرج" agrees with "المتوقع في الدرج". The old
+      // formula added depositTotal, which double-counted driver-settlement
+      // deposits (that cash is already in cashSales via codDelivered). Manual
+      // deposits/withdrawals during a shift are intentionally NOT folded in yet
+      // (scope: driver dues only) — the `deposits` field is returned for info.
       const drawerAmount = Math.round(
-        ((parseFloat(shift.startCash) || 0) + cashSales - cashExpenseTotal - totalAdvances + depositTotal) * 100
+        ((parseFloat(shift.startCash) || 0) + cashSales - cashExpenseTotal - totalAdvances - pilotSettlementDifference) * 100
       ) / 100;
 
       const report = {
@@ -1076,6 +1138,7 @@ router.get(
         // Cash movements
         deposits: { count: depositCount, total: Math.round(depositTotal * 100) / 100 },
         expenseBreakdown: { count: cashExpenseCount, total: Math.round(cashExpenseTotal * 100) / 100 },
+        pilotSettlementDifference,
         drawerAmount,
 
         // Discounts applied during this shift

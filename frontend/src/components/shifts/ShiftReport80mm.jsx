@@ -166,6 +166,9 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
   const expenses = Array.isArray(report.expenses) ? report.expenses : [];
   const advances = Array.isArray(report.advances) ? report.advances : [];
   const totalAdvances = Number(report.totalAdvances || 0);
+  // Cash expenses only — matches what systemExpectedCash actually subtracts.
+  const cashExpenseTotal = Number(report.expenseBreakdown?.total || 0);
+  const pilotSettlementDifference = Number(report.pilotSettlementDifference || 0);
 
   const shortageLabel =
     report.shortage > 0
@@ -274,12 +277,18 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
         )}
         <div className="sr-row">
           <span>− المصروفات (كاش)</span>
-          <span className="sr-num">{fmt(report.totalExpenses)} ج.م</span>
+          <span className="sr-num">{fmt(cashExpenseTotal)} ج.م</span>
         </div>
         {totalAdvances > 0 && (
           <div className="sr-row">
             <span>− سلف الموظفين (كاش)</span>
             <span className="sr-num">{fmt(totalAdvances)} ج.م</span>
+          </div>
+        )}
+        {pilotSettlementDifference > 0 && (
+          <div className="sr-row">
+            <span>− فرق تسوية الطيارين (كاش)</span>
+            <span className="sr-num">{fmt(pilotSettlementDifference)} ج.م</span>
           </div>
         )}
         <div
