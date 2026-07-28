@@ -533,19 +533,22 @@ router.post("/reset/:category", async (req, res) => {
   try {
     switch (category) {
       case "all-transactions":
-        // Delete all transactional data in FK-safe order
         await prisma.$transaction([
+          // Sales & purchases (Order rows cascade via Sale.id onDelete:Cascade)
           prisma.saleItem.deleteMany({}),
           prisma.sale.deleteMany({}),
           prisma.purchaseReturnItem.deleteMany({}),
           prisma.purchaseReturn.deleteMany({}),
           prisma.purchaseItem.deleteMany({}),
           prisma.purchase.deleteMany({}),
+          // Inventory & production (ProductionOrderItem cascades with ProductionOrder)
           prisma.stockTransferItem.deleteMany({}),
           prisma.stockTransfer.deleteMany({}),
           prisma.productionOrder.deleteMany({}),
+          // HR & payroll
           prisma.payroll.deleteMany({}),
           prisma.employeeTransaction.deleteMany({}),
+          // Treasury & cash
           prisma.expense.deleteMany({}),
           prisma.shift.deleteMany({}),
           prisma.cashTransfer.deleteMany({}),
@@ -553,11 +556,19 @@ router.post("/reset/:category", async (req, res) => {
           prisma.withdrawal.deleteMany({}),
           prisma.deliveryManTransaction.deleteMany({}),
           prisma.supplierPayment.deleteMany({}),
-          // Reset balances
+          // Bulk POS (B2B) — refunds & payments before orders (onDelete: Restrict)
+          prisma.bulkRefund.deleteMany({}),
+          prisma.bulkPayment.deleteMany({}),
+          prisma.bulkOrder.deleteMany({}),      // BulkOrderItem + BulkDocument cascade
+          // System
+          prisma.notification.deleteMany({}),
+          prisma.initialInventory.deleteMany({}),
+          // Reset balances & sequence counters
           prisma.treasury.updateMany({ data: { balance: 0 } }),
           prisma.supplierAccount.updateMany({ data: { balance: 0 } }),
           prisma.deliveryMan.updateMany({ data: { walletBalance: 0 } }),
           prisma.inventory.updateMany({ data: { quantity: 0 } }),
+          prisma.bulkNumberSequence.updateMany({ data: { nextValue: 1 } }),
         ]);
         break;
 
@@ -779,8 +790,56 @@ router.post("/reset/:category", async (req, res) => {
         await prisma.auditLog.deleteMany({});
         break;
 
+      case "bulk-orders":
+        await prisma.$transaction([
+          prisma.bulkRefund.deleteMany({}),
+          prisma.bulkPayment.deleteMany({}),
+          prisma.bulkOrder.deleteMany({}),
+          prisma.bulkNumberSequence.updateMany({ data: { nextValue: 1 } }),
+        ]);
+        break;
+
+      case "notifications":
+        await prisma.notification.deleteMany({});
+        break;
+
+      case "opening-inventory":
+        await prisma.$transaction([
+          prisma.initialInventory.deleteMany({}),
+          prisma.inventory.updateMany({ data: { quantity: 0 } }),
+        ]);
+        break;
+
+      case "bulk-customers": {
+        const bulkOrdersCount = await prisma.bulkOrder.count();
+        if (bulkOrdersCount > 0) {
+          return res.status(409).json({
+            error: "Cannot delete bulk customers while bulk orders exist. Clear bulk orders first.",
+          });
+        }
+        await prisma.$transaction([
+          prisma.bulkPayment.deleteMany({}),      // standalone payments (orderId nullable)
+          prisma.bulkCustomer.deleteMany({}),     // contacts + contract prices cascade
+        ]);
+        break;
+      }
+
       default:
         return res.status(400).json({ error: "Unknown reset category" });
+    }
+
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: "SYSTEM_RESET",
+          targetEntity: "Database",
+          details: { category, verifiedBy: managerUsername },
+          ipAddress: req.ip || req.socket?.remoteAddress,
+        },
+      });
+    } catch (_) {
+      // Non-critical — don't fail the response if audit write fails
     }
 
     res.json({ message: "Reset completed successfully" });
