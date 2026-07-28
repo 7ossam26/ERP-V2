@@ -1362,7 +1362,7 @@ const POSPage = () => {
       {shiftReportData && (
         <POSReportModal
           isOpen={isReportOpen}
-          onClose={() => { setIsReportOpen(false); navigate("/dashboard"); }}
+          onClose={() => setIsReportOpen(false)}
           onConfirm={() => { setIsReportOpen(false); navigate("/dashboard"); }}
           reportData={shiftReportData}
           autoPrint
