@@ -653,7 +653,33 @@ async function run() {
   //    Additive only — guarded so it's safe to re-run on every boot.
   //    Pairs with migration 20260717000000_add_opening_cost_and_cogs and its
   //    probe in baseline-migrations.js.
-  if (!(await columnExists("initial_inventory", "unit_cost"))) {
+  if (!(await tableExists("initial_inventory"))) {
+    // Table was never created on this server — create it with all columns
+    // (including unit_cost) and foreign keys in one shot.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE \`initial_inventory\` (
+        \`id\`           INTEGER        NOT NULL AUTO_INCREMENT,
+        \`item_id\`      INTEGER        NOT NULL,
+        \`warehouse_id\` INTEGER        NOT NULL,
+        \`quantity\`     DECIMAL(10,6)  NOT NULL,
+        \`date\`         DATETIME(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        \`notes\`        TEXT           NULL,
+        \`user_id\`      INTEGER        NOT NULL,
+        \`unit_cost\`    DECIMAL(10,2)  NULL,
+        \`created_at\`   DATETIME(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`id\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+    // Add foreign keys (ignore if already present due to a race)
+    for (const fkSql of [
+      "ALTER TABLE `initial_inventory` ADD CONSTRAINT `initial_inventory_item_id_fkey` FOREIGN KEY (`item_id`) REFERENCES `items`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "ALTER TABLE `initial_inventory` ADD CONSTRAINT `initial_inventory_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "ALTER TABLE `initial_inventory` ADD CONSTRAINT `initial_inventory_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE",
+    ]) {
+      await executeIgnoringDuplicate(fkSql);
+    }
+  } else if (!(await columnExists("initial_inventory", "unit_cost"))) {
+    // Table exists but was created before the unit_cost column was added.
     await prisma.$executeRawUnsafe(
       "ALTER TABLE `initial_inventory` ADD COLUMN `unit_cost` DECIMAL(10,2) NULL"
     );
