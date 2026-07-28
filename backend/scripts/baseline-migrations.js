@@ -81,6 +81,17 @@ async function columnIsNullable(table, column) {
   return rows[0]?.IS_NULLABLE === "YES";
 }
 
+async function columnNumericPrecision(table, column) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT NUMERIC_PRECISION FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    table,
+    column
+  );
+  const precision = rows[0]?.NUMERIC_PRECISION;
+  return precision == null ? null : Number(precision);
+}
+
 async function enumHasValue(table, column, value) {
   const rows = await prisma.$queryRawUnsafe(
     `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
@@ -173,6 +184,21 @@ const probes = {
     (await columnExists("employee_transactions", "shift_id")) &&
     (await columnExists("payrolls", "treasury_id")) &&
     (await columnExists("payrolls", "shift_id")),
+
+  // Widened to DECIMAL(18,6) by fix-server-schema.js step 10. Probe passes once
+  // all three quantity columns have >= 18 digits of precision, so deploy won't
+  // redundantly rewrite the tables.
+  "20260729000000_widen_quantity_decimal_precision": async () => {
+    for (const [table, column] of [
+      ["inventory", "quantity"],
+      ["initial_inventory", "quantity"],
+      ["production_order_items", "quantity_used"],
+    ]) {
+      const precision = await columnNumericPrecision(table, column);
+      if (precision === null || precision < 18) return false;
+    }
+    return true;
+  },
 };
 
 // --- Main ---------------------------------------------------------

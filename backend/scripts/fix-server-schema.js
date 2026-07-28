@@ -51,6 +51,17 @@ async function columnIsNullable(table, column) {
   return rows[0]?.IS_NULLABLE === "YES";
 }
 
+async function columnNumericPrecision(table, column) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT NUMERIC_PRECISION FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    table,
+    column
+  );
+  const precision = rows[0]?.NUMERIC_PRECISION;
+  return precision == null ? null : Number(precision);
+}
+
 function isIgnorableDdlError(error) {
   const message = error?.message || "";
   const metaCode = error?.meta?.code || "";
@@ -661,7 +672,7 @@ async function run() {
         \`id\`           INTEGER        NOT NULL AUTO_INCREMENT,
         \`item_id\`      INTEGER        NOT NULL,
         \`warehouse_id\` INTEGER        NOT NULL,
-        \`quantity\`     DECIMAL(10,6)  NOT NULL,
+        \`quantity\`     DECIMAL(18,6)  NOT NULL,
         \`date\`         DATETIME(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         \`notes\`        TEXT           NULL,
         \`user_id\`      INTEGER        NOT NULL,
@@ -690,6 +701,28 @@ async function run() {
     );
   }
   console.log(">>> [FIX] opening cost + sale COGS columns: OK");
+
+  // 10. Widen quantity columns from DECIMAL(10,6) (max 9,999.999999 — only 4
+  //     integer digits) to DECIMAL(18,6). The old precision made any quantity
+  //     >= 10,000 overflow, which MySQL rejected as a 500 on initial-inventory
+  //     and production. Pairs with migration
+  //     20260729000000_widen_quantity_decimal_precision. Guarded on the current
+  //     precision so we only rewrite the table when it actually needs it.
+  const quantityWidenTargets = [
+    { table: "inventory", column: "quantity", type: "DECIMAL(18,6) NOT NULL DEFAULT 0" },
+    { table: "initial_inventory", column: "quantity", type: "DECIMAL(18,6) NOT NULL" },
+    { table: "production_order_items", column: "quantity_used", type: "DECIMAL(18,6) NOT NULL" },
+  ];
+  for (const { table, column, type } of quantityWidenTargets) {
+    if (!(await tableExists(table))) continue;
+    const precision = await columnNumericPrecision(table, column);
+    if (precision !== null && precision < 18) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE \`${table}\` MODIFY \`${column}\` ${type}`
+      );
+    }
+  }
+  console.log(">>> [FIX] widened quantity columns to DECIMAL(18,6): OK");
 
   console.log(">>> [FIX] All schema fixes applied successfully.");
 }

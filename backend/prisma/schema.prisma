@@ -468,7 +468,7 @@ model Item {
 model Inventory {
   itemId      Int      @map("item_id")
   warehouseId Int      @map("warehouse_id")
-  quantity    Decimal  @default(0) @db.Decimal(10, 6)
+  quantity    Decimal  @default(0) @db.Decimal(18, 6)
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
@@ -1128,7 +1128,7 @@ model ProductionOrderItem {
   id                Int     @id @default(autoincrement())
   productionOrderId Int     @map("production_order_id")
   itemId            Int     @map("item_id")
-  quantityUsed      Decimal @map("quantity_used") @db.Decimal(10, 6)
+  quantityUsed      Decimal @map("quantity_used") @db.Decimal(18, 6)
 
   // Relations
   productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
@@ -1145,7 +1145,7 @@ model InitialInventory {
   id          Int      @id @default(autoincrement())
   itemId      Int      @map("item_id")
   warehouseId Int      @map("warehouse_id")
-  quantity    Decimal  @db.Decimal(10, 6)
+  quantity    Decimal  @db.Decimal(18, 6)
   // Purchase cost per unit for this opening-stock entry — values the stock and
   // seeds Item.costPrice. Nullable so pre-existing rows stay valid.
   unitCost    Decimal? @map("unit_cost") @db.Decimal(10, 2)
