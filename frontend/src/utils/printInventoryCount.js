@@ -50,14 +50,43 @@ export function printInventoryCount({
     throw err;
   }
 
-  timerId = setTimeout(() => {
+  let printed = false;
+  const doPrint = () => {
+    if (printed) return;
+    printed = true;
     try {
       window.print();
     } catch (err) {
       cleanup();
       throw err;
     }
-  }, PRINT_DELAY_MS);
+  };
+
+  // Wait for the logo (and any other images) to finish loading before printing
+  // so it isn't dropped from the first print. A hard fallback guards the case
+  // where an image never resolves.
+  const waitForImages = () => {
+    const imgs = Array.from(container.querySelectorAll("img"));
+    const pending = imgs.filter((img) => !img.complete);
+    if (pending.length === 0) {
+      timerId = setTimeout(doPrint, PRINT_DELAY_MS);
+      return;
+    }
+    let remaining = pending.length;
+    const done = () => {
+      remaining -= 1;
+      if (remaining <= 0) doPrint();
+    };
+    pending.forEach((img) => {
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
+    });
+    // Fallback: print anyway after 1.5s even if an image is stuck.
+    timerId = setTimeout(doPrint, 1500);
+  };
+
+  // Let React paint the DOM first, then wait on images.
+  timerId = setTimeout(waitForImages, PRINT_DELAY_MS);
 
   return cleanup;
 }
