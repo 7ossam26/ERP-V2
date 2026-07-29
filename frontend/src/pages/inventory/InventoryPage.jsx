@@ -143,7 +143,7 @@ const InventoryPage = () => {
             {isLowStock ? (
               <div className="flex flex-col items-center animate-pulse">
                 <span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
-                  {item.quantity}
+                  {parseFloat(Number(item.quantity).toFixed(4))}
                   <span className="material-symbols-outlined text-[14px]">
                     warning
                   </span>
@@ -155,7 +155,7 @@ const InventoryPage = () => {
             ) : (
               <>
                 <span className="text-text-main dark:text-text-dark font-bold">
-                  {item.quantity}
+                  {parseFloat(Number(item.quantity).toFixed(4))}
                 </span>
                 <span className="text-xs text-text-muted dark:text-gray-400 mr-1">
                   {item.unit}

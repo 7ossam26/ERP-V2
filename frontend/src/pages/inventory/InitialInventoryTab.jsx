@@ -351,7 +351,7 @@ const InitialInventoryTab = () => {
                     )}
                   </div>
                   <span className="text-sm font-bold text-text-light dark:text-text-dark">
-                    {Number(item.totalQuantity).toFixed(2)}
+                    {parseFloat(Number(item.totalQuantity).toFixed(4))}
                     <span className="text-xs text-text-muted mr-1">
                       {item.unit}
                     </span>
@@ -387,7 +387,7 @@ const InitialInventoryTab = () => {
                     {`مخزون ${branches.find((b) => String(b.warehouseId) === String(selectedWarehouseId))?.name || "الفرع"}`}
                     :{" "}
                     <span className="font-bold text-text-light dark:text-text-dark">
-                      {Number(selectedItem.totalQuantity).toFixed(2)}{" "}
+                      {parseFloat(Number(selectedItem.totalQuantity).toFixed(4))}{" "}
                       {selectedItem.unit}
                     </span>
                   </p>
@@ -449,7 +449,7 @@ const InitialInventoryTab = () => {
                             {entry.warehouse.name}
                           </td>
                           <td className="px-4 py-3 font-bold text-amber-600 dark:text-amber-400">
-                            +{Number(entry.quantity).toFixed(2)}{" "}
+                            +{parseFloat(Number(entry.quantity).toFixed(4))}{" "}
                             {selectedItem.unit}
                           </td>
                           <td className="px-4 py-3 text-text-muted whitespace-nowrap">
@@ -533,14 +533,14 @@ const InitialInventoryTab = () => {
             <label className="block text-sm font-medium mb-1">الكمية *</label>
             <input
               type="number"
-              step="0.01"
-              min="0.01"
+              step="0.0001"
+              min="0.0001"
               value={formData.quantity}
               onChange={(e) =>
                 setFormData({ ...formData, quantity: e.target.value })
               }
               className="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark rounded-lg p-2.5"
-              placeholder="0.00"
+              placeholder="0.0000"
               required
               autoFocus
             />
@@ -612,7 +612,7 @@ const InitialInventoryTab = () => {
                           className="border-t border-border-light dark:border-border-dark">
                           <td className="px-3 py-2 font-medium">{c.name}</td>
                           <td className="px-3 py-2 text-text-muted whitespace-nowrap">
-                            {componentNeedQty(c).toFixed(3)} {c.unit}
+                            {parseFloat(componentNeedQty(c).toFixed(4))} {c.unit}
                           </td>
                           <td className="px-3 py-2">
                             <input
