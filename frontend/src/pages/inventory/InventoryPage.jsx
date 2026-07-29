@@ -197,7 +197,7 @@ const InventoryPage = () => {
         // Recomputed on render, so it tracks any change to quantity/costPrice.
         const total = Number(item.quantity) * Number(item.costPrice || 0);
         return (
-          <span className="text-text-muted dark:text-gray-400 font-medium">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-md font-medium bg-red-50 text-red-700 border border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30">
             {Number(total.toFixed(2)).toLocaleString()} ج.م
           </span>
         );
@@ -215,7 +215,7 @@ const InventoryPage = () => {
           ? Number(item.quantity) * Number(item.sellPrice)
           : null;
         return (
-          <span className="text-text-main dark:text-text-dark font-medium">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-md font-medium bg-green-50 text-green-700 border border-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/30">
             {total === null
               ? "-"
               : `${Number(total.toFixed(2)).toLocaleString()} ج.م`}
