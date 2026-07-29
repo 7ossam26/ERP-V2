@@ -4,8 +4,16 @@ import InventoryCountReportA4 from "../components/inventory/InventoryCountReport
 
 const PRINT_DELAY_MS = 200;
 
-export function printInventoryCount({ items, branchName, settings = {} } = {}) {
+export function printInventoryCount({
+  items,
+  branchName,
+  includePrices = true,
+  settings = {},
+} = {}) {
   const container = document.createElement("div");
+  // Marks this node as the only body child that stays in the print layout —
+  // the report CSS hides every other body child to avoid blank pages.
+  container.setAttribute("data-print-root", "");
   const originalTitle = document.title;
   const root = createRoot(container);
   const printedAt = new Date().toISOString();
@@ -33,6 +41,7 @@ export function printInventoryCount({ items, branchName, settings = {} } = {}) {
         items,
         branchName,
         printedAt,
+        includePrices,
         settings,
       }),
     );

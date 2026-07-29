@@ -116,6 +116,8 @@ const InventoryPage = () => {
   // fetches the complete item set (no category/search/hide-zero) so the printed
   // sheet is a full جرد regardless of the on-screen filters.
   const [isPrinting, setIsPrinting] = useState(false);
+  // Whether the printed sheet includes the cost/sell price columns.
+  const [includePrices, setIncludePrices] = useState(true);
   const handlePrintCount = async () => {
     if (isPrinting) return;
     setIsPrinting(true);
@@ -129,7 +131,7 @@ const InventoryPage = () => {
       const items = await inventoryService.getInventory(filters);
       const branchName = resolveBranchName(effectiveWarehouse);
 
-      printInventoryCount({ items, branchName });
+      printInventoryCount({ items, branchName, includePrices });
     } catch (error) {
       console.error("Failed to print inventory count:", error);
     } finally {
@@ -541,6 +543,22 @@ const InventoryPage = () => {
                 expand_more
               </span>
             </div>
+
+            {/* Toggle: include cost/sell prices in the printed جرد sheet */}
+            <button
+              onClick={() => setIncludePrices((v) => !v)}
+              aria-pressed={includePrices}
+              title="تضمين سعر التكلفة وسعر البيع في مطبوعة الجرد"
+              className={`inline-flex items-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold border transition-all outline-none ${
+                includePrices
+                  ? "bg-primary text-white border-transparent shadow-sm"
+                  : "bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark border-border-light dark:border-border-dark hover:text-primary hover:border-primary"
+              }`}>
+              <span className="material-symbols-outlined text-[20px]">
+                sell
+              </span>
+              شامل الأسعار
+            </button>
 
             {/* Print inventory count (جرد) sheet */}
             <button

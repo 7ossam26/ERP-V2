@@ -19,7 +19,8 @@ const fmtDateTime = (iso) => {
 };
 
 // sellPrice can arrive as the string "-" when no price is set.
-const hasSell = (v) => v !== "-" && v !== null && v !== undefined && !isNaN(Number(v));
+const hasSell = (v) =>
+  v !== "-" && v !== null && v !== undefined && !isNaN(Number(v));
 
 const PRINT_STYLES = `
   .${R} {
@@ -38,25 +39,26 @@ const PRINT_STYLES = `
       margin: 10mm;
     }
 
+    /* Collapse the whole app out of the print layout so it can't spill onto
+       blank pages — only the marked print container stays in flow. */
+    body > *:not([data-print-root]) {
+      display: none !important;
+    }
+
     body {
       margin: 0 !important;
       padding: 0 !important;
       background: #ffffff !important;
     }
 
-    body * { visibility: hidden !important; }
-    .${R}, .${R} * { visibility: visible !important; }
-
     .${R} {
-      position: absolute;
-      inset: 0;
+      position: static !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
       width: 100%;
-      opacity: 1;
-      pointer-events: auto;
-      z-index: auto;
       font-family: "Cairo", sans-serif;
-      font-size: 10px;
-      line-height: 1.3;
+      font-size: 12px;
+      line-height: 1.35;
       direction: rtl;
       text-align: right;
       color: #000 !important;
@@ -64,38 +66,50 @@ const PRINT_STYLES = `
 
     .${R}, .${R} * {
       color: #000 !important;
+      font-weight: 700 !important;
     }
 
     .${R} .ic-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
+      text-align: center;
       border-bottom: 2px solid #000;
-      padding-bottom: 6px;
-      margin-bottom: 8px;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+
+    .${R} .ic-logo {
+      max-width: 130px;
+      max-height: 70px;
+      margin: 0 auto 6px;
+      display: block;
+      object-fit: contain;
     }
 
     .${R} .ic-title {
-      font-size: 18px;
+      font-size: 22px;
       font-weight: 800;
-      margin: 0 0 2px;
+      margin: 2px 0;
     }
 
-    .${R} .ic-sub {
-      font-size: 12px;
-      font-weight: 700;
+    .${R} .ic-company {
+      font-size: 14px;
       margin: 1px 0;
     }
 
+    .${R} .ic-meta-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+
     .${R} .ic-meta {
-      font-size: 10px;
       font-style: italic;
     }
 
     .${R} table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9.5px;
+      font-size: 12px;
     }
 
     /* Repeat the header row on every printed page. */
@@ -109,7 +123,7 @@ const PRINT_STYLES = `
 
     .${R} th {
       border: 1px solid #000;
-      padding: 3px 4px;
+      padding: 5px;
       background: #e5e7eb !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -119,7 +133,7 @@ const PRINT_STYLES = `
 
     .${R} td {
       border: 1px solid #000;
-      padding: 3px 4px;
+      padding: 5px;
       text-align: center;
       vertical-align: middle;
     }
@@ -135,21 +149,21 @@ const PRINT_STYLES = `
 
     /* Blank cells for the physical count — give them room to write. */
     .${R} .ic-blank {
-      min-width: 70px;
+      min-width: 80px;
     }
 
     .${R} tfoot td {
       font-weight: 800;
       border: 1px solid #000;
-      padding: 4px;
+      padding: 6px;
     }
 
     .${R} .ic-signatures {
       display: flex;
       justify-content: space-between;
-      margin-top: 24px;
-      font-size: 11px;
-      font-weight: 700;
+      margin-top: 30px;
+      font-size: 13px;
+      font-weight: 800;
     }
 
     .${R} .ic-signatures > div {
@@ -158,40 +172,53 @@ const PRINT_STYLES = `
 
     .${R} .ic-sign-line {
       border-top: 1px solid #000;
-      margin-top: 28px;
-      padding-top: 4px;
+      margin-top: 34px;
+      padding-top: 5px;
       text-align: center;
     }
   }
 `;
 
-const InventoryCountReportA4 = ({ items, branchName, printedAt, settings = {} }) => {
-  const list = Array.isArray(items) ? items : [];
+const InventoryCountReportA4 = ({
+  items,
+  branchName,
+  printedAt,
+  includePrices = true,
+  settings = {},
+}) => {
   const companyName = settings.companyName || "Elghonemy ERP";
   const printedIso = printedAt || new Date().toISOString();
 
+  // Sort items ascending by name (Arabic collation) for an easy-to-scan sheet.
+  const sorted = (Array.isArray(items) ? [...items] : []).sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "ar"),
+  );
+
   let grandCost = 0;
   let grandSell = 0;
-  list.forEach((item) => {
+  sorted.forEach((item) => {
     const qty = Number(item.quantity || 0);
     grandCost += qty * Number(item.costPrice || 0);
     if (hasSell(item.sellPrice)) grandSell += qty * Number(item.sellPrice);
   });
 
+  // Base columns are always shown; price columns are optional.
+  const colSpan = includePrices ? 11 : 7;
+
   return (
     <div className={R}>
       <style>{PRINT_STYLES}</style>
 
-      {/* Header */}
+      {/* Header — logo centered */}
       <div className="ic-header">
-        <div>
-          <h1 className="ic-title">جرد المخزون</h1>
-          <p className="ic-sub">{companyName}</p>
-          <p className="ic-sub">الفرع: {branchName || "—"}</p>
-        </div>
-        <div style={{ textAlign: "left" }}>
-          <p className="ic-meta">طُبع في: {fmtDateTime(printedIso)}</p>
-          <p className="ic-meta">عدد الأصناف: {list.length}</p>
+        <img className="ic-logo" src="/assets/logo.png" alt="Logo" />
+        <h1 className="ic-title">جرد المخزون</h1>
+        <p className="ic-company">{companyName}</p>
+        <div className="ic-meta-row">
+          <span>الفرع: {branchName || "—"}</span>
+          <span className="ic-meta">
+            طُبع في: {fmtDateTime(printedIso)} — عدد الأصناف: {sorted.length}
+          </span>
         </div>
       </div>
 
@@ -206,19 +233,24 @@ const InventoryCountReportA4 = ({ items, branchName, printedAt, settings = {} })
             <th>الكمية بالنظام</th>
             <th>الكمية الفعلية</th>
             <th>الفرق</th>
-            <th>سعر التكلفة</th>
-            <th>إجمالي التكلفة</th>
-            <th>سعر البيع</th>
-            <th>إجمالي البيع</th>
+            {includePrices && (
+              <>
+                <th>سعر التكلفة</th>
+                <th>إجمالي التكلفة</th>
+                <th>سعر البيع</th>
+                <th>إجمالي البيع</th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody>
-          {list.length > 0 ? (
-            list.map((item, idx) => {
+          {sorted.length > 0 ? (
+            sorted.map((item, idx) => {
               const qty = Number(item.quantity || 0);
               const cost = Number(item.costPrice || 0);
-              const totalCost = qty * cost;
-              const sellNum = hasSell(item.sellPrice) ? Number(item.sellPrice) : null;
+              const sellNum = hasSell(item.sellPrice)
+                ? Number(item.sellPrice)
+                : null;
               const totalSell = sellNum === null ? null : qty * sellNum;
               return (
                 <tr key={item.id ?? idx}>
@@ -229,20 +261,28 @@ const InventoryCountReportA4 = ({ items, branchName, printedAt, settings = {} })
                   <td className="ic-num">{fmtQty(qty)}</td>
                   <td className="ic-blank"></td>
                   <td className="ic-blank"></td>
-                  <td className="ic-num">{fmtMoney(cost)}</td>
-                  <td className="ic-num">{fmtMoney(totalCost)}</td>
-                  <td className="ic-num">{sellNum === null ? "-" : fmtMoney(sellNum)}</td>
-                  <td className="ic-num">{totalSell === null ? "-" : fmtMoney(totalSell)}</td>
+                  {includePrices && (
+                    <>
+                      <td className="ic-num">{fmtMoney(cost)}</td>
+                      <td className="ic-num">{fmtMoney(qty * cost)}</td>
+                      <td className="ic-num">
+                        {sellNum === null ? "-" : fmtMoney(sellNum)}
+                      </td>
+                      <td className="ic-num">
+                        {totalSell === null ? "-" : fmtMoney(totalSell)}
+                      </td>
+                    </>
+                  )}
                 </tr>
               );
             })
           ) : (
             <tr>
-              <td colSpan={11}>لا توجد أصناف</td>
+              <td colSpan={colSpan}>لا توجد أصناف</td>
             </tr>
           )}
         </tbody>
-        {list.length > 0 && (
+        {includePrices && sorted.length > 0 && (
           <tfoot>
             <tr>
               <td colSpan={8} style={{ textAlign: "left" }}>
