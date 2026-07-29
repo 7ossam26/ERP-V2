@@ -292,13 +292,12 @@ router.post("/bom", async (req, res) => {
                     create: { itemId: bi.itemId, warehouseId: whId, quantity: needQty },
                 });
 
-                // Overwrite the component's cost (latest-wins, like purchases).
-                if (unitCost > 0) {
-                    await tx.item.update({
-                        where: { id: bi.itemId },
-                        data: { costPrice: unitCost },
-                    });
-                }
+                // NOTE: we deliberately do NOT overwrite the component's master
+                // Item.costPrice here. The typed cost values only THIS opening
+                // production (via the per-entry unitCost above and the finished
+                // good's make-cost below). Each raw material keeps its own
+                // independent cost, so entering an opening balance for a
+                // manufactured item never rewrites another item's cost.
             }
 
             // 2. Produce the finished good, consuming exactly what we just seeded
