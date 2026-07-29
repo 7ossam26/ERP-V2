@@ -190,6 +190,40 @@ const InventoryPage = () => {
       ),
     },
     {
+      header: "إجمالي التكلفة",
+      accessor: "totalCost",
+      render: (item) => {
+        // Total Price (cost basis) = quantity (kg) × last cost price per kg.
+        // Recomputed on render, so it tracks any change to quantity/costPrice.
+        const total = Number(item.quantity) * Number(item.costPrice || 0);
+        return (
+          <span className="text-text-muted dark:text-gray-400 font-medium">
+            {Number(total.toFixed(2)).toLocaleString()} ج.م
+          </span>
+        );
+      },
+    },
+    {
+      header: "إجمالي سعر البيع",
+      accessor: "totalSell",
+      render: (item) => {
+        // Total Price (sale basis) = quantity (kg) × sale price per kg.
+        // sellPrice may be "-" when no price is set — keep it as "-" then.
+        const hasSellPrice =
+          item.sellPrice !== "-" && !isNaN(Number(item.sellPrice));
+        const total = hasSellPrice
+          ? Number(item.quantity) * Number(item.sellPrice)
+          : null;
+        return (
+          <span className="text-text-main dark:text-text-dark font-medium">
+            {total === null
+              ? "-"
+              : `${Number(total.toFixed(2)).toLocaleString()} ج.م`}
+          </span>
+        );
+      },
+    },
+    {
       header: "الحالة",
       accessor: "status",
       render: (item) => {
