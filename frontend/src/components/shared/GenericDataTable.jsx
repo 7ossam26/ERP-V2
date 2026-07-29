@@ -9,16 +9,26 @@ const GenericDataTable = ({
   loading,
   emptyMessage = "لا توجد بيانات مضافة بعد.",
   customActions,
+  // Opt-in compact mode: tighter padding/smaller text so wide tables fit the
+  // screen without horizontal scrolling. Defaults keep the original look.
+  dense = false,
+  // Override the vertical scroll cap (e.g. "max-h-none" to show every row).
+  maxHeightClass = "max-h-[60vh]",
 }) => {
+  const headPad = dense
+    ? "px-2 py-2 text-[11px]"
+    : "px-3 py-3 sm:px-6 sm:py-4 text-xs";
+  const cellPad = dense ? "px-2 py-1.5" : "px-3 py-2 sm:px-6 sm:py-4";
   return (
-    <div className="overflow-x-auto overflow-y-auto max-h-[60vh] print:overflow-visible">
+    <div
+      className={`overflow-x-auto overflow-y-auto ${maxHeightClass} print:overflow-visible`}>
       <table className="w-full text-center border-collapse print:border print:border-black">
         <thead className="bg-gray-50 dark:bg-gray-800/50 sticky top-0 z-10 border-b border-gray-100 dark:border-gray-700 print:bg-gray-200 print:border-b-2 print:border-black">
           <tr>
             {columns.map((col, index) => (
               <th
                 key={index}
-                className="px-3 py-3 sm:px-6 sm:py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center print:px-3 print:py-2 print:text-black print:border print:border-black">
+                className={`${headPad} font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center print:px-3 print:py-2 print:text-black print:border print:border-black`}>
                 {col.header}
               </th>
             ))}
@@ -58,7 +68,7 @@ const GenericDataTable = ({
                 {columns.map((col, index) => (
                   <td
                     key={index}
-                    className={`px-3 py-2 sm:px-6 sm:py-4 text-center ${col.wrap
+                    className={`${cellPad} text-center ${col.wrap
                       ? "whitespace-normal min-w-[200px]"
                       : "whitespace-nowrap"
                       } print:px-3 print:py-2 print:text-sm print:text-black print:border print:border-gray-300`}>

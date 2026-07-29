@@ -525,6 +525,8 @@ const InventoryPage = () => {
           data={displayedItems}
           loading={false}
           emptyMessage="لا توجد عناصر في المخزون"
+          dense
+          maxHeightClass="max-h-none"
         />
       </div>
 
