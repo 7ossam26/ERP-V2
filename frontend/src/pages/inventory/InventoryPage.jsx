@@ -433,8 +433,10 @@ const InventoryPage = () => {
       {/* Filters & Table Section */}
       <div className="bg-surface-light dark:bg-surface-dark rounded-3xl shadow-2xl p-6 border border-border-light dark:border-border-dark">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          {/* Search + controls grouped so they never get pushed off-screen */}
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {/* Search */}
-          <div className="relative w-full lg:max-w-md group">
+          <div className="relative flex-1 min-w-[220px] lg:w-72 lg:flex-none group">
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <span className="material-symbols-outlined text-text-muted dark:text-gray-400 group-focus-within:text-primary transition-colors">
                 search
@@ -449,7 +451,6 @@ const InventoryPage = () => {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
             {/* Hide zero-stock toggle */}
             <button
               onClick={() => setHideZero((v) => !v)}
