@@ -263,47 +263,31 @@ router.post("/bom", async (req, res) => {
         const outName = bom.outputItem?.name || bom.name;
 
         const result = await prisma.$transaction(async (tx) => {
-            // 1. Seed each raw material as opening stock at its purchase cost.
+            // 1. Seed each raw material into stock so production can consume it.
+            //    This is an internal step of opening production — it is NOT
+            //    recorded as an opening-inventory entry for the component (that
+            //    would clutter the raw material's history and misrepresent its
+            //    stock, since it's immediately consumed below). The opening
+            //    balance is recorded against the finished good instead (step 3).
+            //    We also never touch the component's master Item.costPrice, so
+            //    entering an opening balance for a manufactured item leaves every
+            //    raw material's own cost untouched.
             for (const bi of bom.items) {
                 const needQty = parseFloat(
                     (parseFloat(bi.quantity) * multiplier).toFixed(6)
                 );
-                const unitCost = costByItem[bi.itemId] !== undefined
-                    ? costByItem[bi.itemId]
-                    : Number(bi.item.costPrice || 0);
-
-                await tx.initialInventory.create({
-                    data: {
-                        itemId: bi.itemId,
-                        warehouseId: whId,
-                        quantity: needQty,
-                        unitCost,
-                        date: entryDate,
-                        notes: notes
-                            ? `${notes} — مكوّن لإنتاج افتتاحي (${outName})`
-                            : `مكوّن لإنتاج افتتاحي (${outName})`,
-                        userId: req.user.id,
-                    },
-                });
 
                 await tx.inventory.upsert({
                     where: { itemId_warehouseId: { itemId: bi.itemId, warehouseId: whId } },
                     update: { quantity: { increment: needQty } },
                     create: { itemId: bi.itemId, warehouseId: whId, quantity: needQty },
                 });
-
-                // NOTE: we deliberately do NOT overwrite the component's master
-                // Item.costPrice here. The typed cost values only THIS opening
-                // production (via the per-entry unitCost above and the finished
-                // good's make-cost below). Each raw material keeps its own
-                // independent cost, so entering an opening balance for a
-                // manufactured item never rewrites another item's cost.
             }
 
             // 2. Produce the finished good, consuming exactly what we just seeded
             //    (identical multiplier => raw materials net to ~0). The helper also
             //    stamps the finished item's costPrice from the recipe cost.
-            const { order } = await executeProductionInTx(tx, {
+            const { order, unitCost: producedUnitCost } = await executeProductionInTx(tx, {
                 bom,
                 sourceWarehouseId: whId,
                 destWarehouseId: whId,
@@ -314,6 +298,24 @@ router.post("/bom", async (req, res) => {
                 componentUnitCosts: costByItem,
                 validateStock: false, // exactly seeded above
                 updateOutputCost: true,
+            });
+
+            // 3. Record the opening balance against the FINISHED good so it shows
+            //    in its own Initial Inventory history. Production (step 2) already
+            //    added the stock, so this is a record-only entry — no extra
+            //    inventory increment. Its unitCost is the recipe make-cost.
+            await tx.initialInventory.create({
+                data: {
+                    itemId: parseInt(outputItemId),
+                    warehouseId: whId,
+                    quantity: qty,
+                    unitCost: parseFloat(Number(producedUnitCost || 0).toFixed(2)),
+                    date: entryDate,
+                    notes: notes
+                        ? `إنتاج افتتاحي: ${notes}`
+                        : `إنتاج افتتاحي لرصيد ${outName}`,
+                    userId: req.user.id,
+                },
             });
 
             return order;
