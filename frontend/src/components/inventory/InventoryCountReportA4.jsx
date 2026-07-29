@@ -189,9 +189,9 @@ const InventoryCountReportA4 = ({
   const companyName = settings.companyName || "Elghonemy ERP";
   const printedIso = printedAt || new Date().toISOString();
 
-  // Sort items ascending by name (Arabic collation) for an easy-to-scan sheet.
-  const sorted = (Array.isArray(items) ? [...items] : []).sort((a, b) =>
-    String(a.name || "").localeCompare(String(b.name || ""), "ar"),
+  // Sort items ascending by code (numeric) for a sequential, easy-to-scan sheet.
+  const sorted = (Array.isArray(items) ? [...items] : []).sort(
+    (a, b) => Number(a.code || 0) - Number(b.code || 0),
   );
 
   let grandCost = 0;

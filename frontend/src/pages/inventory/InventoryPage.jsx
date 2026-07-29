@@ -116,9 +116,10 @@ const InventoryPage = () => {
   // fetches the complete item set (no category/search/hide-zero) so the printed
   // sheet is a full جرد regardless of the on-screen filters.
   const [isPrinting, setIsPrinting] = useState(false);
-  // Whether the printed sheet includes the cost/sell price columns.
-  const [includePrices, setIncludePrices] = useState(true);
-  const handlePrintCount = async () => {
+  // After clicking "طباعة الجرد" we ask whether to include the price columns.
+  const [showPricesPrompt, setShowPricesPrompt] = useState(false);
+  const runPrint = async (includePrices) => {
+    setShowPricesPrompt(false);
     if (isPrinting) return;
     setIsPrinting(true);
     try {
@@ -544,25 +545,9 @@ const InventoryPage = () => {
               </span>
             </div>
 
-            {/* Toggle: include cost/sell prices in the printed جرد sheet */}
+            {/* Print inventory count (جرد) sheet — asks about prices first */}
             <button
-              onClick={() => setIncludePrices((v) => !v)}
-              aria-pressed={includePrices}
-              title="تضمين سعر التكلفة وسعر البيع في مطبوعة الجرد"
-              className={`inline-flex items-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold border transition-all outline-none ${
-                includePrices
-                  ? "bg-primary text-white border-transparent shadow-sm"
-                  : "bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark border-border-light dark:border-border-dark hover:text-primary hover:border-primary"
-              }`}>
-              <span className="material-symbols-outlined text-[20px]">
-                sell
-              </span>
-              شامل الأسعار
-            </button>
-
-            {/* Print inventory count (جرد) sheet */}
-            <button
-              onClick={handlePrintCount}
+              onClick={() => setShowPricesPrompt(true)}
               disabled={isPrinting}
               title="طباعة كشف الجرد للفرع المحدد"
               className="inline-flex items-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold border transition-all outline-none bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark border-border-light dark:border-border-dark hover:text-primary hover:border-primary disabled:opacity-60 disabled:cursor-not-allowed">
@@ -642,6 +627,50 @@ const InventoryPage = () => {
           maxHeightClass="max-h-none"
         />
       </div>
+
+      {/* Prices prompt shown after clicking "طباعة الجرد" */}
+      {showPricesPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowPricesPrompt(false)}>
+          <div
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl border border-border-light dark:border-border-dark w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-text-main dark:text-text-dark mb-1">
+              طباعة الجرد
+            </h3>
+            <p className="text-sm text-text-muted dark:text-gray-400 mb-5">
+              هل تريد تضمين أسعار التكلفة والبيع في المطبوعة؟
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => runPrint(true)}
+                disabled={isPrinting}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold bg-primary text-white hover:bg-primary-hover disabled:opacity-60 transition-all">
+                <span className="material-symbols-outlined text-[20px]">
+                  sell
+                </span>
+                طباعة بالأسعار
+              </button>
+              <button
+                onClick={() => runPrint(false)}
+                disabled={isPrinting}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold border border-border-light dark:border-border-dark text-text-light dark:text-text-dark hover:text-primary hover:border-primary disabled:opacity-60 transition-all">
+                <span className="material-symbols-outlined text-[20px]">
+                  print
+                </span>
+                طباعة بدون أسعار
+              </button>
+              <button
+                onClick={() => setShowPricesPrompt(false)}
+                className="w-full rounded-xl py-2 px-4 text-sm font-bold text-text-muted dark:text-gray-400 hover:text-text-main dark:hover:text-text-dark transition-colors">
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       </>}
     </div>
