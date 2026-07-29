@@ -6,6 +6,7 @@ import InitialInventoryTab from "./InitialInventoryTab";
 import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
 import { printInventoryCount } from "../../utils/printInventoryCount";
+import { exportInventoryToCsv } from "../../utils/exportInventory";
 
 const InventoryPage = () => {
   const { activeBranchId, isGlobalRole, activeBranch } = useBranch();
@@ -95,6 +96,22 @@ const InventoryPage = () => {
   // Toggle to hide items with zero available quantity (out of stock).
   const [hideZero, setHideZero] = useState(false);
 
+  // The warehouse actually in effect: global users follow the dropdown, others
+  // are pinned to their active branch (mirrors the fetch effect above).
+  const resolveSelectedWarehouse = () =>
+    isGlobalRole ? selectedWarehouse : activeBranch?.warehouseId?.toString();
+
+  // Human-readable name for the selected branch (or "all branches").
+  const resolveBranchName = (effectiveWarehouse) => {
+    if (!effectiveWarehouse || effectiveWarehouse === "all") return "كل الفروع";
+    return (
+      branches.find((b) => b.warehouseId?.toString() === effectiveWarehouse)
+        ?.name ||
+      activeBranch?.name ||
+      ""
+    );
+  };
+
   // Print the full stocktake (جرد) sheet for the selected branch. Intentionally
   // fetches the complete item set (no category/search/hide-zero) so the printed
   // sheet is a full جرد regardless of the on-screen filters.
@@ -103,24 +120,14 @@ const InventoryPage = () => {
     if (isPrinting) return;
     setIsPrinting(true);
     try {
-      const effectiveWarehouse = isGlobalRole
-        ? selectedWarehouse
-        : activeBranch?.warehouseId?.toString();
+      const effectiveWarehouse = resolveSelectedWarehouse();
 
       const filters = {};
       if (effectiveWarehouse && effectiveWarehouse !== "all")
         filters.warehouseId = effectiveWarehouse;
 
       const items = await inventoryService.getInventory(filters);
-
-      const branchName =
-        !effectiveWarehouse || effectiveWarehouse === "all"
-          ? "كل الفروع"
-          : branches.find(
-              (b) => b.warehouseId?.toString() === effectiveWarehouse,
-            )?.name ||
-            activeBranch?.name ||
-            "";
+      const branchName = resolveBranchName(effectiveWarehouse);
 
       printInventoryCount({ items, branchName });
     } catch (error) {
@@ -137,6 +144,13 @@ const InventoryPage = () => {
     const matchesStock = !hideZero || Number(item.quantity) !== 0;
     return matchesSearch && matchesStock;
   });
+
+  // Export the currently displayed rows to CSV — respects every active filter
+  // (branch, category, search, hide-zero) so "what you see is what you export".
+  const handleExport = () => {
+    const branchName = resolveBranchName(resolveSelectedWarehouse());
+    exportInventoryToCsv({ items: displayedItems, branchName });
+  };
 
   // Column Definitions for GenericDataTable
   const columns = [
@@ -538,6 +552,18 @@ const InventoryPage = () => {
                 {isPrinting ? "hourglass_top" : "print"}
               </span>
               طباعة الجرد
+            </button>
+
+            {/* Export displayed rows to CSV (respects active filters) */}
+            <button
+              onClick={handleExport}
+              disabled={displayedItems.length === 0}
+              title="تصدير الأصناف المعروضة إلى ملف Excel/CSV"
+              className="inline-flex items-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold border transition-all outline-none bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark border-border-light dark:border-border-dark hover:text-primary hover:border-primary disabled:opacity-60 disabled:cursor-not-allowed">
+              <span className="material-symbols-outlined text-[20px]">
+                download
+              </span>
+              تصدير Excel
             </button>
           </div>
 

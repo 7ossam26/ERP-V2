@@ -223,24 +223,90 @@ router.put(
 );
 
 // DELETE item - Requires SENSITIVE ACCESS
+// Only items with no transactional history can be deleted. Any reference from
+// sales, purchases, returns, transfers, production, BOMs, bulk orders, opening
+// stock, or current stock on hand blocks the delete and returns a clear reason.
+// Genuinely unused items are removed, cleaning up their residual zero-quantity
+// stock rows first (supplier/category links and bulk-contract prices cascade).
 router.delete(
   "/:id",
   requirePermission("ITEMS"),
   requireSensitiveAccess,
   async (req, res) => {
+    const itemId = parseInt(req.params.id);
+    if (Number.isNaN(itemId)) {
+      return res.status(400).json({ error: "Invalid item id" });
+    }
+
     try {
-      await prisma.item.delete({
-        where: { id: parseInt(req.params.id) },
+      const item = await prisma.item.findUnique({
+        where: { id: itemId },
+        select: {
+          id: true,
+          inventory: { select: { quantity: true } },
+          _count: {
+            select: {
+              saleItems: true,
+              purchaseItems: true,
+              purchaseReturnItems: true,
+              stockTransferItems: true,
+              productionOrderItems: true,
+              bomItems: true,
+              bomOutputs: true,
+              bulkOrderItems: true,
+              initialInventoryEntries: true,
+            },
+          },
+        },
       });
+
+      if (!item) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+
+      // Build a human-readable list of what references this item.
+      const c = item._count;
+      const hasStock = item.inventory.some((row) => Number(row.quantity) !== 0);
+      const blockers = [];
+      if (c.saleItems) blockers.push("فواتير مبيعات");
+      if (c.purchaseItems) blockers.push("فواتير مشتريات");
+      if (c.purchaseReturnItems) blockers.push("مرتجعات مشتريات");
+      if (c.stockTransferItems) blockers.push("تحويلات مخزنية");
+      if (c.productionOrderItems) blockers.push("أوامر إنتاج");
+      if (c.bomItems) blockers.push("قوائم تصنيع (كمكوّن)");
+      if (c.bomOutputs) blockers.push("قائمة تصنيع (كمنتج نهائي)");
+      if (c.bulkOrderItems) blockers.push("طلبات جملة");
+      if (c.initialInventoryEntries) blockers.push("رصيد افتتاحي");
+      if (hasStock) blockers.push("رصيد مخزون حالي");
+
+      if (blockers.length > 0) {
+        return res.status(400).json({
+          error: "Cannot delete item",
+          message: `لا يمكن حذف الصنف لأنه مستخدم في: ${blockers.join(
+            "، ",
+          )}. يمكنك إخفاؤه من نقاط البيع بدلاً من حذفه.`,
+        });
+      }
+
+      // Unused item: clear residual zero-quantity stock rows (Restrict FK), then
+      // delete. Supplier/category links and bulk-contract prices cascade.
+      await prisma.$transaction(async (tx) => {
+        await tx.inventory.deleteMany({ where: { itemId } });
+        await tx.item.delete({ where: { id: itemId } });
+      });
+
       res.status(204).send();
     } catch (error) {
       if (error.code === "P2025") {
         return res.status(404).json({ error: "Item not found" });
       }
+      // Safety net: if a reference we didn't explicitly check still blocks the
+      // delete, return the same clear guidance instead of a raw 500.
       if (error.code === "P2003") {
         return res.status(400).json({
           error: "Cannot delete item",
-          message: "Item is referenced by other records (e.g., Sales, Purchases) and cannot be deleted."
+          message:
+            "لا يمكن حذف الصنف لأنه مرتبط بسجلات أخرى (مثل المبيعات والمشتريات). يمكنك إخفاؤه من نقاط البيع بدلاً من حذفه.",
         });
       }
       res
