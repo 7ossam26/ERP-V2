@@ -91,12 +91,16 @@ const InventoryPage = () => {
   // Data is now already filtered by backend, so we just use inventoryItems
   // But searching is client side for now
   const [searchQuery, setSearchQuery] = useState("");
+  // Toggle to hide items with zero available quantity (out of stock).
+  const [hideZero, setHideZero] = useState(false);
 
-  const displayedItems = inventoryItems.filter(
-    (item) =>
+  const displayedItems = inventoryItems.filter((item) => {
+    const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.code && item.code.toString().includes(searchQuery)),
-  );
+      (item.code && item.code.toString().includes(searchQuery));
+    const matchesStock = !hideZero || Number(item.quantity) !== 0;
+    return matchesSearch && matchesStock;
+  });
 
   // Column Definitions for GenericDataTable
   const columns = [
@@ -446,6 +450,22 @@ const InventoryPage = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Hide zero-stock toggle */}
+            <button
+              onClick={() => setHideZero((v) => !v)}
+              aria-pressed={hideZero}
+              title="إخفاء الأصناف ذات الكمية صفر"
+              className={`inline-flex items-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold border transition-all outline-none ${
+                hideZero
+                  ? "bg-primary text-white border-transparent shadow-sm"
+                  : "bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark border-border-light dark:border-border-dark hover:text-primary hover:border-primary"
+              }`}>
+              <span className="material-symbols-outlined text-[20px]">
+                {hideZero ? "visibility_off" : "visibility"}
+              </span>
+              إخفاء الصفرية
+            </button>
+
             {/* Branch Filter */}
             <div className="relative">
               <select
