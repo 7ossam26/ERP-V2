@@ -795,6 +795,7 @@ const BOMManager = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingBom, setEditingBom] = useState(null);
   const [expandedBom, setExpandedBom] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const canCreate = AuthService.hasPermission("CREATES_PRODUCTION");
 
@@ -865,6 +866,21 @@ const BOMManager = () => {
   const toggleExpand = (bomId) => {
     setExpandedBom(expandedBom === bomId ? null : bomId);
   };
+
+  // Filter BOMs by recipe title, linked output product, or ingredient names
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredBoms = normalizedQuery
+    ? boms.filter((bom) => {
+        const inName = bom.name?.toLowerCase().includes(normalizedQuery);
+        const inOutput = bom.outputItemName
+          ?.toLowerCase()
+          .includes(normalizedQuery);
+        const inIngredients = bom.items?.some((item) =>
+          item.itemName?.toLowerCase().includes(normalizedQuery),
+        );
+        return inName || inOutput || inIngredients;
+      })
+    : boms;
 
   if (showForm) {
     return (
@@ -955,6 +971,32 @@ const BOMManager = () => {
         </div>
       </div>
 
+      {/* Search Bar */}
+      {!loading && boms.length > 0 && (
+        <div className="mb-6">
+          <div className="relative">
+            <span className="material-icons-round absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+              search
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="ابحث باسم الوصفة أو المكوّنات..."
+              className="w-full bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl py-3 pr-12 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                title="مسح البحث"
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg transition-colors">
+                <span className="material-icons-round text-lg">close</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -969,9 +1011,18 @@ const BOMManager = () => {
             لا توجد وصفات تصنيع مسجلة
           </p>
         </div>
+      ) : filteredBoms.length === 0 ? (
+        <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark p-12 text-center">
+          <span className="material-icons-round text-6xl text-gray-300 dark:text-gray-600 mb-4">
+            search_off
+          </span>
+          <p className="text-lg text-gray-500 dark:text-gray-400">
+            لا توجد وصفات مطابقة لـ "{searchQuery}"
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
-          {boms.map((bom) => (
+          {filteredBoms.map((bom) => (
             <div
               key={bom.id}
               className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden transition-all hover:shadow-md">

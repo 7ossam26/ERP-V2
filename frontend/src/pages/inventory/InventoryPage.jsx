@@ -5,6 +5,7 @@ import InitialInventoryTab from "./InitialInventoryTab";
 
 import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
+import { printInventoryCount } from "../../utils/printInventoryCount";
 
 const InventoryPage = () => {
   const { activeBranchId, isGlobalRole, activeBranch } = useBranch();
@@ -93,6 +94,41 @@ const InventoryPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   // Toggle to hide items with zero available quantity (out of stock).
   const [hideZero, setHideZero] = useState(false);
+
+  // Print the full stocktake (جرد) sheet for the selected branch. Intentionally
+  // fetches the complete item set (no category/search/hide-zero) so the printed
+  // sheet is a full جرد regardless of the on-screen filters.
+  const [isPrinting, setIsPrinting] = useState(false);
+  const handlePrintCount = async () => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    try {
+      const effectiveWarehouse = isGlobalRole
+        ? selectedWarehouse
+        : activeBranch?.warehouseId?.toString();
+
+      const filters = {};
+      if (effectiveWarehouse && effectiveWarehouse !== "all")
+        filters.warehouseId = effectiveWarehouse;
+
+      const items = await inventoryService.getInventory(filters);
+
+      const branchName =
+        !effectiveWarehouse || effectiveWarehouse === "all"
+          ? "كل الفروع"
+          : branches.find(
+              (b) => b.warehouseId?.toString() === effectiveWarehouse,
+            )?.name ||
+            activeBranch?.name ||
+            "";
+
+      printInventoryCount({ items, branchName });
+    } catch (error) {
+      console.error("Failed to print inventory count:", error);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   const displayedItems = inventoryItems.filter((item) => {
     const matchesSearch =
@@ -491,6 +527,18 @@ const InventoryPage = () => {
                 expand_more
               </span>
             </div>
+
+            {/* Print inventory count (جرد) sheet */}
+            <button
+              onClick={handlePrintCount}
+              disabled={isPrinting}
+              title="طباعة كشف الجرد للفرع المحدد"
+              className="inline-flex items-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold border transition-all outline-none bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark border-border-light dark:border-border-dark hover:text-primary hover:border-primary disabled:opacity-60 disabled:cursor-not-allowed">
+              <span className="material-symbols-outlined text-[20px]">
+                {isPrinting ? "hourglass_top" : "print"}
+              </span>
+              طباعة الجرد
+            </button>
           </div>
 
           {/* Category Filters */}
