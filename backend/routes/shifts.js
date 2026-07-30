@@ -1,13 +1,33 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const bcrypt = require("bcryptjs");
 const {
   authenticateToken,
   requireAnyPermission,
   getUserBranchFilter,
+  verifyShiftManager,
 } = require("../middleware/auth");
+const {
+  isShiftApprovalRole,
+  bypassesShiftBranchScope,
+} = require("../config/roles");
 const { drainPendingForBranch } = require("../lib/orderService");
+
+/**
+ * How far back POST /start looks for an unclosed shift when deciding whether a
+ * branch may open a new one. Long enough to cover an overnight shift.
+ *
+ * Note for anyone tempted to bound PATCH /:id/reopen by this same window: it
+ * would protect nothing. That blocker matches status OPEN *and* PENDING_REVIEW —
+ * both sides of the reopen transition — so a PENDING_REVIEW shift already blocks
+ * /start exactly as much as the OPEN shift it becomes, at any age. Reopening
+ * cannot make a shift newly invisible to this check.
+ */
+const UNCLOSED_SHIFT_LOOKBACK_HOURS = 48;
+
+// Reopening discards the cashier's submitted cash count, so the audit trail
+// needs a real explanation rather than a keystroke.
+const MIN_REOPEN_REASON_LENGTH = 5;
 
 // Require authentication for all shift operations
 // Require authentication for all shift operations
@@ -327,9 +347,9 @@ router.post("/start", async (req, res, next) => {
     // Determine shift type based on time
     const { type: shiftType, config } = await determineShiftType();
 
-    // Check for RECENT unclosed shifts (last 48 hours to handle overnight shifts)
+    // Check for RECENT unclosed shifts (last 48 hours to handle overnight shifts).
     const twoDaysAgo = new Date();
-    twoDaysAgo.setHours(twoDaysAgo.getHours() - 48);
+    twoDaysAgo.setHours(twoDaysAgo.getHours() - UNCLOSED_SHIFT_LOOKBACK_HOURS);
 
     // BLOCKING LOGIC: Any unclosed shift (OPEN or PENDING_REVIEW) blocks new shift start
     // This enforces STRICT one shift per branch policy
@@ -450,16 +470,27 @@ router.post("/end", async (req, res, next) => {
     if (!shiftToEnd) {
       return res.status(404).json({ error: "Shift not found" });
     }
+    // Only a live shift can be closed. Without this guard a PENDING_REVIEW shift
+    // could be re-closed (silently overwriting its counted cash and variance) and
+    // an already-CLOSED shift could be pushed back to PENDING_REVIEW while
+    // keeping a stale reviewer — an un-audited reopen that bypasses every
+    // eligibility check on PATCH /:id/reopen. Reopening is that route's job, and
+    // only from PENDING_REVIEW: approval is terminal.
+    if (shiftToEnd.status !== "OPEN") {
+      return res.status(400).json({
+        error: `Cannot end a shift with status: ${shiftToEnd.status}`,
+        message:
+          shiftToEnd.status === "CLOSED"
+            ? "هذه الوردية تم اعتمادها وإغلاقها نهائياً"
+            : "هذه الوردية بانتظار موافقة المدير بالفعل",
+      });
+    }
+
     const requestingUser = await prisma.user.findUnique({
       where: { id: req.user.id },
       include: { role: true, accessibleBranches: { select: { id: true } } },
     });
-    const isManager =
-      requestingUser.role.name === "Superadmin" ||
-      requestingUser.role.name === "Admin" ||
-      requestingUser.role.name === "Manager" ||
-      requestingUser.role.name === "Branch Manager" ||
-      requestingUser.role.name === "General Manager";
+    const isManager = isShiftApprovalRole(requestingUser.role.name);
     const ownsShift = shiftToEnd.userId === req.user.id;
     if (!ownsShift && !isManager) {
       return res.status(403).json({
@@ -617,68 +648,13 @@ router.post("/approve", async (req, res, next) => {
       });
     }
 
-    // Authenticate the manager
-    const manager = await prisma.user.findUnique({
-      where: { username: managerUsername },
-      include: {
-        role: true,
-        accessibleBranches: {
-          select: { id: true },
-        },
-      },
-    });
-
-    if (!manager) {
-      return res.status(401).json({
-        error: "Invalid manager credentials",
-        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
-      });
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(
+    // Authenticate + authorize the approving manager. Shared with the reopen
+    // route so the two operations can never drift apart on who may act.
+    const manager = await verifyShiftManager(
+      managerUsername,
       managerPassword,
-      manager.password,
+      shift,
     );
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        error: "Invalid manager credentials",
-        message: "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
-      });
-    }
-
-    // Verify manager has access to this branch
-    const canAccessBranch =
-      manager.branchId === shift.branchId ||
-      (manager.accessibleBranches &&
-        manager.accessibleBranches.some((b) => b.id === shift.branchId)) ||
-      manager.role.name === "Superadmin" ||
-      manager.role.name === "Admin" ||
-      manager.role.name === "General Manager"; // Global roles can access all branches
-
-    if (!canAccessBranch) {
-      return res.status(403).json({
-        error:
-          "Access denied. You do not have permission to manage this branch.",
-        message: "عذراً، ليس لديك صلاحية لإدارة هذا الفرع",
-      });
-    }
-
-    // Verify manager has appropriate role (TODO: Add permission check if needed)
-    // For now, assuming "Manager" role or Superadmin
-    const isAuthorized =
-      manager.role.name === "Superadmin" ||
-      manager.role.name === "Manager" ||
-      manager.role.name === "Branch Manager" ||
-      manager.role.name === "Admin" ||
-      manager.role.name === "General Manager";
-
-    if (!isAuthorized) {
-      return res.status(403).json({
-        error: "Access denied. Only managers can approve shifts.",
-        message: "عذراً، هذه العملية متاحة للمديرين فقط",
-      });
-    }
 
     // Close the shift
     const closedShift = await prisma.shift.update({
@@ -701,6 +677,266 @@ router.post("/approve", async (req, res, next) => {
   }
 });
 
+/**
+ * Send a shift awaiting review back to OPEN *without* approving it, so its own
+ * cashier can resume selling under the SAME shift record.
+ *
+ * This is the second of the two actions available to a shift approver while a
+ * shift sits in PENDING_REVIEW — the alternative to POST /approve:
+ *
+ *   OPEN → /end → PENDING_REVIEW ─┬─ /approve      → CLOSED  (terminal)
+ *                                 └─ /:id/reopen   → OPEN    (sell more, /end again)
+ *
+ * The PENDING_REVIEW → OPEN → PENDING_REVIEW loop may run any number of times
+ * until the shift is finally approved. A CLOSED shift is NOT reopenable here:
+ * approval is the end of the shift's life.
+ *
+ * Access is intentionally identical to POST /approve — same verifyShiftManager
+ * helper, no module permission — so whoever may confirm a shift may reopen one.
+ *
+ * PATCH (not POST) on purpose: middleware/auditCapture.js only fetches the
+ * before-state for PUT/PATCH/DELETE, so the closing figures this route discards
+ * are captured into audit_logs.old_values automatically.
+ *
+ * Nothing financial is posted at shift open/close — shift figures are derived
+ * from the sales/expenses/advances relations, never written as ledger rows — so
+ * clearing the closing snapshot cannot double-count money or stock. Sales are
+ * never touched: they keep their shiftId, and new sales get the same one.
+ */
+router.patch("/:id/reopen", async (req, res, next) => {
+  try {
+    const shiftId = parseInt(req.params.id);
+    const { managerUsername, managerPassword, reason } = req.body;
+
+    if (!shiftId || Number.isNaN(shiftId)) {
+      return res.status(400).json({
+        error: "Shift ID is required",
+        message: "رقم الوردية مطلوب",
+      });
+    }
+
+    const trimmedReason = (reason || "").trim();
+    if (trimmedReason.length < MIN_REOPEN_REASON_LENGTH) {
+      return res.status(400).json({
+        error: `A reason of at least ${MIN_REOPEN_REASON_LENGTH} characters is required to reopen a shift`,
+        message: `يجب كتابة سبب إعادة الفتح (${MIN_REOPEN_REASON_LENGTH} أحرف على الأقل)`,
+      });
+    }
+
+    const shift = await prisma.shift.findUnique({
+      where: { id: shiftId },
+      include: { user: { select: { id: true, name: true, isActive: true } } },
+    });
+
+    if (!shift) {
+      return res.status(404).json({
+        error: "Shift not found",
+        message: "الوردية غير موجودة",
+      });
+    }
+
+    // Only a shift awaiting review can be sent back to OPEN. An already-approved
+    // (CLOSED) shift is history — its figures have been signed off and may
+    // already be feeding the next shift's opening cash — so it is out of scope
+    // for this workflow.
+    if (shift.status !== "PENDING_REVIEW") {
+      return res.status(400).json({
+        error: `Cannot reopen a shift with status: ${shift.status}`,
+        message:
+          shift.status === "OPEN"
+            ? "هذه الوردية مفتوحة بالفعل"
+            : "هذه الوردية تم اعتمادها وإغلاقها نهائياً، لا يمكن إعادة فتحها",
+      });
+    }
+
+    // The caller must be able to see this branch at all (read-side ACL), before
+    // we tell them anything about the shift's eligibility.
+    const branchFilter = await getUserBranchFilter(req.user.id, req);
+    if (branchFilter) {
+      const allowedIds = branchFilter.id?.in || [branchFilter.id];
+      if (!allowedIds.includes(shift.branchId)) {
+        return res.status(403).json({
+          error: "Access denied. You cannot manage shifts in this branch.",
+          message: "عذراً، ليس لديك صلاحية لإدارة ورديات هذا الفرع",
+        });
+      }
+    }
+
+    // The owning cashier must still be able to log in and sell.
+    if (!shift.user?.isActive) {
+      return res.status(400).json({
+        error: "The cashier who owns this shift is no longer active",
+        message: "حساب الموظف صاحب الوردية غير مفعّل، لا يمكن إعادة فتح الوردية",
+      });
+    }
+
+    // There is deliberately NO age cap here. The old CLOSED → OPEN version had
+    // one, bounded by UNCLOSED_SHIFT_LOOKBACK_HOURS, to stop a reopened shift
+    // from slipping past the one-shift-per-branch blocker in POST /start. That
+    // blocker matches OPEN *and* PENDING_REVIEW, so a shift awaiting review
+    // already blocks /start exactly as much as the OPEN shift it becomes — the
+    // cap could not prevent anything. Overlap with LATER shifts, the concern that
+    // actually survives, is handled by the newer-shift guard below.
+
+    // Authenticate + authorize the manager BEFORE the transaction, so a failed
+    // credential check never holds a write lock.
+    const manager = await verifyShiftManager(
+      managerUsername,
+      managerPassword,
+      shift,
+    );
+
+    // Re-check the collision guards inside the transaction and write in one go,
+    // so two concurrent reopens (or a reopen racing a POST /start) cannot both
+    // succeed and leave the branch with two live shifts.
+    const reopenedShift = await prisma.$transaction(async (tx) => {
+      const fresh = await tx.shift.findUnique({ where: { id: shiftId } });
+      if (!fresh || fresh.status !== "PENDING_REVIEW") {
+        throw Object.assign(new Error("تم تغيير حالة الوردية، أعد المحاولة"), {
+          status: 409,
+          error: "Shift status changed while reopening. Please retry.",
+        });
+      }
+
+      // Must be the branch's most recent shift, because two of this shift's
+      // figures are attributed by TIME WINDOW rather than by shiftId: driver
+      // DUES_PAYOUT in calculateSystemExpectedCash, and deposits in
+      // GET /:id/report. Both span [startTime, endTime || now]. Reopening a shift
+      // that later shifts have already run past would stretch that window across
+      // them and charge their payouts against this drawer twice.
+      //
+      // (This guard used to be justified by the rolling-cash chain — a later
+      // shift having inherited this one's endCash as its startCash. That does not
+      // apply here: the lookup in POST /start reads status CLOSED only, so a
+      // PENDING_REVIEW shift is never a rolling-balance source.)
+      const newerShift = await tx.shift.findFirst({
+        where: {
+          branchId: fresh.branchId,
+          id: { not: shiftId },
+          startTime: { gte: fresh.startTime },
+        },
+        include: { user: { select: { name: true } } },
+        orderBy: { startTime: "desc" },
+      });
+
+      if (newerShift) {
+        throw Object.assign(
+          new Error(
+            `لا يمكن إعادة فتح الوردية: توجد وردية أحدث (#${newerShift.id}) للموظف ${newerShift.user?.name || "غير معروف"} في هذا الفرع`,
+          ),
+          {
+            status: 400,
+            error:
+              "Cannot reopen: a newer shift already exists for this branch.",
+          },
+        );
+      }
+
+      // One live shift per branch (mirrors the POST /start blocker).
+      const blockingBranchShift = await tx.shift.findFirst({
+        where: {
+          branchId: fresh.branchId,
+          id: { not: shiftId },
+          status: { in: ["OPEN", "PENDING_REVIEW"] },
+        },
+        include: { user: { select: { name: true } } },
+      });
+
+      if (blockingBranchShift) {
+        throw Object.assign(
+          new Error(
+            `لا يمكن إعادة فتح الوردية: يوجد وردية غير مغلقة للموظف ${blockingBranchShift.user?.name || "غير معروف"} في هذا الفرع`,
+          ),
+          {
+            status: 400,
+            error:
+              "Cannot reopen: this branch already has an unclosed shift.",
+          },
+        );
+      }
+
+      // The cashier must not already hold another OPEN shift anywhere, or POS
+      // would have two candidates for the same user.
+      const cashierOtherShift = await tx.shift.findFirst({
+        where: {
+          userId: fresh.userId,
+          id: { not: shiftId },
+          status: "OPEN",
+        },
+      });
+
+      if (cashierOtherShift) {
+        throw Object.assign(
+          new Error(
+            `لا يمكن إعادة فتح الوردية: الموظف لديه وردية مفتوحة أخرى (#${cashierOtherShift.id})`,
+          ),
+          {
+            status: 400,
+            error: "Cannot reopen: the cashier already has another open shift.",
+          },
+        );
+      }
+
+      // Clear the ENTIRE closing snapshot — every field POST /end writes — so
+      // the next /end recomputes it from scratch over the whole shift. The
+      // discarded values live on in audit_logs.old_values.
+      //
+      //   endTime            MUST be nulled. calculateSystemExpectedCash bounds
+      //                      its DUES_PAYOUT window at `endTime || now` (and the
+      //                      report does the same for deposits). Left at the
+      //                      first close, the SECOND close would silently miss
+      //                      every payout made during the reopened period.
+      //   endCash            Rolling-balance source for the next shift's
+      //                      startCash; must not read as a finished count.
+      //   actualCash,        The discarded blind count and its variance. /end
+      //   systemExpectedCash overwrites them anyway, but an OPEN shift that still
+      //   shortage           reports a stale shortage is a lie to the report.
+      //   expectedVisa,      Same; the report falls back to live sums when null.
+      //   expectedInstapay
+      //   reviewedById,      Already null on a PENDING_REVIEW row (only /approve
+      //   reviewedAt         sets them) — nulled anyway to hold the invariant
+      //                      "a non-CLOSED shift has no reviewer".
+      //
+      // Preserved on purpose: startCash / startTime / type / userId / branchId.
+      // They are this shift's identity and history, and startCash is the anchor
+      // the re-close builds expected cash on top of. Recalculation covers ALL
+      // cycles because the sales/expenses/employeeTransactions relations are
+      // scoped by shiftId with no time filter — nothing is "since reopen".
+      return tx.shift.update({
+        where: { id: shiftId },
+        data: {
+          status: "OPEN",
+          endTime: null,
+          endCash: null,
+          actualCash: null,
+          systemExpectedCash: null,
+          shortage: null,
+          expectedVisa: null,
+          expectedInstapay: null,
+          reviewedById: null,
+          reviewedAt: null,
+        },
+        include: {
+          user: { select: { id: true, name: true } },
+          branch: { select: { id: true, name: true } },
+        },
+      });
+    });
+
+    console.log(
+      `[SHIFT] Shift #${shiftId} reopened by ${manager.username} (${manager.role}) — reason: ${trimmedReason}`,
+    );
+
+    res.json({
+      ...reopenedShift,
+      reopenedBy: { id: manager.id, username: manager.username },
+      reason: trimmedReason,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get active shift for a user
 router.get("/active/:userId", async (req, res, next) => {
   try {
@@ -711,6 +947,9 @@ router.get("/active/:userId", async (req, res, next) => {
         userId: userId,
         status: "OPEN",
       },
+      // Deterministic pick. A reopened shift keeps its original startTime, so if
+      // a stale OPEN shift ever coexists with it, always resolve to the newest.
+      orderBy: { startTime: "desc" },
     });
 
     if (!activeShift) {
@@ -814,9 +1053,8 @@ router.get(
         user.branchId === shift.branchId ||
         (user.accessibleBranches &&
           user.accessibleBranches.some((b) => b.id === shift.branchId)) ||
-        user.role.name === "Superadmin" ||
-        user.role.name === "Admin" ||
-        user.role.name === "General Manager"; // Global roles can access all branches
+        // Global roles can access all branches
+        bypassesShiftBranchScope(user.role?.name);
 
       if (!canAccessReport) {
         return res.status(403).json({

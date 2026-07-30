@@ -10,6 +10,10 @@ const qs = (params) => {
 };
 
 export const bulkService = {
+  // Catalog — BOM-aware availability for the operator's branch warehouse.
+  // Needs only BULK_POS, unlike /inventory.
+  listItems: () => api.get("/bulk/items"),
+
   // Customers
   listCustomers: (params) => api.get(`/bulk/customers${qs(params)}`),
   getCustomer: (id) => api.get(`/bulk/customers/${id}`),

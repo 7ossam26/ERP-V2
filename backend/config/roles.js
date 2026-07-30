@@ -44,19 +44,53 @@ const SENSITIVE_ACCESS_DEFAULT_ROLES = [
 // this one is a hard approval gate and must not drift if that one changes.
 const RETURN_APPROVAL_ROLES = ["Superadmin", "Admin", "General Manager", "Manager"];
 
+// Roles allowed to act as the manager approver on a SHIFT-gated action. Both
+// actions available on a shift awaiting review share this list: approving it
+// (PENDING_REVIEW → CLOSED) and reopening it without approving
+// (PENDING_REVIEW → OPEN).
+// Shift approval has never been guarded by a `Module` permission — the SHIFTS
+// module only gates the shift LIST route — so this name allowlist is the real
+// access control. Membership is an EXACT copy of the list that was inlined in
+// routes/shifts.js, so centralizing it is behavior-preserving.
+//
+// ⚠️ Anything added here can both approve AND reopen shifts. The two operations
+//    share this list on purpose: whoever may confirm a shift may also reopen it.
+// ⚠️ "Branch Manager" is preserved from the original inline list even though it
+//    is not a seeded role (see prisma/seed.js). Removing it is a product
+//    decision, not a refactor.
+const SHIFT_APPROVAL_ROLES = [
+  "Superadmin",
+  "Admin",
+  "Manager",
+  "Branch Manager",
+  "General Manager",
+];
+
+// Roles that may act on a shift in ANY branch, bypassing the branch-scope check.
+// Deliberately NOT GLOBAL_ROLES: that list also contains "Call Center", which
+// was never accepted by the shift branch check. Exact copy of the inline list.
+const SHIFT_BRANCH_BYPASS_ROLES = ["Superadmin", "Admin", "General Manager"];
+
 const isGlobalRole = (roleName) => GLOBAL_ROLES.includes(roleName);
 const isAdminRole = (roleName) => ADMIN_ROLES.includes(roleName);
 const defaultsToSensitiveAccess = (roleName) =>
   SENSITIVE_ACCESS_DEFAULT_ROLES.includes(roleName);
 const isReturnApprovalRole = (roleName) => RETURN_APPROVAL_ROLES.includes(roleName);
+const isShiftApprovalRole = (roleName) => SHIFT_APPROVAL_ROLES.includes(roleName);
+const bypassesShiftBranchScope = (roleName) =>
+  SHIFT_BRANCH_BYPASS_ROLES.includes(roleName);
 
 module.exports = {
   GLOBAL_ROLES,
   ADMIN_ROLES,
   SENSITIVE_ACCESS_DEFAULT_ROLES,
   RETURN_APPROVAL_ROLES,
+  SHIFT_APPROVAL_ROLES,
+  SHIFT_BRANCH_BYPASS_ROLES,
   isGlobalRole,
   isAdminRole,
   defaultsToSensitiveAccess,
   isReturnApprovalRole,
+  isShiftApprovalRole,
+  bypassesShiftBranchScope,
 };

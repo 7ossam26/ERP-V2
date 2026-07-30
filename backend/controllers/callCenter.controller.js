@@ -1,6 +1,9 @@
 // controllers/callCenter.controller.js
 const prisma = require("../config/database");
 const { createOrderInTx, publishNewOrderNotifications, broadcastStatusChange } = require("../lib/orderService");
+const { buildSellableCatalog } = require("../lib/sellableCatalog");
+const { deductStockWithAutoProduceInTx } = require("../lib/productionService");
+const { resolveSaleLineUnitCost } = require("../lib/costing");
 const { roundMoney } = require("../utils/money");
 
 // -------------------------------------------------------------------------
@@ -92,34 +95,15 @@ exports.listItems = async (req, res, next) => {
     });
     if (!branch) return res.status(404).json({ error: "Branch not found" });
 
-    const items = await prisma.item.findMany({
-      where: { showInPos: true },
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        price: true, // selling price visible per D12
-        unit: true,
-        inventory: {
-          where: { warehouseId: branch.warehouseId },
-          select: { quantity: true },
-        },
-        categories: {
-          select: { category: { select: { id: true, name: true } } },
-        },
-      },
+    // BOM-aware: rows carry `available` (= stock + autoProducible) so
+    // made-to-order products, which always sit at zero on-hand, are sellable
+    // here the same way they are in POS instead of showing as نفد.
+    const rows = await buildSellableCatalog(prisma, {
+      warehouseId: branch.warehouseId,
+      onlyShowInPos: true,
     });
 
-    const shaped = items.map((it) => ({
-      id: it.id,
-      name: it.name,
-      price: Number(it.price),
-      unit: it.unit,
-      stock: it.inventory[0] ? Number(it.inventory[0].quantity) : 0,
-      categories: it.categories.map((c) => c.category),
-    }));
-
-    res.json(shaped);
+    res.json(rows);
   } catch (err) {
     next(err);
   }
@@ -294,10 +278,9 @@ exports.createOrder = async (req, res, next) => {
     const itemIds = items.map((i) => parseInt(i.itemId)).filter(Boolean);
     const dbItems = await prisma.item.findMany({
       where: { id: { in: itemIds } },
-      select: { id: true, name: true, price: true, costPrice: true },
+      select: { id: true, name: true, price: true },
     });
     const priceMap = new Map(dbItems.map((it) => [it.id, Number(it.price)]));
-    const costMap = new Map(dbItems.map((it) => [it.id, Number(it.costPrice || 0)]));
 
     const saleItems = [];
     let subtotal = 0;
@@ -313,14 +296,9 @@ exports.createOrder = async (req, res, next) => {
       const unitPrice = priceMap.get(itemId);
       const total = unitPrice * qty;
       subtotal += total;
-      // COGS snapshot for profit reporting.
-      saleItems.push({
-        itemId,
-        quantity: qty,
-        unitPrice,
-        total,
-        costPrice: costMap.get(itemId) || 0,
-      });
+      // costPrice (COGS snapshot) is resolved inside the transaction, after any
+      // auto-production has refreshed it — see below.
+      saleItems.push({ itemId, quantity: qty, unitPrice, total });
     }
 
     // Discount (optional). Validate and cap at subtotal.
@@ -369,7 +347,42 @@ exports.createOrder = async (req, res, next) => {
     const saleNumber = await generateSaleNumber();
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Sale — COD. paidAt stays null until dispatch/delivery.
+      // 1. Stock deduction (Q12-A) — mirrors POS behavior at the branch's warehouse.
+      // The decrement is a single conditional write: it only succeeds while
+      // quantity is still sufficient, so two agents claiming the last unit can't
+      // both pass and oversell (C3). When the item is short and has an active
+      // BOM, the shortfall is produced from raw materials first — the same
+      // auto-production POS performs, without which made-to-order products can
+      // never be sold from here.
+      const warnings = [];
+      for (const si of saleItems) {
+        const produced = await deductStockWithAutoProduceInTx(tx, {
+          itemId: si.itemId,
+          warehouseId: branch.warehouseId,
+          quantity: si.quantity,
+          createdById: req.user.id,
+          notes: `إنتاج تلقائي من الكول سنتر - فاتورة رقم ${saleNumber}`,
+        });
+        if (produced.produced > 0) {
+          warnings.push(
+            `AUTO_PRODUCED:${produced.itemName}:${produced.produced.toFixed(2)}`,
+          );
+        }
+      }
+
+      // 2. COGS snapshot — resolved now, not before the transaction, because
+      // auto-production restamps Item.costPrice. resolveSaleLineUnitCost also
+      // falls back to the BOM make-cost when costPrice is still 0, which is the
+      // normal state of an item that has never been produced.
+      const linedItems = [];
+      for (const si of saleItems) {
+        linedItems.push({
+          ...si,
+          costPrice: await resolveSaleLineUnitCost(tx, { itemId: si.itemId }),
+        });
+      }
+
+      // 3. Sale — COD. paidAt stays null until dispatch/delivery.
       const sale = await tx.sale.create({
         data: {
           saleNumber,
@@ -397,33 +410,12 @@ exports.createOrder = async (req, res, next) => {
           changeAmount: 0,
           status: "COMPLETED",
           notes: notes || null,
-          items: { create: saleItems },
+          items: { create: linedItems },
         },
         include: { items: true, client: true },
       });
 
-      // 2. Stock deduction (Q12-A) — mirrors POS behavior at the branch's warehouse.
-      // Single conditional write: decrement ONLY if current quantity is still
-      // sufficient. Two concurrent agents claiming the last unit will see one
-      // succeed and one get OUT_OF_STOCK, instead of the classic read-then-write
-      // race where both "pass" the check and oversell (C3).
-      for (const si of saleItems) {
-        const res = await tx.inventory.updateMany({
-          where: {
-            itemId: si.itemId,
-            warehouseId: branch.warehouseId,
-            quantity: { gte: si.quantity },
-          },
-          data: { quantity: { decrement: si.quantity } },
-        });
-        if (res.count === 0) {
-          const err = new Error(`OUT_OF_STOCK:${si.itemId}`);
-          err.status = 400;
-          throw err;
-        }
-      }
-
-      // 3. Order row — status NEW, channel CALL_CENTER.
+      // 4. Order row — status NEW, channel CALL_CENTER.
       const order = await createOrderInTx(tx, {
         saleId: sale.id,
         branchId: branch.id,
@@ -432,10 +424,10 @@ exports.createOrder = async (req, res, next) => {
         status: "NEW",
       });
 
-      // 4. Notifications — broadcast to every open-shift cashier at the branch.
+      // 5. Notifications — broadcast to every open-shift cashier at the branch.
       await publishNewOrderNotifications(tx, { order, sale, client });
 
-      return { sale, order };
+      return { sale, order, warnings };
     });
 
     res.status(201).json({
@@ -444,11 +436,19 @@ exports.createOrder = async (req, res, next) => {
       saleNumber: result.sale.saleNumber,
       status: result.order.status,
       total: Number(result.sale.total),
+      warnings: result.warnings,
     });
   } catch (err) {
-    if (err.message && err.message.startsWith("OUT_OF_STOCK:")) {
-      const itemId = err.message.split(":")[1];
-      return res.status(400).json({ error: "OUT_OF_STOCK", itemId });
+    if (err.code === "OUT_OF_STOCK") {
+      return res.status(400).json({ error: "OUT_OF_STOCK", itemId: err.itemId });
+    }
+    if (err.code === "INSUFFICIENT_RAW_MATERIALS") {
+      return res.status(400).json({
+        error: "INSUFFICIENT_RAW_MATERIALS",
+        message: err.message,
+        itemId: err.itemId,
+        details: err.details,
+      });
     }
     next(err);
   }

@@ -17,7 +17,8 @@ const formatKg = (n) => {
 const WeightPickerModal = ({ item, currentQty = 0, onConfirm, onClose }) => {
   const [value, setValue] = useState(currentQty > 0 ? String(currentQty) : "");
   const inputRef = useRef(null);
-  const stock = Number(item?.stock) || 0;
+  // Max sellable weight: on-hand plus whatever the item's BOM can still produce.
+  const stock = Number(item?.available ?? item?.stock) || 0;
 
   const submit = () => {
     const n = parseFloat(value);

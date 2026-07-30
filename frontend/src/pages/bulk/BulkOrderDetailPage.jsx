@@ -94,6 +94,10 @@ export default function BulkOrderDetailPage() {
       toast.success(`تم التأكيد ${updated.orderNumber || ""}`);
       setOrder(updated);
       setShowConfirmModal(false);
+    } catch (err) {
+      // Includes INSUFFICIENT_RAW_MATERIALS, whose message names the materials
+      // that ran short. The modal stays open so the operator can retry.
+      toast.error(err?.data?.message || err?.data?.error || "تعذر تأكيد الطلب", { duration: 7000 });
     } finally {
       setWorking(false);
     }

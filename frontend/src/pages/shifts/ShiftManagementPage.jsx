@@ -9,12 +9,14 @@ import {
   FaEye,
   FaFileAlt,
   FaTruck,
+  FaLockOpen,
 } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import apiClient from "../../services/apiClient";
 import { branchService } from "../../services/branchService";
 import shiftService from "../../services/shiftService";
 import ShiftApprovalModal from "./components/ShiftApprovalModal";
+import ShiftReopenModal from "./components/ShiftReopenModal";
 import ShiftReportModal from "./components/ShiftReportModal";
 import POSReportModal from "../pos/POSReportModal";
 
@@ -40,6 +42,9 @@ const ShiftManagementPage = () => {
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [selectedShiftForApproval, setSelectedShiftForApproval] =
     useState(null);
+
+  const [reopenModalOpen, setReopenModalOpen] = useState(false);
+  const [selectedShiftForReopen, setSelectedShiftForReopen] = useState(null);
 
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [selectedShiftReportId, setSelectedShiftReportId] = useState(null);
@@ -106,10 +111,21 @@ const ShiftManagementPage = () => {
     setReportModalOpen(true);
   };
 
+  const openReopenModal = (shift) => {
+    setSelectedShiftForReopen(shift);
+    setReopenModalOpen(true);
+  };
+
   const handleApprovalSuccess = () => {
     fetchShifts(); // Refresh list
     setApprovalModalOpen(false);
     setSelectedShiftForApproval(null);
+  };
+
+  const handleReopenSuccess = () => {
+    fetchShifts(); // Refresh list
+    setReopenModalOpen(false);
+    setSelectedShiftForReopen(null);
   };
 
   const statusColors = {
@@ -253,14 +269,28 @@ const ShiftManagementPage = () => {
                         <FaFileAlt />
                       </button>
 
-                      {/* Approve Button (Only for Pending) */}
+                      {/* The two actions a shift awaiting review offers its
+                          approver: approve it (→ CLOSED, terminal) or send it
+                          back to the cashier without approving (→ OPEN). A
+                          CLOSED shift offers neither. Reopen eligibility
+                          (latest shift in branch, cashier free) is enforced by
+                          the backend, which returns a clear reason. */}
                       {shift.status === "PENDING_REVIEW" && (
-                        <button
-                          className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors animate-pulse"
-                          title="مراجعة واعتماد"
-                          onClick={() => openApproveModal(shift)}>
-                          <FaCheck />
-                        </button>
+                        <>
+                          <button
+                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors animate-pulse"
+                            title="مراجعة واعتماد"
+                            onClick={() => openApproveModal(shift)}>
+                            <FaCheck />
+                          </button>
+
+                          <button
+                            className="p-2 bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors"
+                            title="إعادة فتح الوردية بدون اعتماد"
+                            onClick={() => openReopenModal(shift)}>
+                            <FaLockOpen />
+                          </button>
+                        </>
                       )}
                     </td>
                   </tr>
@@ -316,6 +346,16 @@ const ShiftManagementPage = () => {
         onClose={() => setApprovalModalOpen(false)}
         shift={selectedShiftForApproval}
         onSuccess={handleApprovalSuccess}
+      />
+
+      <ShiftReopenModal
+        isOpen={reopenModalOpen}
+        onClose={() => {
+          setReopenModalOpen(false);
+          setSelectedShiftForReopen(null);
+        }}
+        shift={selectedShiftForReopen}
+        onSuccess={handleReopenSuccess}
       />
 
       <ShiftReportModal

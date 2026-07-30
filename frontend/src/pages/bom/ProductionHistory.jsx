@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { bomService } from "../../services/domainServices";
 import { useBranch } from "../../contexts/BranchContext";
 import toast from "react-hot-toast";
+import { normalizeArabic, matchesNormalized } from "../../utils/arabicSearch";
 import { useNavigate } from "react-router-dom";
 
 const ProductionHistory = () => {
@@ -33,8 +34,10 @@ const ProductionHistory = () => {
     }
   };
 
-  const filtered = orders.filter(
-    (o) => !search || o.bom?.name?.toLowerCase().includes(search.toLowerCase()),
+  // Normalized so Arabic spelling variants still match — see utils/arabicSearch.
+  const normalizedSearch = normalizeArabic(search);
+  const filtered = orders.filter((o) =>
+    matchesNormalized(o.bom?.name, normalizedSearch),
   );
 
   const handleStartEdit = (order) => {

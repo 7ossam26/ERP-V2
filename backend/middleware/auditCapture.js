@@ -79,6 +79,9 @@ const SUB_ACTION_MAP = {
   "approve":  "APPROVE",
   "start":    "SHIFT_START",
   "end":      "SHIFT_END",
+  // PATCH, so fetchBeforeState captures the discarded closing snapshot
+  // (endCash / actualCash / shortage / reviewedById) into old_values.
+  "reopen":   "SHIFT_REOPEN",
   "pay":      "PAY",
   "settle":   "SETTLE",
   "login":    "LOGIN",

@@ -19,6 +19,18 @@ const shiftService = {
         return response;
     },
 
+    reopen: async ({ shiftId, managerUsername, managerPassword, reason }) => {
+        // Sends a PENDING_REVIEW shift back to OPEN *without* approving it, so
+        // its cashier can resume selling on the SAME shift. The alternative to
+        // approve() — and authorized by the same manager credentials.
+        const response = await api.patch(`/shifts/${shiftId}/reopen`, {
+            managerUsername,
+            managerPassword,
+            reason,
+        });
+        return response;
+    },
+
     checkActive: async (userId) => {
         const response = await api.get(`/shifts/active/${userId}`);
         // Backend now returns null (200 OK) if no shift, or the shift object

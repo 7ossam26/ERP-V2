@@ -10,6 +10,7 @@ import {
 import AuthService from "../../services/authService";
 import toast from "react-hot-toast";
 import { confirmAction } from "../../utils/toastUtils";
+import { normalizeArabic, matchesNormalized } from "../../utils/arabicSearch";
 import { useNavigate } from "react-router-dom";
 
 // ==========================================
@@ -789,9 +790,6 @@ const BOMManager = () => {
   const [executingBom, setExecutingBom] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
   const [showForm, setShowForm] = useState(false);
   const [editingBom, setEditingBom] = useState(null);
   const [expandedBom, setExpandedBom] = useState(null);
@@ -867,18 +865,25 @@ const BOMManager = () => {
     setExpandedBom(expandedBom === bomId ? null : bomId);
   };
 
-  // Filter BOMs by recipe title, linked output product, or ingredient names
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  // Filter BOMs by recipe title, linked output product, ingredient names,
+  // category, notes, or id. Normalized so Arabic spelling variants still match
+  // ("طحينه" finds "طحينة") — plain toLowerCase does nothing for Arabic.
+  const normalizedQuery = normalizeArabic(searchQuery);
   const filteredBoms = normalizedQuery
     ? boms.filter((bom) => {
-        const inName = bom.name?.toLowerCase().includes(normalizedQuery);
-        const inOutput = bom.outputItemName
-          ?.toLowerCase()
-          .includes(normalizedQuery);
+        const inName = matchesNormalized(bom.name, normalizedQuery);
+        const inOutput = matchesNormalized(bom.outputItemName, normalizedQuery);
         const inIngredients = bom.items?.some((item) =>
-          item.itemName?.toLowerCase().includes(normalizedQuery),
+          matchesNormalized(item.itemName, normalizedQuery),
         );
-        return inName || inOutput || inIngredients;
+        const inCategories = bom.categories?.some((category) =>
+          matchesNormalized(category.name, normalizedQuery),
+        );
+        const inNotes = matchesNormalized(bom.notes, normalizedQuery);
+        const inId = matchesNormalized(`#${bom.id}`, normalizedQuery);
+        return (
+          inName || inOutput || inIngredients || inCategories || inNotes || inId
+        );
       })
     : boms;
 
@@ -971,8 +976,9 @@ const BOMManager = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
-      {!loading && boms.length > 0 && (
+      {/* Search Bar — kept mounted while refetching so it doesn't disappear
+          (and lose focus) every time the list reloads. */}
+      {boms.length > 0 && (
         <div className="mb-6">
           <div className="relative">
             <span className="material-icons-round absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
@@ -982,7 +988,7 @@ const BOMManager = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث باسم الوصفة أو المكوّنات..."
+              placeholder="ابحث باسم الوصفة أو المنتج أو المكوّنات أو التصنيف..."
               className="w-full bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl py-3 pr-12 pl-12 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
             />
             {searchQuery && (

@@ -116,3 +116,85 @@ describe("bulkStock.applyBulkOrderStockMovement", () => {
     ).rejects.toThrow(/invalid direction/);
   });
 });
+
+describe("bulkStock.applyBulkOrderStockMovement with autoProduce", () => {
+  test("keeps the INSUFFICIENT_STOCK contract for an item with no BOM", async () => {
+    const tx = makeInventoryTx({ "10:7": "2" }); // has 2, need 5
+    tx.inventory.updateMany = jest.fn(async () => ({ count: 0 }));
+    tx.bOM = { findFirst: jest.fn(async () => null) };
+
+    await expect(
+      applyBulkOrderStockMovement(
+        tx,
+        { id: 1, warehouseId: 7, items: [{ itemId: 10, quantity: 5 }] },
+        "DEBIT",
+        { autoProduce: true, createdById: 3, notes: "n" },
+      ),
+    ).rejects.toMatchObject({
+      code: "INSUFFICIENT_STOCK",
+      status: 409,
+      details: [{ itemId: 10, requested: 5, available: 2 }],
+    });
+  });
+
+  test("produces a short manufactured line and reports what it made", async () => {
+    const tx = makeInventoryTx({ "10:7": "0", "50:7": "100" });
+    let call = 0;
+    tx.inventory.updateMany = jest.fn(async () => ({ count: [0, 1][call++] ?? 1 }));
+    tx.inventory.findMany = jest.fn(async () => [
+      { itemId: 50, warehouseId: 7, quantity: 100 },
+    ]);
+    tx.item = { findUnique: jest.fn(async () => ({ name: "item-10", reorderPoint: 5 })), update: jest.fn() };
+    tx.bOM = {
+      findFirst: jest.fn(async () => ({
+        id: 7,
+        name: "recipe",
+        outputItemId: 10,
+        outputQuantity: 1,
+        items: [{ itemId: 50, quantity: 2, item: { id: 50, name: "raw", costPrice: 1 } }],
+      })),
+    };
+    tx.productionOrder = { create: jest.fn(async () => ({ id: 1 })) };
+
+    const produced = await applyBulkOrderStockMovement(
+      tx,
+      { id: 1, warehouseId: 7, items: [{ itemId: 10, quantity: 3 }] },
+      "DEBIT",
+      { autoProduce: true, createdById: 3, notes: "إنتاج تلقائي من الجملة - طلب رقم 1" },
+    );
+
+    expect(produced).toEqual([{ itemId: 10, itemName: "item-10", produced: 3 }]);
+    expect(tx.productionOrder.create).toHaveBeenCalledTimes(1);
+    expect(tx.productionOrder.create.mock.calls[0][0].data.notes).toMatch(/إنتاج تلقائي من الجملة/);
+  });
+
+  test("surfaces missing raw materials as INSUFFICIENT_RAW_MATERIALS at 409", async () => {
+    const tx = makeInventoryTx({ "10:7": "0" });
+    tx.inventory.updateMany = jest.fn(async () => ({ count: 0 }));
+    tx.inventory.findMany = jest.fn(async () => [
+      { itemId: 50, warehouseId: 7, quantity: 1 }, // need 2, have 1
+    ]);
+    tx.item = { findUnique: jest.fn(async () => ({ name: "item-10", reorderPoint: 5 })), update: jest.fn() };
+    tx.bOM = {
+      findFirst: jest.fn(async () => ({
+        id: 7,
+        name: "recipe",
+        outputItemId: 10,
+        outputQuantity: 1,
+        items: [{ itemId: 50, quantity: 2, item: { id: 50, name: "raw", costPrice: 1 } }],
+      })),
+    };
+    tx.productionOrder = { create: jest.fn() };
+
+    await expect(
+      applyBulkOrderStockMovement(
+        tx,
+        { id: 1, warehouseId: 7, items: [{ itemId: 10, quantity: 1 }] },
+        "DEBIT",
+        { autoProduce: true, createdById: 3 },
+      ),
+    ).rejects.toMatchObject({ code: "INSUFFICIENT_RAW_MATERIALS", status: 409 });
+
+    expect(tx.productionOrder.create).not.toHaveBeenCalled();
+  });
+});

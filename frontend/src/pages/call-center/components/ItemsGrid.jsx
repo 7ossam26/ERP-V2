@@ -1,16 +1,37 @@
 import React, { useCallback, useEffect, useRef } from "react";
 
-const StockBadge = ({ stock }) => {
+// `autoProducible` is what the item's BOM can still make from raw materials.
+// Made-to-order products sit at zero on-hand, so without it they'd all read نفد.
+const StockBadge = ({ stock, autoProducible = 0 }) => {
+  const producible = Number(autoProducible) || 0;
+  const madeToOrder = producible > 0 && (
+    <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">
+      +{Math.floor(producible)} إنتاج تلقائي
+    </span>
+  );
+
   if (stock >= 5)
     return (
-      <span className="text-xs px-1.5 py-0.5 rounded bg-stock-ok/15 text-stock-ok font-medium tabular-nums">
-        متوفر {stock}
+      <span className="inline-flex items-center gap-1">
+        <span className="text-xs px-1.5 py-0.5 rounded bg-stock-ok/15 text-stock-ok font-medium tabular-nums">
+          متوفر {stock}
+        </span>
+        {madeToOrder}
       </span>
     );
   if (stock >= 1)
     return (
-      <span className="text-xs px-1.5 py-0.5 rounded bg-stock-low/15 text-stock-low font-medium tabular-nums">
-        أخير {stock}
+      <span className="inline-flex items-center gap-1">
+        <span className="text-xs px-1.5 py-0.5 rounded bg-stock-low/15 text-stock-low font-medium tabular-nums">
+          أخير {stock}
+        </span>
+        {madeToOrder}
+      </span>
+    );
+  if (producible > 0)
+    return (
+      <span className="text-xs px-1.5 py-0.5 rounded bg-stock-low/15 text-stock-low font-medium">
+        يُحضَّر عند الطلب
       </span>
     );
   return (
@@ -147,7 +168,10 @@ const ItemsGrid = ({ items, cart, loading, branchId, readyForPos, lockedReason, 
     >
       {items.map((it, index) => {
         const inCart = cart.find((c) => c.itemId === it.id);
-        const outOfStock = it.stock <= 0;
+        // Sellable = on-hand + what the BOM can still produce.
+        const available = Number(it.available ?? ((it.stock || 0) + (it.autoProducible || 0)));
+        const producible = Number(it.autoProducible) || 0;
+        const outOfStock = available <= 0;
         const isFirstFocusable = index === 0;
         const isKg = it.unit === "kg";
         const formatCartQty = (n) =>
@@ -165,7 +189,13 @@ const ItemsGrid = ({ items, cart, loading, branchId, readyForPos, lockedReason, 
             disabled={outOfStock}
             onClick={() => !outOfStock && onAdd(it)}
             onFocus={() => handleCardFocus(index)}
-            aria-label={`${it.name}، ${Number(it.price).toFixed(2)} جنيه${isKg ? " للكيلو" : ""}، ${outOfStock ? "نفد من المخزون" : `متوفر ${it.stock}`}${inCart ? `، في السلة: ${formatCartQty(inCart.quantity)}${isKg ? " كجم" : ""}` : ""}`}
+            aria-label={`${it.name}، ${Number(it.price).toFixed(2)} جنيه${isKg ? " للكيلو" : ""}، ${
+              outOfStock
+                ? "نفد من المخزون"
+                : it.stock > 0
+                  ? `متاح ${available}`
+                  : "يُحضَّر عند الطلب"
+            }${inCart ? `، في السلة: ${formatCartQty(inCart.quantity)}${isKg ? " كجم" : ""}` : ""}`}
             className={`
               min-h-[96px] text-right p-3 rounded-lg border-2 transition-all duration-150
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
@@ -196,7 +226,7 @@ const ItemsGrid = ({ items, cart, loading, branchId, readyForPos, lockedReason, 
                   ج.م{isKg ? " / كجم" : ""}
                 </span>
               </span>
-              <StockBadge stock={it.stock} />
+              <StockBadge stock={it.stock} autoProducible={producible} />
             </div>
           </button>
         );

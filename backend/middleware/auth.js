@@ -1,7 +1,13 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const prisma = require("../config/database");
-const { isGlobalRole, isAdminRole, isReturnApprovalRole } = require("../config/roles");
+const {
+  isGlobalRole,
+  isAdminRole,
+  isReturnApprovalRole,
+  isShiftApprovalRole,
+  bypassesShiftBranchScope,
+} = require("../config/roles");
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -291,6 +297,100 @@ const verifyManagerApproval = async (username, password, requiredModule) => {
 };
 
 /**
+ * Verifies the second-factor manager approval for a SHIFT-gated action, against
+ * a specific shift (so the branch scope can be checked).
+ *
+ * This is the single source of truth for "who may confirm/approve a shift", and
+ * therefore also for "who may reopen one" — both operations call this, so their
+ * access sets cannot drift apart.
+ *
+ * Note what this deliberately does NOT do: it does not require a `Module`
+ * permission. Shift approval has never been gated by one (the SHIFTS module only
+ * guards the shift LIST route), so requiring SHIFTS here would *shrink* the set
+ * of people who can act on a shift — a Manager can approve today without holding
+ * SHIFTS. The real gate is the SHIFT_APPROVAL_ROLES allowlist in config/roles.js
+ * plus branch scope, which is exactly what routes/shifts.js enforced inline.
+ *
+ * Eligibility requires ALL of:
+ *   1. A real, active account (bcrypt-verified password).
+ *   2. Access to the shift's branch — the approver's own branch, one of their
+ *      explicitly accessible branches, or a role in SHIFT_BRANCH_BYPASS_ROLES.
+ *   3. Role NAME in the SHIFT_APPROVAL_ROLES allowlist.
+ *
+ * Throws an Error carrying `.status` (400/401/403) and `.error` (English) with
+ * the Arabic text as `.message`, which middleware/errorHandler.js surfaces as
+ * `{ error, message }` — the shape the shift modals already read.
+ *
+ * @param {string} username manager's username, from the request body
+ * @param {string} password manager's plaintext password, from the request body
+ * @param {{ branchId: number }} shift the shift being acted on
+ * @returns {Promise<{id:number, username:string, role:string}>}
+ */
+const verifyShiftManager = async (username, password, shift) => {
+  const fail = (status, english, arabic) => {
+    const err = new Error(arabic); // surfaced to the user as `message`
+    err.status = status;
+    err.error = english; // machine-readable identifier
+    return err;
+  };
+
+  if (!username || !password) {
+    throw fail(
+      400,
+      "Manager authentication is required",
+      "بيانات المدير مطلوبة",
+    );
+  }
+
+  const manager = await prisma.user.findUnique({
+    where: { username },
+    include: {
+      role: true,
+      accessibleBranches: { select: { id: true } },
+    },
+  });
+
+  // Identical response for unknown user and wrong password — do not let a
+  // terminal operator probe the modal to discover which usernames exist.
+  const invalidCredentials = () =>
+    fail(
+      401,
+      "Invalid manager credentials",
+      "اسم المستخدم أو كلمة المرور للمدير غير صحيحة",
+    );
+
+  if (!manager || !manager.isActive) throw invalidCredentials();
+
+  const passwordValid = await bcrypt.compare(password, manager.password);
+  if (!passwordValid) throw invalidCredentials();
+
+  const roleName = manager.role?.name;
+
+  const canAccessBranch =
+    manager.branchId === shift.branchId ||
+    (manager.accessibleBranches || []).some((b) => b.id === shift.branchId) ||
+    bypassesShiftBranchScope(roleName);
+
+  if (!canAccessBranch) {
+    throw fail(
+      403,
+      "Access denied. You do not have permission to manage this branch.",
+      "عذراً، ليس لديك صلاحية لإدارة هذا الفرع",
+    );
+  }
+
+  if (!isShiftApprovalRole(roleName)) {
+    throw fail(
+      403,
+      "Access denied. Only managers can authorize this shift operation.",
+      "عذراً، هذه العملية متاحة للمديرين فقط",
+    );
+  }
+
+  return { id: manager.id, username: manager.username, role: roleName };
+};
+
+/**
  * Resolves the branch (and therefore the warehouse/treasury) that a WRITE
  * operation must execute against. Use this instead of trusting a client-sent
  * `warehouseId` — an employee should never be able to name the warehouse a
@@ -459,6 +559,7 @@ module.exports = {
   requireCreatePermission,
   requireSensitiveAccess,
   verifyManagerApproval,
+  verifyShiftManager,
   resolveOperatingBranch,
   getUserBranchFilter,
 };

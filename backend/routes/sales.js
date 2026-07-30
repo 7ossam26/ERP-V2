@@ -534,6 +534,9 @@ router.post(
             userId: finalUserId,
             status: "OPEN",
           },
+          // Deterministic pick — a reopened shift keeps its original startTime,
+          // so resolve to the newest OPEN shift if one ever coexists with it.
+          orderBy: { startTime: "desc" },
         });
 
         if (!activeShift) {

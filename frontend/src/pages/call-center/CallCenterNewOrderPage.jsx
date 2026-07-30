@@ -17,6 +17,12 @@ import {
   isCustomerInformationComplete,
 } from "./callCenterCustomerSelection";
 
+// How many units of an item can actually be sold: what's on the shelf plus what
+// its BOM can still produce from raw materials. The backend sends `available`
+// pre-computed; the fallback keeps this working against an older response shape.
+const availableOf = (it) =>
+  Number(it?.available ?? ((it?.stock || 0) + (it?.autoProducible || 0)));
+
 // ─── main component ───────────────────────────────────────────────────────────
 
 const CallCenterNewOrderPage = () => {
@@ -218,7 +224,7 @@ const CallCenterNewOrderPage = () => {
       focusCustomerInformation();
       return;
     }
-    if (item.stock <= 0) { toast.error(`الصنف "${item.name}" غير متوفر بالمخزون`); return; }
+    if (availableOf(item) <= 0) { toast.error(`الصنف "${item.name}" غير متوفر بالمخزون`); return; }
     if (item.unit === "kg") {
       setWeightPickerItem(item);
       return;
@@ -226,10 +232,13 @@ const CallCenterNewOrderPage = () => {
     setCart((prev) => {
       const existing = prev.find((c) => c.itemId === item.id);
       if (existing) {
-        if (existing.quantity + 1 > item.stock) { toast.error("الكمية المطلوبة أكبر من المخزون"); return prev; }
+        if (existing.quantity + 1 > availableOf(item)) { toast.error("الكمية المطلوبة أكبر من المخزون"); return prev; }
         return prev.map((c) => c.itemId === item.id ? { ...c, quantity: c.quantity + 1 } : c);
       }
-      return [...prev, { itemId: item.id, name: item.name, price: item.price, quantity: 1, stock: item.stock, unit: item.unit }];
+      // `stock` on a cart line is the max sellable quantity, not on-hand — it
+      // includes what the BOM can still produce. updateQty and CartDrawer clamp
+      // against it.
+      return [...prev, { itemId: item.id, name: item.name, price: item.price, quantity: 1, stock: availableOf(item), unit: item.unit }];
     });
     setLastAddedId(item.id);
     setTimeout(() => setLastAddedId(null), 300);
@@ -238,7 +247,7 @@ const CallCenterNewOrderPage = () => {
   const confirmWeight = (qty) => {
     const item = weightPickerItem;
     if (!item) return;
-    const n = Math.max(0, Math.min(Number(qty) || 0, item.stock));
+    const n = Math.max(0, Math.min(Number(qty) || 0, availableOf(item)));
     setCart((prev) => {
       const existing = prev.find((c) => c.itemId === item.id);
       if (n <= 0) {
@@ -247,7 +256,7 @@ const CallCenterNewOrderPage = () => {
       if (existing) {
         return prev.map((c) => c.itemId === item.id ? { ...c, quantity: n } : c);
       }
-      return [...prev, { itemId: item.id, name: item.name, price: item.price, quantity: n, stock: item.stock, unit: item.unit }];
+      return [...prev, { itemId: item.id, name: item.name, price: item.price, quantity: n, stock: availableOf(item), unit: item.unit }];
     });
     setLastAddedId(item.id);
     setTimeout(() => setLastAddedId(null), 300);
@@ -385,6 +394,17 @@ const CallCenterNewOrderPage = () => {
       }
       const result = await callCenterService.createOrder(payload);
       toast.success(`تم إنشاء الطلب ${result.saleNumber}`);
+      // Anything short at the branch was produced from raw materials on the way
+      // through — tell the agent, same as POS does.
+      (result.warnings || [])
+        .filter((w) => typeof w === "string" && w.startsWith("AUTO_PRODUCED:"))
+        .forEach((w) => {
+          const [, name, qty] = w.split(":");
+          toast.success(`تم إنتاج ${qty} وحدة من "${name}" تلقائياً من المواد الخام`, {
+            icon: "🏭",
+            duration: 5000,
+          });
+        });
       setCart([]); setPhone(""); setSelectedClient(null); setNewClientName(""); setDeliveryAddress("");
       setZoneId(""); setNotes(""); setNotesOpen(false); setDiscountInput(""); setDiscountType("PERCENTAGE"); setDiscountReason("");
       const fresh = await callCenterService.listItems(branchId);
@@ -392,6 +412,7 @@ const CallCenterNewOrderPage = () => {
     } catch (err) {
       console.error(err);
       if (err?.data?.error === "OUT_OF_STOCK") toast.error(`الصنف رقم ${err.data.itemId} غير متوفر بالمخزون الآن`);
+      else if (err?.data?.error === "INSUFFICIENT_RAW_MATERIALS") toast.error(err.data.message, { duration: 7000 });
       else toast.error(err?.data?.error || err?.message || "تعذر إنشاء الطلب");
     } finally {
       setSubmitting(false);

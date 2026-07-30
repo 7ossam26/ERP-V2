@@ -2,9 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { bulkService } from "../../services/bulkService";
-import { itemService } from "../../services/itemService";
 import { settingsService } from "../../services/settingsService";
-import { inventoryService } from "../../services/inventoryService";
 import { formatEGP, splitInclusive } from "../../utils/bulkMoney";
 import BulkConfirmOrderModal from "../../components/bulk/BulkConfirmOrderModal";
 import BulkCreditBadge from "../../components/bulk/BulkCreditBadge";
@@ -21,14 +19,12 @@ export default function BulkPOSPage() {
   const initialCustomerId = searchParams.get("customerId");
 
   const [customers, setCustomers] = useState([]);
-  const [items, setItems] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  const [contractPrices, setContractPrices] = useState(new Map());
-  // null until the inventory response lands. An empty Map here would be
+  // null until the catalog response lands. An empty list here would be
   // indistinguishable from "everything is at zero", which paints the whole
   // catalog as نفد and disabled on the first paint after a branch resolves.
-  const [stock, setStock] = useState(null); // itemId → onHand qty
-  const [stockLoading, setStockLoading] = useState(false);
+  const [items, setItems] = useState(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [contractPrices, setContractPrices] = useState(new Map());
 
   const [customerId, setCustomerId] = useState(initialCustomerId ? Number(initialCustomerId) : null);
   const [cart, setCart] = useState([]);
@@ -45,51 +41,50 @@ export default function BulkPOSPage() {
   const { activeBranch } = useBranch();
   const warehouseId = activeBranch?.warehouseId ?? null;
 
-  // Initial load: customers, base items, settings
+  // Initial load: customers + settings. The catalog is branch-scoped and loads
+  // in its own effect below.
   useEffect(() => {
     (async () => {
       // allSettled, not all: a failing settings call used to blank the customer
-      // and item lists too, leaving a page with nothing to click and no clue why.
-      const [cs, its, cfg] = await Promise.allSettled([
+      // list too, leaving a page with nothing to click and no clue why.
+      const [cs, cfg] = await Promise.allSettled([
         bulkService.listCustomers({ active: true }),
-        itemService.getAll(),
         settingsService.get(),
       ]);
       if (cs.status === "fulfilled") setCustomers(cs.value || []);
-      if (its.status === "fulfilled") setItems(its.value || []);
       if (cfg.status === "fulfilled" && cfg.value?.taxRate != null) {
         setTaxRate(Number(cfg.value.taxRate) / 100);
       }
-      setCatalogLoading(false);
 
       const failed = [
         cs.status === "rejected" && "العملاء",
-        its.status === "rejected" && "الأصناف",
         cfg.status === "rejected" && "الإعدادات",
       ].filter(Boolean);
       if (failed.length) toast.error(`تعذر تحميل: ${failed.join("، ")}`);
     })();
   }, []);
 
-  // Fetch warehouse stock when warehouse changes
+  // Catalog + availability in one call, refetched when the branch changes.
+  // /bulk/items needs only BULK_POS and returns availability that already
+  // accounts for what each item's BOM can produce.
   useEffect(() => {
     if (!warehouseId) {
-      setStock(null);
+      setItems(null);
+      setCatalogLoading(false);
       return;
     }
     let cancelled = false;
-    setStockLoading(true);
-    inventoryService.getInventory({ warehouseId }).then((data) => {
+    setCatalogLoading(true);
+    bulkService.listItems().then((resp) => {
       if (cancelled) return;
-      const map = new Map(data.map((it) => [it.id, Number(it.quantity ?? 0)]));
-      setStock(map);
+      setItems(resp?.items || []);
     }).catch(() => {
-      if (!cancelled) toast.error("تعذر تحميل أرصدة المخزون");
+      if (!cancelled) toast.error("تعذر تحميل الأصناف");
     }).finally(() => {
-      if (!cancelled) setStockLoading(false);
+      if (!cancelled) setCatalogLoading(false);
     });
     return () => { cancelled = true; };
-  }, [warehouseId]);
+  }, [warehouseId, activeBranch?.id]);
 
   // Fetch contract prices when customer changes
   useEffect(() => {
@@ -110,28 +105,35 @@ export default function BulkPOSPage() {
   const customer = customers.find((c) => c.id === customerId) || null;
 
   const filteredItems = useMemo(() => {
-    if (!search.trim()) return items;
+    const list = items || [];
+    if (!search.trim()) return list;
     const s = search.trim().toLowerCase();
-    return items.filter((i) => (i.name || "").toLowerCase().includes(s));
+    return list.filter((i) => (i.name || "").toLowerCase().includes(s));
   }, [items, search]);
 
   // Infinity means "no known constraint": either no warehouse is in play, or the
-  // balances haven't arrived yet. Nothing can be spent against an unknown balance
+  // catalog hasn't arrived yet. Nothing can be spent against an unknown balance
   // because every action is gated on stockReady below.
-  const stockReady = stock !== null;
-  const getOnHand = (itemId) => (warehouseId && stock ? (stock.get(itemId) ?? 0) : Infinity);
+  const stockReady = items !== null;
+  const availableById = useMemo(
+    () => new Map((items || []).map((it) => [it.id, Number(it.available ?? it.stock ?? 0)])),
+    [items],
+  );
+  // Sellable quantity = on-hand + what the item's BOM can still produce.
+  const getAvailable = (itemId) =>
+    warehouseId && items ? (availableById.get(itemId) ?? 0) : Infinity;
 
   const addToCart = (item) => {
     const overridePrice = contractPrices.get(item.id);
     const unitPrice = overridePrice != null ? overridePrice : Number(item.price);
-    const onHand = getOnHand(item.id);
+    const available = getAvailable(item.id);
     const step = isPiece(item.unit) ? 1 : 0.01;
 
     setCart((c) => {
       const existing = c.find((l) => l.itemId === item.id);
       const newQty = existing ? existing.quantity + step : step;
-      if (newQty > onHand) {
-        toast.error(`${item.name}: الكمية المتاحة ${onHand} ${item.unit || ""}`);
+      if (newQty > available) {
+        toast.error(`${item.name}: الكمية المتاحة ${available} ${item.unit || ""}`);
         return c;
       }
       if (existing) {
@@ -147,9 +149,9 @@ export default function BulkPOSPage() {
   const updateLine = (itemId, patch) => {
     if ("quantity" in patch) {
       const qty = Number(patch.quantity);
-      const onHand = getOnHand(itemId);
-      if (qty > onHand) {
-        toast.error(`الكمية المتاحة في المخزون ${onHand}`);
+      const available = getAvailable(itemId);
+      if (qty > available) {
+        toast.error(`الكمية المتاحة في المخزون ${available}`);
       }
     }
     setCart((c) => c.map((l) => (l.itemId === itemId ? { ...l, ...patch } : l)));
@@ -170,9 +172,9 @@ export default function BulkPOSPage() {
         toast.error(`${l.name}: أدخل سعرًا صحيحًا`);
         return false;
       }
-      const onHand = getOnHand(l.itemId);
-      if (qty > onHand) {
-        toast.error(`${l.name}: الكمية المطلوبة ${qty} تتجاوز المتاح ${onHand}`);
+      const available = getAvailable(l.itemId);
+      if (qty > available) {
+        toast.error(`${l.name}: الكمية المطلوبة ${qty} تتجاوز المتاح ${available}`);
         return false;
       }
     }
@@ -235,11 +237,20 @@ export default function BulkPOSPage() {
 
   const handleConfirm = async (confirmBody) => {
     setSubmitting(true);
+    let draftId = null;
     try {
       const created = await bulkService.createOrder(buildOrderPayload("DRAFT"));
+      draftId = created.id;
       await bulkService.confirmOrder(created.id, confirmBody);
       toast.success("تم تأكيد الطلب");
       navigate(`/bulk/orders/${created.id}`);
+    } catch (err) {
+      // Includes INSUFFICIENT_RAW_MATERIALS, which carries a full Arabic
+      // sentence naming the materials that ran short.
+      toast.error(err?.data?.message || err?.data?.error || "تعذر تأكيد الطلب", { duration: 7000 });
+      // The draft was already created — send the operator to it so they can
+      // retry the confirm instead of piling up duplicate drafts.
+      if (draftId) navigate(`/bulk/orders/${draftId}`);
     } finally {
       setSubmitting(false);
     }
@@ -300,10 +311,6 @@ export default function BulkPOSPage() {
             </div>
           )}
 
-          {stockLoading && (
-            <div className="text-xs text-text-light/40 dark:text-text-dark/40 mb-2">جارٍ تحميل الأرصدة...</div>
-          )}
-
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[70vh] overflow-y-auto">
             {catalogLoading && (
               <div className="col-span-full text-center text-sm text-text-light/40 dark:text-text-dark/40 p-6">
@@ -319,8 +326,10 @@ export default function BulkPOSPage() {
               const overridden = contractPrices.has(it.id);
               const price = overridden ? contractPrices.get(it.id) : Number(it.price);
               // null while balances are unknown — never render that as zero/نفد
-              const onHand = warehouseId && stock ? (stock.get(it.id) ?? 0) : null;
-              const outOfStock = onHand !== null && onHand <= 0;
+              const available = warehouseId && items ? Number(it.available ?? it.stock ?? 0) : null;
+              const onHandQty = Number(it.stock) || 0;
+              const producible = Number(it.autoProducible) || 0;
+              const outOfStock = available !== null && available <= 0;
               return (
                 <button
                   key={it.id}
@@ -341,15 +350,22 @@ export default function BulkPOSPage() {
                         سعر عقد
                       </span>
                     )}
-                    {onHand !== null && (
+                    {available !== null && (
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                         outOfStock
                           ? "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400"
-                          : onHand <= 10
+                          : available <= 10 || onHandQty <= 0
                           ? "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
                           : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
                       }`}>
-                        {outOfStock ? "نفد" : `${onHand}`}
+                        {outOfStock ? "نفد" : onHandQty <= 0 ? "يُحضَّر عند الطلب" : `${onHandQty}`}
+                      </span>
+                    )}
+                    {/* Made-to-order headroom: what the BOM can still produce
+                        on top of the shelf stock. */}
+                    {available !== null && onHandQty > 0 && producible > 0 && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        +{Math.floor(producible)} إنتاج تلقائي
                       </span>
                     )}
                   </div>
@@ -367,7 +383,7 @@ export default function BulkPOSPage() {
               <div className="text-center text-text-light/40 dark:text-text-dark/40 text-sm p-6">السلة فارغة</div>
             )}
             {cart.map((l) => {
-              const onHand = getOnHand(l.itemId);
+              const onHand = getAvailable(l.itemId);
               const qty = Number(l.quantity);
               const overStock = qty > onHand;
               const step = isPiece(l.unit) ? 1 : 0.01;

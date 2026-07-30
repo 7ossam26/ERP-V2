@@ -107,6 +107,15 @@ exports.list = async (req, res, next) => {
       if (from) where.createdAt.gte = new Date(from);
       if (to) where.createdAt.lte = new Date(to);
     }
+
+    // Scope to the operator's branch so another branch's drafts can't be listed
+    // and clicked through to confirm — confirm consumes raw materials at the
+    // order's warehouse, so the list must not offer orders the operator has no
+    // business settling. A null resolution means a global role on "All Branches",
+    // where there is no single branch to narrow to: reads fall back broad while
+    // writes stay strict (see resolveOperatingBranch's docs in middleware/auth).
+    const operatingBranch = await resolveOperatingBranch(req.user.id, req);
+    if (operatingBranch) where.warehouseId = operatingBranch.warehouseId;
     const orders = await prisma.bulkOrder.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -132,6 +141,14 @@ exports.detail = async (req, res, next) => {
       include: orderInclude,
     });
     if (!order) return res.status(404).json({ error: "Order not found" });
+
+    // Same branch scope as list. 404 rather than 403 so an operator can't probe
+    // which order ids exist in other branches.
+    const operatingBranch = await resolveOperatingBranch(req.user.id, req);
+    if (operatingBranch && order.warehouseId !== operatingBranch.warehouseId) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
     res.json(order);
   } catch (err) {
     next(err);
@@ -214,6 +231,20 @@ exports.confirm = async (req, res, next) => {
     const id = parseInt(req.params.id, 10);
     if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid id" });
 
+    // Confirm is where stock is deducted and — with autoProduce below — raw
+    // materials are consumed, so it needs the same branch authorization create
+    // has. Without it, a BULK_POS operator at branch B could confirm branch A's
+    // draft and auto-produce from branch A's raw materials: stock the catalog
+    // they were looking at never showed them. Resolved before the transaction
+    // (as in create) so the user/branch reads don't widen the tx window.
+    const operatingBranch = await resolveOperatingBranch(req.user.id, req);
+    if (!operatingBranch) {
+      return res.status(400).json({
+        error: "Branch selection required",
+        message: "برجاء اختيار الفرع أولاً",
+      });
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.bulkOrder.findUnique({
         where: { id },
@@ -227,6 +258,16 @@ exports.confirm = async (req, res, next) => {
       if (order.status !== "DRAFT" && order.status !== "QUOTED") {
         const err = new Error(`Cannot confirm order in status ${order.status}`);
         err.status = 409;
+        throw err;
+      }
+
+      // The order's warehouse is the only one this confirm may touch, and it must
+      // be the operator's own. Checked before the credit check so a cross-branch
+      // attempt costs nothing and changes nothing.
+      if (order.warehouseId !== operatingBranch.warehouseId) {
+        const err = new Error("لا يمكن تأكيد طلب تابع لفرع آخر");
+        err.status = 403;
+        err.error = "Order belongs to another branch";
         throw err;
       }
 
@@ -254,7 +295,14 @@ exports.confirm = async (req, res, next) => {
       await assertCreditLimitOk(tx, order.customer, creditExposure, order.id);
 
       // Atomic stock deduction (throws INSUFFICIENT_STOCK if any line short).
-      await applyBulkOrderStockMovement(tx, order, "DEBIT");
+      // Manufactured lines are produced from raw materials first, as in POS —
+      // throws INSUFFICIENT_RAW_MATERIALS when even that isn't possible.
+      // order.id, not orderNumber: the number is allocated below, after this.
+      await applyBulkOrderStockMovement(tx, order, "DEBIT", {
+        autoProduce: true,
+        createdById: req.user.id,
+        notes: `إنتاج تلقائي من الجملة - طلب رقم ${order.id}`,
+      });
 
       const orderNumber = await allocateNumber(tx, "ORDER");
       const documentNumber = await allocateNumber(tx, "SALES_RECEIPT");
