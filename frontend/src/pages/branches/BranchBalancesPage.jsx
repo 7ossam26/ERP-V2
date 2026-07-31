@@ -240,6 +240,65 @@ const BranchBalancesPage = () => {
                   </span>
                 </div>
 
+                {/* Active shift — opening cash is now part of the treasury
+                    balance above, so showing it here explains where that
+                    balance started rather than duplicating it. */}
+                {branch.activeShift && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                      <span className="material-symbols-outlined text-lg">
+                        schedule
+                      </span>
+                      <span className="text-sm font-medium">
+                        {branch.activeShift.status === "PENDING_REVIEW"
+                          ? "وردية بانتظار المراجعة"
+                          : "وردية مفتوحة"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-amber-600 dark:text-amber-500">
+                        عهدة بداية الوردية
+                      </span>
+                      <span className="font-bold text-amber-800 dark:text-amber-300 text-sm">
+                        {fmt(branch.activeShift.openingCash)} ج.م
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-amber-600 dark:text-amber-500">
+                        مصروفات الوردية
+                      </span>
+                      <span className="font-bold text-amber-800 dark:text-amber-300 text-sm">
+                        {fmt(branch.activeShift.shiftExpenses)} ج.م
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Expenses in the selected window. Two figures on purpose:
+                    totalExpenses is all cash out of the treasury, while
+                    operatingExpenses excludes auto-generated purchase rows. */}
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                      <span className="material-symbols-outlined text-lg">
+                        receipt_long
+                      </span>
+                      <span className="text-sm font-medium">إجمالي المصروفات</span>
+                    </div>
+                    <span className="font-bold text-red-800 dark:text-red-300 text-lg">
+                      {fmt(branch.totalExpenses)} ج.م
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-red-600 dark:text-red-500">
+                      منها مصروفات تشغيلية
+                    </span>
+                    <span className="font-bold text-red-700 dark:text-red-400 text-sm">
+                      {fmt(branch.operatingExpenses)} ج.م
+                    </span>
+                  </div>
+                </div>
+
                 {/* Grand total */}
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
                   <span className="text-sm font-bold text-gray-600 dark:text-gray-400">

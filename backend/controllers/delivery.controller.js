@@ -582,6 +582,9 @@ exports.settleDeliveryMan = async (req, res) => {
 
           // 5. Audit trail — one Deposit row per driver settlement so the
           //    treasury history and shift report "نقدي داخل" show it.
+          // source=DRIVER_SETTLEMENT keeps this row OUT of the shift drawer
+          // formula: the same cash already reaches expected cash through the
+          // sale's codDelivered term, so counting the Deposit too would double it.
           await tx.deposit.create({
             data: {
               amount: driverAmount,
@@ -589,6 +592,7 @@ exports.settleDeliveryMan = async (req, res) => {
               date: now,
               treasuryId,
               createdById: settledById,
+              source: "DRIVER_SETTLEMENT",
             },
           });
 
@@ -745,6 +749,8 @@ exports.settleDeliveryMan = async (req, res) => {
 
       // 6. Audit trail — one Deposit row per settlement so the treasury
       //    history and the shift report "نقدي داخل" row reflect it.
+      // See the bulk-settlement path: DRIVER_SETTLEMENT excludes this from the
+      // drawer formula, where the cash is already counted via codDelivered.
       await tx.deposit.create({
         data: {
           amount: trustedAmount,
@@ -752,6 +758,7 @@ exports.settleDeliveryMan = async (req, res) => {
           date: now,
           treasuryId,
           createdById: settledById,
+          source: "DRIVER_SETTLEMENT",
         },
       });
 
@@ -901,6 +908,7 @@ exports.convertDeliverySaleToInstapay = async (req, res) => {
           date: now,
           treasuryId: instapayTreasuryId,
           createdById: actorId,
+          source: "DRIVER_SETTLEMENT",
         },
       });
 
@@ -1017,6 +1025,10 @@ exports.payDeliveryManDues = async (req, res) => {
           date: now,
           treasuryId,
           createdById: actorId,
+          // DRIVER_DUES: already subtracted from expected cash via the
+          // DUES_PAYOUT ledger in calculateSystemExpectedCash — must not be
+          // subtracted a second time as a manual withdrawal.
+          source: "DRIVER_DUES",
         },
       });
 

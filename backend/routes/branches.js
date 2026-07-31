@@ -289,9 +289,24 @@ router.get("/balances", async (req, res, next) => {
     );
     const branchTreasuryIds = Object.keys(treasuryToBranch).map(Number);
 
+    // Split by type. The two answer different questions and must not be
+    // conflated:
+    //   totalExpenses     — every expense row, so it matches the cash that
+    //                       actually left the branch treasury. PURCHASE rows are
+    //                       auto-created by routes/purchases.js and really do
+    //                       debit the treasury.
+    //   operatingExpenses — MANUAL only, the running-cost KPI. Mirrors the
+    //                       exclusion at routes/reports.js, which drops PURCHASE
+    //                       rows so spend isn't double-counted against COGS.
+    //
+    // NOTE: the window filters on `date`, which is user-supplied and editable,
+    // not on `createdAt`. That is deliberate for a reporting figure (an expense
+    // backdated to when it was incurred belongs in that period) but it means
+    // this total is NOT a reliable cash-movement window. The shift drawer math
+    // in routes/shifts.js uses createdAt for exactly that reason.
     const expenses = branchTreasuryIds.length
       ? await prisma.expense.groupBy({
-          by: ["treasuryId"],
+          by: ["treasuryId", "type"],
           where: {
             treasuryId: { in: branchTreasuryIds },
             date: { gte: rangeStart, lte: rangeEnd },
@@ -299,8 +314,44 @@ router.get("/balances", async (req, res, next) => {
           _sum: { amount: true },
         })
       : [];
-    const expensesMap = Object.fromEntries(
-      expenses.map((r) => [treasuryToBranch[r.treasuryId], Number(r._sum.amount || 0)]),
+    const expensesMap = {};
+    const operatingExpensesMap = {};
+    for (const row of expenses) {
+      const branchIdForRow = treasuryToBranch[row.treasuryId];
+      const amount = Number(row._sum.amount || 0);
+      expensesMap[branchIdForRow] = (expensesMap[branchIdForRow] || 0) + amount;
+      if (row.type === "MANUAL") {
+        operatingExpensesMap[branchIdForRow] =
+          (operatingExpensesMap[branchIdForRow] || 0) + amount;
+      }
+    }
+
+    // Live shift context per branch, so the page can show the drawer the branch
+    // is actually working against rather than only the treasury stock figure.
+    // Independent of the date window — like currentCashBalance, this is "now".
+    const activeShifts = branchIds.length
+      ? await prisma.shift.findMany({
+          where: { branchId: { in: branchIds }, status: { in: ["OPEN", "PENDING_REVIEW"] } },
+          orderBy: { startTime: "desc" },
+          select: { id: true, branchId: true, status: true, startCash: true, startTime: true },
+        })
+      : [];
+    const shiftByBranch = {};
+    for (const s of activeShifts) {
+      // findMany is ordered newest-first, so the first hit per branch wins.
+      if (!shiftByBranch[s.branchId]) shiftByBranch[s.branchId] = s;
+    }
+
+    const activeShiftIds = Object.values(shiftByBranch).map((s) => s.id);
+    const shiftExpenseRows = activeShiftIds.length
+      ? await prisma.expense.groupBy({
+          by: ["shiftId"],
+          where: { shiftId: { in: activeShiftIds } },
+          _sum: { amount: true },
+        })
+      : [];
+    const shiftExpenseByShiftId = Object.fromEntries(
+      shiftExpenseRows.map((r) => [r.shiftId, Number(r._sum.amount || 0)]),
     );
 
     const result = branches.map((branch) => {
@@ -309,9 +360,15 @@ router.get("/balances", async (req, res, next) => {
       const instapay = instapayMap[branch.id] || 0;
       const bulkSales = bulkMap[branch.id] || 0;
       const totalExpenses = expensesMap[branch.id] || 0;
+      const operatingExpenses = operatingExpensesMap[branch.id] || 0;
       // Stock: cash physically/logically in this branch's treasury right now.
       // Independent of the date window — D3.
+      //
+      // Since the shift-treasury postings landed this figure also carries the
+      // opening float and every approved closing variance, so it now tracks the
+      // physical drawer rather than sitting permanently short by the float.
       const currentCashBalance = Number(branch.treasury?.balance || 0);
+      const activeShift = shiftByBranch[branch.id] || null;
       return {
         id: branch.id,
         name: branch.name,
@@ -322,7 +379,20 @@ router.get("/balances", async (req, res, next) => {
         visa,                  // flow — paid VISA revenue in window
         instapay,              // flow — paid INSTAPAY revenue in window
         bulkSales,             // flow — paid bulk-order revenue in window
-        totalExpenses,         // flow — branch expenses in window
+        totalExpenses,         // flow — ALL branch expenses in window (= cash out)
+        operatingExpenses,     // flow — MANUAL expenses only (running-cost KPI)
+
+        // Live shift context — stock, not windowed. null when the branch has no
+        // unclosed shift.
+        activeShift: activeShift
+          ? {
+              id: activeShift.id,
+              status: activeShift.status,
+              startTime: activeShift.startTime,
+              openingCash: Number(activeShift.startCash || 0),
+              shiftExpenses: shiftExpenseByShiftId[activeShift.id] || 0,
+            }
+          : null,
         // Combined total of the window's flow figures (no stock mixed in).
         total: Math.round((cashSalesInWindow + visa + instapay + bulkSales) * 100) / 100,
         treasuryName: branch.treasury?.name || "الخزينة",

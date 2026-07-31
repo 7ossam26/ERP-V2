@@ -20,9 +20,11 @@ const shiftService = {
     },
 
     reopen: async ({ shiftId, managerUsername, managerPassword, reason }) => {
-        // Sends a PENDING_REVIEW shift back to OPEN *without* approving it, so
-        // its cashier can resume selling on the SAME shift. The alternative to
-        // approve() — and authorized by the same manager credentials.
+        // Sends a shift back to OPEN so its cashier can resume selling on the
+        // SAME shift — from PENDING_REVIEW (instead of approving) or from CLOSED
+        // (un-approving). Authorized by the same manager credentials as
+        // approve(). Reopening never reverses the treasury posting a previous
+        // approval made; the next approval posts only the new difference.
         const response = await api.patch(`/shifts/${shiftId}/reopen`, {
             managerUsername,
             managerPassword,
@@ -39,6 +41,14 @@ const shiftService = {
 
     getPending: async (branchId) => {
         const response = await api.get(`/shifts/pending/${branchId}`);
+        return response;
+    },
+
+    getOpeningContext: async (branchId) => {
+        // { treasuryBalance, treasuryName, suggestedStartCash, lastShiftEndCash }
+        // Prefills the start-shift modal. Accepting suggestedStartCash unchanged
+        // makes the opening delta zero, so no treasury movement is posted.
+        const response = await api.get(`/shifts/opening-context/${branchId}`);
         return response;
     },
 

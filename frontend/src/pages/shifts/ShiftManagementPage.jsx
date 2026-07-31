@@ -269,28 +269,33 @@ const ShiftManagementPage = () => {
                         <FaFileAlt />
                       </button>
 
-                      {/* The two actions a shift awaiting review offers its
-                          approver: approve it (→ CLOSED, terminal) or send it
-                          back to the cashier without approving (→ OPEN). A
-                          CLOSED shift offers neither. Reopen eligibility
+                      {/* Approve is offered only while the shift awaits review.
+                          Reopen is offered from BOTH PENDING_REVIEW (send it
+                          back instead of approving) and CLOSED (un-approve a
+                          shift that was signed off too early). Eligibility
                           (latest shift in branch, cashier free) is enforced by
                           the backend, which returns a clear reason. */}
                       {shift.status === "PENDING_REVIEW" && (
-                        <>
-                          <button
-                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors animate-pulse"
-                            title="مراجعة واعتماد"
-                            onClick={() => openApproveModal(shift)}>
-                            <FaCheck />
-                          </button>
+                        <button
+                          className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors animate-pulse"
+                          title="مراجعة واعتماد"
+                          onClick={() => openApproveModal(shift)}>
+                          <FaCheck />
+                        </button>
+                      )}
 
-                          <button
-                            className="p-2 bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors"
-                            title="إعادة فتح الوردية بدون اعتماد"
-                            onClick={() => openReopenModal(shift)}>
-                            <FaLockOpen />
-                          </button>
-                        </>
+                      {(shift.status === "PENDING_REVIEW" ||
+                        shift.status === "CLOSED") && (
+                        <button
+                          className="p-2 bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors"
+                          title={
+                            shift.status === "CLOSED"
+                              ? "إعادة فتح وردية معتمدة"
+                              : "إعادة فتح الوردية بدون اعتماد"
+                          }
+                          onClick={() => openReopenModal(shift)}>
+                          <FaLockOpen />
+                        </button>
                       )}
                     </td>
                   </tr>

@@ -199,6 +199,19 @@ const probes = {
     }
     return true;
   },
+
+  "20260731000000_shift_treasury_postings": async () =>
+    (await columnExists("deposits", "source")) &&
+    (await columnExists("deposits", "shift_id")) &&
+    (await columnExists("withdrawals", "source")) &&
+    (await columnExists("withdrawals", "shift_id")) &&
+    (await columnExists("shifts", "treasury_variance")) &&
+    (await columnExists("shifts", "closing_treasury_balance")),
+
+  "20260801000000_shift_reopen_cycles": async () =>
+    (await columnExists("shifts", "reopen_count")) &&
+    (await columnExists("deposits", "cycle")) &&
+    (await columnExists("withdrawals", "cycle")),
 };
 
 // --- Main ---------------------------------------------------------

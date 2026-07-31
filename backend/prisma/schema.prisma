@@ -629,6 +629,31 @@ model Shift {
   reviewedById       Int?        @map("reviewed_by_id")
   reviewedAt         DateTime?   @map("reviewed_at")
 
+  // How many times this shift has been sent back to OPEN (PATCH /:id/reopen),
+  // from PENDING_REVIEW or from CLOSED. Doubles as the shift's current CYCLE
+  // number: each approval stamps its treasury posting with the reopenCount that
+  // was in force, which is what makes @@unique([shiftId, source, cycle]) permit
+  // one posting per cycle while still rejecting a replayed approve within one.
+  // 0 for a shift that has never been reopened.
+  reopenCount        Int         @default(0) @map("reopen_count")
+
+  // Treasury reconciliation snapshot, captured at blind close and consumed at
+  // approval. `treasuryVariance` = actualCash − treasury.balance at close; it is
+  // the delta actually posted to the branch treasury when a manager approves.
+  //
+  // Deliberately distinct from `shortage` (= actualCash − systemExpectedCash):
+  //   shortage         → accountability. Is the cashier short?
+  //   treasuryVariance → bookkeeping. What correction did the treasury need?
+  // The two are equal when calculateSystemExpectedCash accounts for every
+  // branch-treasury movement. Any difference is drift, and surfacing it is how
+  // we detect a movement the drawer formula still misses.
+  //
+  // Storing the delta (rather than recomputing at approve from the live balance)
+  // is what lets a deposit/expense recorded during the PENDING_REVIEW window
+  // survive approval instead of being silently erased by an absolute set.
+  closingTreasuryBalance Decimal? @map("closing_treasury_balance") @db.Decimal(10, 2)
+  treasuryVariance       Decimal? @map("treasury_variance") @db.Decimal(10, 2)
+
   // Relations
   user       User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
@@ -637,6 +662,8 @@ model Shift {
   expenses   Expense[]
   employeeTransactions EmployeeTransaction[]
   payrolls   Payroll[]
+  deposits    Deposit[]
+  withdrawals Withdrawal[]
 
   @@map("shifts")
 }
@@ -953,19 +980,36 @@ model Expense {
 // ============================================
 
 model Deposit {
-  id          Int      @id @default(autoincrement())
-  amount      Decimal  @db.Decimal(10, 2)
-  description String?  @db.Text
-  date        DateTime @default(now()) @db.DateTime(0)
-  treasuryId  Int      @map("treasury_id")
-  createdById Int      @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id          Int                @id @default(autoincrement())
+  amount      Decimal            @db.Decimal(10, 2)
+  description String?            @db.Text
+  date        DateTime           @default(now()) @db.DateTime(0)
+  treasuryId  Int                @map("treasury_id")
+  createdById Int                @map("created_by_id")
+  source      CashMovementSource @default(MANUAL)
+  shiftId     Int?               @map("shift_id")
+  cycle       Int                @default(0)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
 
   // Relations
   treasury  Treasury @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   createdBy User     @relation("DepositCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  shift     Shift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
+  // At most one SHIFT_OPENING and one SHIFT_VARIANCE row per shift PER CYCLE —
+  // the hard guard against a replayed /shifts/start or /shifts/approve posting
+  // the same money twice. MySQL treats NULLs as distinct in a unique index, so
+  // the unlimited manual rows (shiftId NULL) are unaffected. See the note on
+  // CashMovementSource for why manual rows are never shift-stamped.
+  //
+  // `cycle` is the shift's reopenCount at posting time. It exists because a shift
+  // may be reopened AFTER approval, and each approval must be able to post its
+  // own correction: keying on (shiftId, source) alone made the second approval
+  // raise P2002, silently leaving the treasury on the stale figure. Each posting
+  // is a delta against the LIVE balance, so successive cycles supersede rather
+  // than accumulate — see lib/shiftTreasury.js.
+  @@unique([shiftId, source, cycle])
   @@map("deposits")
 }
 
@@ -974,20 +1018,48 @@ model Deposit {
 // ============================================
 
 model Withdrawal {
-  id          Int      @id @default(autoincrement())
-  amount      Decimal  @db.Decimal(10, 2)
-  description String?  @db.Text
-  date        DateTime @default(now()) @db.DateTime(0)
-  treasuryId  Int      @map("treasury_id")
-  createdById Int      @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id          Int                @id @default(autoincrement())
+  amount      Decimal            @db.Decimal(10, 2)
+  description String?            @db.Text
+  date        DateTime           @default(now()) @db.DateTime(0)
+  treasuryId  Int                @map("treasury_id")
+  createdById Int                @map("created_by_id")
+  source      CashMovementSource @default(MANUAL)
+  shiftId     Int?               @map("shift_id")
+  cycle       Int                @default(0)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
 
   // Relations
   treasury  Treasury @relation(fields: [treasuryId], references: [id], onDelete: Restrict)
   createdBy User     @relation("WithdrawalCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  shift     Shift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
+  // See Deposit — same one-row-per-(shift, source, cycle) guard.
+  @@unique([shiftId, source, cycle])
   @@map("withdrawals")
+}
+
+// Where a Deposit/Withdrawal row came from.
+//
+// Exists because the drawer formula (calculateSystemExpectedCash) must fold in
+// manual cash movements but must NOT fold in the rows the system generates for
+// itself: a driver settlement already reaches expected cash through the sale's
+// codDelivered term, so counting its Deposit row too would double it. Before
+// this enum the only way to tell them apart was matching Arabic description
+// text — see the warning at routes/shifts.js ("The old formula added
+// depositTotal, which double-counted driver-settlement deposits").
+//
+// MANUAL rows are never stamped with a shiftId; they are attributed to a shift
+// by branch treasury + time window, matching how driver dues are already
+// handled. Only SHIFT_OPENING / SHIFT_VARIANCE carry a shiftId, which keeps the
+// @@unique([shiftId, source, cycle]) guard meaningful.
+enum CashMovementSource {
+  MANUAL
+  DRIVER_SETTLEMENT
+  DRIVER_DUES
+  SHIFT_OPENING
+  SHIFT_VARIANCE
 }
 
 // ============================================

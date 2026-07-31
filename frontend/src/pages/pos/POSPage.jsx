@@ -202,7 +202,9 @@ const POSPage = () => {
       const newShift = await shiftService.start({
         userId: currentUser.id,
         branchId: currentUser.branch.id,
-        startCash: startCash, // Can be undefined - backend will use rolling balance
+        // Undefined when the cashier accepted the prefilled count — the backend
+        // then reconciles against the live treasury balance and posts nothing.
+        startCash: startCash,
       });
       console.log("Started new shift:", newShift);
       setCurrentShiftId(newShift.id);
@@ -211,6 +213,16 @@ const POSPage = () => {
       toast.success(
         `تم بدء الوردية ${newShift.type === "MORNING" ? "الصباحية" : "المسائية"} بنجاح`,
       );
+
+      // Only surfaced when the counted drawer differed from the books — a
+      // silent treasury adjustment is exactly what we don't want.
+      const adj = newShift.openingAdjustment;
+      if (adj) {
+        toast(
+          `${adj.type === "DEPOSIT" ? "تم تسجيل إيداع افتتاحي" : "تم تسجيل سحب افتتاحي"}: ${adj.amount} ج.م`,
+          { icon: "🧾", duration: 5000 },
+        );
+      }
     } catch (error) {
       console.error("Error starting shift:", error);
 

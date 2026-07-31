@@ -1,16 +1,17 @@
 /**
- * Returning a shift awaiting review to OPEN — PATCH /api/shifts/:id/reopen.
+ * Sending a shift back to OPEN — PATCH /api/shifts/:id/reopen.
  *
- * This is the second of the two actions a shift approver has while a shift sits
- * in PENDING_REVIEW, the alternative to POST /approve:
+ * Reopen runs from PENDING_REVIEW (instead of approving) *and* from CLOSED
+ * (un-approving a shift signed off too early). Approval is NOT terminal:
  *
- *   OPEN → /end → PENDING_REVIEW ─┬─ /approve    → CLOSED  (terminal)
- *                                 └─ /reopen     → OPEN    (sell more, /end again)
+ *   OPEN → /end → PENDING_REVIEW ─┬─ /approve    → CLOSED ──┐
+ *    ↑                            └─ /reopen     → OPEN     │
+ *    └──────────────────── /reopen ──────────────────────────┘
  *
- * and the loop may repeat any number of times before approval. An approved
- * (CLOSED) shift is explicitly NOT reopenable by this workflow.
+ * Both loops may run any number of times, in any combination, on the same row.
+ * Only an already-OPEN shift is refused.
  *
- * Four things are under test:
+ * Five things are under test:
  *
  * 1. ACCESS PARITY. Shift approval was never gated by a `Module` permission —
  *    the SHIFTS module only guards the shift LIST route. Authorization lived as
@@ -21,18 +22,26 @@
  *    re-introduces a hardcoded role name or gates reopen on a module permission
  *    that approve doesn't require.
  *
- * 2. ELIGIBILITY GUARDS. The shift must be PENDING_REVIEW, must be its branch's
- *    most recent shift, must have an active cashier, and must not collide with
- *    another live shift in the branch or another OPEN shift for the cashier.
- *    There is deliberately NO age cap — see the "no age cap" test.
+ * 2. ELIGIBILITY GUARDS. The shift must be reopenable by status, must be its
+ *    branch's most recent shift, must have an active cashier, and must not
+ *    collide with another live shift in the branch or another OPEN shift for the
+ *    cashier. There is deliberately NO age cap — see the "no age cap" test, and
+ *    section 7 for the /start blocker that makes dropping it safe.
  *
  * 3. THE LIFECYCLE ITSELF, driven through real requests against a stateful fake
- *    of the Prisma client rather than asserted on mock arguments, so the cycles
- *    PENDING_REVIEW → OPEN → PENDING_REVIEW → … are exercised end to end.
+ *    of the Prisma client rather than asserted on mock arguments, so every cycle
+ *    is exercised end to end.
  *
  * 4. SALES INTEGRITY across every cycle: same shiftId, nothing duplicated or
  *    dropped, and the re-close recomputing over the WHOLE shift rather than only
  *    the latest cycle.
+ *
+ * 5. TREASURY CORRECTNESS (section 6 — the reason this file has a fake treasury
+ *    at all). POST /approve moves real money, so a shift that can be approved
+ *    more than once must post exactly once per cycle: never twice for the same
+ *    cycle, and never zero times because an index rejected it. The fake enforces
+ *    UNIQUE(shiftId, source, cycle) itself, since that index is the guard the
+ *    whole design turns on.
  */
 
 const BRANCH_ID = 4;
@@ -59,10 +68,25 @@ const mockStore = {
   expenses: [],
   employeeTransactions: [],
   users: new Map(),
+  // The branch treasury IS the drawer. Cash sales/expenses post to it as they
+  // happen in production; here tests move it explicitly via `ringCashSale`.
+  treasuryBalance: 0,
+  deposits: [],
+  withdrawals: [],
   nextSaleId: 1,
+  nextMovementId: 1,
 };
 
-const BRANCH = { id: BRANCH_ID, name: "Main", treasuryId: null };
+const TREASURY_ID = 7;
+
+// Declared as `function`, not `const`: babel-plugin-jest-hoist lifts ALL-CAPS
+// consts referenced by a jest.mock factory to the top of the file, which would
+// put a `const BRANCH = { id: BRANCH_ID }` above BRANCH_ID's own declaration and
+// blow up on the temporal dead zone. Function declarations hoist natively and
+// read their references at call time.
+function mockBranchRow() {
+  return { id: BRANCH_ID, name: "Main", treasuryId: TREASURY_ID };
+}
 
 /** Evaluate the subset of Prisma filter operators these routes actually use. */
 const matchScalar = (value, cond) => {
@@ -70,10 +94,60 @@ const matchScalar = (value, cond) => {
   if (cond !== null && typeof cond === "object" && !(cond instanceof Date)) {
     if ("in" in cond) return cond.in.includes(value);
     if ("not" in cond) return value !== cond.not;
-    if ("gte" in cond) return new Date(value) >= new Date(cond.gte);
-    if ("lte" in cond) return new Date(value) <= new Date(cond.lte);
+    // Numbers compare numerically (cycle), everything else as dates.
+    const cmp = (a, b) =>
+      typeof a === "number" && typeof b === "number"
+        ? a - b
+        : new Date(a) - new Date(b);
+    if ("gte" in cond) return cmp(value, cond.gte) >= 0;
+    if ("lte" in cond) return cmp(value, cond.lte) <= 0;
+    if ("lt" in cond) return cmp(value, cond.lt) < 0;
+    if ("gt" in cond) return cmp(value, cond.gt) > 0;
   }
   return value === cond;
+};
+
+/** Sum a numeric field over rows matching `where`, Prisma-aggregate shaped. */
+const mockSumAgg = (rows, where, field) => ({
+  _sum: {
+    [field]: rows
+      .filter((r) => mockMatchWhere(r, where))
+      .reduce((n, r) => n + Number(r[field] || 0), 0),
+  },
+});
+
+function mockTreasuryRow() {
+  return {
+    id: TREASURY_ID,
+    name: "Main Drawer",
+    balance: mockStore.treasuryBalance,
+  };
+}
+
+/**
+ * Insert a Deposit/Withdrawal, enforcing UNIQUE(shift_id, source, cycle) exactly
+ * as MySQL would — NULL shiftIds never collide, and two rows for the same shift
+ * and source are fine as long as they belong to different approval cycles.
+ */
+const mockCreateMovement = (rows, data) => {
+  if (
+    data.shiftId != null &&
+    rows.some(
+      (r) =>
+        r.shiftId === data.shiftId &&
+        r.source === data.source &&
+        r.cycle === data.cycle,
+    )
+  ) {
+    const err = new Error(
+      "Unique constraint failed on the fields: (`shift_id`,`source`,`cycle`)",
+    );
+    err.code = "P2002";
+    throw err;
+  }
+  const row = { id: mockStore.nextMovementId++, createdAt: new Date(), ...data };
+  rows.push(row);
+  return row;
 };
 
 const mockMatchWhere = (row, where = {}) =>
@@ -99,7 +173,7 @@ const mockHydrateShift = (row, include = {}) => {
   if (!row) return null;
   const out = { ...row };
   if (include.user) out.user = publicUser(mockStore.users.get(row.userId), include.user);
-  if (include.branch) out.branch = { ...BRANCH };
+  if (include.branch) out.branch = mockBranchRow();
   if (include.reviewedBy) {
     out.reviewedBy = row.reviewedById
       ? publicUser(mockStore.users.get(row.reviewedById), include.reviewedBy)
@@ -126,6 +200,28 @@ const mockHydrateShift = (row, include = {}) => {
       .map((t) => ({ ...t }));
   }
   return out;
+};
+
+/**
+ * Apply an update payload, honouring Prisma's atomic number operators. Reopen
+ * writes `reopenCount: { increment: 1 }`, and a fake that assigned that object
+ * verbatim would silently make every cycle assertion meaningless.
+ */
+const mockApplyWrite = (row, data) => {
+  for (const [field, value] of Object.entries(data)) {
+    if (value && typeof value === "object" && !(value instanceof Date)) {
+      if ("increment" in value) {
+        row[field] = (Number(row[field]) || 0) + value.increment;
+        continue;
+      }
+      if ("decrement" in value) {
+        row[field] = (Number(row[field]) || 0) - value.decrement;
+        continue;
+      }
+    }
+    row[field] = value;
+  }
+  return row;
 };
 
 const mockSortRows = (rows, orderBy) => {
@@ -160,7 +256,7 @@ jest.mock("../../config/database", () => {
       update: jest.fn(async ({ where, data, include }) => {
         const row = mockStore.shifts.get(where.id);
         if (!row) throw new Error(`fake: no shift #${where.id}`);
-        Object.assign(row, data);
+        mockApplyWrite(row, data);
         return mockHydrateShift(row, include);
       }),
       // Reopen must never mint a replacement shift. Loud rather than silent.
@@ -175,10 +271,65 @@ jest.mock("../../config/database", () => {
         mockStore.sales.filter((s) => mockMatchWhere(s, where)).map((s) => ({ ...s })),
       ),
     },
+    branch: {
+      findUnique: jest.fn(async () => ({ ...mockBranchRow(), treasury: mockTreasuryRow() })),
+    },
+    treasury: {
+      findUnique: jest.fn(async () => mockTreasuryRow()),
+      update: jest.fn(async ({ data }) => {
+        if (data.balance?.increment !== undefined) {
+          mockStore.treasuryBalance += data.balance.increment;
+        }
+        if (data.balance?.decrement !== undefined) {
+          mockStore.treasuryBalance -= data.balance.decrement;
+        }
+        return mockTreasuryRow();
+      }),
+      // Mirrors the compare-and-set debit in lib/shiftTreasury.js.
+      updateMany: jest.fn(async ({ where, data }) => {
+        const floor = where.balance?.gte;
+        if (floor !== undefined && mockStore.treasuryBalance < floor) {
+          return { count: 0 };
+        }
+        if (data.balance?.decrement !== undefined) {
+          mockStore.treasuryBalance -= data.balance.decrement;
+        }
+        return { count: 1 };
+      }),
+    },
+    // The UNIQUE(shift_id, source, cycle) index is enforced here — it is the
+    // guard the whole reopen-after-approval design turns on, so a fake that
+    // ignored it would make these tests meaningless.
+    deposit: {
+      create: jest.fn(async ({ data }) =>
+        mockCreateMovement(mockStore.deposits, data),
+      ),
+      aggregate: jest.fn(async ({ where }) =>
+        mockSumAgg(mockStore.deposits, where, "amount"),
+      ),
+      findMany: jest.fn(async ({ where }) =>
+        mockStore.deposits.filter((d) => mockMatchWhere(d, where)),
+      ),
+    },
+    withdrawal: {
+      create: jest.fn(async ({ data }) =>
+        mockCreateMovement(mockStore.withdrawals, data),
+      ),
+      aggregate: jest.fn(async ({ where }) =>
+        mockSumAgg(mockStore.withdrawals, where, "amount"),
+      ),
+    },
+    // Drawer-formula terms this suite never exercises; zero keeps expected cash
+    // equal to startCash + cash sales, which is what the arithmetic asserts on.
+    expense: { aggregate: jest.fn(async () => ({ _sum: { amount: null } })) },
+    cashTransfer: { aggregate: jest.fn(async () => ({ _sum: { amount: null } })) },
+    payroll: { aggregate: jest.fn(async () => ({ _sum: { netSalary: null } })) },
+    supplierPayment: {
+      aggregate: jest.fn(async () => ({ _sum: { amount: null } })),
+    },
     deliveryManTransaction: {
       aggregate: jest.fn(async () => ({ _sum: { amount: null } })),
     },
-    deposit: { findMany: jest.fn(async () => []) },
     systemConfiguration: { findUnique: jest.fn(async () => null) },
     // Run the callback against the same client, mirroring how the interactive
     // transaction sees the tx client.
@@ -244,8 +395,11 @@ const openShiftRow = (overrides = {}) => ({
   shortage: null,
   expectedVisa: null,
   expectedInstapay: null,
+  closingTreasuryBalance: null,
+  treasuryVariance: null,
   reviewedById: null,
   reviewedAt: null,
+  reopenCount: 0,
   ...overrides,
 });
 
@@ -264,6 +418,8 @@ const pendingReviewShiftRow = (overrides = {}) =>
     shortage: 0,
     expectedVisa: 0,
     expectedInstapay: 0,
+    closingTreasuryBalance: 600,
+    treasuryVariance: 0,
     ...overrides,
   });
 
@@ -310,13 +466,28 @@ const addSale = (total, overrides = {}) => {
   return sale;
 };
 
-const seedStore = (shiftRow) => {
+/**
+ * A cash sale as POS really performs it: the sale row AND the treasury credit,
+ * which routes/sales.js posts at sale time. Tests that assert on the treasury
+ * must use this rather than addSale, or the drawer and the books diverge for
+ * reasons that have nothing to do with reopening.
+ */
+const ringCashSale = (total) => {
+  mockStore.treasuryBalance += total;
+  return addSale(total);
+};
+
+const seedStore = (shiftRow, { treasuryBalance = 0 } = {}) => {
   mockStore.shifts.clear();
   mockStore.sales.length = 0;
   mockStore.expenses.length = 0;
   mockStore.employeeTransactions.length = 0;
+  mockStore.deposits.length = 0;
+  mockStore.withdrawals.length = 0;
   mockStore.users.clear();
   mockStore.nextSaleId = 1;
+  mockStore.nextMovementId = 1;
+  mockStore.treasuryBalance = treasuryBalance;
   mockStore.users.set(MANAGER_ID, managerRow());
   mockStore.users.set(CASHIER_ID, cashierRow());
   mockStore.shifts.set(SHIFT_ID, shiftRow);
@@ -324,6 +495,11 @@ const seedStore = (shiftRow) => {
 
 const shiftRow = () => mockStore.shifts.get(SHIFT_ID);
 const statusOf = () => shiftRow().status;
+const balance = () => Math.round(mockStore.treasuryBalance * 100) / 100;
+const varianceRows = () =>
+  [...mockStore.deposits, ...mockStore.withdrawals].filter(
+    (r) => r.source === "SHIFT_VARIANCE",
+  );
 const patchManager = (overrides) =>
   mockStore.users.set(MANAGER_ID, managerRow(overrides));
 
@@ -361,7 +537,7 @@ const endShift = (actualCash) => {
     .send({ shiftId: SHIFT_ID, actualCash });
 };
 
-/** Approver returns the shift to the cashier without approving → OPEN. */
+/** Approver sends the shift back to the cashier → OPEN. */
 const reopen = (body = {}) => {
   asManager();
   return request(app)
@@ -374,7 +550,7 @@ const reopen = (body = {}) => {
     });
 };
 
-/** Approver signs the shift off → CLOSED (terminal). */
+/** Approver signs the shift off → CLOSED, posting the treasury correction. */
 const approve = () => {
   asManager();
   return request(app).post("/api/shifts/approve").send({
@@ -392,7 +568,10 @@ beforeAll(async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   auth.getUserBranchFilter.mockResolvedValue(null); // global caller by default
-  seedStore(pendingReviewShiftRow());
+  // Default fixture: a shift awaiting review, 100 float + 200 + 300 in cash
+  // sales, counted exactly. The treasury holds the same 600, so approving it
+  // posts nothing — tests that care about postings set up their own numbers.
+  seedStore(pendingReviewShiftRow(), { treasuryBalance: 600 });
   addSale(200);
   addSale(300);
   asManager();
@@ -546,21 +725,24 @@ describe("eligibility guards", () => {
     expect(prisma.shift.update).not.toHaveBeenCalled();
   });
 
-  test("an approved CLOSED shift cannot be reopened (400) — approval is terminal", async () => {
+  test("an approved CLOSED shift CAN be reopened — approval is not terminal", async () => {
     seedStore(
       pendingReviewShiftRow({
         status: "CLOSED",
         reviewedById: MANAGER_ID,
         reviewedAt: new Date(),
       }),
+      { treasuryBalance: 600 },
     );
 
     const res = await reopen();
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/status: CLOSED/);
-    expect(statusOf()).toBe("CLOSED");
-    expect(prisma.shift.update).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("OPEN");
+    expect(res.body.wasApproved).toBe(true); // the UI needs to tell these apart
+    expect(statusOf()).toBe("OPEN");
+    // The approval's reviewer is cleared so a re-approval records the real one.
+    expect(shiftRow().reviewedById).toBeNull();
   });
 
   test("a reason is required (400)", async () => {
@@ -688,7 +870,9 @@ describe("the reopen write", () => {
     const { where, data } = prisma.shift.update.mock.calls[0][0];
     expect(where).toEqual({ id: SHIFT_ID }); // the SAME shift, not a new one
 
-    // Every field POST /end writes, plus the reviewer fields, back to null.
+    // Every field POST /end writes, plus the reviewer fields, back to null —
+    // and reopenCount advanced, which is what gives the next approval its own
+    // treasury posting cycle.
     expect(data).toEqual({
       status: "OPEN",
       endTime: null,
@@ -698,8 +882,14 @@ describe("the reopen write", () => {
       shortage: null,
       expectedVisa: null,
       expectedInstapay: null,
+      // The treasury snapshot taken at the discarded close. This is the stale
+      // INPUT to a future posting, not a record of one: if an earlier approval
+      // did post, that Deposit/Withdrawal is left exactly as it is.
+      closingTreasuryBalance: null,
+      treasuryVariance: null,
       reviewedById: null,
       reviewedAt: null,
+      reopenCount: { increment: 1 },
     });
   });
 
@@ -873,22 +1063,39 @@ describe("shift lifecycle cycles", () => {
     expect(mockStore.shifts.size).toBe(1);
   });
 
-  test("the cycle survives many rounds and only approval ends it", async () => {
+  test("the pre-approval cycle survives many rounds", async () => {
     for (let round = 0; round < 4; round++) {
       await endShift(600);
       expect(statusOf()).toBe("PENDING_REVIEW");
       expect((await reopen()).status).toBe(200);
       expect(statusOf()).toBe("OPEN");
+      expect(shiftRow().reopenCount).toBe(round + 1);
     }
 
     await endShift(600);
     await approve();
     expect(statusOf()).toBe("CLOSED");
+  });
 
-    // Terminal: the loop cannot be restarted from CLOSED.
-    const afterApproval = await reopen();
-    expect(afterApproval.status).toBe(400);
+  test("approval is NOT terminal: the loop restarts from CLOSED", async () => {
+    await endShift(600);
+    await approve();
     expect(statusOf()).toBe("CLOSED");
+
+    const afterApproval = await reopen();
+
+    expect(afterApproval.status).toBe(200);
+    expect(afterApproval.body.wasApproved).toBe(true);
+    expect(statusOf()).toBe("OPEN");
+  });
+
+  test("only an already-OPEN shift refuses to reopen", async () => {
+    seedStore(openShiftRow(), { treasuryBalance: 600 });
+
+    const res = await reopen();
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/status: OPEN/);
   });
 
   test("a reopened shift is OPEN for POS, and the cashier can end it again", async () => {
@@ -1012,7 +1219,274 @@ describe("sales stay attached to the same shift across every reopen cycle", () =
 });
 
 // ---------------------------------------------------------------------------
-// 6. The bypass this feature closes
+// 6. Treasury: reopening an APPROVED shift must not double-post or under-post
+//
+// POST /approve is the only route here that moves money: it posts the shift's
+// stored `treasuryVariance` as a Deposit/Withdrawal and shifts treasury.balance.
+// Once a CLOSED shift became reopenable, that posting stopped being once-per-
+// shift, and these tests pin down the two ways that could have gone wrong:
+//
+//   UNDER-POST — the failure this change fixes. UNIQUE(shiftId, source) let only
+//     one variance row exist per shift ever, so the second approval raised P2002
+//     and the route reported "already approved" while the corrected variance
+//     silently never reached the treasury.
+//   DOUBLE-POST — the failure a naive fix would introduce, by reversing the
+//     first posting on reopen and re-posting the full amount later.
+//
+// The invariant that rules both out: after every approval the treasury equals
+// the cash the cashier just counted, and the net posted across N cycles is
+// (final count − opening balance), never a sum of the individual variances.
+// ---------------------------------------------------------------------------
+
+describe("treasury postings across approve → reopen → approve", () => {
+  /** OPEN shift, 100 float already in the drawer, 500 rung up in cash sales. */
+  const seedLive = () => {
+    seedStore(openShiftRow(), { treasuryBalance: 100 });
+    ringCashSale(200);
+    ringCashSale(300);
+    // treasury 600; expected cash 100 + 500 = 600
+  };
+
+  const netVariancePosted = () =>
+    Math.round(
+      (mockStore.deposits
+        .filter((d) => d.source === "SHIFT_VARIANCE")
+        .reduce((n, d) => n + d.amount, 0) -
+        mockStore.withdrawals
+          .filter((w) => w.source === "SHIFT_VARIANCE")
+          .reduce((n, w) => n + w.amount, 0)) *
+        100,
+    ) / 100;
+
+  beforeEach(seedLive);
+
+  test("approval posts the variance once and leaves the treasury on the count", async () => {
+    await endShift(590); // counted 590 against books of 600
+
+    const res = await approve();
+
+    expect(res.status).toBe(200);
+    expect(balance()).toBe(590);
+    expect(varianceRows()).toHaveLength(1);
+    expect(varianceRows()[0]).toMatchObject({
+      source: "SHIFT_VARIANCE",
+      shiftId: SHIFT_ID,
+      cycle: 0,
+      amount: 10,
+    });
+  });
+
+  test("reopening a CLOSED shift reverses nothing — the drawer really holds that cash", async () => {
+    await endShift(590);
+    await approve();
+    const posted = { ...varianceRows()[0] };
+
+    const res = await reopen();
+
+    expect(res.status).toBe(200);
+    // Balance untouched. Reversing here would put the books back on 600 while
+    // the drawer physically holds 590 — wrong for the whole reopened window.
+    expect(balance()).toBe(590);
+    expect(varianceRows()).toHaveLength(1);
+    expect(varianceRows()[0]).toEqual(posted); // byte-identical, not rewritten
+    expect(shiftRow().reopenCount).toBe(1);
+  });
+
+  test("CLOSED → OPEN → PENDING_REVIEW → CLOSED posts the second correction under cycle 1", async () => {
+    await endShift(590);
+    await approve(); // cycle 0: withdraw 10 → 590
+
+    await reopen();
+    ringCashSale(150); // → 740
+
+    await endShift(735); // counted 735 against books of 740
+    const second = await approve();
+
+    expect(second.status).toBe(200);
+    expect(balance()).toBe(735); // exactly the final count
+    expect(varianceRows()).toHaveLength(2);
+    expect(varianceRows().map((r) => r.cycle).sort()).toEqual([0, 1]);
+  });
+
+  test("no double posting: net movement is final count − opening balance", async () => {
+    await endShift(590);
+    await approve();
+
+    await reopen();
+    ringCashSale(150);
+    await endShift(735);
+    await approve();
+
+    // Opening books were 600 (float + sales at first close); across both cycles
+    // the treasury moved by exactly −15 to land on 735. A reverse-then-repost
+    // implementation would move −10, +10, −5 and a double-post would move −15
+    // twice; only supersede gives one net −15 with two rows.
+    expect(netVariancePosted()).toBe(-15);
+    expect(balance()).toBe(735);
+    expect(varianceRows()).toHaveLength(2);
+  });
+
+  test("many CLOSED → OPEN cycles: one posting each, treasury always on the last count", async () => {
+    const counts = [590, 735, 900, 1010];
+    let sold = 0;
+
+    for (let cycle = 0; cycle < counts.length; cycle++) {
+      if (cycle > 0) {
+        await reopen();
+        sold += 150;
+        ringCashSale(150);
+      }
+      await endShift(counts[cycle]);
+      expect((await approve()).status).toBe(200);
+
+      // After every single approval the books equal the physical count.
+      expect(balance()).toBe(counts[cycle]);
+      expect(statusOf()).toBe("CLOSED");
+      expect(varianceRows()).toHaveLength(cycle + 1);
+    }
+
+    // One row per cycle, each stamped with its own cycle number.
+    expect(varianceRows().map((r) => r.cycle).sort()).toEqual([0, 1, 2, 3]);
+    // Still one shift, and every sale still on it.
+    expect(mockStore.shifts.size).toBe(1);
+    expect(mockStore.sales).toHaveLength(2 + sold / 150);
+    for (const sale of mockStore.sales) expect(sale.shiftId).toBe(SHIFT_ID);
+  });
+
+  test("a replayed approve within one cycle is refused and moves no money", async () => {
+    await endShift(590);
+    expect((await approve()).status).toBe(200);
+    const settled = balance();
+
+    // Put the row back to PENDING_REVIEW WITHOUT going through reopen, so the
+    // status guard passes and only UNIQUE(shiftId, source, cycle) can stop the
+    // second posting. This is the guard the whole design leans on.
+    shiftRow().status = "PENDING_REVIEW";
+    const replay = await approve();
+
+    expect(replay.status).toBe(409);
+    expect(balance()).toBe(settled);
+    expect(varianceRows()).toHaveLength(1);
+  });
+
+  test("drift stays zero across cycles — an earlier posting is not a missing movement", async () => {
+    const first = await endShift(590);
+    expect(first.body.calculationBreakdown.drift).toBe(0);
+    await approve();
+
+    await reopen();
+    ringCashSale(150);
+    const second = await endShift(735);
+
+    // shortage spans the WHOLE shift (735 − 750); treasuryVariance covers only
+    // what cycle 0 did not already book (735 − 740).
+    expect(second.body.shortage).toBe(-15);
+    expect(second.body.calculationBreakdown.treasuryVariance).toBe(-5);
+    expect(second.body.calculationBreakdown.priorPostedVariance).toBe(-10);
+    // Without the prior-posted term this would read −10 and wrongly accuse the
+    // drawer formula of missing a branch-treasury movement.
+    expect(second.body.calculationBreakdown.drift).toBe(0);
+  });
+
+  test("reopening cannot corrupt a later shift or the branch balance", async () => {
+    await endShift(590);
+    await approve();
+    const settled = balance();
+
+    // A later shift now exists in the same branch. Reopening would stretch this
+    // shift's [startTime, endTime||now] window across it and double-charge its
+    // window-attributed movements.
+    mockStore.shifts.set(
+      56,
+      openShiftRow({ id: 56, status: "OPEN", startTime: new Date(), userId: 77 }),
+    );
+    mockStore.users.set(77, cashierRow({ id: 77, username: "other" }));
+
+    const res = await reopen();
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/newer shift/i);
+    expect(statusOf()).toBe("CLOSED"); // untouched
+    expect(balance()).toBe(settled); // no money moved
+    expect(varianceRows()).toHaveLength(1);
+  });
+
+  test("a branch with no treasury still closes and approves, posting nothing", async () => {
+    prisma.branch.findUnique.mockResolvedValueOnce({
+      id: BRANCH_ID,
+      name: "Main",
+      treasuryId: null,
+    });
+    prisma.shift.findUnique.mockImplementationOnce(async ({ where }) => {
+      const row = mockStore.shifts.get(where.id);
+      return { ...row, branch: { id: BRANCH_ID, name: "Main", treasuryId: null } };
+    });
+
+    const ended = await endShift(590);
+
+    expect(ended.status).toBe(200);
+    expect(ended.body.treasuryVariance).toBeNull();
+    expect(varianceRows()).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. The one-shift-per-branch blocker, now unbounded
+// ---------------------------------------------------------------------------
+
+describe("POST /start blocks on an unclosed shift of ANY age", () => {
+  const start = () => {
+    asManager();
+    return request(app)
+      .post("/api/shifts/start")
+      .send({ userId: 77, branchId: BRANCH_ID });
+  };
+
+  test("a reopened shift older than the former 48h window still blocks", async () => {
+    // A CLOSED shift blocks nothing, and reopening preserves the original
+    // startTime — so under the old 48h-bounded blocker this reopened shift was
+    // invisible and a second cashier could open a concurrent one in the branch.
+    seedStore(
+      openShiftRow({ startTime: new Date(Date.now() - 90 * 60 * 60 * 1000) }),
+      { treasuryBalance: 100 },
+    );
+
+    const res = await start();
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/already an active shift/i);
+    expect(prisma.shift.create).not.toHaveBeenCalled();
+  });
+
+  test("the blocker query carries no startTime bound at all", async () => {
+    seedStore(openShiftRow(), { treasuryBalance: 100 });
+
+    await start();
+
+    const blockerCall = prisma.shift.findFirst.mock.calls.find((c) =>
+      c[0]?.where?.status?.in?.includes("PENDING_REVIEW"),
+    );
+    expect(blockerCall).toBeDefined();
+    expect(blockerCall[0].where.startTime).toBeUndefined();
+  });
+
+  test("a PENDING_REVIEW shift of any age also blocks", async () => {
+    seedStore(
+      pendingReviewShiftRow({
+        startTime: new Date(Date.now() - 90 * 60 * 60 * 1000),
+      }),
+      { treasuryBalance: 600 },
+    );
+
+    const res = await start();
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/pending manager review/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. The bypass this feature closes
 // ---------------------------------------------------------------------------
 
 describe("POST /end no longer doubles as an un-audited reopen", () => {
@@ -1039,7 +1513,7 @@ describe("POST /end no longer doubles as an un-audited reopen", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 7. Audit wiring
+// 9. Audit wiring
 // ---------------------------------------------------------------------------
 
 describe("audit wiring", () => {

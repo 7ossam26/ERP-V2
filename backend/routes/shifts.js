@@ -12,18 +12,8 @@ const {
   bypassesShiftBranchScope,
 } = require("../config/roles");
 const { drainPendingForBranch } = require("../lib/orderService");
-
-/**
- * How far back POST /start looks for an unclosed shift when deciding whether a
- * branch may open a new one. Long enough to cover an overnight shift.
- *
- * Note for anyone tempted to bound PATCH /:id/reopen by this same window: it
- * would protect nothing. That blocker matches status OPEN *and* PENDING_REVIEW —
- * both sides of the reopen transition — so a PENDING_REVIEW shift already blocks
- * /start exactly as much as the OPEN shift it becomes, at any age. Reopening
- * cannot make a shift newly invisible to this check.
- */
-const UNCLOSED_SHIFT_LOOKBACK_HOURS = 48;
+const { postShiftOpening, postShiftVariance } = require("../lib/shiftTreasury");
+const { roundMoney } = require("../utils/money");
 
 // Reopening discards the cashier's submitted cash count, so the audit trail
 // needs a real explanation rather than a keystroke.
@@ -196,7 +186,27 @@ async function determineShiftType() {
 }
 
 /**
- * Helper: Calculate system expected cash for a shift
+ * Helper: Calculate system expected cash for a shift.
+ *
+ * The branch treasury IS the drawer, so the governing rule is: every movement
+ * that touches the branch's cash treasury during the shift must appear here, and
+ * nothing else may. Two failure modes to keep in mind when editing:
+ *
+ *   MISSING a movement  → phantom shortage (the cashier is blamed for cash that
+ *                         left legitimately).
+ *   DOUBLE-COUNTING one → phantom overage. This is why deposits/withdrawals are
+ *                         filtered to source=MANUAL: a driver settlement already
+ *                         arrives via the sale's codDelivered term, and a driver
+ *                         dues payout via the DUES_PAYOUT ledger below. Counting
+ *                         their Deposit/Withdrawal rows too would double them.
+ *
+ * Movements the system generates for itself are attributed by shiftId; movements
+ * a human records are attributed by branch treasury + time window, because those
+ * tables carry no shift link (see the CashMovementSource note in schema.prisma).
+ *
+ * This figure drives the reported `shortage` only. It does NOT drive the treasury
+ * posting — that follows `treasuryVariance`, a delta against the live balance —
+ * so a gap here can mis-state accountability but can never corrupt the treasury.
  */
 async function calculateSystemExpectedCash(shiftId) {
   const shift = await prisma.shift.findUnique({
@@ -209,8 +219,8 @@ async function calculateSystemExpectedCash(shiftId) {
         where: { status: "COMPLETED", isVoided: false },
         include: { order: { select: { status: true } } },
       },
-      expenses: true,
       employeeTransactions: { where: { type: "ADVANCE" } },
+      branch: { select: { treasuryId: true } },
     },
   });
 
@@ -264,14 +274,32 @@ async function calculateSystemExpectedCash(shiftId) {
     }
   });
 
-  // Subtract expenses paid from drawer
-  shift.expenses.forEach((expense) => {
-    if (expense.paymentMethod === "CASH") {
-      const amount = parseFloat(expense.amount) || 0;
-      cashExpenses += amount;
-      expected -= amount;
-    }
-  });
+  // Subtract expenses paid from drawer.
+  //
+  // Attributed by treasury + createdAt window, NOT by the shiftId join this
+  // used to use. Manual expenses carry a shiftId and match either way, but
+  // PURCHASE-type expenses are auto-created by routes/purchases.js with
+  // shiftId=null while still debiting the branch treasury for real — the
+  // shiftId join missed every one of them, understating cash out.
+  //
+  // createdAt, not `date`: `date` is user-supplied and backdatable, so it says
+  // when the cost was incurred, not when the cash left the drawer.
+  const branchTreasuryId = shift.branch?.treasuryId || null;
+  const windowStart = shift.startTime;
+  const windowEnd = shift.endTime || new Date();
+
+  if (branchTreasuryId && windowStart) {
+    const expenseAgg = await prisma.expense.aggregate({
+      where: {
+        treasuryId: branchTreasuryId,
+        paymentMethod: "CASH",
+        createdAt: { gte: windowStart, lte: windowEnd },
+      },
+      _sum: { amount: true },
+    });
+    cashExpenses = Number(expenseAgg._sum.amount || 0);
+    expected -= cashExpenses;
+  }
 
   // Subtract employee advances (cash handed to employees from the drawer)
   let advances = 0;
@@ -304,6 +332,75 @@ async function calculateSystemExpectedCash(shiftId) {
     expected -= pilotSettlementDifference;
   }
 
+  // Remaining branch-treasury movements. Each of these debits or credits the
+  // drawer for real, and none was folded in before — every one of them surfaced
+  // as a phantom shortage/overage the cashier had to explain.
+  let manualDeposits = 0;
+  let manualWithdrawals = 0;
+  let transfersOut = 0;
+  let transfersIn = 0;
+  let payrollPaid = 0;
+  let supplierPayments = 0;
+
+  if (branchTreasuryId && windowStart) {
+    const window = { gte: windowStart, lte: windowEnd };
+
+    const [depAgg, wdrAgg, outAgg, inAgg, payrollAgg, supplierAgg] =
+      await Promise.all([
+        // source=MANUAL only — DRIVER_SETTLEMENT cash is already in
+        // codDelivered, DRIVER_DUES already in pilotSettlementDifference, and
+        // the SHIFT_* rows are this shift's own reconciliation postings.
+        // Including any of them would double-count.
+        prisma.deposit.aggregate({
+          where: { treasuryId: branchTreasuryId, source: "MANUAL", createdAt: window },
+          _sum: { amount: true },
+        }),
+        prisma.withdrawal.aggregate({
+          where: { treasuryId: branchTreasuryId, source: "MANUAL", createdAt: window },
+          _sum: { amount: true },
+        }),
+        // A transfer debits the source treasury the moment it is created, while
+        // still PENDING — the cash physically leaves the branch at that point.
+        // A later rejection credits it back, and that refund lands in whichever
+        // shift is open then, which is the correct attribution.
+        prisma.cashTransfer.aggregate({
+          where: {
+            fromTreasuryId: branchTreasuryId,
+            status: { in: ["PENDING", "APPROVED"] },
+            createdAt: window,
+          },
+          _sum: { amount: true },
+        }),
+        prisma.cashTransfer.aggregate({
+          where: { toTreasuryId: branchTreasuryId, status: "APPROVED", createdAt: window },
+          _sum: { amount: true },
+        }),
+        prisma.payroll.aggregate({
+          where: { treasuryId: branchTreasuryId, status: "PAID", createdAt: window },
+          _sum: { netSalary: true },
+        }),
+        prisma.supplierPayment.aggregate({
+          where: { treasuryId: branchTreasuryId, createdAt: window },
+          _sum: { amount: true },
+        }),
+      ]);
+
+    manualDeposits = Number(depAgg._sum.amount || 0);
+    manualWithdrawals = Number(wdrAgg._sum.amount || 0);
+    transfersOut = Number(outAgg._sum.amount || 0);
+    transfersIn = Number(inAgg._sum.amount || 0);
+    payrollPaid = Number(payrollAgg._sum.netSalary || 0);
+    supplierPayments = Number(supplierAgg._sum.amount || 0);
+
+    expected +=
+      manualDeposits +
+      transfersIn -
+      manualWithdrawals -
+      transfersOut -
+      payrollPaid -
+      supplierPayments;
+  }
+
   const round = (n) => Math.round(n * 100) / 100;
   const cashSales = round(posCash + codDeliveredThisShift);
   return {
@@ -318,7 +415,43 @@ async function calculateSystemExpectedCash(shiftId) {
     startCash: round(startCash),
     expectedVisa: round(expectedVisa),
     expectedInstapay: round(expectedInstapay),
+    manualDeposits: round(manualDeposits),
+    manualWithdrawals: round(manualWithdrawals),
+    transfersOut: round(transfersOut),
+    transfersIn: round(transfersIn),
+    payrollPaid: round(payrollPaid),
+    supplierPayments: round(supplierPayments),
   };
+}
+
+/**
+ * Net variance posted to the treasury for this shift by approval cycles STRICTLY
+ * BEFORE `beforeCycle`: deposits positive, withdrawals negative, matching the
+ * sign of the `treasuryVariance` delta each one came from.
+ *
+ * Always called with the shift's current `reopenCount`, which excludes the
+ * current cycle in both directions — before it is approved (nothing is posted
+ * for it yet) and after (its row carries cycle === reopenCount). That keeps the
+ * caller's arithmetic identical whether the shift is OPEN, PENDING_REVIEW or
+ * CLOSED.
+ *
+ * Zero for any shift that has never been reopened. Used to keep the reported
+ * `drift` honest; it never feeds a posting.
+ */
+async function sumPostedShiftVariance(shiftId, beforeCycle) {
+  if (!beforeCycle) return 0; // cycle 0: nothing can precede it
+  const where = {
+    shiftId,
+    source: "SHIFT_VARIANCE",
+    cycle: { lt: beforeCycle },
+  };
+  const [deposited, withdrawn] = await Promise.all([
+    prisma.deposit.aggregate({ where, _sum: { amount: true } }),
+    prisma.withdrawal.aggregate({ where, _sum: { amount: true } }),
+  ]);
+  return roundMoney(
+    Number(deposited._sum.amount || 0) - Number(withdrawn._sum.amount || 0),
+  );
 }
 
 // Start a new shift
@@ -347,19 +480,20 @@ router.post("/start", async (req, res, next) => {
     // Determine shift type based on time
     const { type: shiftType, config } = await determineShiftType();
 
-    // Check for RECENT unclosed shifts (last 48 hours to handle overnight shifts).
-    const twoDaysAgo = new Date();
-    twoDaysAgo.setHours(twoDaysAgo.getHours() - UNCLOSED_SHIFT_LOOKBACK_HOURS);
-
-    // BLOCKING LOGIC: Any unclosed shift (OPEN or PENDING_REVIEW) blocks new shift start
-    // This enforces STRICT one shift per branch policy
+    // BLOCKING LOGIC: any unclosed shift (OPEN or PENDING_REVIEW) blocks a new
+    // one, enforcing the STRICT one-shift-per-branch policy.
+    //
+    // Deliberately NOT time-bounded. This used to look back only 48h, which left
+    // a hole once a CLOSED shift became reopenable: a reopened shift keeps its
+    // original startTime, and a CLOSED shift blocks nothing, so reopening one
+    // older than the window produced an OPEN shift this query could not see — and
+    // a second cashier could open a concurrent shift in the same branch. An
+    // unclosed shift of any age must block; if one is genuinely abandoned the fix
+    // is to end or approve it, not to let the branch quietly double up.
     const existingBranchShift = await prisma.shift.findFirst({
       where: {
         branchId: parseInt(branchId),
         status: { in: ["OPEN", "PENDING_REVIEW"] },
-        startTime: {
-          gte: twoDaysAgo,
-        },
       },
       include: {
         user: true, // Include user to show WHO has the open shift
@@ -400,37 +534,80 @@ router.post("/start", async (req, res, next) => {
         .json({ error: "User already has an active shift" });
     }
 
-    // ROLLING BALANCE: Use end cash from most recent closed shift ONLY if user didn't provide a value
-    let calculatedStartCash;
-
-    if (startCash !== undefined && startCash !== null) {
-      calculatedStartCash = parseFloat(startCash);
-    } else {
-      const lastClosedShift = await prisma.shift.findFirst({
-        where: {
-          branchId: parseInt(branchId),
-          status: "CLOSED",
-        },
-        orderBy: { endTime: "desc" },
+    // The branch's cash treasury is the drawer — resolve it up front, since both
+    // the opening default and the opening posting are expressed against it.
+    const branch = await prisma.branch.findUnique({
+      where: { id: parseInt(branchId) },
+      select: { id: true, treasuryId: true },
+    });
+    if (!branch || !branch.treasuryId) {
+      return res.status(400).json({
+        error: "Branch has no cash treasury configured",
+        message: "الفرع لا يحتوي على خزينة نقدية",
       });
-
-      if (lastClosedShift && lastClosedShift.endCash !== null) {
-        calculatedStartCash = parseFloat(lastClosedShift.endCash);
-      } else {
-        calculatedStartCash = 0;
-      }
     }
 
-    const newShift = await prisma.shift.create({
-      data: {
-        userId: parseInt(userId),
-        branchId: parseInt(branchId),
-        type: shiftType,
-        startCash: calculatedStartCash,
-        startTime: new Date(),
-        status: "OPEN",
+    const { newShift, openingAdjustment } = await prisma.$transaction(
+      async (tx) => {
+        // Re-check the one-open-shift-per-branch blocker INSIDE the transaction.
+        // The pre-flight check above is for a friendly error message; this one is
+        // the actual guard. Without it two concurrent starts can both pass the
+        // pre-flight and each post an opening adjustment against the same
+        // treasury. PATCH /:id/reopen already re-checks the same way.
+        const raced = await tx.shift.findFirst({
+          where: {
+            branchId: parseInt(branchId),
+            status: { in: ["OPEN", "PENDING_REVIEW"] },
+          },
+          select: { id: true },
+        });
+        if (raced) {
+          const err = new Error("There is already an active shift");
+          err.status = 409;
+          err.message = "يوجد وردية مفتوحة بالفعل لهذا الفرع";
+          throw err;
+        }
+
+        // ROLLING BALANCE: default the opening cash to the branch treasury's
+        // current balance, not the previous shift's endCash.
+        //
+        // The treasury already carries the previous shift's counted cash (posted
+        // at its approval) plus anything that moved between shifts, so this is
+        // the figure that makes the opening delta zero in the ordinary case —
+        // no row written, nothing double-counted. Deviating from it is a real
+        // cash injection or removal, and only the difference gets posted.
+        const treasury = await tx.treasury.findUnique({
+          where: { id: branch.treasuryId },
+          select: { balance: true },
+        });
+        const currentBalance = roundMoney(treasury?.balance || 0);
+        const calculatedStartCash =
+          startCash !== undefined && startCash !== null
+            ? roundMoney(startCash)
+            : currentBalance;
+
+        const shift = await tx.shift.create({
+          data: {
+            userId: parseInt(userId),
+            branchId: parseInt(branchId),
+            type: shiftType,
+            startCash: calculatedStartCash,
+            startTime: new Date(),
+            status: "OPEN",
+          },
+        });
+
+        const adjustment = await postShiftOpening(tx, {
+          shift,
+          treasuryId: branch.treasuryId,
+          declaredStartCash: calculatedStartCash,
+          currentBalance,
+          actorId: req.user.id,
+        });
+
+        return { newShift: shift, openingAdjustment: adjustment };
       },
-    });
+    );
 
     // Drain any call-center orders that were queued while no shift was open
     // (Q16-B). Runs in its own transaction so a failure here can't roll back
@@ -443,7 +620,7 @@ router.post("/start", async (req, res, next) => {
       console.error("[SHIFT] drainPendingForBranch failed:", drainErr.message);
     }
 
-    res.status(201).json(newShift);
+    res.status(201).json({ ...newShift, openingAdjustment });
   } catch (error) {
     next(error);
   }
@@ -473,15 +650,16 @@ router.post("/end", async (req, res, next) => {
     // Only a live shift can be closed. Without this guard a PENDING_REVIEW shift
     // could be re-closed (silently overwriting its counted cash and variance) and
     // an already-CLOSED shift could be pushed back to PENDING_REVIEW while
-    // keeping a stale reviewer — an un-audited reopen that bypasses every
-    // eligibility check on PATCH /:id/reopen. Reopening is that route's job, and
-    // only from PENDING_REVIEW: approval is terminal.
+    // keeping a stale reviewer and a stale reopenCount — an un-audited reopen
+    // that bypasses every eligibility check on PATCH /:id/reopen, and one that
+    // would let the next approval reuse a posting cycle. Reopening is that
+    // route's job, from either status.
     if (shiftToEnd.status !== "OPEN") {
       return res.status(400).json({
         error: `Cannot end a shift with status: ${shiftToEnd.status}`,
         message:
           shiftToEnd.status === "CLOSED"
-            ? "هذه الوردية تم اعتمادها وإغلاقها نهائياً"
+            ? "هذه الوردية تم اعتمادها. لإعادة فتحها استخدم إعادة فتح الوردية من إدارة الورديات"
             : "هذه الوردية بانتظار موافقة المدير بالفعل",
       });
     }
@@ -512,12 +690,50 @@ router.post("/end", async (req, res, next) => {
       startCash,
       expectedVisa,
       expectedInstapay,
+      manualDeposits,
+      manualWithdrawals,
+      transfersOut,
+      transfersIn,
+      payrollPaid,
+      supplierPayments,
     } = await calculateSystemExpectedCash(parseInt(shiftId));
     const actualCashValue = parseFloat(actualCash);
 
     // Round to 2 decimals to avoid floating point issues
     const shortage =
       Math.round((actualCashValue - systemExpectedCash) * 100) / 100;
+
+    // Snapshot the treasury against the physical count. Nothing is posted here —
+    // the correction is applied at manager approval (POST /approve).
+    //
+    // We store the DELTA rather than recomputing it at approve time: if a manager
+    // records a deposit or expense during the PENDING_REVIEW window, applying a
+    // delta preserves that movement, whereas setting an absolute balance from a
+    // stale count would silently erase it.
+    // A branch with no cash treasury configured records no snapshot, and
+    // /approve then posts nothing — the shift still closes normally.
+    let closingTreasuryBalance = null;
+    let treasuryVariance = null;
+    if (shiftToEnd.branch?.treasuryId) {
+      const closingTreasury = await prisma.treasury.findUnique({
+        where: { id: shiftToEnd.branch.treasuryId },
+        select: { balance: true },
+      });
+      closingTreasuryBalance = roundMoney(closingTreasury?.balance || 0);
+      treasuryVariance = roundMoney(actualCashValue - closingTreasuryBalance);
+    }
+
+    // Variance already posted for this shift by EARLIER approval cycles. Needed
+    // only to keep `drift` honest: shortage is cumulative over the whole shift
+    // (calculateSystemExpectedCash reads relations by shiftId with no time
+    // filter), whereas treasuryVariance is incremental since the last posting
+    // moved the balance. Without this term a reopened-after-approval shift shows
+    // the previously-posted correction as drift — i.e. as a movement the drawer
+    // formula is missing — which it is not.
+    const priorPostedVariance = await sumPostedShiftVariance(
+      parseInt(shiftId),
+      shiftToEnd.reopenCount,
+    );
 
     // Update shift to PENDING_REVIEW (not CLOSED yet - needs manager approval)
     const updatedShift = await prisma.shift.update({
@@ -530,6 +746,8 @@ router.post("/end", async (req, res, next) => {
         shortage: shortage,
         expectedVisa: expectedVisa,
         expectedInstapay: expectedInstapay,
+        closingTreasuryBalance,
+        treasuryVariance,
         status: "PENDING_REVIEW",
       },
     });
@@ -581,6 +799,29 @@ router.post("/end", async (req, res, next) => {
         systemExpectedCash,
         expectedVisa,
         expectedInstapay,
+        manualDeposits,
+        manualWithdrawals,
+        transfersOut,
+        transfersIn,
+        payrollPaid,
+        supplierPayments,
+        closingTreasuryBalance,
+        treasuryVariance,
+        priorPostedVariance,
+        // Non-zero drift means a branch-treasury movement this shift is missing
+        // from calculateSystemExpectedCash (cash transfers, payroll and supplier
+        // payments are known gaps). It cannot corrupt the treasury — the posting
+        // follows treasuryVariance — but it does inflate the reported shortage,
+        // so surface it rather than letting it look like a cashier error.
+        //
+        // priorPostedVariance re-bases the comparison: shortage spans the whole
+        // shift, treasuryVariance only what has not been posted yet, so on a
+        // shift reopened after approval the two are offset by exactly what
+        // earlier cycles already booked.
+        drift:
+          treasuryVariance != null
+            ? roundMoney(treasuryVariance + priorPostedVariance - shortage)
+            : null,
       },
       deliveryWarnings: deliveryWarnings.length > 0 ? deliveryWarnings : null,
       hasPendingDeliveries: deliveryWarnings.length > 0,
@@ -656,40 +897,94 @@ router.post("/approve", async (req, res, next) => {
       shift,
     );
 
-    // Close the shift
-    const closedShift = await prisma.shift.update({
-      where: { id: parseInt(shiftId) },
-      data: {
-        status: "CLOSED",
-        reviewedById: manager.id,
-        reviewedAt: new Date(),
-      },
-      include: {
-        user: true,
-        reviewedBy: true,
-        branch: true,
-      },
-    });
+    // Close the shift and post the treasury correction in one transaction.
+    // verifyShiftManager stays outside it — bcrypt is slow and has no business
+    // holding a row lock on the treasury.
+    let closedShift;
+    let varianceAdjustment = null;
+    try {
+      ({ closedShift, varianceAdjustment } = await prisma.$transaction(
+        async (tx) => {
+          // Re-read under the transaction: the status check above is a friendly
+          // pre-flight, this is the guard that actually makes approval single-shot.
+          const fresh = await tx.shift.findUnique({
+            where: { id: parseInt(shiftId) },
+            include: { branch: { select: { treasuryId: true } } },
+          });
+          if (!fresh || fresh.status !== "PENDING_REVIEW") {
+            const err = new Error("Shift is no longer pending review");
+            err.status = 409;
+            err.message = "هذه الوردية تم اعتمادها بالفعل";
+            throw err;
+          }
 
-    res.json(closedShift);
+          // Reconcile the treasury to what the cashier physically counted.
+          // treasuryVariance (not shortage) is the figure posted — see
+          // lib/shiftTreasury.js for why the two differ and why that is safe.
+          //
+          // Stamped with the shift's CURRENT reopenCount. A shift reopened after
+          // approval comes back here for another approval, and each pass posts
+          // its own correction under its own cycle. Read from `fresh` inside the
+          // transaction so a reopen racing this approval cannot make two passes
+          // claim the same cycle.
+          const adjustment = fresh.branch?.treasuryId
+            ? await postShiftVariance(tx, {
+                shift: fresh,
+                treasuryId: fresh.branch.treasuryId,
+                cycle: fresh.reopenCount,
+                delta: Number(fresh.treasuryVariance ?? 0),
+                actorId: manager.id,
+              })
+            : null;
+
+          const updated = await tx.shift.update({
+            where: { id: parseInt(shiftId) },
+            data: {
+              status: "CLOSED",
+              reviewedById: manager.id,
+              reviewedAt: new Date(),
+            },
+            include: {
+              user: true,
+              reviewedBy: true,
+              branch: true,
+            },
+          });
+
+          return { closedShift: updated, varianceAdjustment: adjustment };
+        },
+      ));
+    } catch (txError) {
+      // UNIQUE(shift_id, source, cycle) rejected a second SHIFT_VARIANCE row for
+      // THIS cycle: this approval already ran. Fail loudly instead of moving the
+      // money twice. A later cycle (after a reopen) carries a different
+      // reopenCount and is unaffected, which is the whole point of the key.
+      if (txError.code === "P2002") {
+        return res.status(409).json({
+          error: "Shift has already been approved",
+          message: "هذه الوردية تم اعتمادها بالفعل",
+        });
+      }
+      throw txError;
+    }
+
+    res.json({ ...closedShift, varianceAdjustment });
   } catch (error) {
     next(error);
   }
 });
 
 /**
- * Send a shift awaiting review back to OPEN *without* approving it, so its own
- * cashier can resume selling under the SAME shift record.
+ * Send a shift back to OPEN so its own cashier can resume selling under the SAME
+ * shift record — from PENDING_REVIEW (instead of approving it) or from CLOSED
+ * (undoing a premature approval).
  *
- * This is the second of the two actions available to a shift approver while a
- * shift sits in PENDING_REVIEW — the alternative to POST /approve:
+ *   OPEN → /end → PENDING_REVIEW ─┬─ /approve    → CLOSED ──┐
+ *    ↑                            └─ /:id/reopen → OPEN     │
+ *    └──────────────────── /:id/reopen ──────────────────────┘
  *
- *   OPEN → /end → PENDING_REVIEW ─┬─ /approve      → CLOSED  (terminal)
- *                                 └─ /:id/reopen   → OPEN    (sell more, /end again)
- *
- * The PENDING_REVIEW → OPEN → PENDING_REVIEW loop may run any number of times
- * until the shift is finally approved. A CLOSED shift is NOT reopenable here:
- * approval is the end of the shift's life.
+ * Both loops may run any number of times, in any combination, on the same row.
+ * Only an already-OPEN shift is refused.
  *
  * Access is intentionally identical to POST /approve — same verifyShiftManager
  * helper, no module permission — so whoever may confirm a shift may reopen one.
@@ -698,10 +993,27 @@ router.post("/approve", async (req, res, next) => {
  * before-state for PUT/PATCH/DELETE, so the closing figures this route discards
  * are captured into audit_logs.old_values automatically.
  *
- * Nothing financial is posted at shift open/close — shift figures are derived
- * from the sales/expenses/advances relations, never written as ledger rows — so
- * clearing the closing snapshot cannot double-count money or stock. Sales are
- * never touched: they keep their shiftId, and new sales get the same one.
+ * TREASURY: reopening posts nothing and reverses nothing.
+ * ------------------------------------------------------
+ * /start and /approve are the only routes that move the branch treasury, and
+ * both post a DELTA against the live balance rather than an absolute amount:
+ *
+ *     approve1: balance = B1 + (A1 − B1) = A1   (the cash actually counted)
+ *     reopen  : balance = A1  ← untouched; the drawer really does hold A1
+ *     approve2: balance = … + (A2 − …)  = A2
+ *
+ * So a later approval's delta already absorbs the earlier one — cycles supersede
+ * instead of accumulating, and the net posted over N cycles is A_final − B_initial
+ * exactly once. Reversing approval #1 here would be WRONG: it would set the books
+ * back to B1 while the drawer physically holds A1, breaking
+ * `treasury.balance === drawer` for the entire reopened window.
+ *
+ * What DOES change is `reopenCount`, which becomes the next approval's posting
+ * `cycle`. Without it UNIQUE(shiftId, source, cycle) would reject the second
+ * approval's row and its correction would silently never reach the treasury.
+ *
+ * Sales and expenses are never touched: they keep their shiftId, and new ones get
+ * the same one.
  */
 router.patch("/:id/reopen", async (req, res, next) => {
   try {
@@ -735,19 +1047,16 @@ router.patch("/:id/reopen", async (req, res, next) => {
       });
     }
 
-    // Only a shift awaiting review can be sent back to OPEN. An already-approved
-    // (CLOSED) shift is history — its figures have been signed off and may
-    // already be feeding the next shift's opening cash — so it is out of scope
-    // for this workflow.
-    if (shift.status !== "PENDING_REVIEW") {
+    // PENDING_REVIEW and CLOSED can both be sent back to OPEN. Only an
+    // already-OPEN shift is refused — there is nothing to reopen.
+    const REOPENABLE_STATUSES = ["PENDING_REVIEW", "CLOSED"];
+    if (!REOPENABLE_STATUSES.includes(shift.status)) {
       return res.status(400).json({
         error: `Cannot reopen a shift with status: ${shift.status}`,
-        message:
-          shift.status === "OPEN"
-            ? "هذه الوردية مفتوحة بالفعل"
-            : "هذه الوردية تم اعتمادها وإغلاقها نهائياً، لا يمكن إعادة فتحها",
+        message: "هذه الوردية مفتوحة بالفعل",
       });
     }
+    const wasApproved = shift.status === "CLOSED";
 
     // The caller must be able to see this branch at all (read-side ACL), before
     // we tell them anything about the shift's eligibility.
@@ -770,13 +1079,17 @@ router.patch("/:id/reopen", async (req, res, next) => {
       });
     }
 
-    // There is deliberately NO age cap here. The old CLOSED → OPEN version had
-    // one, bounded by UNCLOSED_SHIFT_LOOKBACK_HOURS, to stop a reopened shift
-    // from slipping past the one-shift-per-branch blocker in POST /start. That
-    // blocker matches OPEN *and* PENDING_REVIEW, so a shift awaiting review
-    // already blocks /start exactly as much as the OPEN shift it becomes — the
-    // cap could not prevent anything. Overlap with LATER shifts, the concern that
-    // actually survives, is handled by the newer-shift guard below.
+    // There is deliberately NO age cap here — a shift may be corrected however
+    // long after the fact, provided the guards below still hold.
+    //
+    // An age cap once looked necessary because a reopened shift keeps its
+    // original startTime, and POST /start's one-shift-per-branch blocker only
+    // looked back 48h: reopening anything older produced an OPEN shift that
+    // blocker could not see. That hole is closed at its source — the blocker is
+    // no longer time-bounded — rather than by refusing old reopens here.
+    //
+    // The concern that genuinely survives is overlap with LATER shifts, and the
+    // newer-shift guard inside the transaction below handles it directly.
 
     // Authenticate + authorize the manager BEFORE the transaction, so a failed
     // credential check never holds a write lock.
@@ -791,24 +1104,25 @@ router.patch("/:id/reopen", async (req, res, next) => {
     // succeed and leave the branch with two live shifts.
     const reopenedShift = await prisma.$transaction(async (tx) => {
       const fresh = await tx.shift.findUnique({ where: { id: shiftId } });
-      if (!fresh || fresh.status !== "PENDING_REVIEW") {
+      if (!fresh || !REOPENABLE_STATUSES.includes(fresh.status)) {
         throw Object.assign(new Error("تم تغيير حالة الوردية، أعد المحاولة"), {
           status: 409,
           error: "Shift status changed while reopening. Please retry.",
         });
       }
 
-      // Must be the branch's most recent shift, because two of this shift's
-      // figures are attributed by TIME WINDOW rather than by shiftId: driver
-      // DUES_PAYOUT in calculateSystemExpectedCash, and deposits in
-      // GET /:id/report. Both span [startTime, endTime || now]. Reopening a shift
-      // that later shifts have already run past would stretch that window across
-      // them and charge their payouts against this drawer twice.
+      // Must be the branch's most recent shift. This is the load-bearing guard:
+      // most of what calculateSystemExpectedCash sums is attributed by TIME
+      // WINDOW rather than by shiftId — cash expenses, manual deposits and
+      // withdrawals, transfers in and out, payroll, supplier payments and driver
+      // dues, all over [startTime, endTime || now]. Reopening nulls endTime, so
+      // the window runs to *now*; if later shifts have already run past this one,
+      // their movements would be swallowed into this drawer.
       //
-      // (This guard used to be justified by the rolling-cash chain — a later
-      // shift having inherited this one's endCash as its startCash. That does not
-      // apply here: the lookup in POST /start reads status CLOSED only, so a
-      // PENDING_REVIEW shift is never a rolling-balance source.)
+      // (This guard was once justified by the rolling-cash chain — a later shift
+      // having inherited this one's endCash as its startCash. That rationale is
+      // gone: POST /start now defaults opening cash to the live treasury balance,
+      // not the previous shift's count. The window overlap is the real reason.)
       const newerShift = await tx.shift.findFirst({
         where: {
           branchId: fresh.branchId,
@@ -893,9 +1207,20 @@ router.patch("/:id/reopen", async (req, res, next) => {
       //   shortage           reports a stale shortage is a lie to the report.
       //   expectedVisa,      Same; the report falls back to live sums when null.
       //   expectedInstapay
-      //   reviewedById,      Already null on a PENDING_REVIEW row (only /approve
-      //   reviewedAt         sets them) — nulled anyway to hold the invariant
-      //                      "a non-CLOSED shift has no reviewer".
+      //   closingTreasury    The treasury snapshot taken at the discarded close.
+      //   Balance,           This is the stale INPUT to a future posting, not a
+      //   treasuryVariance   record of one: leaving it would let the next
+      //                      approval apply a delta computed against a balance
+      //                      that no longer exists. If this shift was already
+      //                      approved, the Deposit/Withdrawal it posted stays
+      //                      exactly as it is — see the TREASURY note above.
+      //   reviewedById,      Set when the shift was approved; cleared so the row
+      //   reviewedAt         holds the invariant "a non-CLOSED shift has no
+      //                      reviewer", and so a later re-approval records who
+      //                      actually signed off that time.
+      //
+      // reopenCount is INCREMENTED, not cleared: it is the cycle number the next
+      // approval stamps its treasury posting with.
       //
       // Preserved on purpose: startCash / startTime / type / userId / branchId.
       // They are this shift's identity and history, and startCash is the anchor
@@ -913,8 +1238,11 @@ router.patch("/:id/reopen", async (req, res, next) => {
           shortage: null,
           expectedVisa: null,
           expectedInstapay: null,
+          closingTreasuryBalance: null,
+          treasuryVariance: null,
           reviewedById: null,
           reviewedAt: null,
+          reopenCount: { increment: 1 },
         },
         include: {
           user: { select: { id: true, name: true } },
@@ -924,12 +1252,16 @@ router.patch("/:id/reopen", async (req, res, next) => {
     });
 
     console.log(
-      `[SHIFT] Shift #${shiftId} reopened by ${manager.username} (${manager.role}) — reason: ${trimmedReason}`,
+      `[SHIFT] Shift #${shiftId} reopened from ${wasApproved ? "CLOSED" : "PENDING_REVIEW"} ` +
+        `by ${manager.username} (${manager.role}) — cycle ${reopenedShift.reopenCount} — reason: ${trimmedReason}`,
     );
 
     res.json({
       ...reopenedShift,
       reopenedBy: { id: manager.id, username: manager.username },
+      // Lets the UI distinguish "sent back before approval" from "un-approved",
+      // which are very different things to explain to a manager.
+      wasApproved,
       reason: trimmedReason,
     });
   } catch (error) {
@@ -957,6 +1289,65 @@ router.get("/active/:userId", async (req, res, next) => {
     }
 
     res.json(activeShift);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Opening-cash context for a branch, used to prefill the start-shift modal.
+ *
+ * `suggestedStartCash` is the branch treasury's live balance — accepting it
+ * unchanged makes the opening delta zero, so nothing is posted. The modal shows
+ * the difference live so a cashier can see exactly what their count will book.
+ *
+ * `lastShiftEndCash` is returned for context only. It is no longer the default:
+ * the treasury also carries anything that moved between shifts, so it, not the
+ * previous count, is the figure the opening reconciles against.
+ */
+router.get("/opening-context/:branchId", async (req, res, next) => {
+  try {
+    const branchId = parseInt(req.params.branchId);
+
+    const branchFilter = await getUserBranchFilter(req.user.id, req);
+    if (branchFilter) {
+      const allowedIds = branchFilter.id.in || [branchFilter.id];
+      if (!allowedIds.includes(branchId)) {
+        return res.status(403).json({
+          error: "Access denied. You cannot start a shift in this branch.",
+          message: "لا يمكنك بدء وردية في هذا الفرع",
+        });
+      }
+    }
+
+    const branch = await prisma.branch.findUnique({
+      where: { id: branchId },
+      select: { treasury: { select: { id: true, name: true, balance: true } } },
+    });
+
+    if (!branch || !branch.treasury) {
+      return res.status(404).json({
+        error: "Branch has no cash treasury configured",
+        message: "الفرع لا يحتوي على خزينة نقدية",
+      });
+    }
+
+    const lastShift = await prisma.shift.findFirst({
+      where: { branchId, status: { in: ["CLOSED", "PENDING_REVIEW"] } },
+      orderBy: { endTime: "desc" },
+      select: { endCash: true, endTime: true },
+    });
+
+    const treasuryBalance = roundMoney(branch.treasury.balance);
+
+    res.json({
+      treasuryBalance,
+      treasuryName: branch.treasury.name,
+      suggestedStartCash: treasuryBalance,
+      lastShiftEndCash:
+        lastShift?.endCash != null ? roundMoney(lastShift.endCash) : null,
+      lastShiftEndTime: lastShift?.endTime || null,
+    });
   } catch (error) {
     next(error);
   }
@@ -1322,15 +1713,22 @@ router.get(
 
       // netSales = gross sales − returns (takeaway/delivery are already gross).
       const netSales = Math.round((takeawayTotal + deliveryTotal - returnTotal) * 100) / 100;
-      // drawerAmount uses the SAME reconciled formula as systemExpectedCash so
-      // the report's "المبلغ في الدرج" agrees with "المتوقع في الدرج". The old
-      // formula added depositTotal, which double-counted driver-settlement
-      // deposits (that cash is already in cashSales via codDelivered). Manual
-      // deposits/withdrawals during a shift are intentionally NOT folded in yet
-      // (scope: driver dues only) — the `deposits` field is returned for info.
-      const drawerAmount = Math.round(
-        ((parseFloat(shift.startCash) || 0) + cashSales - cashExpenseTotal - totalAdvances - pilotSettlementDifference) * 100
-      ) / 100;
+
+      // drawerAmount now CALLS calculateSystemExpectedCash rather than
+      // re-deriving it. The two used to be parallel implementations of the same
+      // arithmetic, which is exactly how they drifted apart before (the report's
+      // copy added depositTotal and double-counted driver settlements). Sharing
+      // the function makes "المبلغ في الدرج" and "المتوقع في الدرج" incapable of
+      // disagreeing, and means the report picks up the transfer/payroll/supplier
+      // terms for free.
+      const drawerBreakdown = await calculateSystemExpectedCash(shift.id);
+      const drawerAmount = drawerBreakdown.expected;
+
+      // Variance booked by earlier approval cycles — see sumPostedShiftVariance.
+      const priorPostedVariance = await sumPostedShiftVariance(
+        shift.id,
+        shift.reopenCount,
+      );
 
       const report = {
         shiftId: shift.id,
@@ -1342,6 +1740,10 @@ router.get(
         startTime: shift.startTime,
         endTime: shift.endTime,
         status: shift.status,
+        // > 0 means this shift was sent back to the cashier at least once (from
+        // review, or by un-approving it). Also the number of treasury posting
+        // cycles it has been through.
+        reopenCount: shift.reopenCount ?? 0,
 
         // Cash tracking
         startCash: parseFloat(shift.startCash) || 0,
@@ -1349,6 +1751,32 @@ router.get(
         systemExpectedCash: parseFloat(shift.systemExpectedCash) || 0,
         actualCash: parseFloat(shift.actualCash) || 0,
         shortage: parseFloat(shift.shortage) || 0,
+
+        // Treasury reconciliation. `treasuryVariance` is what was (or will be)
+        // posted to the branch treasury at approval; `shortage` stays the
+        // cashier-accountability figure. drift != 0 means a branch-treasury
+        // movement is missing from the drawer formula — see POST /end.
+        closingTreasuryBalance:
+          shift.closingTreasuryBalance != null
+            ? parseFloat(shift.closingTreasuryBalance)
+            : null,
+        treasuryVariance:
+          shift.treasuryVariance != null
+            ? parseFloat(shift.treasuryVariance)
+            : null,
+        priorPostedVariance,
+        // Re-based by priorPostedVariance for the same reason as POST /end: on a
+        // shift reopened after approval, shortage spans the whole shift while
+        // treasuryVariance covers only what earlier cycles have not already
+        // booked. Without the term the previous correction reads as drift.
+        drift:
+          shift.treasuryVariance != null && shift.shortage != null
+            ? roundMoney(
+                parseFloat(shift.treasuryVariance) +
+                  priorPostedVariance -
+                  parseFloat(shift.shortage),
+              )
+            : null,
 
         // Sales
         totalSales,
@@ -1378,6 +1806,18 @@ router.get(
         expenseBreakdown: { count: cashExpenseCount, total: Math.round(cashExpenseTotal * 100) / 100 },
         pilotSettlementDifference,
         drawerAmount,
+
+        // The non-sale branch-treasury movements that also moved the drawer.
+        // Surfaced so a variance can be traced to a transfer or a payroll run
+        // instead of reading as unexplained cashier error.
+        drawerMovements: {
+          manualDeposits: drawerBreakdown.manualDeposits,
+          manualWithdrawals: drawerBreakdown.manualWithdrawals,
+          transfersOut: drawerBreakdown.transfersOut,
+          transfersIn: drawerBreakdown.transfersIn,
+          payrollPaid: drawerBreakdown.payrollPaid,
+          supplierPayments: drawerBreakdown.supplierPayments,
+        },
 
         // Discounts applied during this shift
         discounts: {
