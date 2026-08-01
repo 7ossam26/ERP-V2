@@ -2200,16 +2200,23 @@ ALTER TABLE `deposits` ADD COLUMN `cycle` INTEGER NOT NULL DEFAULT 0;
 -- AlterTable
 ALTER TABLE `withdrawals` ADD COLUMN `cycle` INTEGER NOT NULL DEFAULT 0;
 
+-- CreateIndex
+--
+-- ORDER MATTERS: create the new index BEFORE dropping the old one.
+-- deposits_shift_id_fkey / withdrawals_shift_id_fkey (added above) need an index
+-- whose leftmost prefix is shift_id, and UNIQUE(shift_id, source) was the only
+-- one. Dropping it first fails with MySQL 1553, "needed in a foreign key
+-- constraint". UNIQUE(shift_id, source, cycle) satisfies the FK, so once it
+-- exists the old index drops cleanly.
+CREATE UNIQUE INDEX `deposits_shift_id_source_cycle_key` ON `deposits`(`shift_id`, `source`, `cycle`);
+
+-- CreateIndex
+CREATE UNIQUE INDEX `withdrawals_shift_id_source_cycle_key` ON `withdrawals`(`shift_id`, `source`, `cycle`);
+
 -- DropIndex
 DROP INDEX `deposits_shift_id_source_key` ON `deposits`;
 
 -- DropIndex
 DROP INDEX `withdrawals_shift_id_source_key` ON `withdrawals`;
-
--- CreateIndex
-CREATE UNIQUE INDEX `deposits_shift_id_source_cycle_key` ON `deposits`(`shift_id`, `source`, `cycle`);
-
--- CreateIndex
-CREATE UNIQUE INDEX `withdrawals_shift_id_source_cycle_key` ON `withdrawals`(`shift_id`, `source`, `cycle`);
 
 

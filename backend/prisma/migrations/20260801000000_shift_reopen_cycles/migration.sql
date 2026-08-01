@@ -32,14 +32,27 @@ ALTER TABLE `deposits` ADD COLUMN `cycle` INTEGER NOT NULL DEFAULT 0;
 -- AlterTable
 ALTER TABLE `withdrawals` ADD COLUMN `cycle` INTEGER NOT NULL DEFAULT 0;
 
+-- CreateIndex
+--
+-- ORDER MATTERS: the new index MUST be created before the old one is dropped.
+--
+-- deposits.shift_id and withdrawals.shift_id each carry an FK to shifts
+-- (deposits_shift_id_fkey / withdrawals_shift_id_fkey). InnoDB requires an index
+-- whose LEFTMOST prefix is the FK column, and UNIQUE(shift_id, source) was the
+-- only such index on either table. Dropping it first therefore fails with MySQL
+-- error 1553, "Cannot drop index 'deposits_shift_id_source_key': needed in a
+-- foreign key constraint" — and because MySQL DDL is not transactional, that
+-- leaves the migration applied halfway.
+--
+-- Creating UNIQUE(shift_id, source, cycle) first hands each FK an index it can
+-- use (same leftmost prefix, shift_id), after which the old index drops cleanly.
+CREATE UNIQUE INDEX `deposits_shift_id_source_cycle_key` ON `deposits`(`shift_id`, `source`, `cycle`);
+
+-- CreateIndex
+CREATE UNIQUE INDEX `withdrawals_shift_id_source_cycle_key` ON `withdrawals`(`shift_id`, `source`, `cycle`);
+
 -- DropIndex
 DROP INDEX `deposits_shift_id_source_key` ON `deposits`;
 
 -- DropIndex
 DROP INDEX `withdrawals_shift_id_source_key` ON `withdrawals`;
-
--- CreateIndex
-CREATE UNIQUE INDEX `deposits_shift_id_source_cycle_key` ON `deposits`(`shift_id`, `source`, `cycle`);
-
--- CreateIndex
-CREATE UNIQUE INDEX `withdrawals_shift_id_source_cycle_key` ON `withdrawals`(`shift_id`, `source`, `cycle`);
