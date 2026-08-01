@@ -154,13 +154,28 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
 
   const companyName = settings.companyName || report.branchName || "Elghonemy ERP";
 
-  const expectedVisa = Number(report.expectedVisa ?? report.visaPayments ?? 0);
-  const expectedInstapay = Number(
-    report.expectedInstapay ?? report.instapayPayments ?? 0,
+  // Live figures, recomputed with totalSales — NOT the columns frozen at close.
+  // Mixing the two is what let shift #210 print a settlement block whose own
+  // lines contradicted its total; the frozen figures now appear only in the
+  // drift block below, where a difference is the point rather than a trap.
+  const visa = Number(report.visaPayments ?? report.expectedVisa ?? 0);
+  const instapay = Number(
+    report.instapayPayments ?? report.expectedInstapay ?? 0,
   );
+  const visaAtClose = Number(report.expectedVisa ?? visa);
+  const instapayAtClose = Number(report.expectedInstapay ?? instapay);
+  const digitalDrifted =
+    Math.abs(visaAtClose - visa) >= 0.01 ||
+    Math.abs(instapayAtClose - instapay) >= 0.01;
+
   const codDelivered = Number(
     report.cashBreakdown?.codDeliveredThisShift || 0,
   );
+  // The two reasons إجمالي المبيعات is larger than the payment lines: the
+  // driver's cut never reaches the drawer, and in-flight COD has not arrived
+  // yet. Printed, because an unexplained gap reads as a missing pound.
+  const driverShares = Number(report.cashBreakdown?.driverSharesWithheld || 0);
+  const codPending = Number(report.cashBreakdown?.codPendingExcluded || 0);
 
   const orders = Array.isArray(report.orders) ? report.orders : [];
   const expenses = Array.isArray(report.expenses) ? report.expenses : [];
@@ -170,12 +185,23 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
   const cashExpenseTotal = Number(report.expenseBreakdown?.total || 0);
   const pilotSettlementDifference = Number(report.pilotSettlementDifference || 0);
 
-  const shortageLabel =
-    report.shortage > 0
-      ? "زيادة"
-      : report.shortage < 0
-        ? "عجز"
-        : "متطابق";
+  // The settlement block is recomputed from the shift as it stands NOW, so it
+  // always agrees with the lines printed above it. `systemExpectedCash` and
+  // `shortage` are what was frozen at close; when the two disagree the block
+  // below says so out loud instead of printing a subtraction that cannot be
+  // reproduced from its own operands.
+  const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
+  const isSettled =
+    report.status === "CLOSED" || report.status === "PENDING_REVIEW";
+  const expectedNow = round2(report.drawerAmount ?? report.systemExpectedCash);
+  const expectedAtClose = round2(report.systemExpectedCash);
+  const actualCash = round2(report.actualCash);
+  const shortageNow = round2(actualCash - expectedNow);
+  const drift = round2(expectedNow - expectedAtClose);
+  const hasDrift = isSettled && Math.abs(drift) >= 0.01;
+
+  const labelFor = (n) => (n > 0 ? "زيادة" : n < 0 ? "عجز" : "متطابق");
+  const shortageLabel = labelFor(shortageNow);
 
   return (
     <div className={R}>
@@ -236,12 +262,24 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
         </div>
         <div className="sr-row">
           <span>مبيعات فيزا</span>
-          <span className="sr-num">{fmt(expectedVisa)} ج.م</span>
+          <span className="sr-num">{fmt(visa)} ج.م</span>
         </div>
         <div className="sr-row">
           <span>مبيعات انستاباي</span>
-          <span className="sr-num">{fmt(expectedInstapay)} ج.م</span>
+          <span className="sr-num">{fmt(instapay)} ج.م</span>
         </div>
+        {driverShares > 0 && (
+          <div className="sr-row">
+            <span>نصيب الدليفري (مع الطيار)</span>
+            <span className="sr-num">{fmt(driverShares)} ج.م</span>
+          </div>
+        )}
+        {codPending > 0 && (
+          <div className="sr-row">
+            <span>دليفري لم يُحصّل بعد</span>
+            <span className="sr-num">{fmt(codPending)} ج.م</span>
+          </div>
+        )}
         <div className="sr-row">
           <span>المصروفات</span>
           <span className="sr-num">{fmt(report.totalExpenses)} ج.م</span>
@@ -295,19 +333,50 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
           className="sr-row"
           style={{ fontSize: 12, marginTop: 2, paddingTop: 2, borderTop: "1px dashed #000" }}>
           <span>= المتوقع في الدرج</span>
-          <span className="sr-num">{fmt(report.systemExpectedCash)} ج.م</span>
+          <span className="sr-num">{fmt(expectedNow)} ج.م</span>
         </div>
         <div className="sr-row" style={{ marginTop: 2 }}>
           <span>العد الفعلي</span>
-          <span className="sr-num">{fmt(report.actualCash)} ج.م</span>
+          <span className="sr-num">{fmt(actualCash)} ج.م</span>
         </div>
         <div
           className="sr-row"
           style={{ fontSize: 12, marginTop: 2 }}>
           <span>{shortageLabel} (كاش)</span>
-          <span className="sr-num">{fmt(report.shortage)} ج.م</span>
+          <span className="sr-num">{fmt(shortageNow)} ج.م</span>
         </div>
       </div>
+
+      {/* The figures frozen at close, shown ONLY when they no longer match what
+          the shift now computes. A silent difference here is what turned a 0.50
+          shortage into a 17,199.50 overage on shift #210 with nothing on the
+          page to give it away. */}
+      {hasDrift && (
+        <>
+          <div className="sr-divider-dashed" />
+          <div style={{ fontSize: 10 }}>
+            <div className="sr-row" style={{ fontSize: 11 }}>
+              <span>⚠ المسجل وقت الإقفال</span>
+              <span />
+            </div>
+            <div className="sr-row" style={{ paddingRight: 8 }}>
+              <span>المتوقع</span>
+              <span className="sr-num">{fmt(expectedAtClose)} ج.م</span>
+            </div>
+            <div className="sr-row" style={{ paddingRight: 8 }}>
+              <span>{labelFor(Number(report.shortage))}</span>
+              <span className="sr-num">{fmt(report.shortage)} ج.م</span>
+            </div>
+            <div className="sr-row" style={{ paddingRight: 8, fontSize: 11 }}>
+              <span>الفرق</span>
+              <span className="sr-num">{fmt(drift)} ج.م</span>
+            </div>
+            <div className="sr-meta" style={{ fontSize: 8 }}>
+              اتغيرت بيانات الوردية بعد الإقفال — راجع الفرق قبل المحاسبة
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="sr-divider-dashed" />
 
@@ -318,12 +387,18 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
       <div style={{ fontSize: 10, marginTop: 2 }}>
         <div className="sr-row">
           <span>فيزا</span>
-          <span className="sr-num">{fmt(expectedVisa)} ج.م</span>
+          <span className="sr-num">{fmt(visa)} ج.م</span>
         </div>
         <div className="sr-row">
           <span>انستاباي</span>
-          <span className="sr-num">{fmt(expectedInstapay)} ج.م</span>
+          <span className="sr-num">{fmt(instapay)} ج.م</span>
         </div>
+        {isSettled && digitalDrifted && (
+          <div className="sr-meta" style={{ fontSize: 8 }}>
+            المسجل وقت الإقفال: فيزا {fmt(visaAtClose)} — انستاباي{" "}
+            {fmt(instapayAtClose)}
+          </div>
+        )}
       </div>
 
       <div className="sr-divider-solid" />

@@ -1565,6 +1565,10 @@ router.get(
       let posCashReport = 0;
       let codDeliveredReport = 0;
       let codPendingReport = 0;
+      // The delivery driver's cut of a settled COD order — real money that never
+      // reaches the drawer, and the reason totalSales is larger than the sum of
+      // the payment lines. Reported so the gap has a name on the printout.
+      let driverSharesWithheld = 0;
       let takeawayCount = 0, takeawayTotal = 0;
       let deliveryCount = 0, deliveryTotal = 0;
       let returnCount = 0, returnTotal = 0;
@@ -1623,6 +1627,7 @@ router.get(
             const driverShare = parseFloat(sale.deliveryDriverShare) || 0;
             const netAmount = saleTotal - driverShare;
             codDeliveredReport += netAmount;
+            driverSharesWithheld += driverShare;
             cashSales += netAmount;
           } else {
             // In-flight COD: attributed to this shift but not yet in the drawer.
@@ -1856,6 +1861,7 @@ router.get(
           posCash: Math.round(posCashReport * 100) / 100,
           codDeliveredThisShift: Math.round(codDeliveredReport * 100) / 100,
           codPendingExcluded: Math.round(codPendingReport * 100) / 100,
+          driverSharesWithheld: Math.round(driverSharesWithheld * 100) / 100,
         },
         salesDetails: salesDetails,
         deliveryDetails: deliveryDetails,

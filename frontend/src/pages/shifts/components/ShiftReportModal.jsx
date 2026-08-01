@@ -50,6 +50,25 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
 
   if (!isOpen) return null;
 
+  // Settlement figures recomputed from the shift as it stands NOW, so the block
+  // always agrees with the lines above it. `systemExpectedCash` and `shortage`
+  // are the columns frozen at close; they are shown only when they disagree —
+  // a silent difference there is what printed shift #210's 0.50 shortage as a
+  // 17,199.50 overage with nothing on screen to give it away.
+  const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
+  const isSettled =
+    report?.status === "CLOSED" || report?.status === "PENDING_REVIEW";
+  const expectedNow = round2(report?.drawerAmount ?? report?.systemExpectedCash);
+  const expectedAtClose = round2(report?.systemExpectedCash);
+  const actualCash = round2(report?.actualCash);
+  const shortageNow = round2(actualCash - expectedNow);
+  const drift = round2(expectedNow - expectedAtClose);
+  const hasDrift = isSettled && Math.abs(drift) >= 0.01;
+  const visa = round2(report?.visaPayments ?? report?.expectedVisa);
+  const instapay = round2(report?.instapayPayments ?? report?.expectedInstapay);
+  const driverShares = round2(report?.cashBreakdown?.driverSharesWithheld);
+  const codPending = round2(report?.cashBreakdown?.codPendingExcluded);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`تقرير وردية #${shiftId}`}>
       {loading ? (
@@ -119,7 +138,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                 <h4 className="font-bold">مبيعات فيزا</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
-                {Number(report.expectedVisa ?? report.visaPayments ?? 0).toLocaleString()} ج.م
+                {visa.toLocaleString()} ج.م
               </p>
             </div>
 
@@ -130,7 +149,7 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                 <h4 className="font-bold">مبيعات انستاباي</h4>
               </div>
               <p className="text-2xl font-bold text-gray-800">
-                {Number(report.expectedInstapay ?? report.instapayPayments ?? 0).toLocaleString()} ج.م
+                {instapay.toLocaleString()} ج.م
               </p>
             </div>
 
@@ -250,6 +269,24 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                       ).toLocaleString()}
                     </span>
                   </div>
+                  {/* Named rather than left as an unexplained gap between
+                      إجمالي المبيعات and the payment lines. */}
+                  {driverShares > 0 && (
+                    <div className="flex justify-between">
+                      <span>• نصيب الدليفري (مع الطيار، لم يدخل الدرج)</span>
+                      <span className="font-mono">
+                        {driverShares.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {codPending > 0 && (
+                    <div className="flex justify-between">
+                      <span>• دليفري لم يُحصّل بعد</span>
+                      <span className="font-mono">
+                        {codPending.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-red-600">
@@ -277,22 +314,47 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               <div className="flex justify-between items-center py-2 bg-gray-50 rounded px-2 font-bold">
                 <span>= المتوقع في الدرج</span>
                 <span className="font-mono text-xl">
-                  {report.systemExpectedCash.toLocaleString()}
+                  {expectedNow.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center py-2 px-2 border-t pt-2">
                 <span>العد الفعلي</span>
                 <span className="font-mono font-bold">
-                  {report.actualCash.toLocaleString()}
+                  {actualCash.toLocaleString()}
                 </span>
               </div>
               <div
-                className={`flex justify-between items-center py-2 px-2 rounded font-bold ${report.shortage < 0 ? "bg-red-100 text-red-700" : report.shortage > 0 ? "bg-green-100 text-green-700" : "bg-green-50 text-green-700"}`}>
+                className={`flex justify-between items-center py-2 px-2 rounded font-bold ${shortageNow < 0 ? "bg-red-100 text-red-700" : shortageNow > 0 ? "bg-green-100 text-green-700" : "bg-green-50 text-green-700"}`}>
                 <span>العجز / الزيادة (كاش فقط)</span>
                 <span className="font-mono text-lg">
-                  {report.shortage.toLocaleString()}
+                  {shortageNow.toLocaleString()}
                 </span>
               </div>
+
+              {hasDrift && (
+                <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-1">
+                  <div className="font-bold">⚠ المسجل وقت الإقفال يختلف</div>
+                  <div className="flex justify-between">
+                    <span>المتوقع وقت الإقفال</span>
+                    <span className="font-mono">
+                      {expectedAtClose.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>العجز / الزيادة وقت الإقفال</span>
+                    <span className="font-mono">
+                      {Number(report.shortage).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span>الفرق</span>
+                    <span className="font-mono">{drift.toLocaleString()}</span>
+                  </div>
+                  <div className="text-xs">
+                    اتغيرت بيانات الوردية بعد الإقفال — راجع الفرق قبل المحاسبة
+                  </div>
+                </div>
+              )}
 
               {/* Digital payment reconciliation — auto-trusted, no variance prompt */}
               <div className="pt-3 border-t border-gray-200 space-y-2">
@@ -302,15 +364,25 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                 <div className="flex justify-between items-center py-1 px-2 bg-blue-50 rounded">
                   <span className="text-blue-700">فيزا</span>
                   <span className="font-mono font-bold text-blue-700">
-                    {Number(report.expectedVisa ?? 0).toLocaleString()} ج.م
+                    {visa.toLocaleString()} ج.م
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-1 px-2 bg-purple-50 rounded">
                   <span className="text-purple-700">انستاباي</span>
                   <span className="font-mono font-bold text-purple-700">
-                    {Number(report.expectedInstapay ?? 0).toLocaleString()} ج.م
+                    {instapay.toLocaleString()} ج.م
                   </span>
                 </div>
+                {isSettled &&
+                  (Math.abs(round2(report.expectedVisa) - visa) >= 0.01 ||
+                    Math.abs(round2(report.expectedInstapay) - instapay) >=
+                      0.01) && (
+                    <div className="text-xs text-amber-700">
+                      المسجل وقت الإقفال: فيزا{" "}
+                      {round2(report.expectedVisa).toLocaleString()} — انستاباي{" "}
+                      {round2(report.expectedInstapay).toLocaleString()}
+                    </div>
+                  )}
               </div>
             </div>
           </div>
