@@ -147,6 +147,15 @@ export const MODULES = [
     category: "MANAGEMENT",
   },
   {
+    id: "treasury_balances",
+    code: "TREASURIES",
+    label: "أرصدة الخزائن",
+    description: "عرض أرصدة جميع الخزائن",
+    icon: "savings",
+    path: "/treasury-balances",
+    category: "MANAGEMENT",
+  },
+  {
     id: "branches_sales",
     code: "BRANCHES",
     label: "أرصدة الفروع",

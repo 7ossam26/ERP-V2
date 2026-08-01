@@ -106,6 +106,49 @@ router.get("/global-balances", async (req, res) => {
   }
 });
 
+// GET balances — every active treasury with its live balance, for the
+// "أرصدة الخزائن" dashboard module. Unlike GET / this is NOT branch-scoped:
+// the whole point is a company-wide view, so it is gated by the TREASURIES
+// module permission instead. (MUST be before /:id to avoid route conflict.)
+router.get("/balances", requirePermission("TREASURIES"), async (req, res) => {
+  try {
+    const treasuries = await prisma.treasury.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        scope: true,
+        balance: true,
+        updatedAt: true,
+        branch: { select: { id: true, name: true } },
+      },
+    });
+
+    // MAIN first, then global Visa/Instapay, then branch drawers by name
+    const SCOPE_ORDER = { MAIN: 0, GLOBAL_VISA: 1, GLOBAL_INSTAPAY: 2, BRANCH_CASH: 3 };
+    treasuries.sort(
+      (a, b) =>
+        (SCOPE_ORDER[a.scope] ?? 9) - (SCOPE_ORDER[b.scope] ?? 9) ||
+        (a.branch?.name || a.name).localeCompare(b.branch?.name || b.name, "ar"),
+    );
+
+    const rows = treasuries.map((t) => ({
+      ...t,
+      balance: Number(t.balance || 0),
+    }));
+
+    res.json({
+      treasuries: rows,
+      totalBalance: rows.reduce((s, t) => s + t.balance, 0),
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch treasury balances",
+      message: error.message,
+    });
+  }
+});
+
 // GET all cash transfers (MUST be before /:id to avoid route conflict)
 router.get("/transfers", async (req, res) => {
   try {
