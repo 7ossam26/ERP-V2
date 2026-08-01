@@ -34,7 +34,25 @@ const IDS = process.argv
   .filter((a) => /^\d+$/.test(a))
   .map(Number);
 
+const SCRIPT_TAG = "scripts/correct-handover-shortage.js";
+
 const money = (n) => Number(n ?? 0).toFixed(2).padStart(12);
+
+/**
+ * Has this shift already been corrected?
+ *
+ * The correction ADDS the offset to a stored figure, so running it twice would
+ * add the handover twice — turning a fixed shift into a far worse one than the
+ * bug ever produced. There is nothing in the shift row itself that says "already
+ * done", so the audit row this script writes is the marker.
+ */
+async function alreadyCorrected(shiftId) {
+  const rows = await prisma.auditLog.findMany({
+    where: { targetEntity: "shift", targetId: String(shiftId), action: "UPDATE" },
+    select: { details: true },
+  });
+  return rows.some((r) => r.details && r.details.script === SCRIPT_TAG);
+}
 
 /**
  * The handover that startCash already excludes, and how much of the window's
@@ -109,6 +127,10 @@ async function handoverOffset(shift) {
       console.log(`#${id}  no double-counted handover — skipped`);
       continue;
     }
+    if (await alreadyCorrected(id)) {
+      console.log(`#${id}  already corrected (see audit) — skipped`);
+      continue;
+    }
 
     const oldExpected = Number(shift.systemExpectedCash);
     const oldShortage = Number(shift.shortage);
@@ -146,7 +168,7 @@ async function handoverOffset(shift) {
         reason: "opening handover double-counted in transfersOut",
         openingHandover: handover,
         openingHandoverOffset: offset,
-        script: "scripts/correct-handover-shortage.js",
+        script: SCRIPT_TAG,
       },
     });
 
