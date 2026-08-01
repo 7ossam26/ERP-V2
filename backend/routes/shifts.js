@@ -341,11 +341,13 @@ async function calculateSystemExpectedCash(shiftId) {
   let transfersIn = 0;
   let payrollPaid = 0;
   let supplierPayments = 0;
+  let openingHandover = 0;
+  let openingHandoverOffset = 0;
 
   if (branchTreasuryId && windowStart) {
     const window = { gte: windowStart, lte: windowEnd };
 
-    const [depAgg, wdrAgg, outAgg, inAgg, payrollAgg, supplierAgg] =
+    const [depAgg, wdrAgg, outAgg, inAgg, payrollAgg, supplierAgg, openingAgg] =
       await Promise.all([
         // source=MANUAL only — DRIVER_SETTLEMENT cash is already in
         // codDelivered, DRIVER_DUES already in pilotSettlementDifference, and
@@ -383,6 +385,13 @@ async function calculateSystemExpectedCash(shiftId) {
           where: { treasuryId: branchTreasuryId, createdAt: window },
           _sum: { amount: true },
         }),
+        // This shift's own opening posting — how far the declared float fell
+        // BELOW the treasury balance it opened against. Source is SHIFT_OPENING,
+        // never MANUAL, so it is already outside `manualWithdrawals` above.
+        prisma.withdrawal.aggregate({
+          where: { shiftId: shift.id, source: "SHIFT_OPENING" },
+          _sum: { amount: true },
+        }),
       ]);
 
     manualDeposits = Number(depAgg._sum.amount || 0);
@@ -392,11 +401,33 @@ async function calculateSystemExpectedCash(shiftId) {
     payrollPaid = Number(payrollAgg._sum.netSalary || 0);
     supplierPayments = Number(supplierAgg._sum.amount || 0);
 
+    // Cash handed over at the shift BOUNDARY, which startCash already excludes.
+    //
+    // startCash is a physical count of the drawer. When it opens below the
+    // treasury balance, the difference is takings collected at handover — money
+    // this shift's drawer never held. Managers then register that same handover
+    // as a CashTransfer to the main treasury minutes or hours INTO the new
+    // shift, which lands it inside this window and makes `transfersOut` subtract
+    // it a SECOND time:
+    //
+    //   shift #210: 2375 + 14145.50 − 1000 − 17200 = −1679.50 expected,
+    //   reporting a 0.50 shortage as a 17,199.50 overage. Shift #212 the same
+    //   night: 5850 collected, 5858.10 phantom overage.
+    //
+    // So transfers out consume the opening gap before they reduce the drawer.
+    // Capped, never netted below zero: a transfer LARGER than the gap moved real
+    // drawer cash for the excess, and that excess still has to come off.
+    openingHandover = Number(openingAgg._sum.amount || 0);
+    if (!openingHandover) {
+      openingHandover = await reconstructOpeningHandover(shift, startCash);
+    }
+    openingHandoverOffset = Math.min(transfersOut, openingHandover);
+
     expected +=
       manualDeposits +
       transfersIn -
       manualWithdrawals -
-      transfersOut -
+      (transfersOut - openingHandoverOffset) -
       payrollPaid -
       supplierPayments;
   }
@@ -421,7 +452,38 @@ async function calculateSystemExpectedCash(shiftId) {
     transfersIn: round(transfersIn),
     payrollPaid: round(payrollPaid),
     supplierPayments: round(supplierPayments),
+    // Reported raw alongside the offset that neutralised it, so `expected` stays
+    // reconstructable from the parts: a reader who sees transfersOut 17,200 and
+    // no offset would be back to arithmetic that does not add up.
+    openingHandover: round(openingHandover),
+    openingHandoverOffset: round(openingHandoverOffset),
   };
+}
+
+/**
+ * Cash handed over at the shift boundary, for shifts that carry no SHIFT_OPENING
+ * posting to read it from — every shift opened before POST /shifts/start began
+ * reconciling the float, which is where this bug was first seen.
+ *
+ * Reconstructed as the drop from the previous shift's counted cash to this
+ * shift's declared float. Zero whenever the cashier carried the full amount
+ * forward (the ordinary case), so this never fires on a healthy handover, and
+ * zero when the drop was never registered as a transfer — nothing to neutralise.
+ */
+async function reconstructOpeningHandover(shift, startCash) {
+  const previous = await prisma.shift.findFirst({
+    where: {
+      branchId: shift.branchId,
+      id: { not: shift.id },
+      endTime: { lt: shift.startTime },
+    },
+    orderBy: { endTime: "desc" },
+    select: { actualCash: true, endCash: true },
+  });
+  if (!previous) return 0;
+
+  const counted = Number(previous.actualCash ?? previous.endCash ?? 0);
+  return Math.max(0, roundMoney(counted - startCash));
 }
 
 /**
@@ -696,6 +758,8 @@ router.post("/end", async (req, res, next) => {
       transfersIn,
       payrollPaid,
       supplierPayments,
+      openingHandover,
+      openingHandoverOffset,
     } = await calculateSystemExpectedCash(parseInt(shiftId));
     const actualCashValue = parseFloat(actualCash);
 
@@ -805,6 +869,8 @@ router.post("/end", async (req, res, next) => {
         transfersIn,
         payrollPaid,
         supplierPayments,
+        openingHandover,
+        openingHandoverOffset,
         closingTreasuryBalance,
         treasuryVariance,
         priorPostedVariance,
@@ -1817,6 +1883,11 @@ router.get(
           transfersIn: drawerBreakdown.transfersIn,
           payrollPaid: drawerBreakdown.payrollPaid,
           supplierPayments: drawerBreakdown.supplierPayments,
+          // How much of transfersOut was the boundary handover startCash already
+          // excludes. transfersOut − openingHandoverOffset is what actually came
+          // off the drawer; without it the printed block cannot be made to add up.
+          openingHandover: drawerBreakdown.openingHandover,
+          openingHandoverOffset: drawerBreakdown.openingHandoverOffset,
         },
 
         // Discounts applied during this shift
