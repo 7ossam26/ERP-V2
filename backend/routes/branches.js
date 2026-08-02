@@ -254,6 +254,65 @@ router.get("/balances", async (req, res, next) => {
       _sum: { total: true },
     });
 
+    // Retail sales that actually brought money in during the window — card
+    // sales plus collected cash sales (same conditions as the sums above).
+    // Used for the per-branch invoice count and the previous-window total.
+    const collectedSaleWhere = (start, end) => ({
+      status: "COMPLETED",
+      createdAt: { gte: start, lte: end },
+      branchId: { in: branchIds },
+      OR: [
+        { paymentMethod: { in: ["VISA", "INSTAPAY"] } },
+        {
+          paymentMethod: "CASH",
+          OR: [{ deliveryStatus: null }, { deliveryStatus: "DELIVERED" }],
+        },
+      ],
+    });
+
+    const salesCounts = await prisma.sale.groupBy({
+      by: ["branchId"],
+      where: collectedSaleWhere(rangeStart, rangeEnd),
+      _count: { id: true },
+    });
+    const salesCountMap = Object.fromEntries(
+      salesCounts.map((r) => [r.branchId, r._count.id]),
+    );
+
+    // Previous window of equal length, ending right before rangeStart — lets
+    // the UI show a trend that follows the selected filter instead of a
+    // hardwired today-vs-yesterday comparison.
+    const windowMs = rangeEnd.getTime() - rangeStart.getTime();
+    const prevEnd = new Date(rangeStart.getTime() - 1);
+    const prevStart = new Date(rangeStart.getTime() - 1 - windowMs);
+
+    const prevRetailSales = await prisma.sale.groupBy({
+      by: ["branchId"],
+      where: collectedSaleWhere(prevStart, prevEnd),
+      _sum: { total: true },
+    });
+    const prevRetailMap = Object.fromEntries(
+      prevRetailSales.map((r) => [r.branchId, Number(r._sum.total || 0)]),
+    );
+
+    const prevBulkOrders = branchWarehouseIds.length
+      ? await prisma.bulkOrder.groupBy({
+          by: ["warehouseId"],
+          where: {
+            createdAt: { gte: prevStart, lte: prevEnd },
+            warehouseId: { in: branchWarehouseIds },
+            status: { notIn: ["DRAFT", "CANCELLED"] },
+          },
+          _sum: { paidAmount: true },
+        })
+      : [];
+    const prevBulkMap = Object.fromEntries(
+      prevBulkOrders.map((r) => [
+        warehouseToBranch[r.warehouseId],
+        Number(r._sum.paidAmount || 0),
+      ]),
+    );
+
     // Bulk orders per branch (via warehouseId). Mirrors retail logic — sum
     // paidAmount in window, exclude DRAFT/CANCELLED so only money that
     // actually moved through the order counts.
@@ -393,8 +452,15 @@ router.get("/balances", async (req, res, next) => {
               shiftExpenses: shiftExpenseByShiftId[activeShift.id] || 0,
             }
           : null,
+        salesCount: salesCountMap[branch.id] || 0, // invoices collected in window
         // Combined total of the window's flow figures (no stock mixed in).
         total: Math.round((cashSalesInWindow + visa + instapay + bulkSales) * 100) / 100,
+        // Same combined total for the equal-length window right before this
+        // one — powers the filter-aware trend on the sales page.
+        prevTotal:
+          Math.round(
+            ((prevRetailMap[branch.id] || 0) + (prevBulkMap[branch.id] || 0)) * 100,
+          ) / 100,
         treasuryName: branch.treasury?.name || "الخزينة",
         // Visa/Instapay treasury running balances — still consumed by
         // BranchBalancesPage's "الرصيد المتراكم" cards.

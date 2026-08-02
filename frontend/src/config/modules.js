@@ -158,8 +158,8 @@ export const MODULES = [
   {
     id: "branches_sales",
     code: "BRANCHES",
-    label: "أرصدة الفروع",
-    description: "تقارير الفروع",
+    label: "مبيعات الفروع",
+    description: "متابعة مبيعات كل فرع",
     icon: "storefront",
     path: "/branches-sales",
     category: "MANAGEMENT",

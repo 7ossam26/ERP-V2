@@ -74,9 +74,9 @@ function HeaderCard({ icon, label, timeDomain, value, loading, accent }) {
 }
 
 // ─── trend pill ──────────────────────────────────────────────────────────────
-// Picker-independent on purpose. Caption makes that explicit.
+// Caption names the comparison window so the figure is never ambiguous.
 
-function TrendPill({ percentageChange, isPositive }) {
+function TrendPill({ percentageChange, isPositive, caption }) {
   return (
     <div
       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs ${
@@ -92,7 +92,9 @@ function TrendPill({ percentageChange, isPositive }) {
         {isPositive ? "+" : "−"}
         {percentageChange}%
       </span>
-      <span className="text-[10px] opacity-70 font-medium">اليوم vs الأمس</span>
+      <span className="text-[10px] opacity-70 font-medium">
+        {caption || "اليوم vs الأمس"}
+      </span>
     </div>
   );
 }
@@ -134,6 +136,7 @@ const TreasuryHeaderCards = ({
   windowLabel = "للفترة",
   percentageChange = 0,
   isPositive = true,
+  trendCaption,
   loading = false,
 }) => {
   return (
@@ -169,10 +172,14 @@ const TreasuryHeaderCards = ({
         />
       </div>
 
-      {/* Trend — pinned out of the scoreboard so it doesn't read as filtered */}
+      {/* Trend — compares the selected window against the one before it */}
       {!loading && (
         <div className="flex items-center justify-end pt-1">
-          <TrendPill percentageChange={percentageChange} isPositive={isPositive} />
+          <TrendPill
+            percentageChange={percentageChange}
+            isPositive={isPositive}
+            caption={trendCaption}
+          />
         </div>
       )}
     </div>

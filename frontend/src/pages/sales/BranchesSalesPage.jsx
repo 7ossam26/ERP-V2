@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import {
   branchService,
   treasuryService,
 } from "../../services/domainServices";
-import DateFilterBar, {
-  computePresetRange,
-} from "../../components/branches/DateFilterBar";
+import DateFilterBar from "../../components/branches/DateFilterBar";
+import { computePresetRange } from "../../utils/dateRange";
 import TreasuryHeaderCards from "../../components/branches/TreasuryHeaderCards";
 
 const fmt = (n) =>
@@ -30,6 +29,8 @@ function BranchCard({ branch, windowLabel }) {
   // Window-only total (flow). The header cash card carries the stock.
   const windowTotal = Number(branch.total ?? (cashSales + visa + instapay + bulkSales));
 
+  const salesCount = Number(branch.salesCount || 0);
+
   return (
     <div className="bg-surface-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
       {/* Card header */}
@@ -39,7 +40,9 @@ function BranchCard({ branch, windowLabel }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-black text-base text-text-light dark:text-text-dark truncate">{branch.name}</p>
-          <p className="text-xs text-text-light/50 dark:text-text-dark/40">فرع نشط</p>
+          <p className="text-xs text-text-light/50 dark:text-text-dark/40">
+            {salesCount > 0 ? `${salesCount} فاتورة · ${windowLabel}` : "فرع نشط"}
+          </p>
         </div>
         <div className="text-left flex-shrink-0">
           <p className="text-[10px] font-black uppercase tracking-wider text-text-light/40 dark:text-text-dark/40 mb-0.5">
@@ -141,7 +144,7 @@ function TotalsCard({ totals, count, windowLabel }) {
         <span className="material-symbols-outlined text-primary text-[22px]">summarize</span>
         <div>
           <p className="text-[11px] font-black text-text-light/60 dark:text-text-dark/50 uppercase tracking-wider">
-            إجمالي {count} فرع · مبيعات {windowLabel}
+            إجمالي {count} فرع · {totals.salesCount} فاتورة · مبيعات {windowLabel}
           </p>
           <p className="font-black text-xl text-text-light dark:text-text-dark tabular-nums">
             {fmt(totals.windowTotal)}
@@ -186,8 +189,6 @@ const BranchesSalesPage = () => {
   const [branches, setBranches]               = useState([]);
   const [mainTreasury, setMainTreasury]       = useState(null);
   const [branchesTotalBalance, setBranchesTotalBalance] = useState(0);
-  const [percentageChange, setPercentageChange] = useState(0);
-  const [isPositive, setIsPositive]           = useState(true);
   const [loadingRows, setLoadingRows]         = useState(true);
   const [loadingHeader, setLoadingHeader]     = useState(true);
 
@@ -201,9 +202,6 @@ const BranchesSalesPage = () => {
       // We only need the main (HQ) treasury for the context strip now —
       // visa/instapay running balances were replaced by windowed sales totals.
       setMainTreasury(globals?.mainTreasury || null);
-      const pct = parseFloat(summary.percentageChange);
-      setPercentageChange(Math.abs(pct || 0));
-      setIsPositive((pct || 0) >= 0);
       setBranchesTotalBalance(Number(summary.totalBalance || 0));
     } catch {
       toast.error("فشل تحميل أرصدة الخزائن العامة");
@@ -212,15 +210,22 @@ const BranchesSalesPage = () => {
     }
   }, []);
 
+  // Monotonic request id: rapid preset clicks can make responses land out of
+  // order, so only the latest request is allowed to write state.
+  const fetchSeq = useRef(0);
+
   const fetchRows = useCallback(async (from, to) => {
+    const seq = ++fetchSeq.current;
     setLoadingRows(true);
     try {
       const rows = await branchService.getBalances({ from, to });
+      if (seq !== fetchSeq.current) return; // a newer request superseded us
       setBranches(rows || []);
     } catch {
-      toast.error("فشل تحميل أرصدة الفروع");
+      if (seq !== fetchSeq.current) return;
+      toast.error("فشل تحميل مبيعات الفروع");
     } finally {
-      setLoadingRows(false);
+      if (seq === fetchSeq.current) setLoadingRows(false);
     }
   }, []);
 
@@ -246,8 +251,24 @@ const BranchesSalesPage = () => {
       bulkSales:     acc.bulkSales     + Number(b.bulkSales || 0),
       totalExpenses: acc.totalExpenses + Number(b.totalExpenses || 0),
       windowTotal:   acc.windowTotal   + Number(b.total || 0),
+      prevTotal:     acc.prevTotal     + Number(b.prevTotal || 0),
+      salesCount:    acc.salesCount    + Number(b.salesCount || 0),
     }),
-    { cashNow: 0, cashSales: 0, visa: 0, instapay: 0, bulkSales: 0, totalExpenses: 0, windowTotal: 0 },
+    { cashNow: 0, cashSales: 0, visa: 0, instapay: 0, bulkSales: 0, totalExpenses: 0, windowTotal: 0, prevTotal: 0, salesCount: 0 },
+  );
+
+  // Trend follows the selected window: current total vs the equal-length
+  // window right before it (computed by the backend per branch).
+  const trendPct = totals.prevTotal > 0
+    ? ((totals.windowTotal - totals.prevTotal) / totals.prevTotal) * 100
+    : totals.windowTotal > 0
+      ? 100
+      : 0;
+  const trendIsPositive = trendPct >= 0;
+
+  // Sales page: rank branches by what they sold in the window, best first.
+  const rankedBranches = [...branches].sort(
+    (a, b) => Number(b.total || 0) - Number(a.total || 0),
   );
 
   // Short label that captions every "للفترة" slot. /summary's totalBalance is
@@ -270,10 +291,10 @@ const BranchesSalesPage = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <h1 className="text-3xl font-black leading-tight tracking-tight">
-                أرصدة الفروع والخزائن
+                مبيعات الفروع
               </h1>
               <p className="text-primary/80 dark:text-accent/80 text-sm md:text-base">
-                نظرة عامة على النقدية والمدفوعات الرقمية في جميع الفروع
+                متابعة مبيعات كل فرع حسب الفترة المحددة
               </p>
             </div>
             <button
@@ -298,9 +319,10 @@ const BranchesSalesPage = () => {
             windowVisaSales={totals.visa}
             windowInstapaySales={totals.instapay}
             windowLabel={windowLabel}
-            percentageChange={percentageChange}
-            isPositive={isPositive}
-            loading={loadingHeader}
+            percentageChange={Math.abs(trendPct).toFixed(1)}
+            isPositive={trendIsPositive}
+            trendCaption={`${windowLabel} vs الفترة السابقة`}
+            loading={loadingHeader || loadingRows}
           />
 
           {/* Date filter */}
@@ -329,7 +351,7 @@ const BranchesSalesPage = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {branches.map((b) => (
+                  {rankedBranches.map((b) => (
                     <BranchCard key={b.id} branch={b} windowLabel={windowLabel} />
                   ))}
                 </div>

@@ -1,30 +1,5 @@
 import React, { useState } from "react";
-
-const toISO = (d) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
-
-export const computePresetRange = (preset) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (preset === "today") {
-    return { from: toISO(today), to: toISO(today) };
-  }
-  if (preset === "yesterday") {
-    const y = new Date(today);
-    y.setDate(today.getDate() - 1);
-    return { from: toISO(y), to: toISO(y) };
-  }
-  if (preset === "last7") {
-    const start = new Date(today);
-    start.setDate(today.getDate() - 6);
-    return { from: toISO(start), to: toISO(today) };
-  }
-  return { from: toISO(today), to: toISO(today) };
-};
+import { cairoTodayISO, computePresetRange } from "../../utils/dateRange";
 
 const PRESETS = [
   { key: "today", label: "اليوم" },
@@ -35,8 +10,8 @@ const PRESETS = [
 
 const DateFilterBar = ({ value, onChange }) => {
   const [customOpen, setCustomOpen] = useState(value?.preset === "custom");
-  const [customFrom, setCustomFrom] = useState(value?.from || toISO(new Date()));
-  const [customTo, setCustomTo] = useState(value?.to || toISO(new Date()));
+  const [customFrom, setCustomFrom] = useState(value?.from || cairoTodayISO());
+  const [customTo, setCustomTo] = useState(value?.to || cairoTodayISO());
 
   const selectPreset = (key) => {
     if (key === "custom") {
@@ -50,7 +25,12 @@ const DateFilterBar = ({ value, onChange }) => {
 
   const applyCustom = () => {
     if (!customFrom || !customTo) return;
-    onChange({ preset: "custom", from: customFrom, to: customTo });
+    // Swap a reversed range instead of silently querying an empty window
+    const [from, to] =
+      customFrom <= customTo ? [customFrom, customTo] : [customTo, customFrom];
+    setCustomFrom(from);
+    setCustomTo(to);
+    onChange({ preset: "custom", from, to });
   };
 
   return (
