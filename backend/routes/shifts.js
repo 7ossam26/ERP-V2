@@ -12,7 +12,9 @@ const {
   bypassesShiftBranchScope,
 } = require("../config/roles");
 const { drainPendingForBranch } = require("../lib/orderService");
-const { postShiftOpening, postShiftVariance } = require("../lib/shiftTreasury");
+// lib/shiftTreasury.js is deliberately NOT wired here — see the note at the top
+// of that file. Its two postings assumed the branch treasury IS the drawer; it
+// is the branch SAFE, and the shift lifecycle must not move money in it.
 const { roundMoney } = require("../utils/money");
 
 // Reopening discards the cashier's submitted cash count, so the audit trail
@@ -596,8 +598,9 @@ router.post("/start", async (req, res, next) => {
         .json({ error: "User already has an active shift" });
     }
 
-    // The branch's cash treasury is the drawer — resolve it up front, since both
-    // the opening default and the opening posting are expressed against it.
+    // A branch still needs its cash treasury (the SAFE) configured — expenses,
+    // purchases and driver settlements all post against it, and the drawer
+    // formula reads its movements. Starting a shift no longer touches it.
     const branch = await prisma.branch.findUnique({
       where: { id: parseInt(branchId) },
       select: { id: true, treasuryId: true },
@@ -609,7 +612,7 @@ router.post("/start", async (req, res, next) => {
       });
     }
 
-    const { newShift, openingAdjustment } = await prisma.$transaction(
+    const { newShift } = await prisma.$transaction(
       async (tx) => {
         // Re-check the one-open-shift-per-branch blocker INSIDE the transaction.
         // The pre-flight check above is for a friendly error message; this one is
@@ -630,23 +633,28 @@ router.post("/start", async (req, res, next) => {
           throw err;
         }
 
-        // ROLLING BALANCE: default the opening cash to the branch treasury's
-        // current balance, not the previous shift's endCash.
+        // ROLLING BALANCE: the opening float defaults to what the PREVIOUS SHIFT
+        // COUNTED, never to the branch treasury balance.
         //
-        // The treasury already carries the previous shift's counted cash (posted
-        // at its approval) plus anything that moved between shifts, so this is
-        // the figure that makes the opening delta zero in the ordinary case —
-        // no row written, nothing double-counted. Deviating from it is a real
-        // cash injection or removal, and only the difference gets posted.
-        const treasury = await tx.treasury.findUnique({
-          where: { id: branch.treasuryId },
-          select: { balance: true },
+        // The treasury is the branch SAFE. It carries takings from earlier shifts
+        // that were handed over and are no longer in the drawer, so defaulting to
+        // it prefilled a float of tens of thousands. Worse, the difference used
+        // to be posted as a withdrawal against the safe, which booked cash OUT of
+        // the branch that had only moved drawer → safe: 112,250 EGP over two days
+        // left the books and arrived nowhere. Nothing about opening a shift moves
+        // money, so nothing is posted here at all.
+        const lastCounted = await tx.shift.findFirst({
+          where: { branchId: parseInt(branchId), endTime: { not: null } },
+          orderBy: { endTime: "desc" },
+          select: { actualCash: true, endCash: true },
         });
-        const currentBalance = roundMoney(treasury?.balance || 0);
+        const carriedForward = roundMoney(
+          lastCounted?.actualCash ?? lastCounted?.endCash ?? 0,
+        );
         const calculatedStartCash =
           startCash !== undefined && startCash !== null
             ? roundMoney(startCash)
-            : currentBalance;
+            : carriedForward;
 
         const shift = await tx.shift.create({
           data: {
@@ -659,15 +667,7 @@ router.post("/start", async (req, res, next) => {
           },
         });
 
-        const adjustment = await postShiftOpening(tx, {
-          shift,
-          treasuryId: branch.treasuryId,
-          declaredStartCash: calculatedStartCash,
-          currentBalance,
-          actorId: req.user.id,
-        });
-
-        return { newShift: shift, openingAdjustment: adjustment };
+        return { newShift: shift };
       },
     );
 
@@ -682,7 +682,10 @@ router.post("/start", async (req, res, next) => {
       console.error("[SHIFT] drainPendingForBranch failed:", drainErr.message);
     }
 
-    res.status(201).json({ ...newShift, openingAdjustment });
+    // openingAdjustment stays in the payload as an explicit null: starting a
+    // shift no longer books anything, and clients read it to decide whether to
+    // announce a posting.
+    res.status(201).json({ ...newShift, openingAdjustment: null });
   } catch (error) {
     next(error);
   }
@@ -767,33 +770,17 @@ router.post("/end", async (req, res, next) => {
     const shortage =
       Math.round((actualCashValue - systemExpectedCash) * 100) / 100;
 
-    // Snapshot the treasury against the physical count. Nothing is posted here —
-    // the correction is applied at manager approval (POST /approve).
+    // No treasury snapshot is taken. `treasuryVariance` was defined as
+    // `actualCash − branch treasury balance`, which only means anything while the
+    // treasury IS the drawer. It is the branch SAFE: it also holds takings handed
+    // over by earlier shifts, so the difference is not a variance, it is just
+    // however much is sitting in the safe. Recording that as a variance invited
+    // the posting that erased it.
     //
-    // We store the DELTA rather than recomputing it at approve time: if a manager
-    // records a deposit or expense during the PENDING_REVIEW window, applying a
-    // delta preserves that movement, whereas setting an absolute balance from a
-    // stale count would silently erase it.
-    // A branch with no cash treasury configured records no snapshot, and
-    // /approve then posts nothing — the shift still closes normally.
-    let closingTreasuryBalance = null;
-    let treasuryVariance = null;
-    if (shiftToEnd.branch?.treasuryId) {
-      const closingTreasury = await prisma.treasury.findUnique({
-        where: { id: shiftToEnd.branch.treasuryId },
-        select: { balance: true },
-      });
-      closingTreasuryBalance = roundMoney(closingTreasury?.balance || 0);
-      treasuryVariance = roundMoney(actualCashValue - closingTreasuryBalance);
-    }
-
-    // Variance already posted for this shift by EARLIER approval cycles. Needed
-    // only to keep `drift` honest: shortage is cumulative over the whole shift
-    // (calculateSystemExpectedCash reads relations by shiftId with no time
-    // filter), whereas treasuryVariance is incremental since the last posting
-    // moved the balance. Without this term a reopened-after-approval shift shows
-    // the previously-posted correction as drift — i.e. as a movement the drawer
-    // formula is missing — which it is not.
+    // The columns stay in the schema and keep their historical values; a drawer
+    // account of its own is what makes them meaningful again.
+    const closingTreasuryBalance = null;
+    const treasuryVariance = null;
     const priorPostedVariance = await sumPostedShiftVariance(
       parseInt(shiftId),
       shiftToEnd.reopenCount,
@@ -973,43 +960,32 @@ router.post("/approve", async (req, res, next) => {
         async (tx) => {
           // Re-read under the transaction: the status check above is a friendly
           // pre-flight, this is the guard that actually makes approval single-shot.
-          const fresh = await tx.shift.findUnique({
-            where: { id: parseInt(shiftId) },
-            include: { branch: { select: { treasuryId: true } } },
+          // Claim the shift with a conditional write rather than read-then-write.
+          // A plain SELECT takes no lock, so two concurrent approvals could both
+          // see PENDING_REVIEW and both proceed. This used to be caught downstream
+          // by UNIQUE(shift_id, source, cycle) on the variance posting; approval
+          // posts nothing now, so the guard has to live in the claim itself.
+          // Exactly one updateMany can match, and the loser gets a 409.
+          const claimed = await tx.shift.updateMany({
+            where: { id: parseInt(shiftId), status: "PENDING_REVIEW" },
+            data: {
+              status: "CLOSED",
+              reviewedById: manager.id,
+              reviewedAt: new Date(),
+            },
           });
-          if (!fresh || fresh.status !== "PENDING_REVIEW") {
+          if (claimed.count === 0) {
             const err = new Error("Shift is no longer pending review");
             err.status = 409;
             err.message = "هذه الوردية تم اعتمادها بالفعل";
             throw err;
           }
 
-          // Reconcile the treasury to what the cashier physically counted.
-          // treasuryVariance (not shortage) is the figure posted — see
-          // lib/shiftTreasury.js for why the two differ and why that is safe.
-          //
-          // Stamped with the shift's CURRENT reopenCount. A shift reopened after
-          // approval comes back here for another approval, and each pass posts
-          // its own correction under its own cycle. Read from `fresh` inside the
-          // transaction so a reopen racing this approval cannot make two passes
-          // claim the same cycle.
-          const adjustment = fresh.branch?.treasuryId
-            ? await postShiftVariance(tx, {
-                shift: fresh,
-                treasuryId: fresh.branch.treasuryId,
-                cycle: fresh.reopenCount,
-                delta: Number(fresh.treasuryVariance ?? 0),
-                actorId: manager.id,
-              })
-            : null;
-
-          const updated = await tx.shift.update({
+          // Approval moves NO money. The branch treasury is the safe, not the
+          // drawer: forcing its balance onto a drawer count would erase every
+          // pound of earlier takings sitting in it. See lib/shiftTreasury.js.
+          const updated = await tx.shift.findUnique({
             where: { id: parseInt(shiftId) },
-            data: {
-              status: "CLOSED",
-              reviewedById: manager.id,
-              reviewedAt: new Date(),
-            },
             include: {
               user: true,
               reviewedBy: true,
@@ -1017,14 +993,13 @@ router.post("/approve", async (req, res, next) => {
             },
           });
 
-          return { closedShift: updated, varianceAdjustment: adjustment };
+          return { closedShift: updated, varianceAdjustment: null };
         },
       ));
     } catch (txError) {
-      // UNIQUE(shift_id, source, cycle) rejected a second SHIFT_VARIANCE row for
-      // THIS cycle: this approval already ran. Fail loudly instead of moving the
-      // money twice. A later cycle (after a reopen) carries a different
-      // reopenCount and is unaffected, which is the whole point of the key.
+      // Kept as a backstop: the conditional claim above is what makes approval
+      // single-shot now, but any unique-constraint rejection inside this
+      // transaction still means "someone else got there first", not a bug.
       if (txError.code === "P2002") {
         return res.status(409).json({
           error: "Shift has already been approved",
@@ -1363,13 +1338,13 @@ router.get("/active/:userId", async (req, res, next) => {
 /**
  * Opening-cash context for a branch, used to prefill the start-shift modal.
  *
- * `suggestedStartCash` is the branch treasury's live balance — accepting it
- * unchanged makes the opening delta zero, so nothing is posted. The modal shows
- * the difference live so a cashier can see exactly what their count will book.
+ * `suggestedStartCash` is what the PREVIOUS SHIFT COUNTED — the cash physically
+ * left in the drawer. It briefly defaulted to the branch treasury balance, which
+ * is the safe: that prefilled a float of tens of thousands and booked the
+ * difference as a withdrawal against the safe.
  *
- * `lastShiftEndCash` is returned for context only. It is no longer the default:
- * the treasury also carries anything that moved between shifts, so it, not the
- * previous count, is the figure the opening reconciles against.
+ * `treasuryBalance` is still returned, clearly as the safe, so the modal can show
+ * branch cash for context. Nothing the cashier types here moves money.
  */
 router.get("/opening-context/:branchId", async (req, res, next) => {
   try {
@@ -1398,20 +1373,23 @@ router.get("/opening-context/:branchId", async (req, res, next) => {
       });
     }
 
+    // Any ended shift, not just CLOSED/PENDING_REVIEW: a shift reopened and
+    // re-ended still carries the most recent count, and the next shift's float
+    // has to follow the drawer, not the approval state.
     const lastShift = await prisma.shift.findFirst({
-      where: { branchId, status: { in: ["CLOSED", "PENDING_REVIEW"] } },
+      where: { branchId, endTime: { not: null } },
       orderBy: { endTime: "desc" },
-      select: { endCash: true, endTime: true },
+      select: { actualCash: true, endCash: true, endTime: true },
     });
 
-    const treasuryBalance = roundMoney(branch.treasury.balance);
+    const lastCounted =
+      lastShift?.actualCash ?? lastShift?.endCash ?? null;
 
     res.json({
-      treasuryBalance,
+      treasuryBalance: roundMoney(branch.treasury.balance),
       treasuryName: branch.treasury.name,
-      suggestedStartCash: treasuryBalance,
-      lastShiftEndCash:
-        lastShift?.endCash != null ? roundMoney(lastShift.endCash) : null,
+      suggestedStartCash: lastCounted != null ? roundMoney(lastCounted) : 0,
+      lastShiftEndCash: lastCounted != null ? roundMoney(lastCounted) : null,
       lastShiftEndTime: lastShift?.endTime || null,
     });
   } catch (error) {

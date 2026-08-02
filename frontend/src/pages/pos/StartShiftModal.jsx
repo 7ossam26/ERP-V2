@@ -60,19 +60,22 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
             maximumFractionDigits: 2,
         });
 
-    // What this count will actually book to the branch treasury. Zero means the
-    // drawer matches the books and nothing is posted — the ordinary case.
+    // Context only — starting a shift books nothing either way.
+    // `lastCounted` is the drawer the previous shift counted (what this float
+    // carries forward from); `treasuryBalance` is the branch SAFE, shown so the
+    // cashier can tell the two apart.
     const treasuryBalance = context?.treasuryBalance;
-    const delta =
-        touched && treasuryBalance != null && startCash !== ""
-            ? Math.round((parseFloat(startCash) - treasuryBalance) * 100) / 100
+    const lastCounted = context?.lastShiftEndCash;
+    const handedOver =
+        touched && lastCounted != null && startCash !== ""
+            ? Math.round((lastCounted - parseFloat(startCash)) * 100) / 100
             : 0;
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Untouched → undefined, so the backend uses the live treasury balance.
-        // Never send 0 for an empty field: that would book a withdrawal of the
-        // entire carried balance.
+        // Untouched → undefined, so the backend carries the previous count
+        // forward. Never send 0 for an empty field: that would declare an empty
+        // drawer and report the whole float as a shortage.
         onConfirm(touched && startCash !== "" ? parseFloat(startCash) : undefined);
     };
 
@@ -173,9 +176,19 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                                 </span>
                             </div>
 
-                            {treasuryBalance != null && (
+                            {lastCounted != null && (
                                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                    رصيد {context?.treasuryName || "الخزينة"} الحالي:{" "}
+                                    آخر وردية اتعدّ فيها:{" "}
+                                    <span className="font-bold font-mono dir-ltr inline-block">
+                                        {fmt(lastCounted)}
+                                    </span>{" "}
+                                    ج.م
+                                </p>
+                            )}
+
+                            {treasuryBalance != null && (
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    رصيد {context?.treasuryName || "خزنة الفرع"}:{" "}
                                     <span className="font-bold font-mono dir-ltr inline-block">
                                         {fmt(treasuryBalance)}
                                     </span>{" "}
@@ -183,19 +196,14 @@ const StartShiftModal = ({ isOpen, onClose, onConfirm, user }) => {
                                 </p>
                             )}
 
-                            {/* Show exactly what the count will book, so the delta is
-                                never a surprise after the fact. */}
-                            {delta !== 0 && (
-                                <p
-                                    className={`mt-2 text-sm font-semibold ${
-                                        delta > 0
-                                            ? "text-green-600 dark:text-green-400"
-                                            : "text-amber-600 dark:text-amber-400"
-                                    }`}
-                                >
-                                    {delta > 0 ? "سيتم تسجيل إيداع افتتاحي: " : "سيتم تسجيل سحب افتتاحي: "}
+                            {/* A float below the last count is the ordinary handover to
+                                the branch safe. Stated as fact, not as a posting: opening
+                                a shift moves no money in the books. */}
+                            {handedOver > 0 && (
+                                <p className="mt-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                                    الفرق المسلّم لخزنة الفرع:{" "}
                                     <span className="font-mono dir-ltr inline-block">
-                                        {fmt(Math.abs(delta))}
+                                        {fmt(handedOver)}
                                     </span>{" "}
                                     ج.م
                                 </p>

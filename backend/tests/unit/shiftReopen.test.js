@@ -36,12 +36,14 @@
  *    dropped, and the re-close recomputing over the WHOLE shift rather than only
  *    the latest cycle.
  *
- * 5. TREASURY CORRECTNESS (section 6 — the reason this file has a fake treasury
- *    at all). POST /approve moves real money, so a shift that can be approved
- *    more than once must post exactly once per cycle: never twice for the same
- *    cycle, and never zero times because an index rejected it. The fake enforces
- *    UNIQUE(shiftId, source, cycle) itself, since that index is the guard the
- *    whole design turns on.
+ * 5. THE SHIFT LIFECYCLE MOVES NO MONEY (section 6 — the reason this file has a
+ *    fake treasury at all). Starting, ending, approving and reopening a shift all
+ *    leave `treasury.balance` untouched and write no Deposit/Withdrawal row.
+ *    /start and /approve briefly did post — against the branch SAFE, which they
+ *    mistook for the drawer — and booked 112,250 EGP out of three branches in two
+ *    days. Section 6 is the wall against that coming back. Approval is still
+ *    single-shot, but on a conditional claim now rather than on a unique index
+ *    over a posting that no longer exists.
  */
 
 const BRANCH_ID = 4;
@@ -68,8 +70,9 @@ const mockStore = {
   expenses: [],
   employeeTransactions: [],
   users: new Map(),
-  // The branch treasury IS the drawer. Cash sales/expenses post to it as they
-  // happen in production; here tests move it explicitly via `ringCashSale`.
+  // The branch treasury is the branch SAFE, not the drawer — see section 6.
+  // Cash sales and expenses post to it as they happen in production; here tests
+  // move it explicitly via `ringCashSale`. The shift lifecycle never touches it.
   treasuryBalance: 0,
   deposits: [],
   withdrawals: [],
@@ -79,6 +82,8 @@ const mockStore = {
   nextSaleId: 1,
   nextMovementId: 1,
   nextTransferId: 1,
+  nextShiftId: 1,
+  allowShiftCreate: false,
 };
 
 const TREASURY_ID = 7;
@@ -263,9 +268,41 @@ jest.mock("../../config/database", () => {
         mockApplyWrite(row, data);
         return mockHydrateShift(row, include);
       }),
-      // Reopen must never mint a replacement shift. Loud rather than silent.
-      create: jest.fn(async () => {
-        throw new Error("fake: shift.create must not be called by this workflow");
+      // Conditional claim used by POST /approve: only rows still matching the
+      // full `where` are written, and the count is what makes approval
+      // single-shot. A fake that ignored the condition would make the
+      // double-approval test pass for the wrong reason.
+      updateMany: jest.fn(async ({ where, data }) => {
+        const rows = [...mockStore.shifts.values()].filter((s) =>
+          mockMatchWhere(s, where),
+        );
+        rows.forEach((row) => mockApplyWrite(row, data));
+        return { count: rows.length };
+      }),
+      // Reopen must never mint a replacement shift — loud rather than silent.
+      // Suites that legitimately start one opt in via mockStore.allowShiftCreate.
+      create: jest.fn(async ({ data }) => {
+        if (!mockStore.allowShiftCreate) {
+          throw new Error("fake: shift.create must not be called by this workflow");
+        }
+        const row = {
+          endTime: null,
+          endCash: null,
+          actualCash: null,
+          systemExpectedCash: null,
+          shortage: null,
+          expectedVisa: null,
+          expectedInstapay: null,
+          closingTreasuryBalance: null,
+          treasuryVariance: null,
+          reviewedById: null,
+          reviewedAt: null,
+          reopenCount: 0,
+          ...data,
+          id: mockStore.nextShiftId++,
+        };
+        mockStore.shifts.set(row.id, row);
+        return { ...row };
       }),
       count: jest.fn(async () => mockStore.shifts.size),
       findMany: jest.fn(async () => [...mockStore.shifts.values()]),
@@ -537,6 +574,8 @@ const seedStore = (shiftRow, { treasuryBalance = 0 } = {}) => {
   mockStore.nextSaleId = 1;
   mockStore.nextMovementId = 1;
   mockStore.nextTransferId = 1;
+  mockStore.nextShiftId = SHIFT_ID + 1;
+  mockStore.allowShiftCreate = false;
   mockStore.treasuryBalance = treasuryBalance;
   mockStore.users.set(MANAGER_ID, managerRow());
   mockStore.users.set(CASHIER_ID, cashierRow());
@@ -546,10 +585,6 @@ const seedStore = (shiftRow, { treasuryBalance = 0 } = {}) => {
 const shiftRow = () => mockStore.shifts.get(SHIFT_ID);
 const statusOf = () => shiftRow().status;
 const balance = () => Math.round(mockStore.treasuryBalance * 100) / 100;
-const varianceRows = () =>
-  [...mockStore.deposits, ...mockStore.withdrawals].filter(
-    (r) => r.source === "SHIFT_VARIANCE",
-  );
 const patchManager = (overrides) =>
   mockStore.users.set(MANAGER_ID, managerRow(overrides));
 
@@ -1269,26 +1304,29 @@ describe("sales stay attached to the same shift across every reopen cycle", () =
 });
 
 // ---------------------------------------------------------------------------
-// 6. Treasury: reopening an APPROVED shift must not double-post or under-post
+// 6. Treasury: the shift lifecycle must not move money at all
 //
-// POST /approve is the only route here that moves money: it posts the shift's
-// stored `treasuryVariance` as a Deposit/Withdrawal and shifts treasury.balance.
-// Once a CLOSED shift became reopenable, that posting stopped being once-per-
-// shift, and these tests pin down the two ways that could have gone wrong:
+// It used to. POST /start posted the gap between the declared float and the
+// branch treasury balance, and POST /approve forced that balance onto the
+// counted drawer. Both assumed `Branch.treasury` IS the drawer.
 //
-//   UNDER-POST — the failure this change fixes. UNIQUE(shiftId, source) let only
-//     one variance row exist per shift ever, so the second approval raised P2002
-//     and the route reported "already approved" while the corrected variance
-//     silently never reached the treasury.
-//   DOUBLE-POST — the failure a naive fix would introduce, by reversing the
-//     first posting on reopen and re-posting the full amount later.
+// It is the branch SAFE — a second, unmodelled container that holds takings
+// handed over by earlier shifts:
 //
-// The invariant that rules both out: after every approval the treasury equals
-// the cash the cashier just counted, and the net posted across N cycles is
-// (final count − opening balance), never a sum of the individual variances.
+//     الدرج ──handover──► خزنة الفرع ──cash transfer──► الإدارة
+//
+// So a float declared below the balance is the ordinary handover, not cash
+// leaving the company; posting it as a withdrawal booked 112,250 EGP out of
+// three branches in two days, arriving nowhere. And reconciling the safe to a
+// drawer count would erase whatever the safe legitimately holds.
+//
+// The invariant these tests pin: starting, ending, approving and reopening a
+// shift change `treasury.balance` by exactly zero and write no movement rows.
+// Cash sales still credit the treasury at sale time — that is routes/sales.js,
+// not the shift lifecycle, and it stays.
 // ---------------------------------------------------------------------------
 
-describe("treasury postings across approve → reopen → approve", () => {
+describe("the shift lifecycle moves no money", () => {
   /** OPEN shift, 100 float already in the drawer, 500 rung up in cash sales. */
   const seedLive = () => {
     seedStore(openShiftRow(), { treasuryBalance: 100 });
@@ -1297,186 +1335,176 @@ describe("treasury postings across approve → reopen → approve", () => {
     // treasury 600; expected cash 100 + 500 = 600
   };
 
-  const netVariancePosted = () =>
-    Math.round(
-      (mockStore.deposits
-        .filter((d) => d.source === "SHIFT_VARIANCE")
-        .reduce((n, d) => n + d.amount, 0) -
-        mockStore.withdrawals
-          .filter((w) => w.source === "SHIFT_VARIANCE")
-          .reduce((n, w) => n + w.amount, 0)) *
-        100,
-    ) / 100;
+  /** Every row either posting used to write. */
+  const lifecycleRows = () =>
+    [...mockStore.deposits, ...mockStore.withdrawals].filter((r) =>
+      ["SHIFT_OPENING", "SHIFT_VARIANCE"].includes(r.source),
+    );
+
+  const startShift = (body = {}) => {
+    asCashier();
+    mockStore.allowShiftCreate = true;
+    return request(app)
+      .post("/api/shifts/start")
+      .send({ userId: CASHIER_ID, branchId: BRANCH_ID, ...body });
+  };
 
   beforeEach(seedLive);
 
-  test("approval posts the variance once and leaves the treasury on the count", async () => {
-    await endShift(590); // counted 590 against books of 600
+  test("approval posts nothing and leaves the treasury exactly where it was", async () => {
+    await endShift(590); // counted 590 against a treasury holding 600
+    const before = balance();
 
     const res = await approve();
 
     expect(res.status).toBe(200);
-    expect(balance()).toBe(590);
-    expect(varianceRows()).toHaveLength(1);
-    expect(varianceRows()[0]).toMatchObject({
-      source: "SHIFT_VARIANCE",
-      shiftId: SHIFT_ID,
-      cycle: 0,
-      amount: 10,
-    });
+    expect(statusOf()).toBe("CLOSED");
+    expect(balance()).toBe(before); // was forced to 590 before this change
+    expect(lifecycleRows()).toHaveLength(0);
+    expect(res.body.varianceAdjustment).toBeNull();
   });
 
-  test("reopening a CLOSED shift reverses nothing — the drawer really holds that cash", async () => {
+  test("the shortage is still reported — accountability is not what changed", async () => {
     await endShift(590);
-    await approve();
-    const posted = { ...varianceRows()[0] };
 
-    const res = await reopen();
-
-    expect(res.status).toBe(200);
-    // Balance untouched. Reversing here would put the books back on 600 while
-    // the drawer physically holds 590 — wrong for the whole reopened window.
-    expect(balance()).toBe(590);
-    expect(varianceRows()).toHaveLength(1);
-    expect(varianceRows()[0]).toEqual(posted); // byte-identical, not rewritten
-    expect(shiftRow().reopenCount).toBe(1);
+    expect(shiftRow().shortage).toBe(-10);
+    expect((await approve()).status).toBe(200);
+    expect(shiftRow().shortage).toBe(-10);
   });
 
-  test("CLOSED → OPEN → PENDING_REVIEW → CLOSED posts the second correction under cycle 1", async () => {
+  test("no treasury snapshot is taken at close", async () => {
+    // treasuryVariance = counted − treasury balance only means something while
+    // the treasury IS the drawer. Against the safe it is just "whatever the safe
+    // holds", and storing that as a variance is what invited the posting.
     await endShift(590);
-    await approve(); // cycle 0: withdraw 10 → 590
 
-    await reopen();
-    ringCashSale(150); // → 740
-
-    await endShift(735); // counted 735 against books of 740
-    const second = await approve();
-
-    expect(second.status).toBe(200);
-    expect(balance()).toBe(735); // exactly the final count
-    expect(varianceRows()).toHaveLength(2);
-    expect(varianceRows().map((r) => r.cycle).sort()).toEqual([0, 1]);
+    expect(shiftRow().closingTreasuryBalance).toBeNull();
+    expect(shiftRow().treasuryVariance).toBeNull();
   });
 
-  test("no double posting: net movement is final count − opening balance", async () => {
-    await endShift(590);
+  test("a float BELOW the previous count books nothing — that is the handover", async () => {
+    // The exact shape that drained the branches: previous shift counted 600,
+    // the cashier hands 450 to the safe and opens on 150.
+    await endShift(600);
     await approve();
+    const before = balance();
 
-    await reopen();
-    ringCashSale(150);
-    await endShift(735);
+    const res = await startShift({ startCash: 150 });
+
+    expect(res.status).toBe(201);
+    expect(Number(res.body.startCash)).toBe(150);
+    expect(balance()).toBe(before); // no 450 withdrawal
+    expect(lifecycleRows()).toHaveLength(0);
+    expect(res.body.openingAdjustment).toBeNull();
+  });
+
+  test("a float ABOVE the previous count books nothing either", async () => {
+    await endShift(600);
     await approve();
+    const before = balance();
 
-    // Opening books were 600 (float + sales at first close); across both cycles
-    // the treasury moved by exactly −15 to land on 735. A reverse-then-repost
-    // implementation would move −10, +10, −5 and a double-post would move −15
-    // twice; only supersede gives one net −15 with two rows.
-    expect(netVariancePosted()).toBe(-15);
-    expect(balance()).toBe(735);
-    expect(varianceRows()).toHaveLength(2);
+    const res = await startShift({ startCash: 900 });
+
+    expect(res.status).toBe(201);
+    expect(balance()).toBe(before);
+    expect(lifecycleRows()).toHaveLength(0);
   });
 
-  test("many CLOSED → OPEN cycles: one posting each, treasury always on the last count", async () => {
-    const counts = [590, 735, 900, 1010];
-    let sold = 0;
+  test("an omitted float carries the previous COUNT forward, not the treasury balance", async () => {
+    // The treasury is deliberately far from the count here: defaulting to it is
+    // what prefilled floats of tens of thousands.
+    await endShift(600);
+    await approve();
+    mockStore.treasuryBalance = 47000; // safe holding several shifts of takings
 
-    for (let cycle = 0; cycle < counts.length; cycle++) {
-      if (cycle > 0) {
-        await reopen();
-        sold += 150;
-        ringCashSale(150);
-      }
-      await endShift(counts[cycle]);
-      expect((await approve()).status).toBe(200);
+    const res = await startShift();
 
-      // After every single approval the books equal the physical count.
-      expect(balance()).toBe(counts[cycle]);
-      expect(statusOf()).toBe("CLOSED");
-      expect(varianceRows()).toHaveLength(cycle + 1);
-    }
-
-    // One row per cycle, each stamped with its own cycle number.
-    expect(varianceRows().map((r) => r.cycle).sort()).toEqual([0, 1, 2, 3]);
-    // Still one shift, and every sale still on it.
-    expect(mockStore.shifts.size).toBe(1);
-    expect(mockStore.sales).toHaveLength(2 + sold / 150);
-    for (const sale of mockStore.sales) expect(sale.shiftId).toBe(SHIFT_ID);
+    expect(res.status).toBe(201);
+    expect(Number(res.body.startCash)).toBe(600);
+    expect(balance()).toBe(47000);
+    expect(lifecycleRows()).toHaveLength(0);
   });
 
-  test("a replayed approve within one cycle is refused and moves no money", async () => {
+  test("approval stays single-shot: a replay is refused and changes nothing", async () => {
+    // The UNIQUE(shiftId, source, cycle) index used to be what made this
+    // single-shot. Nothing is posted now, so the conditional claim in the route
+    // is the only guard left — this is the test that holds it.
     await endShift(590);
     expect((await approve()).status).toBe(200);
-    const settled = balance();
+    const after = { balance: balance(), reviewer: shiftRow().reviewedById };
 
-    // Put the row back to PENDING_REVIEW WITHOUT going through reopen, so the
-    // status guard passes and only UNIQUE(shiftId, source, cycle) can stop the
-    // second posting. This is the guard the whole design leans on.
-    shiftRow().status = "PENDING_REVIEW";
     const replay = await approve();
 
-    expect(replay.status).toBe(409);
-    expect(balance()).toBe(settled);
-    expect(varianceRows()).toHaveLength(1);
+    expect(replay.status).toBeGreaterThanOrEqual(400);
+    expect(balance()).toBe(after.balance);
+    expect(shiftRow().reviewedById).toBe(after.reviewer);
+    expect(lifecycleRows()).toHaveLength(0);
   });
 
-  test("drift stays zero across cycles — an earlier posting is not a missing movement", async () => {
-    const first = await endShift(590);
-    expect(first.body.calculationBreakdown.drift).toBe(0);
-    await approve();
+  test("the conditional claim, not the pre-flight read, is what refuses a race", async () => {
+    // Two approvals interleaved so both clear the pre-flight status read before
+    // either writes — the shape a plain SELECT-then-UPDATE cannot survive.
+    // Exactly one updateMany may match PENDING_REVIEW.
+    await endShift(590);
 
-    await reopen();
-    ringCashSale(150);
-    const second = await endShift(735);
+    const [a, b] = await Promise.all([approve(), approve()]);
+    const codes = [a.status, b.status].sort();
 
-    // shortage spans the WHOLE shift (735 − 750); treasuryVariance covers only
-    // what cycle 0 did not already book (735 − 740).
-    expect(second.body.shortage).toBe(-15);
-    expect(second.body.calculationBreakdown.treasuryVariance).toBe(-5);
-    expect(second.body.calculationBreakdown.priorPostedVariance).toBe(-10);
-    // Without the prior-posted term this would read −10 and wrongly accuse the
-    // drawer formula of missing a branch-treasury movement.
-    expect(second.body.calculationBreakdown.drift).toBe(0);
+    expect(codes[0]).toBe(200);
+    expect(codes[1]).toBeGreaterThanOrEqual(400);
+    expect(
+      prisma.shift.updateMany.mock.calls.filter(
+        ([arg]) => arg.data?.status === "CLOSED",
+      ).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(statusOf()).toBe("CLOSED");
+    expect(balance()).toBe(600);
+    expect(lifecycleRows()).toHaveLength(0);
   });
 
-  test("reopening cannot corrupt a later shift or the branch balance", async () => {
+  test("many approve → reopen → approve cycles still move nothing", async () => {
+    const before = balance();
+
+    for (const counted of [590, 610, 605]) {
+      await endShift(counted);
+      expect((await approve()).status).toBe(200);
+      await reopen();
+    }
+    await endShift(600);
+    expect((await approve()).status).toBe(200);
+
+    expect(balance()).toBe(before);
+    expect(lifecycleRows()).toHaveLength(0);
+  });
+
+  test("reopening never posts a reversal", async () => {
     await endShift(590);
     await approve();
-    const settled = balance();
+    const before = balance();
 
-    // A later shift now exists in the same branch. Reopening would stretch this
-    // shift's [startTime, endTime||now] window across it and double-charge its
-    // window-attributed movements.
-    mockStore.shifts.set(
-      56,
-      openShiftRow({ id: 56, status: "OPEN", startTime: new Date(), userId: 77 }),
-    );
-    mockStore.users.set(77, cashierRow({ id: 77, username: "other" }));
+    await reopen();
 
-    const res = await reopen();
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/newer shift/i);
-    expect(statusOf()).toBe("CLOSED"); // untouched
-    expect(balance()).toBe(settled); // no money moved
-    expect(varianceRows()).toHaveLength(1);
+    expect(statusOf()).toBe("OPEN");
+    expect(balance()).toBe(before);
+    expect(lifecycleRows()).toHaveLength(0);
   });
 
-  test("a branch with no treasury still closes and approves, posting nothing", async () => {
-    prisma.branch.findUnique.mockResolvedValueOnce({
-      id: BRANCH_ID,
-      name: "Main",
-      treasuryId: null,
-    });
-    prisma.shift.findUnique.mockImplementationOnce(async ({ where }) => {
-      const row = mockStore.shifts.get(where.id);
-      return { ...row, branch: { id: BRANCH_ID, name: "Main", treasuryId: null } };
-    });
+  test("closing and approving never write to the treasury table at all", async () => {
+    prisma.treasury.update.mockClear();
+    prisma.treasury.updateMany.mockClear();
 
-    const ended = await endShift(590);
+    await endShift(590);
+    expect((await approve()).status).toBe(200);
 
-    expect(ended.status).toBe(200);
-    expect(ended.body.treasuryVariance).toBeNull();
-    expect(varianceRows()).toHaveLength(0);
+    expect(prisma.treasury.update).not.toHaveBeenCalled();
+    expect(prisma.treasury.updateMany).not.toHaveBeenCalled();
+  });
+
+  test("cash sales still credit the treasury — only the lifecycle stopped posting", async () => {
+    // Guards against "fixing" this by unplugging routes/sales.js too.
+    const before = balance();
+    ringCashSale(250);
+    expect(balance()).toBe(Math.round((before + 250) * 100) / 100);
   });
 });
 
@@ -1604,7 +1632,7 @@ describe("audit wiring", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 9. Cash handed over at the shift boundary is not subtracted twice
+// 10. Cash handed over at the shift boundary is not subtracted twice
 // ---------------------------------------------------------------------------
 
 describe("opening handover vs transfers out", () => {

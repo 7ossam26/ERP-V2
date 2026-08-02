@@ -214,8 +214,9 @@ const POSPage = () => {
         `تم بدء الوردية ${newShift.type === "MORNING" ? "الصباحية" : "المسائية"} بنجاح`,
       );
 
-      // Only surfaced when the counted drawer differed from the books — a
-      // silent treasury adjustment is exactly what we don't want.
+      // Always null now: opening a shift books nothing. Kept so that if a drawer
+      // account is introduced and the opening delta becomes a real transfer, the
+      // cashier is told about it rather than finding out from a report.
       const adj = newShift.openingAdjustment;
       if (adj) {
         toast(

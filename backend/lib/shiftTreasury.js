@@ -1,11 +1,34 @@
 /**
  * shiftTreasury.js — posting rules for the two shift↔treasury boundaries.
  *
- * MODEL
- * -----
- * A branch's `Treasury.balance` IS the drawer. There is no separate safe: one
- * cash account per branch (Branch.treasuryId is @unique). The target invariant
- * while a shift is open is therefore:
+ * ⚠️ NOT WIRED. routes/shifts.js no longer calls either function. Read this
+ * before reconnecting them.
+ *
+ * The module is built on one premise — "a branch's Treasury.balance IS the
+ * drawer" — and that premise is false for this business. A branch holds cash in
+ * TWO places:
+ *
+ *     الدرج (drawer)  ──at handover──►  خزنة الفرع (branch safe)  ──►  الإدارة
+ *
+ * `Branch.treasuryId` is @unique, so only one of the two has an account, and it
+ * is the SAFE: expenses, purchases, supplier payments and manager transfers all
+ * post against it, and it accumulates takings across shifts.
+ *
+ * Treating it as the drawer made both postings wrong in the same direction:
+ *
+ *   postShiftOpening  — a float declared below the safe balance is the ordinary
+ *                       handover, not cash leaving the company. Posting the
+ *                       difference as a withdrawal booked 112,250 EGP out of
+ *                       three branches over two days, arriving nowhere.
+ *   postShiftVariance — forcing the safe onto a drawer count erases every pound
+ *                       of earlier takings held in it.
+ *
+ * Reconnect only once a branch has a DRAWER account of its own; then the opening
+ * delta becomes a transfer drawer ↔ safe (both real accounts) and the variance
+ * reconciles the drawer, which the count actually measures.
+ *
+ * The invariant below is stated against whatever account the shift lifecycle
+ * owns — true of a drawer account, never true of the safe:
  *
  *     treasury.balance === calculateSystemExpectedCash(shift).expected
  *
