@@ -29,7 +29,6 @@ import PurchasesPage from "./pages/purchases/PurchasesPage";
 import POSPage from "./pages/pos/POSPage";
 import StockTransferPage from "./pages/stock/StockTransferPage";
 import CashierTransferPage from "./pages/treasuries/CashierTransferPage";
-import TreasuryBalancesPage from "./pages/treasuries/TreasuryBalancesPage";
 import BranchesSalesPage from "./pages/sales/BranchesSalesPage";
 import BranchBalancesPage from "./pages/branches/BranchBalancesPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
@@ -246,14 +245,6 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="CASH_TRANSFER">
                 <CashierTransferPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/treasury-balances"
-            element={
-              <ProtectedRoute requiredPermission="TREASURIES">
-                <TreasuryBalancesPage />
               </ProtectedRoute>
             }
           />
