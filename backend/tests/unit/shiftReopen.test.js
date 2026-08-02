@@ -362,7 +362,11 @@ jest.mock("../../config/database", () => {
     },
     // Drawer-formula terms this suite never exercises; zero keeps expected cash
     // equal to startCash + cash sales, which is what the arithmetic asserts on.
-    expense: { aggregate: jest.fn(async () => ({ _sum: { amount: null } })) },
+    expense: {
+      aggregate: jest.fn(async ({ where }) =>
+        mockSumAgg(mockStore.expenses, where, "amount"),
+      ),
+    },
     cashTransfer: {
       aggregate: jest.fn(async ({ where }) =>
         mockSumAgg(mockStore.cashTransfers, where, "amount"),
@@ -541,6 +545,44 @@ const addTransferOut = (
     createdAt,
   };
   mockStore.cashTransfers.push(row);
+  return row;
+};
+
+/** Head office topping the branch safe up. Credits the safe, not the drawer. */
+const addTransferIn = (
+  amount,
+  { createdAt = new Date(Date.now() - 2 * 60 * 60 * 1000) } = {},
+) => {
+  mockStore.treasuryBalance += amount;
+  const row = {
+    id: mockStore.nextTransferId++,
+    amount,
+    fromTreasuryId: TREASURY_ID + 1,
+    toTreasuryId: TREASURY_ID,
+    status: "APPROVED",
+    createdAt,
+  };
+  mockStore.cashTransfers.push(row);
+  return row;
+};
+
+/**
+ * Petty cash paid at the register — the cashier opens the drawer and hands the
+ * money over, so unlike a safe movement this really does have to come off.
+ */
+const addCashExpense = (
+  amount,
+  { createdAt = new Date(Date.now() - 60 * 60 * 1000) } = {},
+) => {
+  mockStore.treasuryBalance -= amount;
+  const row = {
+    id: mockStore.expenses.length + 1,
+    amount,
+    treasuryId: TREASURY_ID,
+    paymentMethod: "CASH",
+    createdAt,
+  };
+  mockStore.expenses.push(row);
   return row;
 };
 
@@ -1635,13 +1677,19 @@ describe("audit wiring", () => {
 // 10. Cash handed over at the shift boundary is not subtracted twice
 // ---------------------------------------------------------------------------
 
-describe("opening handover vs transfers out", () => {
+describe("branch-safe movements never touch the drawer", () => {
   // Production shift #210 (مصر حلوان, 31/07/2026) reduced to its money. The
   // cashier counted 19,575 out of the previous shift, handed 17,200 to the
-  // office and opened on a 2,375 float. The manager registered that same 17,200
-  // as a transfer to the main treasury two hours INTO the new shift, so it fell
-  // inside the window and came off `expected` a second time — startCash had
-  // already excluded it. A 0.50 shortage printed as a 17,199.50 overage.
+  // office and opened on a 2,375 float. The manager registered that 17,200 as a
+  // transfer out of the branch safe two hours INTO the new shift, and the drawer
+  // formula subtracted it: a 0.50 shortage printed as a 17,199.50 overage.
+  //
+  // The first fix capped the damage with an offset — transfers out were absorbed
+  // up to the size of the opening handover. The cap was itself the bug: a bigger
+  // transfer is not drawer cash for the excess, it is earlier shifts' takings
+  // that had been accumulating in the safe. These tests pin the rule that
+  // replaced it — a movement of the SAFE is never a movement of the DRAWER, at
+  // any size, handover or no handover.
   const PREVIOUS_COUNT = 19575;
   const FLOAT = 2375;
   const HANDOVER = PREVIOUS_COUNT - FLOAT; // 17,200
@@ -1657,7 +1705,7 @@ describe("opening handover vs transfers out", () => {
     ringCashSale(SALES);
   };
 
-  test("the handover, registered as a transfer, comes off expected ONCE", async () => {
+  test("the handover, registered as a transfer, comes off expected ZERO times", async () => {
     openAfterHandover();
     addTransferOut(HANDOVER);
 
@@ -1666,80 +1714,85 @@ describe("opening handover vs transfers out", () => {
     expect(res.status).toBe(200);
     const breakdown = res.body.calculationBreakdown;
     expect(breakdown.systemExpectedCash).toBe(DRAWER);
-    expect(breakdown.openingHandover).toBe(HANDOVER);
-    expect(breakdown.openingHandoverOffset).toBe(HANDOVER);
-    // The raw movement is still reported — only its effect on the drawer is
-    // neutralised, so the printed block can still be made to add up.
+    // The raw movement is still reported, just not subtracted.
     expect(breakdown.transfersOut).toBe(HANDOVER);
-    expect(res.body.shortage).toBe(0); // was +17,200 before this offset existed
+    expect(breakdown.openingHandover).toBe(HANDOVER);
+    expect(res.body.shortage).toBe(0); // printed as +17,199.50 before the fix
   });
 
-  test("a transfer LARGER than the handover still takes the excess off", async () => {
+  test("a transfer LARGER than the handover does not take the excess off", async () => {
+    // The old offset was capped at the handover and let the excess through, on
+    // the theory that it had to be drawer cash. It is not: the safe was holding
+    // takings from shifts that closed days ago.
     openAfterHandover();
-    addTransferOut(HANDOVER + 2800); // handover, plus a real mid-shift collection
+    addTransferOut(HANDOVER + 2800);
 
-    const res = await endShift(DRAWER - 2800);
+    const res = await endShift(DRAWER);
 
     const breakdown = res.body.calculationBreakdown;
-    expect(breakdown.openingHandoverOffset).toBe(HANDOVER); // capped at the gap
-    expect(breakdown.systemExpectedCash).toBe(DRAWER - 2800);
-    expect(res.body.shortage).toBe(0);
+    expect(breakdown.transfersOut).toBe(HANDOVER + 2800);
+    expect(breakdown.systemExpectedCash).toBe(DRAWER);
+    expect(res.body.shortage).toBe(0); // was −2,800 under the capped offset
   });
 
-  test("with no handover, a mid-shift transfer comes off in full", async () => {
+  test("a transfer with no handover at all leaves the drawer alone", async () => {
+    // The dangerous case after POST /shifts/start stopped posting the opening
+    // withdrawal: the float now defaults to the full previous count, so the
+    // reconstructed handover is 0 and the old offset would have absorbed
+    // nothing — the whole transfer would have landed on the cashier.
     seedStore(openShiftRow({ startCash: FLOAT }), { treasuryBalance: FLOAT });
-    addPreviousShift(FLOAT); // the cashier carried the whole count forward
+    addPreviousShift(FLOAT); // carried the whole count forward
     ringCashSale(SALES);
-    addTransferOut(5000);
+    addTransferOut(40000); // manager empties the safe to head office
 
-    const res = await endShift(DRAWER - 5000);
+    const res = await endShift(DRAWER);
 
     const breakdown = res.body.calculationBreakdown;
     expect(breakdown.openingHandover).toBe(0);
-    expect(breakdown.openingHandoverOffset).toBe(0);
-    expect(breakdown.systemExpectedCash).toBe(DRAWER - 5000);
-    expect(res.body.shortage).toBe(0);
+    expect(breakdown.transfersOut).toBe(40000);
+    expect(breakdown.systemExpectedCash).toBe(DRAWER);
+    expect(res.body.shortage).toBe(0); // would have been −40,000
   });
 
-  test("reads the gap from the shift's own SHIFT_OPENING posting when there is one", async () => {
-    // A shift opened after POST /shifts/start began reconciling the float
-    // carries its own record of the drop, so nothing has to be reconstructed
-    // from the previous shift.
+  test("a transfer INTO the safe is not drawer cash either", async () => {
     seedStore(openShiftRow({ startCash: FLOAT }), { treasuryBalance: FLOAT });
-    mockStore.withdrawals.push({
-      id: mockStore.nextMovementId++,
-      shiftId: SHIFT_ID,
-      source: "SHIFT_OPENING",
-      cycle: 0,
-      amount: HANDOVER,
-      treasuryId: TREASURY_ID,
-      createdAt: new Date(),
-    });
+    addPreviousShift(FLOAT);
     ringCashSale(SALES);
-    addTransferOut(HANDOVER);
+    addTransferIn(9000); // head office tops the branch safe up
 
     const res = await endShift(DRAWER);
 
     const breakdown = res.body.calculationBreakdown;
-    expect(breakdown.openingHandover).toBe(HANDOVER);
-    expect(breakdown.openingHandoverOffset).toBe(HANDOVER);
-    // SHIFT_OPENING is not MANUAL, so it must not land in manualWithdrawals
-    // either — that would be the same money off the drawer for a third time.
-    expect(breakdown.manualWithdrawals).toBe(0);
+    expect(breakdown.transfersIn).toBe(9000);
     expect(breakdown.systemExpectedCash).toBe(DRAWER);
+    expect(res.body.shortage).toBe(0); // was +9,000
   });
 
-  test("an unregistered handover credits nothing back", async () => {
-    // The gap is an allowance for outflows, never a movement of its own: with no
-    // transfer to absorb, expected must be exactly startCash + cash sales.
+  test("the opening handover is reported but never credited back", async () => {
+    // Informational only: startCash is a physical count, so cash handed to the
+    // safe at the boundary is already outside `expected` by construction.
     openAfterHandover();
 
     const res = await endShift(DRAWER);
 
     const breakdown = res.body.calculationBreakdown;
     expect(breakdown.openingHandover).toBe(HANDOVER);
-    expect(breakdown.openingHandoverOffset).toBe(0);
     expect(breakdown.systemExpectedCash).toBe(DRAWER);
+    expect(res.body.shortage).toBe(0);
+  });
+
+  test("what the cashier pays out of the register still comes off", async () => {
+    // The other half of the rule: safe movements are excluded, drawer movements
+    // must survive. A formula that dropped these would hide real shortages.
+    openAfterHandover();
+    addTransferOut(HANDOVER);
+    addCashExpense(600);
+
+    const res = await endShift(DRAWER - 600);
+
+    const breakdown = res.body.calculationBreakdown;
+    expect(breakdown.cashExpenses).toBe(600);
+    expect(breakdown.systemExpectedCash).toBe(DRAWER - 600);
     expect(res.body.shortage).toBe(0);
   });
 });

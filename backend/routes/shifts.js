@@ -188,27 +188,47 @@ async function determineShiftType() {
 }
 
 /**
- * Helper: Calculate system expected cash for a shift.
+ * Helper: Calculate the cash that should be IN THE DRAWER at the end of a shift.
  *
- * The branch treasury IS the drawer, so the governing rule is: every movement
- * that touches the branch's cash treasury during the shift must appear here, and
- * nothing else may. Two failure modes to keep in mind when editing:
+ * The drawer, not the branch treasury. A branch holds cash in two places and only
+ * one of them has an account:
  *
- *   MISSING a movement  → phantom shortage (the cashier is blamed for cash that
- *                         left legitimately).
- *   DOUBLE-COUNTING one → phantom overage. This is why deposits/withdrawals are
- *                         filtered to source=MANUAL: a driver settlement already
- *                         arrives via the sale's codDelivered term, and a driver
- *                         dues payout via the DUES_PAYOUT ledger below. Counting
- *                         their Deposit/Withdrawal rows too would double them.
+ *     الدرج (drawer)  ──at handover──►  خزنة الفرع (branch safe)  ──►  الإدارة
+ *
+ * `Branch.treasuryId` is @unique and it is the SAFE. So the governing rule is NOT
+ * "every movement on the branch treasury appears here" — that was the rule this
+ * function was written to, and it is what made a manager's routine safe → HQ
+ * transfer print as the cashier's shortage.
+ *
+ * The rule is: a movement belongs here only if the CASHIER physically took the
+ * money out of, or put it into, the register during the shift.
+ *
+ *   IN   startCash, cash sales, COD returned at driver settlement (net of the
+ *        driver's share).
+ *   OUT  cash expenses (petty cash paid at the register), employee advances,
+ *        driver InstaPay dues paid out of the drawer.
+ *   NOT  anything that moves the safe: cash transfers either way, manual
+ *        deposits/withdrawals, payroll, supplier payments. Measured and
+ *        reported, never subtracted — see the block below.
+ *
+ * Two failure modes to keep in mind when editing:
+ *
+ *   MISSING a drawer movement → phantom shortage (the cashier is blamed for cash
+ *                               that left legitimately).
+ *   DOUBLE-COUNTING one       → phantom overage. This is why deposits and
+ *                               withdrawals are filtered to source=MANUAL: a
+ *                               driver settlement already arrives via the sale's
+ *                               codDelivered term and a dues payout via the
+ *                               DUES_PAYOUT ledger, so counting their rows too
+ *                               would double them.
  *
  * Movements the system generates for itself are attributed by shiftId; movements
  * a human records are attributed by branch treasury + time window, because those
  * tables carry no shift link (see the CashMovementSource note in schema.prisma).
  *
- * This figure drives the reported `shortage` only. It does NOT drive the treasury
- * posting — that follows `treasuryVariance`, a delta against the live balance —
- * so a gap here can mis-state accountability but can never corrupt the treasury.
+ * This figure drives the reported `shortage`, and nothing else. No part of the
+ * shift lifecycle posts to a treasury any more, so an error here can mis-state
+ * accountability but can never move money.
  */
 async function calculateSystemExpectedCash(shiftId) {
   const shift = await prisma.shift.findUnique({
@@ -334,9 +354,32 @@ async function calculateSystemExpectedCash(shiftId) {
     expected -= pilotSettlementDifference;
   }
 
-  // Remaining branch-treasury movements. Each of these debits or credits the
-  // drawer for real, and none was folded in before — every one of them surfaced
-  // as a phantom shortage/overage the cashier had to explain.
+  // Branch-SAFE movements. Measured and reported so a variance can be traced to
+  // one, but deliberately NOT folded into the drawer.
+  //
+  // `branchTreasuryId` is the branch SAFE (خزنة الفرع), a second container the
+  // cashier never opens. Cash reaches it from the drawer at handover and leaves
+  // it days later for HQ, for suppliers, for payroll — long after the shift that
+  // earned it closed. Treating a movement out of the safe as a movement out of
+  // the drawer is the same category error that made POST /shifts/start book the
+  // handover as a withdrawal.
+  //
+  // `transfersOut` is the one that made it dangerous. Production registers about
+  // one safe → HQ transfer per branch per day, 5,850–23,650 each; every one of
+  // them came off that shift's expected drawer and printed as the cashier's
+  // shortage. Shift #210 is the case on file: a 17,200 transfer turned a 0.50
+  // shortage into a 17,199.50 overage.
+  //
+  // `openingHandover` used to cancel exactly that, capped at the handover. The
+  // cap was the flaw — a transfer LARGER than the handover is not drawer cash
+  // for the excess, it is earlier shifts' takings that were sitting in the safe.
+  // With the term gone there is nothing left to cancel, so the handover is now
+  // reported as plain information.
+  //
+  // Kept in `expected` above, and not part of this block: cash expenses (24 rows
+  // in production, every one manually recorded petty cash out of the register),
+  // employee advances and driver dues. Those are paid from the drawer by the
+  // cashier, during the shift.
   let manualDeposits = 0;
   let manualWithdrawals = 0;
   let transfersOut = 0;
@@ -344,7 +387,6 @@ async function calculateSystemExpectedCash(shiftId) {
   let payrollPaid = 0;
   let supplierPayments = 0;
   let openingHandover = 0;
-  let openingHandoverOffset = 0;
 
   if (branchTreasuryId && windowStart) {
     const window = { gte: windowStart, lte: windowEnd };
@@ -403,35 +445,20 @@ async function calculateSystemExpectedCash(shiftId) {
     payrollPaid = Number(payrollAgg._sum.netSalary || 0);
     supplierPayments = Number(supplierAgg._sum.amount || 0);
 
-    // Cash handed over at the shift BOUNDARY, which startCash already excludes.
-    //
-    // startCash is a physical count of the drawer. When it opens below the
-    // treasury balance, the difference is takings collected at handover — money
-    // this shift's drawer never held. Managers then register that same handover
-    // as a CashTransfer to the main treasury minutes or hours INTO the new
-    // shift, which lands it inside this window and makes `transfersOut` subtract
-    // it a SECOND time:
-    //
-    //   shift #210: 2375 + 14145.50 − 1000 − 17200 = −1679.50 expected,
-    //   reporting a 0.50 shortage as a 17,199.50 overage. Shift #212 the same
-    //   night: 5850 collected, 5858.10 phantom overage.
-    //
-    // So transfers out consume the opening gap before they reduce the drawer.
-    // Capped, never netted below zero: a transfer LARGER than the gap moved real
-    // drawer cash for the excess, and that excess still has to come off.
+    // Cash handed to the safe at the shift BOUNDARY, which startCash already
+    // excludes. Informational: startCash is a physical count of the drawer, so
+    // whatever went to the safe is already outside `expected` by construction
+    // and nothing here needs to adjust for it. Reported because "the float
+    // opened 17,200 below yesterday's count" is the first thing anyone asks
+    // when a handover is disputed.
     openingHandover = Number(openingAgg._sum.amount || 0);
     if (!openingHandover) {
       openingHandover = await reconstructOpeningHandover(shift, startCash);
     }
-    openingHandoverOffset = Math.min(transfersOut, openingHandover);
 
-    expected +=
-      manualDeposits +
-      transfersIn -
-      manualWithdrawals -
-      (transfersOut - openingHandoverOffset) -
-      payrollPaid -
-      supplierPayments;
+    // NOTHING from this block is added to `expected` — see the note above the
+    // declarations. The drawer is startCash + cash sales − what the cashier
+    // physically paid out of it.
   }
 
   const round = (n) => Math.round(n * 100) / 100;
@@ -454,11 +481,7 @@ async function calculateSystemExpectedCash(shiftId) {
     transfersIn: round(transfersIn),
     payrollPaid: round(payrollPaid),
     supplierPayments: round(supplierPayments),
-    // Reported raw alongside the offset that neutralised it, so `expected` stays
-    // reconstructable from the parts: a reader who sees transfersOut 17,200 and
-    // no offset would be back to arithmetic that does not add up.
     openingHandover: round(openingHandover),
-    openingHandoverOffset: round(openingHandoverOffset),
   };
 }
 
@@ -762,7 +785,6 @@ router.post("/end", async (req, res, next) => {
       payrollPaid,
       supplierPayments,
       openingHandover,
-      openingHandoverOffset,
     } = await calculateSystemExpectedCash(parseInt(shiftId));
     const actualCashValue = parseFloat(actualCash);
 
@@ -857,20 +879,14 @@ router.post("/end", async (req, res, next) => {
         payrollPaid,
         supplierPayments,
         openingHandover,
-        openingHandoverOffset,
         closingTreasuryBalance,
         treasuryVariance,
         priorPostedVariance,
-        // Non-zero drift means a branch-treasury movement this shift is missing
-        // from calculateSystemExpectedCash (cash transfers, payroll and supplier
-        // payments are known gaps). It cannot corrupt the treasury — the posting
-        // follows treasuryVariance — but it does inflate the reported shortage,
-        // so surface it rather than letting it look like a cashier error.
-        //
-        // priorPostedVariance re-bases the comparison: shortage spans the whole
-        // shift, treasuryVariance only what has not been posted yet, so on a
-        // shift reopened after approval the two are offset by exactly what
-        // earlier cycles already booked.
+        // Always null now: `treasuryVariance` is no longer captured, because the
+        // drawer and the branch safe are different containers and the difference
+        // between them was never a variance. Kept so a client reading the key
+        // does not break, and so shifts closed before 31/07/2026 — which do carry
+        // a stored variance — still report the drift that was computed for them.
         drift:
           treasuryVariance != null
             ? roundMoney(treasuryVariance + priorPostedVariance - shortage)
@@ -1857,9 +1873,14 @@ router.get(
         pilotSettlementDifference,
         drawerAmount,
 
-        // The non-sale branch-treasury movements that also moved the drawer.
-        // Surfaced so a variance can be traced to a transfer or a payroll run
-        // instead of reading as unexplained cashier error.
+        // Branch-SAFE movements in this shift's window. NONE of them is part of
+        // `drawerAmount` — see the note in calculateSystemExpectedCash for why a
+        // transfer out of the safe is not cash out of the drawer. Reported so a
+        // manager can see what the branch did with its money during the shift,
+        // and so a disputed figure can be traced to a specific movement.
+        //
+        // The name is now a misnomer and is kept only because renaming a payload
+        // key breaks any client reading it. Read it as `safeMovements`.
         drawerMovements: {
           manualDeposits: drawerBreakdown.manualDeposits,
           manualWithdrawals: drawerBreakdown.manualWithdrawals,
@@ -1867,11 +1888,10 @@ router.get(
           transfersIn: drawerBreakdown.transfersIn,
           payrollPaid: drawerBreakdown.payrollPaid,
           supplierPayments: drawerBreakdown.supplierPayments,
-          // How much of transfersOut was the boundary handover startCash already
-          // excludes. transfersOut − openingHandoverOffset is what actually came
-          // off the drawer; without it the printed block cannot be made to add up.
+          // How far the float opened below the previous count — what went to the
+          // safe at handover. startCash already excludes it; reported so a
+          // disputed handover can be read off the shift report.
           openingHandover: drawerBreakdown.openingHandover,
-          openingHandoverOffset: drawerBreakdown.openingHandoverOffset,
         },
 
         // Discounts applied during this shift
