@@ -1938,3 +1938,11 @@ router.get(
 );
 
 module.exports = router;
+
+// The single source of truth for "what should be in the drawer right now".
+//
+// routes/branches.js reads it to split a branch's one balance into drawer vs
+// safe. Exported rather than reimplemented there on purpose: the shift report
+// once carried its own copy of this arithmetic, the two drifted, and the report
+// started double-counting driver settlements. One implementation, many readers.
+module.exports.calculateSystemExpectedCash = calculateSystemExpectedCash;

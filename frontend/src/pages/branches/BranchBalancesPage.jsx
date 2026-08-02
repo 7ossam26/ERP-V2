@@ -32,13 +32,18 @@ const BranchBalancesPage = () => {
   const fmt = (n) =>
     Number(n).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // currentCashBalance = stock (treasury balance). cashBalance was the legacy
-  // alias that actually carried windowed sales — page label is "نقدي في الدرج"
-  // so the stock figure is what we want here.
+  // currentCashBalance = stock (treasury balance): everything the branch holds,
+  // drawer and safe together. cashBalance was the legacy alias that actually
+  // carried windowed sales.
   const totalCash = balances.reduce(
     (s, b) => s + Number(b.currentCashBalance ?? 0),
     0,
   );
+  // Only branches with an open shift can be split, so these two do not have to
+  // add up to totalCash — the gap is whatever sits in branches that are closed.
+  const totalDrawer = balances.reduce((s, b) => s + Number(b.drawerCash ?? 0), 0);
+  const totalSafe = balances.reduce((s, b) => s + Number(b.safeCash ?? 0), 0);
+  const splitKnown = balances.some((b) => b.safeCash !== null && b.safeCash !== undefined);
   const totalInstapay = balances.reduce((s, b) => s + Number(b.instapay ?? 0), 0);
   const totalVisa = balances.reduce((s, b) => s + Number(b.visa ?? 0), 0);
   // Global treasury balances are the same for every row — take from first
@@ -101,6 +106,17 @@ const BranchBalancesPage = () => {
               <p className="text-2xl font-bold text-green-800 dark:text-green-300">
                 {fmt(totalCash)} ج.م
               </p>
+              {splitKnown && (
+                <div className="flex items-center gap-3 mt-2 pt-2 border-t border-green-200 dark:border-green-800 text-xs text-green-700 dark:text-green-500">
+                  <span>
+                    الأدراج <strong className="font-bold">{fmt(totalDrawer)}</strong>
+                  </span>
+                  <span className="opacity-40">·</span>
+                  <span>
+                    الخزن <strong className="font-bold">{fmt(totalSafe)}</strong>
+                  </span>
+                </div>
+              )}
             </div>
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-800">
               <p className="text-sm text-blue-700 dark:text-blue-400 font-medium mb-1">
@@ -191,17 +207,64 @@ const BranchBalancesPage = () => {
 
               {/* Balance cards */}
               <div className="p-4 space-y-3">
-                {/* Cash */}
-                <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800">
-                  <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                    <span className="material-symbols-outlined text-lg">
-                      payments
+                {/* Cash — one balance, two containers. The header total is all
+                    the branch holds; the two rows under it say where it is, so
+                    a transfer to head office is planned against the safe and
+                    not against money sitting in a cashier's till. */}
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                      <span className="material-symbols-outlined text-lg">
+                        payments
+                      </span>
+                      <span className="text-sm font-medium">نقدي بالفرع</span>
+                    </div>
+                    <span className="font-bold text-green-800 dark:text-green-300 text-lg">
+                      {fmt(branch.currentCashBalance)} ج.م
                     </span>
-                    <span className="text-sm font-medium">نقدي في الدرج</span>
                   </div>
-                  <span className="font-bold text-green-800 dark:text-green-300 text-lg">
-                    {fmt(branch.currentCashBalance)} ج.م
-                  </span>
+
+                  {branch.safeCash !== null && branch.safeCash !== undefined ? (
+                    <div className="pt-2 border-t border-green-200 dark:border-green-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-green-700 dark:text-green-500 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">
+                            point_of_sale
+                          </span>
+                          الدرج
+                          {branch.activeShift && (
+                            <span className="opacity-60">
+                              (وردية #{branch.activeShift.id})
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-bold text-green-800 dark:text-green-300 text-sm">
+                          {fmt(branch.drawerCash)} ج.م
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-green-700 dark:text-green-500 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">
+                            savings
+                          </span>
+                          خزنة الفرع
+                        </span>
+                        <span className="font-bold text-green-800 dark:text-green-300 text-sm">
+                          {fmt(branch.safeCash)} ج.م
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-green-600 dark:text-green-500 pt-1 leading-relaxed">
+                        التحويل للإدارة من خزنة الفرع فقط
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t border-green-200 dark:border-green-800">
+                      <p className="text-[11px] text-green-600 dark:text-green-500 leading-relaxed">
+                        لا توجد وردية مفتوحة — لا يمكن تحديد ما في الدرج وما في
+                        الخزنة إلا بوردية قائمة
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Visa today */}

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission, requireSensitiveAccess } = require("../middleware/auth");
+const { calculateSystemExpectedCash } = require("./shifts");
 
 // Protect all routes with authentication
 router.use(authenticateToken);
@@ -413,6 +414,43 @@ router.get("/balances", async (req, res, next) => {
       shiftExpenseRows.map((r) => [r.shiftId, Number(r._sum.amount || 0)]),
     );
 
+    // Split the one balance into the two containers a branch really holds.
+    //
+    // Branch.treasuryId is @unique, so a branch has exactly one account and that
+    // account is the SAFE (خزنة الفرع) — transfers, purchases and supplier
+    // payments all post against it. But every cash sale credits it at sale time
+    // (routes/sales.js), while that money is physically still in the register.
+    // So the balance is drawer + safe combined, and a manager reading it as
+    // "the safe" plans a transfer against money that is in a cashier's till.
+    //
+    // The drawer half is derivable: it is exactly the figure the shift close is
+    // measured against. Whatever the balance holds beyond it is in the safe.
+    //
+    // This works because a handover happens at shift END only — the cashier
+    // counts, hands the excess to the safe, and the next shift opens on a
+    // smaller declared float. Nothing leaves the drawer mid-shift, so an open
+    // shift's drawer is its float plus takings, with nothing handed over yet.
+    //
+    // With no open shift the split is genuinely unknown: the register still
+    // holds a float for the next shift and no count says how much. Both figures
+    // are null rather than guessed.
+    const drawerByBranch = {};
+    await Promise.all(
+      Object.values(shiftByBranch).map(async (s) => {
+        try {
+          const { expected } = await calculateSystemExpectedCash(s.id);
+          drawerByBranch[s.branchId] = expected;
+        } catch (err) {
+          // A balances page must still render if one branch's drawer cannot be
+          // computed; that branch falls back to "unknown split".
+          console.error(
+            `[branches/balances] drawer calc failed for shift ${s.id}:`,
+            err.message,
+          );
+        }
+      }),
+    );
+
     const result = branches.map((branch) => {
       const cashSalesInWindow = cashMap[branch.id] || 0;
       const visa     = visaMap[branch.id] || 0;
@@ -420,20 +458,28 @@ router.get("/balances", async (req, res, next) => {
       const bulkSales = bulkMap[branch.id] || 0;
       const totalExpenses = expensesMap[branch.id] || 0;
       const operatingExpenses = operatingExpensesMap[branch.id] || 0;
-      // Stock: cash physically/logically in this branch's treasury right now.
-      // Independent of the date window — D3.
-      //
-      // Since the shift-treasury postings landed this figure also carries the
-      // opening float and every approved closing variance, so it now tracks the
-      // physical drawer rather than sitting permanently short by the float.
+      // Stock: ALL cash this branch holds right now — drawer + safe together.
+      // Independent of the date window — D3. Not "the safe" and not "the
+      // drawer"; see drawerCash/safeCash below for the split.
       const currentCashBalance = Number(branch.treasury?.balance || 0);
       const activeShift = shiftByBranch[branch.id] || null;
+      const drawerRaw = drawerByBranch[branch.id];
+      const drawerCash =
+        activeShift && drawerRaw != null
+          ? Math.round(drawerRaw * 100) / 100
+          : null;
+      const safeCash =
+        drawerCash === null
+          ? null
+          : Math.round((currentCashBalance - drawerCash) * 100) / 100;
       return {
         id: branch.id,
         name: branch.name,
         address: branch.address,
         // New, semantically clean fields:
-        currentCashBalance,    // stock — "right now" cash in branch
+        currentCashBalance,    // stock — ALL cash in branch (drawer + safe)
+        drawerCash,            // stock — in the register, null with no open shift
+        safeCash,              // stock — in the branch safe, null with no open shift
         cashSales: cashSalesInWindow, // flow — paid CASH revenue in window
         visa,                  // flow — paid VISA revenue in window
         instapay,              // flow — paid INSTAPAY revenue in window
