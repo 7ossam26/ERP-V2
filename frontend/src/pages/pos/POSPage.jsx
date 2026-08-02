@@ -802,10 +802,16 @@ const POSPage = () => {
         setPendingDeliveries(formattedWarnings);
         setIsPendingDeliveriesModalOpen(true);
 
-        // Show a toast warning as well
-        toast.warning(
+        // Show a toast warning as well.
+        //
+        // react-hot-toast has no `toast.warning` — the package exposes only
+        // success/error/loading/custom/promise. Calling it threw a TypeError
+        // here, which skipped the `return` below and dropped into the catch, so
+        // a shift that HAD ended reported "فشل إنهاء الوردية" to the cashier.
+        // A plain toast with an icon is how this library renders a warning.
+        toast(
           `تحذير: يوجد ${updatedShift.deliveryWarnings.length} طياريـن لديهم طلبات معلقة لم يتم تسويتها`,
-          { duration: 5000 },
+          { duration: 5000, icon: "⚠️" },
         );
 
         return; // Don't redirect yet
