@@ -357,24 +357,18 @@ function ARTab({ customerId }) {
   if (!data) return null;
 
   const { summary, entries } = data;
-  const hasOpening = Number(summary.totalOpening || 0) > 0;
 
   return (
     <div className="space-y-4">
-      {/* KPI cards. The opening-balance card appears only when there is one, so
-          a customer who joined clean still reads as three figures. */}
-      <div className={`grid gap-3 ${hasOpening ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3"}`}>
-        <SummaryCard label="إجمالي المبيعات" value={formatEGP(summary.totalSales ?? summary.totalDebit)} />
-        {hasOpening && (
-          <SummaryCard label="رصيد أولي (مديونية سابقة)" value={formatEGP(summary.totalOpening)} />
-        )}
-        <SummaryCard label="إجمالي المدفوع" value={formatEGP(summary.totalCredit)} tone="success" />
-        <SummaryCard
-          label="الرصيد المفتوح"
-          value={formatEGP(summary.closingBalance)}
-          tone={summary.closingBalance > 0 ? "danger" : "default"}
-        />
-      </div>
+      {/* One figure, not four. The breakdown that used to sit up here — sales,
+          opening balance, paid — is every line of the ledger below, restated;
+          four cards made the reader reconcile them against each other before
+          getting to the only number a collections call needs. */}
+      <SummaryCard
+        label="إجمالي ديون العميل"
+        value={formatEGP(summary.closingBalance)}
+        tone={summary.closingBalance > 0 ? "danger" : "success"}
+      />
 
       {/* Chronological ledger */}
       <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark overflow-hidden">
