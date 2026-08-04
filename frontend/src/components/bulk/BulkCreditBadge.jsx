@@ -11,18 +11,20 @@ export default function BulkCreditBadge({ customer }) {
 
   useEffect(() => {
     if (!customer?.id) return;
+    // Read the statement's closing balance rather than summing order.balanceDue.
+    //
+    // balanceDue lives on the order row, so a debt with no order — an opening
+    // balance carried over from before the system — is invisible to it. Four
+    // customers were showing 0 or 12,800 open while really owing 1,000 to 77,660;
+    // 70,710 EGP of exposure a salesperson could not see. The statement is the
+    // same orders-minus-payments arithmetic that backend/services/
+    // bulkCredit.service.js enforces the limit with, so the badge and the block
+    // now agree. Called with no date range, which the endpoint reads as the full
+    // history (parseDateRange defaults to new Date(0)).
     bulkService
-      .listCustomerPayments(customer.id)
-      .then(() => {})
+      .reportStatement({ customerId: customer.id })
+      .then((data) => setOpen(Number(data?.summary?.closingBalance ?? 0)))
       .catch(() => {});
-    // Derive open balance from order list (simpler — no dedicated endpoint needed)
-    bulkService.listOrders({ customerId: customer.id }).then((orders) => {
-      const activeStatuses = new Set(["CONFIRMED", "PARTIALLY_PAID", "PAID"]);
-      const openBal = orders
-        .filter((o) => activeStatuses.has(o.status))
-        .reduce((s, o) => s + Number(o.balanceDue), 0);
-      setOpen(openBal);
-    }).catch(() => {});
   }, [customer?.id]);
 
   if (!customer) return null;

@@ -332,6 +332,10 @@ const TYPE_BADGE = {
   ORDER: { label: "مبيعات", cls: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400" },
   PAYMENT: { label: "دفعة", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" },
   REFUND: { label: "مرتجع", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" },
+  // A debt carried over from before the system. Deliberately not "دفعة": it is
+  // money owed, and labelling it as a payment is what made a 64,860 balance look
+  // like it came from nowhere.
+  OPENING: { label: "رصيد أولي", cls: "bg-slate-200 text-slate-700 dark:bg-slate-700/40 dark:text-slate-300" },
 };
 
 function ARTab({ customerId }) {
@@ -353,12 +357,17 @@ function ARTab({ customerId }) {
   if (!data) return null;
 
   const { summary, entries } = data;
+  const hasOpening = Number(summary.totalOpening || 0) > 0;
 
   return (
     <div className="space-y-4">
-      {/* KPI cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <SummaryCard label="إجمالي المبيعات" value={formatEGP(summary.totalDebit)} />
+      {/* KPI cards. The opening-balance card appears only when there is one, so
+          a customer who joined clean still reads as three figures. */}
+      <div className={`grid gap-3 ${hasOpening ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3"}`}>
+        <SummaryCard label="إجمالي المبيعات" value={formatEGP(summary.totalSales ?? summary.totalDebit)} />
+        {hasOpening && (
+          <SummaryCard label="رصيد أولي (مديونية سابقة)" value={formatEGP(summary.totalOpening)} />
+        )}
         <SummaryCard label="إجمالي المدفوع" value={formatEGP(summary.totalCredit)} tone="success" />
         <SummaryCard
           label="الرصيد المفتوح"
@@ -409,11 +418,15 @@ function ARTab({ customerId }) {
                           <span className="text-text-light/60 dark:text-text-dark/60">{e.ref}</span>
                         )}
                       </td>
+                      {/* `!== 0`, not `> 0`. A negative amount used to fail the
+                          greater-than test and print "—" in BOTH columns while
+                          the running balance still moved by it. Anything that
+                          changes the balance must be visible in a column. */}
                       <td className="p-2 text-left ltr-numbers font-medium text-red-600 dark:text-red-400">
-                        {e.debit > 0 ? formatEGP(e.debit) : "—"}
+                        {e.debit !== 0 ? formatEGP(e.debit) : "—"}
                       </td>
                       <td className="p-2 text-left ltr-numbers font-medium text-emerald-600 dark:text-emerald-400">
-                        {e.credit > 0 ? formatEGP(e.credit) : "—"}
+                        {e.credit !== 0 ? formatEGP(e.credit) : "—"}
                       </td>
                       <td className={`p-2 text-left ltr-numbers font-bold ${e.balance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
                         {formatEGP(e.balance)}

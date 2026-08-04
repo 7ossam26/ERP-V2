@@ -261,7 +261,29 @@ async function statement(req, res, next) {
       });
     }
 
+    // An opening balance — a debt the customer already carried before the system
+    // existed — is stored as a BulkPayment with orderId = null and a NEGATIVE
+    // amount. That is how services/bulkPayments.service.js writes one
+    // (createOldDebtPayment) and how it identifies one for deletion, so the same
+    // two conditions are the test here.
+    //
+    // It is a DEBIT. Filing it under `credit` because it lives in the payments
+    // table produced a statement that read "إجمالي المدفوع −54,600" for a
+    // customer who had paid 10,260, and left the row showing "—" in both money
+    // columns while the running balance still jumped 64,860 — money appearing
+    // from nowhere, on the one screen that has to be believable.
     for (const p of payments) {
+      if (p.orderId === null && Number(p.amount) < 0) {
+        entries.push({
+          date: p.receivedAt,
+          type: "OPENING",
+          ref: `PAY-${p.id}`,
+          description: "رصيد أولي — مديونية سابقة",
+          debit: round2(Math.abs(Number(p.amount))),
+          credit: 0,
+        });
+        continue;
+      }
       entries.push({
         date: p.receivedAt,
         type: "PAYMENT",
@@ -292,7 +314,19 @@ async function statement(req, res, next) {
       e.balance = balance;
     }
 
-    const totalDebit = round2(entries.reduce((s, e) => s + e.debit, 0));
+    // Split so every figure can be labelled honestly. `totalDebit` stays the sum
+    // of the مدين column, so the table footer still adds up; the cards read
+    // totalSales and totalOpening separately, because "إجمالي المبيعات" must not
+    // include a debt that predates the first order. closingBalance is unchanged
+    // in value — moving the opening balance from credit to debit flips its sign
+    // on both sides of the subtraction.
+    const totalSales = round2(
+      entries.filter((e) => e.type === "ORDER").reduce((s, e) => s + e.debit, 0),
+    );
+    const totalOpening = round2(
+      entries.filter((e) => e.type === "OPENING").reduce((s, e) => s + e.debit, 0),
+    );
+    const totalDebit = round2(totalSales + totalOpening);
     const totalCredit = round2(entries.reduce((s, e) => s + e.credit, 0));
 
     res.json({
@@ -303,6 +337,8 @@ async function statement(req, res, next) {
       period: { from: start.toISOString(), to: end.toISOString() },
       entries,
       summary: {
+        totalSales,
+        totalOpening,
         totalDebit,
         totalCredit,
         closingBalance: round2(totalDebit - totalCredit),
