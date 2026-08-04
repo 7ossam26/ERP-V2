@@ -360,15 +360,23 @@ function ARTab({ customerId }) {
 
   return (
     <div className="space-y-4">
-      {/* One figure, not four. The breakdown that used to sit up here — sales,
-          opening balance, paid — is every line of the ledger below, restated;
-          four cards made the reader reconcile them against each other before
-          getting to the only number a collections call needs. */}
-      <SummaryCard
-        label="إجمالي ديون العميل"
-        value={formatEGP(summary.closingBalance)}
-        tone={summary.closingBalance > 0 ? "danger" : "success"}
-      />
+      {/* Two figures: everything the customer has been charged, and what is
+          still outstanding. The paid total is the difference between them, and
+          the ledger below states it line by line, so a third card would only
+          make the reader reconcile them against each other.
+
+          totalDebit, not totalSales — an opening balance is money owed just
+          like an invoice, and this card is deliberately the sum of both. It is
+          therefore NOT a revenue figure: summing it across customers would
+          count debts carried in from before the system as sales. */}
+      <div className="grid grid-cols-2 gap-3">
+        <SummaryCard label="إجمالي المبيعات" value={formatEGP(summary.totalDebit)} />
+        <SummaryCard
+          label="إجمالي ديون العميل"
+          value={formatEGP(summary.closingBalance)}
+          tone={summary.closingBalance > 0 ? "danger" : "success"}
+        />
+      </div>
 
       {/* Chronological ledger */}
       <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft dark:shadow-soft-dark overflow-hidden">
