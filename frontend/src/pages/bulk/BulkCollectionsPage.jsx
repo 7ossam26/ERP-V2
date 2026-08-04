@@ -489,6 +489,7 @@ function PendingOrdersTab({ orders }) {
           <tr>
             <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الطلب</th>
             <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
+            <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">المخزن</th>
             <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الإجمالي</th>
             <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">المتبقي</th>
             <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الحالة</th>
@@ -503,6 +504,19 @@ function PendingOrdersTab({ orders }) {
               </td>
               <td className="p-3 ltr-numbers text-text-light/70 dark:text-text-dark/70">
                 {new Date(o.createdAt).toLocaleDateString("ar-EG")}
+              </td>
+              {/* The stock left this warehouse. It is fixed at confirm time from
+                  the operator's branch, so it says where the goods physically
+                  went out from — not where the customer is. */}
+              <td className="p-3">
+                {o.warehouse?.name ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/25 dark:text-indigo-300 whitespace-nowrap">
+                    <span className="material-icons-round text-[13px]">warehouse</span>
+                    {o.warehouse.name}
+                  </span>
+                ) : (
+                  <span className="text-text-light/30 dark:text-text-dark/30 text-xs">—</span>
+                )}
               </td>
               <td className="p-3 text-text-light dark:text-text-dark">{formatEGP(o.total)}</td>
               <td className="p-3 font-bold text-red-600 dark:text-red-400">{formatEGP(o.balanceDue)}</td>
@@ -636,8 +650,28 @@ function PaymentsTab({ payments: entries }) {
                   <td className={`p-3 text-left ltr-numbers font-bold ${Number(e.balance) > 0 ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
                     {formatEGP(e.balance)}
                   </td>
-                  <td className="p-3 text-xs text-text-light/50 dark:text-text-dark/50 max-w-[160px] truncate" title={e.notes || ""}>
-                    {e.notes || "—"}
+                  {/* Which safe took the cash comes first — it is the question
+                      asked of this column, and it is per-payment: two payments
+                      from one customer can land in different treasuries. The
+                      free-text note follows it. */}
+                  <td className="p-3 text-xs max-w-[200px]">
+                    {e.treasuryName && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/25 dark:text-teal-300 font-medium whitespace-nowrap">
+                        <span className="material-icons-round text-[13px]">savings</span>
+                        {e.treasuryName}
+                      </span>
+                    )}
+                    {e.notes && (
+                      <span
+                        className={`block text-text-light/50 dark:text-text-dark/50 truncate ${e.treasuryName ? "mt-1" : ""}`}
+                        title={e.notes}
+                      >
+                        {e.notes}
+                      </span>
+                    )}
+                    {!e.treasuryName && !e.notes && (
+                      <span className="text-text-light/30 dark:text-text-dark/30">—</span>
+                    )}
                   </td>
                 </tr>
               );

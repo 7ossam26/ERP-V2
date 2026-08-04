@@ -232,6 +232,11 @@ async function statement(req, res, next) {
           voidReason: true,
           notes: true,
           order: { select: { orderNumber: true } },
+          // Which safe the cash actually landed in. The operator picks it per
+          // payment, so two payments from the same customer can sit in different
+          // treasuries, and "where did this money go?" is otherwise unanswerable
+          // from the customer's own screen.
+          treasury: { select: { id: true, name: true } },
         },
         orderBy: { receivedAt: "asc" },
       }),
@@ -302,6 +307,8 @@ async function statement(req, res, next) {
         orderNumber: p.order?.orderNumber || null,
         notes: voided ? p.voidReason || p.notes || null : p.notes || null,
         amount: round2(Math.abs(Number(p.amount))),
+        treasuryId: p.treasury?.id || null,
+        treasuryName: p.treasury?.name || null,
       };
 
       if (p.orderId === null && Number(p.amount) < 0) {
