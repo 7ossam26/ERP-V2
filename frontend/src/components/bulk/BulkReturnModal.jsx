@@ -6,7 +6,7 @@ import { formatEGP } from "../../utils/bulkMoney";
 
 /**
  * What can still be handed back in CASH: money actually held against this order,
- * less anything already refunded in cash.
+ * less anything already refunded.
  *
  * A VOIDED payment has already been reversed on the treasury, so it is not
  * refundable — refunding it again takes the same money out twice while the stock
@@ -23,23 +23,28 @@ function cashRefundable(order) {
 }
 
 /**
- * Return a bulk order. No manager password: SALES_RETURNS is checked at the
- * route, so anyone who can open this can complete it.
+ * Return a bulk order. One method only — cash back to the customer, goods back
+ * to the warehouse they shipped from.
  *
- * The two methods are presented as cards rather than a dropdown because they do
- * different things to cash, and picking the wrong one is what this screen has
- * to prevent — a dropdown made them look like two labels for one action.
+ * إشعار دائن used to sit next to it as a second choice. It was picked once in
+ * the life of the system, by a correction script, so it was serving mainly as a
+ * wrong answer parked beside the right one. What is left is a single action, and
+ * the panel below the amount states its two consequences by name: which treasury
+ * loses the cash, and which warehouse gets the stock.
+ *
+ * No manager password: SALES_RETURNS is checked at the route, so anyone who can
+ * open this can complete it.
  */
 export default function BulkReturnModal({ order, onSuccess, onClose }) {
   const refundable = cashRefundable(order);
   const voidedTotal = (order?.payments || [])
     .filter((p) => p.voidedAt)
     .reduce((s, p) => s + Number(p.amount || 0), 0);
-  const cashBlocked = refundable <= 0;
+  const blocked = refundable <= 0;
+  const warehouseName = order?.warehouse?.name || "—";
 
   const [treasuries, setTreasuries] = useState([]);
-  const [method, setMethod] = useState("CREDIT_NOTE");
-  const [amount, setAmount] = useState(String(Number(order?.total ?? 0).toFixed(2)));
+  const [amount, setAmount] = useState(refundable > 0 ? refundable.toFixed(2) : "");
   const [treasuryId, setTreasuryId] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -55,47 +60,37 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
       .catch(() => {});
   }, []);
 
-  const pickMethod = (next) => {
-    if (next === "CASH_REFUND" && cashBlocked) return;
-    setMethod(next);
-    // Snap to what each method can actually move, so the default is never a
-    // figure the server will reject.
-    setAmount(
-      next === "CASH_REFUND"
-        ? refundable.toFixed(2)
-        : Number(order?.total ?? 0).toFixed(2),
-    );
-  };
+  const treasuryName =
+    treasuries.find((t) => String(t.id) === String(treasuryId))?.name || "—";
+  const amt = Number(amount);
+  const amtValid = Number.isFinite(amt) && amt > 0;
 
   const submit = async (e) => {
     e.preventDefault();
-    const amt = Number(amount);
-    if (!Number.isFinite(amt) || amt <= 0) {
+    if (blocked) return;
+    if (!amtValid) {
       toast.error("أدخل مبلغًا صحيحًا");
       return;
     }
-    if (method === "CASH_REFUND") {
-      if (!treasuryId) {
-        toast.error("اختر الخزينة");
-        return;
-      }
-      // Mirrors the server-side cap so the operator is stopped here, with the
-      // reason, instead of by a 400 after committing to the action.
-      if (amt > refundable + 0.005) {
-        toast.error(
-          cashBlocked
-            ? "لا يوجد مبلغ نقدي قابل للاسترداد على هذا الطلب — اختر «إشعار دائن»"
-            : `أقصى مبلغ نقدي يمكن استرداده هو ${formatEGP(refundable)}`,
-        );
-        return;
-      }
+    if (!treasuryId) {
+      toast.error("اختر الخزينة");
+      return;
+    }
+    // Mirrors the server-side cap so the operator is stopped here, with the
+    // reason, instead of by a 400 after committing to the action.
+    if (amt > refundable + 0.005) {
+      toast.error(`أقصى مبلغ يمكن استرداده هو ${formatEGP(refundable)}`);
+      return;
     }
 
     setSaving(true);
     try {
-      const body = { method, amount: amt, reason: reason.trim() || undefined };
-      if (method === "CASH_REFUND") body.treasuryId = Number(treasuryId);
-      const updated = await bulkService.returnOrder(order.id, body);
+      const updated = await bulkService.returnOrder(order.id, {
+        method: "CASH_REFUND",
+        amount: amt,
+        treasuryId: Number(treasuryId),
+        reason: reason.trim() || undefined,
+      });
       toast.success("تم إرجاع الطلب");
       onSuccess && onSuccess(updated);
     } catch (err) {
@@ -104,23 +99,6 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
       setSaving(false);
     }
   };
-
-  const METHODS = [
-    {
-      key: "CREDIT_NOTE",
-      icon: "receipt_long",
-      title: "إشعار دائن",
-      line: "البضاعة ترجع للمخزن، والمبلغ يتحسب رصيد للعميل",
-      cash: "لا تخرج أي نقدية",
-    },
-    {
-      key: "CASH_REFUND",
-      icon: "payments",
-      title: "استرداد نقدي",
-      line: "البضاعة ترجع للمخزن، والعميل يستلم فلوسه",
-      cash: cashBlocked ? "غير متاح — لا يوجد مبلغ مدفوع" : `يخرج ${formatEGP(refundable)} من الخزينة`,
-    },
-  ];
 
   return (
     <div
@@ -134,9 +112,14 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
             <span className="material-symbols-outlined text-red-600 dark:text-red-400">
               assignment_return
             </span>
-            <h2 className="text-base font-bold text-text-light dark:text-text-dark">
-              إرجاع الطلب
-            </h2>
+            <div>
+              <h2 className="text-base font-bold text-text-light dark:text-text-dark">
+                إرجاع الطلب
+              </h2>
+              <p className="text-[11px] text-text-light/50 dark:text-text-dark/50">
+                استرداد نقدي — العميل ياخد فلوسه والبضاعة ترجع المخزن
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -154,7 +137,7 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
               ["الطلب", order.orderNumber || `#${order.id}`, "text-text-light dark:text-text-dark"],
               ["الإجمالي", formatEGP(order.total), "text-text-light dark:text-text-dark"],
               [
-                "قابل للاسترداد نقدًا",
+                "قابل للاسترداد",
                 formatEGP(refundable),
                 refundable > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
               ],
@@ -169,113 +152,111 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
             ))}
           </div>
 
-          {/* The trap: the payment is voided, the treasury has already given the
-              money back, and a cash refund would take it out a second time. */}
-          {voidedTotal > 0 && cashBlocked && (
-            <div className="flex gap-2 text-xs text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
-              <span className="material-symbols-outlined text-[18px] shrink-0">warning</span>
+          {/* Nothing was ever collected on this order, or the payment was already
+              voided and the treasury has its money back. Either way there is no
+              cash to hand over, so the action is closed rather than left to fail
+              at submit. */}
+          {blocked && (
+            <div className="flex gap-2 text-xs text-red-900 dark:text-red-200 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3">
+              <span className="material-symbols-outlined text-[18px] shrink-0">block</span>
               <span>
-                الدفعة على هذا الطلب <strong>ملغاة ({formatEGP(voidedTotal)})</strong>، والإلغاء
-                رجّع الفلوس للخزينة بالفعل. الاسترداد النقدي هنا كان هيخصمها مرة تانية، فهو
-                مقفول — ارجع البضاعة بـ«إشعار دائن».
+                {voidedTotal > 0 ? (
+                  <>
+                    الدفعة على هذا الطلب <strong>ملغاة ({formatEGP(voidedTotal)})</strong>، والإلغاء
+                    رجّع الفلوس للخزينة بالفعل — مفيش مبلغ تاني يترد. الاسترداد هنا كان هيخصمها مرة
+                    تانية.
+                  </>
+                ) : (
+                  <>
+                    الطلب ده <strong>مدفعش حاجة</strong>، فمفيش فلوس ترجع للعميل. لو البضاعة اترجعت
+                    فعلًا، الغِ الطلب بدل الإرجاع.
+                  </>
+                )}
               </span>
             </div>
           )}
 
-          {/* method */}
-          <div>
-            <p className="text-sm font-medium text-text-light dark:text-text-dark mb-2">
-              طريقة الإرجاع
-            </p>
-            <div className="grid gap-2">
-              {METHODS.map((mth) => {
-                const active = method === mth.key;
-                const disabled = mth.key === "CASH_REFUND" && cashBlocked;
-                return (
-                  <button
-                    type="button"
-                    key={mth.key}
-                    onClick={() => pickMethod(mth.key)}
-                    disabled={disabled}
-                    className={`w-full text-right rounded-xl border p-3 transition-colors ${
-                      disabled
-                        ? "opacity-45 cursor-not-allowed border-border-light dark:border-border-dark"
-                        : active
-                        ? "border-primary bg-primary/5 dark:bg-primary/10"
-                        : "border-border-light dark:border-border-dark hover:bg-accent/20 dark:hover:bg-primary/5"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className={`material-symbols-outlined text-[20px] mt-0.5 ${
-                          active ? "text-primary dark:text-accent" : "text-text-light/40 dark:text-text-dark/40"
-                        }`}
-                      >
-                        {mth.icon}
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-text-light dark:text-text-dark">
-                          {mth.title}
-                        </p>
-                        <p className="text-xs text-text-light/60 dark:text-text-dark/60 mt-0.5">
-                          {mth.line}
-                        </p>
-                        <p
-                          className={`text-xs font-medium mt-1 ${
-                            mth.key === "CASH_REFUND" && !disabled
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-text-light/50 dark:text-text-dark/50"
-                          }`}
-                        >
-                          {mth.cash}
-                        </p>
-                      </div>
-                      {active && (
-                        <span className="material-symbols-outlined text-[20px] text-primary dark:text-accent">
-                          check_circle
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* amount */}
           <label className="block">
             <span className="text-sm font-medium text-text-light dark:text-text-dark">
-              مبلغ الإرجاع
+              مبلغ الاسترداد
             </span>
             <input
               type="number"
               step="0.01"
               min="0.01"
-              max={method === "CASH_REFUND" ? refundable : undefined}
-              className="mt-1 w-full rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-2.5 ltr-numbers text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+              max={refundable}
+              disabled={blocked}
+              className="mt-1 w-full rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-2.5 ltr-numbers text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
             />
           </label>
 
-          {method === "CASH_REFUND" && (
-            <label className="block">
-              <span className="text-sm font-medium text-text-light dark:text-text-dark">
-                الخزينة اللي هتخرج منها الفلوس <span className="text-red-500">*</span>
-              </span>
-              <select
-                className="mt-1 w-full rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-2.5 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
-                value={treasuryId}
-                onChange={(e) => setTreasuryId(e.target.value)}
-                required
-              >
-                <option value="">اختر خزينة...</option>
-                {treasuries.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            </label>
+          {/* treasury */}
+          <label className="block">
+            <span className="text-sm font-medium text-text-light dark:text-text-dark">
+              الخزينة اللي هتخرج منها الفلوس <span className="text-red-500">*</span>
+            </span>
+            <select
+              className="mt-1 w-full rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-2.5 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+              value={treasuryId}
+              disabled={blocked}
+              onChange={(e) => setTreasuryId(e.target.value)}
+              required
+            >
+              <option value="">اختر خزينة...</option>
+              {treasuries.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </label>
+
+          {/* The whole point of the screen: both consequences, named, before the
+              button is pressed. The warehouse is the order's own — a return can
+              never send stock somewhere else. */}
+          {!blocked && (
+            <div className="rounded-xl border border-border-light dark:border-border-dark overflow-hidden">
+              <div className="px-3 py-2 bg-accent/20 dark:bg-primary/10 border-b border-border-light dark:border-border-dark">
+                <p className="text-xs font-bold text-text-light dark:text-text-dark flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px]">info</span>
+                  اللي هيحصل لما تأكد
+                </p>
+              </div>
+              <div className="divide-y divide-border-light dark:divide-border-dark">
+                <div className="flex items-start gap-2.5 p-3">
+                  <span className="material-symbols-outlined text-[20px] text-red-600 dark:text-red-400 mt-0.5">
+                    payments
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm text-text-light dark:text-text-dark">
+                      يخرج{" "}
+                      <strong className="ltr-numbers text-red-600 dark:text-red-400">
+                        {formatEGP(amtValid ? amt : 0)}
+                      </strong>{" "}
+                      من <strong>{treasuryName}</strong>
+                    </p>
+                    <p className="text-[11px] text-text-light/50 dark:text-text-dark/50 mt-0.5">
+                      رصيد الخزينة هينقص بالمبلغ ده فورًا
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5 p-3">
+                  <span className="material-symbols-outlined text-[20px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+                    warehouse
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm text-text-light dark:text-text-dark">
+                      البضاعة ترجع لـ <strong>{warehouseName}</strong>
+                    </p>
+                    <p className="text-[11px] text-text-light/50 dark:text-text-dark/50 mt-0.5">
+                      نفس المخزن اللي خرجت منه — كل أصناف الطلب بكمياتها
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           <label className="block">
@@ -304,8 +285,8 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
           <button
             type="button"
             onClick={submit}
-            disabled={saving}
-            className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white py-2.5 text-sm font-bold disabled:opacity-60 transition-colors flex items-center justify-center gap-1.5"
+            disabled={saving || blocked}
+            className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white py-2.5 text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
           >
             <span className="material-symbols-outlined text-[18px]">assignment_return</span>
             {saving ? "جارٍ الإرجاع..." : "تأكيد الإرجاع"}

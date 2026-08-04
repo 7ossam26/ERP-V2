@@ -1,9 +1,7 @@
 // controllers/bulk/bulkRefund.controller.js
 const prisma = require("../../config/database");
-const { allocateNumber } = require("../../services/bulkNumbering.service");
 const { applyBulkOrderStockMovement } = require("../../services/bulkStock.service");
 const { writeAudit } = require("../../utils/auditLogger");
-const { verifyManagerApproval } = require("../../middleware/auth");
 
 function clientIp(req) {
   return (
@@ -36,17 +34,31 @@ exports.createReturn = async (req, res, next) => {
     if (!Number.isFinite(orderId)) return res.status(400).json({ error: "Invalid id" });
 
     const body = req.body || {};
-    const method = body.method;
-    if (!["CASH_REFUND", "CREDIT_NOTE"].includes(method)) {
-      return res.status(400).json({ error: "method must be CASH_REFUND or CREDIT_NOTE" });
+
+    // CREDIT_NOTE is no longer issuable. It was a second way to return an order
+    // that moved no cash, and in the life of the system it was used exactly once
+    // — by the script that corrected BULK-0025. Nobody on the floor ever chose
+    // it, so it sat on the screen as a wrong answer waiting to be clicked next
+    // to the right one.
+    //
+    // The enum value stays in the schema and the historical row keeps rendering;
+    // only creation is closed. A return is one thing now: the goods come back to
+    // the warehouse they left, and the cash the customer paid goes back to them.
+    const method = "CASH_REFUND";
+    if (body.method && body.method !== "CASH_REFUND") {
+      return res.status(400).json({
+        error: "METHOD_NOT_SUPPORTED",
+        message: "الإرجاع بقى استرداد نقدي فقط — إشعار الدائن اتلغى.",
+      });
     }
+
     const amount = Number(body.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: "amount must be a positive number" });
     }
-    const treasuryId = method === "CASH_REFUND" ? parseInt(body.treasuryId, 10) : null;
-    if (method === "CASH_REFUND" && (!Number.isInteger(treasuryId) || treasuryId <= 0)) {
-      return res.status(400).json({ error: "treasuryId is required for CASH_REFUND" });
+    const treasuryId = parseInt(body.treasuryId, 10);
+    if (!Number.isInteger(treasuryId) || treasuryId <= 0) {
+      return res.status(400).json({ error: "treasuryId is required" });
     }
 
     // Authorisation is the route's job now — see routes/bulk/orders.js. The
@@ -72,8 +84,8 @@ exports.createReturn = async (req, res, next) => {
         err.status = 409; throw err;
       }
 
-      // A CASH refund hands money back, so it cannot exceed the money still
-      // held against this order.
+      // A refund hands money back, so it cannot exceed the money still held
+      // against this order.
       //
       // Without this, voiding a payment and then returning the order takes the
       // same amount out of the treasury TWICE — the void reverses the credit and
@@ -82,76 +94,50 @@ exports.createReturn = async (req, res, next) => {
       // is the case: 11,800 in at 13:10, voided at 21:38, refunded at 21:41, and
       // خزينة الإدارة ended 11,800 short on a customer who never took cash back.
       //
-      // Deliberately not applied to CREDIT_NOTE: crediting a customer for goods
-      // they returned is legitimate whether or not they had paid yet, and it
-      // moves no cash.
-      if (method === "CASH_REFUND") {
-        const livePaid = order.payments
-          .filter((p) => !p.voidedAt)
-          .reduce((s, p) => s + Number(p.amount), 0);
-        const alreadyRefunded = order.refunds
-          .filter((r) => r.method === "CASH_REFUND")
-          .reduce((s, r) => s + Number(r.amount), 0);
-        const refundable = Math.round((livePaid - alreadyRefunded) * 100) / 100;
+      // This is now also what makes an unpaid credit order un-returnable: with no
+      // credit note left, refundable is 0 and there is nothing to hand back. That
+      // is a deliberate consequence of dropping CREDIT_NOTE, not an oversight.
+      const livePaid = order.payments
+        .filter((p) => !p.voidedAt)
+        .reduce((s, p) => s + Number(p.amount), 0);
+      const alreadyRefunded = order.refunds
+        .filter((r) => r.method === "CASH_REFUND")
+        .reduce((s, r) => s + Number(r.amount), 0);
+      const refundable = Math.round((livePaid - alreadyRefunded) * 100) / 100;
 
-        if (amount > refundable + 0.005) {
-          const err = new Error(
-            `Cash refund (${amount}) exceeds refundable amount (${refundable})`,
-          );
-          err.status = 400;
-          err.data = {
-            error: "REFUND_EXCEEDS_PAID",
-            requested: amount,
-            refundable,
-            livePaid,
-            alreadyRefunded,
-          };
-          err.message =
-            refundable <= 0
-              ? "لا يوجد مبلغ مدفوع قابل للاسترداد على هذا الطلب. لو الدفعة اتلغت بالفعل فالفلوس رجعت، اختر «إشعار دائن» أو ارجع البضاعة بدون استرداد نقدي."
-              : `المبلغ المسترد (${amount}) أكبر من المدفوع فعليًا على الطلب (${refundable}).`;
-          throw err;
-        }
+      if (amount > refundable + 0.005) {
+        const err = new Error(
+          `Cash refund (${amount}) exceeds refundable amount (${refundable})`,
+        );
+        err.status = 400;
+        err.data = {
+          error: "REFUND_EXCEEDS_PAID",
+          requested: amount,
+          refundable,
+          livePaid,
+          alreadyRefunded,
+        };
+        err.message =
+          refundable <= 0
+            ? "لا يوجد مبلغ مدفوع قابل للاسترداد على هذا الطلب، فمفيش فلوس ترجع للعميل. لو الدفعة اتلغت بالفعل فالفلوس رجعت خلاص."
+            : `المبلغ المسترد (${amount}) أكبر من المدفوع فعليًا على الطلب (${refundable}).`;
+        throw err;
       }
 
-      // Reverse stock back to warehouse
+      // The goods go back to the warehouse they left — applyBulkOrderStockMovement
+      // reads order.warehouseId, so it is always the shipping warehouse and never
+      // a warehouse the operator picked at return time.
       await applyBulkOrderStockMovement(tx, order, "CREDIT");
 
-      let creditNoteNumber = null;
-      if (method === "CREDIT_NOTE") {
-        creditNoteNumber = await allocateNumber(tx, "CREDIT_NOTE");
-        await tx.bulkDocument.create({
-          data: {
-            orderId,
-            type: "CREDIT_NOTE",
-            documentNumber: creditNoteNumber,
-            issuedByUserId: req.user.id,
-            snapshot: {
-              creditNoteNumber,
-              method,
-              amount,
-              reason: body.reason || null,
-              orderId,
-              orderNumber: order.orderNumber,
-              issuedAt: new Date().toISOString(),
-            },
-          },
-        });
-      }
-
-      let treasuryBefore = null;
-      let treasuryAfter  = null;
-      if (method === "CASH_REFUND" && treasuryId) {
-        treasuryBefore = await tx.treasury.findUnique({
-          where: { id: treasuryId },
-          select: { id: true, name: true, balance: true },
-        });
-        treasuryAfter = await tx.treasury.update({
-          where: { id: treasuryId },
-          data: { balance: { decrement: amount } },
-          select: { id: true, name: true, balance: true },
-        });
-      }
+      const treasuryBefore = await tx.treasury.findUnique({
+        where: { id: treasuryId },
+        select: { id: true, name: true, balance: true },
+      });
+      const treasuryAfter = await tx.treasury.update({
+        where: { id: treasuryId },
+        data: { balance: { decrement: amount } },
+        select: { id: true, name: true, balance: true },
+      });
 
       const refund = await tx.bulkRefund.create({
         data: {
@@ -160,7 +146,7 @@ exports.createReturn = async (req, res, next) => {
           amount,
           reason: (body.reason || "").trim() || null,
           treasuryId,
-          creditNoteNumber,
+          creditNoteNumber: null,
           createdByUserId: req.user.id,
         },
       });
@@ -177,7 +163,7 @@ exports.createReturn = async (req, res, next) => {
         include: orderInclude,
       });
 
-      return { updated, refund, treasuryBefore, treasuryAfter, orderBefore, creditNoteNumber };
+      return { updated, refund, treasuryBefore, treasuryAfter, orderBefore };
     });
 
     // ─── post-commit audit + log ───
@@ -203,7 +189,6 @@ exports.createReturn = async (req, res, next) => {
         status: "RETURNED",
         returnMethod: method,
         amount,
-        creditNoteNumber: result.creditNoteNumber,
         refundId: result.refund.id,
         treasuryId,
         // The person who executed it. There is no longer a separate approver —
