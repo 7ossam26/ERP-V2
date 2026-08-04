@@ -49,15 +49,10 @@ exports.createReturn = async (req, res, next) => {
       return res.status(400).json({ error: "treasuryId is required for CASH_REFUND" });
     }
 
-    // Manager approval is the gate on EXECUTING the return — the employee
-    // prepares it, a manager signs off. Brings bulk returns to parity with the
-    // sales-refund and purchase-return flows, which already required this.
-    // Throws with .status (400/401/403); errorHandler maps it.
-    const approver = await verifyManagerApproval(
-      body.managerUsername,
-      body.managerPassword,
-      "SALES_RETURNS",
-    );
+    // Authorisation is the route's job now — see routes/bulk/orders.js. The
+    // caller already holds SALES_RETURNS or they would not have got here, so
+    // re-typing a manager's password added a step without adding a check.
+    const approver = req.user;
 
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.bulkOrder.findUnique({
@@ -192,7 +187,7 @@ exports.createReturn = async (req, res, next) => {
 
     console.log(
       `[bulk-order] return #${result.updated.orderNumber} ` +
-      `by user=${actorId} approved by ${approver.username}/${approver.role} ` +
+      `by user=${actorId} (${approver.username || "?"}) ` +
       `method=${method} amount=${amount} ` +
       `status=${result.orderBefore.status}→RETURNED`,
     );
@@ -211,8 +206,10 @@ exports.createReturn = async (req, res, next) => {
         creditNoteNumber: result.creditNoteNumber,
         refundId: result.refund.id,
         treasuryId,
-        approvedByUserId: approver.id,
-        approvedByUsername: approver.username,
+        // The person who executed it. There is no longer a separate approver —
+        // holding SALES_RETURNS IS the approval, checked at the route.
+        executedByUserId: approver.id,
+        executedByUsername: approver.username,
       },
       ipAddress: ip,
     }).catch(() => {});
