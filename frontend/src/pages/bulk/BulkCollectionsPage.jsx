@@ -239,18 +239,21 @@ export default function BulkCollectionsPage() {
     if (!customerId) { setOrders([]); setPayments([]); return; }
     setDetailLoading(true);
     Promise.all([
-      bulkService.listOrders({ customerId, status: "CONFIRMED" }),
-      bulkService.listOrders({ customerId, status: "PARTIALLY_PAID" }),
+      // Every order, not just the unsettled ones. A customer who has paid
+      // everything used to open on "لا يوجد طلبات معلقة" with no way to see
+      // what they had ever bought — the collections screen has to answer
+      // "what did we sell them?" as well as "what do they still owe?".
+      // The endpoint returns newest-first and covers every status, so a
+      // cancelled or returned order shows with its own chip.
+      bulkService.listOrders({ customerId }),
       // The full statement, not just payments: a collector needs to see what the
       // customer was charged next to what they paid, in one column of dates.
       // includeInactive brings cancelled orders and voided payments back as
       // zero-value rows, so "where did that payment go?" has an answer on screen.
       bulkService.reportStatement({ customerId, includeInactive: 1 }),
     ])
-      .then(([confirmed, partial, statement]) => {
-        const combined = [...confirmed, ...partial];
-        combined.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        setOrders(combined);
+      .then(([allOrders, statement]) => {
+        setOrders(Array.isArray(allOrders) ? allOrders : []);
         setPayments(Array.isArray(statement?.entries) ? statement.entries : []);
       })
       .catch(() => toast.error("تعذر تحميل تفاصيل العميل"))
@@ -420,7 +423,7 @@ const selectedCustomer = customers.find((c) => c.id === selectedId);
               {/* Tabs */}
               <div className="flex gap-1 border-b border-border-light dark:border-border-dark">
                 {[
-                  { key: "orders",   label: `الطلبات المعلقة (${orders.length})` },
+                  { key: "orders",   label: `كل الطلبات (${orders.length})` },
                   { key: "payments", label: "سجل الدفعات" },
                 ].map((t) => (
                   <button
@@ -473,14 +476,35 @@ const selectedCustomer = customers.find((c) => c.id === selectedId);
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
+/**
+ * The statuses that actually carry credit exposure. Same three the backend
+ * enforces the credit limit with (services/bulkCredit.service.js), so this list
+ * and the figure at the top of the page cannot drift apart.
+ *
+ * It matters because CANCELLED orders keep a non-zero balanceDue — cancelling
+ * does not zero the column. كافيه البشوات has three of them totalling 8,490 and
+ * owes nothing; summing the column blindly would invent a debt.
+ */
+const OWED_STATUSES = new Set(["CONFIRMED", "PARTIALLY_PAID", "PAID"]);
+
+/** Every order this customer has, whatever its status — newest first. */
 function PendingOrdersTab({ orders }) {
   if (orders.length === 0) {
     return (
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-8 text-center text-sm text-text-light/40 dark:text-text-dark/40">
-        لا يوجد طلبات معلقة.
+        لا يوجد طلبات.
       </div>
     );
   }
+
+  const outstanding = orders.reduce(
+    (s, o) => s + (OWED_STATUSES.has(o.status) ? Number(o.balanceDue || 0) : 0),
+    0,
+  );
+  const sold = orders.reduce(
+    (s, o) => s + (OWED_STATUSES.has(o.status) ? Number(o.total || 0) : 0),
+    0,
+  );
 
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-soft dark:shadow-soft-dark overflow-hidden">
@@ -519,7 +543,22 @@ function PendingOrdersTab({ orders }) {
                 )}
               </td>
               <td className="p-3 text-text-light dark:text-text-dark">{formatEGP(o.total)}</td>
-              <td className="p-3 font-bold text-red-600 dark:text-red-400">{formatEGP(o.balanceDue)}</td>
+              {/* Cancelled orders keep whatever balanceDue they had when they
+                  were cancelled, so the raw column would read as money owed.
+                  Struck through: the figure is history, not a debt. */}
+              <td className="p-3 font-bold">
+                {OWED_STATUSES.has(o.status) ? (
+                  <span className={Number(o.balanceDue) > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}>
+                    {formatEGP(o.balanceDue)}
+                  </span>
+                ) : Number(o.balanceDue) > 0 ? (
+                  <span className="line-through text-text-light/35 dark:text-text-dark/35 font-normal">
+                    {formatEGP(o.balanceDue)}
+                  </span>
+                ) : (
+                  <span className="text-text-light/30 dark:text-text-dark/30 font-normal">—</span>
+                )}
+              </td>
               <td className="p-3"><StatusChip status={o.status} /></td>
               <td className="p-3">
                 <Link
@@ -533,6 +572,30 @@ function PendingOrdersTab({ orders }) {
             </tr>
           ))}
         </tbody>
+        <tfoot className="border-t-2 border-border-light dark:border-border-dark bg-accent/20 dark:bg-primary/10">
+          <tr>
+            <td colSpan={3} className="p-3 font-bold text-text-light dark:text-text-dark">
+              الإجمالي ({orders.length})
+              <span className="block text-[11px] font-normal text-text-light/50 dark:text-text-dark/50">
+                الملغي غير محسوب
+              </span>
+            </td>
+            <td className="p-3 font-bold text-text-light dark:text-text-dark">
+              {formatEGP(sold)}
+            </td>
+            {/* Orders only. The header's إجمالي المستحق also carries any opening
+                balance, which has no order behind it — اوبس reads 12,800 here
+                and 77,660 up there, and both are right. Say so, or the gap
+                reads as a contradiction. */}
+            <td className={`p-3 font-bold ${outstanding > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+              {formatEGP(outstanding)}
+              <span className="block text-[11px] font-normal text-text-light/50 dark:text-text-dark/50">
+                متبقي الطلبات فقط
+              </span>
+            </td>
+            <td className="p-3" colSpan={2} />
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
