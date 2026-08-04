@@ -213,6 +213,10 @@ async function statement(req, res, next) {
           createdAt: true,
           confirmedAt: true,
           notes: true,
+          // Where the stock physically left from. Fixed at confirm time from the
+          // operator's branch, so it is the origin of the goods, not the
+          // customer's location.
+          warehouse: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "asc" },
       }),
@@ -282,6 +286,8 @@ async function statement(req, res, next) {
         credit: 0,
         amount: round2(Number(o.total)),
         notes: o.notes || null,
+        warehouseId: o.warehouse?.id || null,
+        warehouseName: o.warehouse?.name || null,
       });
     }
 

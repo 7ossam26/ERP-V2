@@ -396,6 +396,7 @@ function ARTab({ customerId }) {
                   <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">مدين</th>
                   <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">دائن</th>
                   <th className="text-left p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">الرصيد</th>
+                  <th className="text-right p-2 text-text-light/80 dark:text-text-dark/70 font-semibold">المصدر</th>
                 </tr>
               </thead>
               <tbody>
@@ -433,6 +434,30 @@ function ARTab({ customerId }) {
                       <td className={`p-2 text-left ltr-numbers font-bold ${e.balance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
                         {formatEGP(e.balance)}
                       </td>
+                      {/* One column, two questions: money says which safe took
+                          it, goods say which warehouse they left. Both are
+                          chosen per row by the operator, so neither can be
+                          inferred from the customer. */}
+                      <td className="p-2 text-xs">
+                        {e.treasuryName ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/25 dark:text-teal-300 font-medium whitespace-nowrap">
+                            <span className="material-symbols-outlined text-[13px]">savings</span>
+                            {e.treasuryName}
+                          </span>
+                        ) : e.warehouseName ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/25 dark:text-indigo-300 font-medium whitespace-nowrap">
+                            <span className="material-symbols-outlined text-[13px]">warehouse</span>
+                            {e.warehouseName}
+                          </span>
+                        ) : (
+                          <span className="text-text-light/30 dark:text-text-dark/30">—</span>
+                        )}
+                        {e.notes && (
+                          <span className="block mt-1 text-text-light/50 dark:text-text-dark/50 truncate max-w-[150px]" title={e.notes}>
+                            {e.notes}
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -445,6 +470,7 @@ function ARTab({ customerId }) {
                   <td className={`p-2 text-left ltr-numbers font-bold ${summary.closingBalance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
                     {formatEGP(summary.closingBalance)}
                   </td>
+                  <td className="p-2" />
                 </tr>
               </tfoot>
             </table>
