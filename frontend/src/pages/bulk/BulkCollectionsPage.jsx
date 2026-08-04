@@ -241,13 +241,17 @@ export default function BulkCollectionsPage() {
     Promise.all([
       bulkService.listOrders({ customerId, status: "CONFIRMED" }),
       bulkService.listOrders({ customerId, status: "PARTIALLY_PAID" }),
-      bulkService.listCustomerPayments(customerId),
+      // The full statement, not just payments: a collector needs to see what the
+      // customer was charged next to what they paid, in one column of dates.
+      // includeInactive brings cancelled orders and voided payments back as
+      // zero-value rows, so "where did that payment go?" has an answer on screen.
+      bulkService.reportStatement({ customerId, includeInactive: 1 }),
     ])
-      .then(([confirmed, partial, pmts]) => {
+      .then(([confirmed, partial, statement]) => {
         const combined = [...confirmed, ...partial];
         combined.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
         setOrders(combined);
-        setPayments(Array.isArray(pmts) ? pmts : []);
+        setPayments(Array.isArray(statement?.entries) ? statement.entries : []);
       })
       .catch(() => toast.error("تعذر تحميل تفاصيل العميل"))
       .finally(() => setDetailLoading(false));
@@ -520,8 +524,19 @@ function PendingOrdersTab({ orders }) {
   );
 }
 
-function PaymentsTab({ payments }) {
-  if (payments.length === 0) {
+/**
+ * The customer's whole account, not just the money they handed over: invoices
+ * and the opening balance in مدين, payments and refunds in دائن, with the
+ * running balance beside them. Cancelled orders and voided payments are listed
+ * at zero and struck through — a collector on the phone has to be able to answer
+ * "what happened to that payment?" without leaving the screen.
+ *
+ * Rows come straight from GET /bulk/reports/statement?includeInactive=1, which
+ * is also what the credit badge and the limit check read. One arithmetic, so
+ * this table cannot disagree with the figure at the top of the page.
+ */
+function PaymentsTab({ payments: entries }) {
+  if (entries.length === 0) {
     return (
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-8 text-center text-sm text-text-light/40 dark:text-text-dark/40">
         لا يوجد حركات مالية.
@@ -529,78 +544,116 @@ function PaymentsTab({ payments }) {
     );
   }
 
+  const totalDebit  = entries.reduce((s, e) => s + Number(e.debit || 0), 0);
+  const totalCredit = entries.reduce((s, e) => s + Number(e.credit || 0), 0);
+  const closing = entries.length ? Number(entries[entries.length - 1].balance || 0) : 0;
+
+  const ENTRY_BADGE = {
+    ORDER:   TYPE_BADGE.ORDER,
+    PAYMENT: TYPE_BADGE.PAYMENT,
+    REFUND:  TYPE_BADGE.REFUND,
+    OPENING: TYPE_BADGE.OLD_DEBT,
+  };
+
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-soft dark:shadow-soft-dark overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-accent/30 dark:bg-primary/10">
             <tr>
-              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">التاريخ</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold whitespace-nowrap">التاريخ</th>
               <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">النوع</th>
               <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">طريقة الدفع</th>
-              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الطلب</th>
-              <th className="text-left p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">المبلغ</th>
+              <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">المرجع</th>
+              <th className="text-left p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">عليه (دين)</th>
+              <th className="text-left p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">له (مدفوع)</th>
+              <th className="text-left p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">الرصيد</th>
               <th className="text-right p-3 text-text-light/80 dark:text-text-dark/70 font-semibold">ملاحظات</th>
             </tr>
           </thead>
           <tbody>
-            {payments.map((p) => {
-              const isOldDebt = p.orderId == null && Number(p.amount) < 0;
-              const isVoided  = !!p.voidedAt;
-              const methodBadge = METHOD_BADGE[p.method] || METHOD_BADGE.CASH;
+            {entries.map((e, i) => {
+              const badge    = ENTRY_BADGE[e.type] || TYPE_BADGE.PAYMENT;
+              const inactive = e.status === "VOIDED" || e.status === "CANCELLED";
+              const method   = e.method ? METHOD_BADGE[e.method] : null;
               return (
                 <tr
-                  key={p.id}
+                  key={`${e.type}-${e.ref}-${i}`}
                   className={`border-t border-border-light dark:border-border-dark transition-colors ${
-                    isVoided
-                      ? "opacity-40"
-                      : isOldDebt
+                    inactive
+                      ? "opacity-45"
+                      : e.type === "OPENING"
                       ? "bg-red-50/60 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20"
                       : "hover:bg-accent/20 dark:hover:bg-primary/10"
                   }`}
                 >
                   <td className="p-3 ltr-numbers text-text-light/70 dark:text-text-dark/70 whitespace-nowrap">
-                    {new Date(p.receivedAt).toLocaleDateString("ar-EG")}
+                    {new Date(e.date).toLocaleDateString("ar-EG")}
                   </td>
-                  <td className="p-3">
-                    {isOldDebt ? (
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${TYPE_BADGE.OLD_DEBT.cls}`}>
-                        {TYPE_BADGE.OLD_DEBT.label}
-                      </span>
-                    ) : (
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${TYPE_BADGE.PAYMENT.cls}`}>
-                        {isVoided ? "ملغى" : TYPE_BADGE.PAYMENT.label}
+                  <td className="p-3 whitespace-nowrap">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${badge.cls}`}>
+                      {badge.label}
+                    </span>
+                    {inactive && (
+                      <span className="mr-1 inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        {e.status === "VOIDED" ? "ملغاة" : "ملغي"}
                       </span>
                     )}
                   </td>
                   <td className="p-3">
-                    {isOldDebt ? (
+                    {method ? (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${method.cls}`}>
+                        {method.label}
+                      </span>
+                    ) : (
                       <span className="text-text-light/30 dark:text-text-dark/30 text-xs">—</span>
-                    ) : (
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${methodBadge.cls}`}>
-                        {methodBadge.label}
-                      </span>
                     )}
                   </td>
-                  <td className="p-3">
-                    {p.order ? (
-                      <Link to={`/bulk/orders/${p.orderId}`} className="text-primary hover:text-primary-hover transition-colors font-medium text-xs">
-                        {p.order.orderNumber || `#${p.orderId}`}
+                  <td className="p-3 whitespace-nowrap">
+                    {e.orderId ? (
+                      <Link to={`/bulk/orders/${e.orderId}`} className="text-primary hover:text-primary-hover transition-colors font-medium text-xs">
+                        {e.orderNumber || e.ref}
                       </Link>
                     ) : (
-                      <span className="text-text-light/40 dark:text-text-dark/40 text-xs">—</span>
+                      <span className="text-text-light/50 dark:text-text-dark/50 text-xs">{e.ref}</span>
                     )}
                   </td>
-                  <td className={`p-3 text-left ltr-numbers font-bold ${isOldDebt ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                    {formatEGP(Math.abs(Number(p.amount)))}
+                  {/* A cancelled or voided row carries its original amount struck
+                      through: the history stays readable while the arithmetic
+                      correctly ignores it. */}
+                  <td className="p-3 text-left ltr-numbers font-bold text-red-600 dark:text-red-400">
+                    {e.debit > 0 ? formatEGP(e.debit)
+                      : inactive && e.type !== "PAYMENT" && e.amount > 0
+                      ? <span className="line-through opacity-60">{formatEGP(e.amount)}</span>
+                      : "—"}
                   </td>
-                  <td className="p-3 text-xs text-text-light/50 dark:text-text-dark/50 max-w-[160px] truncate">
-                    {p.notes || "—"}
+                  <td className="p-3 text-left ltr-numbers font-bold text-emerald-600 dark:text-emerald-400">
+                    {e.credit > 0 ? formatEGP(e.credit)
+                      : inactive && e.type === "PAYMENT" && e.amount > 0
+                      ? <span className="line-through opacity-60">{formatEGP(e.amount)}</span>
+                      : "—"}
+                  </td>
+                  <td className={`p-3 text-left ltr-numbers font-bold ${Number(e.balance) > 0 ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                    {formatEGP(e.balance)}
+                  </td>
+                  <td className="p-3 text-xs text-text-light/50 dark:text-text-dark/50 max-w-[160px] truncate" title={e.notes || ""}>
+                    {e.notes || "—"}
                   </td>
                 </tr>
               );
             })}
           </tbody>
+          <tfoot className="border-t-2 border-border-light dark:border-border-dark bg-accent/20 dark:bg-primary/10">
+            <tr>
+              <td colSpan={4} className="p-3 font-bold text-text-light dark:text-text-dark">الإجمالي</td>
+              <td className="p-3 text-left ltr-numbers font-bold text-red-600 dark:text-red-400">{formatEGP(totalDebit)}</td>
+              <td className="p-3 text-left ltr-numbers font-bold text-emerald-600 dark:text-emerald-400">{formatEGP(totalCredit)}</td>
+              <td className={`p-3 text-left ltr-numbers font-bold ${closing > 0 ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                {formatEGP(closing)}
+              </td>
+              <td className="p-3" />
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>

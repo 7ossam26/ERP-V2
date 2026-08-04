@@ -178,7 +178,7 @@ async function arAging(req, res, next) {
  */
 async function statement(req, res, next) {
   try {
-    const { customerId, from, to } = req.query;
+    const { customerId, from, to, includeInactive } = req.query;
     if (!customerId) {
       const err = new Error("customerId is required");
       err.status = 400;
@@ -186,6 +186,13 @@ async function statement(req, res, next) {
     }
     const cid = Number(customerId);
     const { start, end } = parseDateRange(from, to);
+
+    // Off by default: a statement of account shows what is owed, and a cancelled
+    // order or a voided payment moves nothing. The collections screen asks for
+    // them because a collector on the phone needs to answer "what happened to
+    // that payment?" — they come back as zero-value rows carrying a `status`, so
+    // they are visible without touching the running balance.
+    const withInactive = includeInactive === "1" || includeInactive === "true";
 
     const [customer, orders, payments, refunds] = await Promise.all([
       prisma.bulkCustomer.findUnique({
@@ -195,7 +202,7 @@ async function statement(req, res, next) {
       prisma.bulkOrder.findMany({
         where: {
           customerId: cid,
-          status: { notIn: ["CANCELLED"] },
+          ...(withInactive ? {} : { status: { notIn: ["CANCELLED"] } }),
           createdAt: { gte: start, lte: end },
         },
         select: {
@@ -205,13 +212,14 @@ async function statement(req, res, next) {
           total: true,
           createdAt: true,
           confirmedAt: true,
+          notes: true,
         },
         orderBy: { createdAt: "asc" },
       }),
       prisma.bulkPayment.findMany({
         where: {
           customerId: cid,
-          voidedAt: null,
+          ...(withInactive ? {} : { voidedAt: null }),
           receivedAt: { gte: start, lte: end },
         },
         select: {
@@ -220,6 +228,10 @@ async function statement(req, res, next) {
           method: true,
           amount: true,
           receivedAt: true,
+          voidedAt: true,
+          voidReason: true,
+          notes: true,
+          order: { select: { orderNumber: true } },
         },
         orderBy: { receivedAt: "asc" },
       }),
@@ -250,14 +262,21 @@ async function statement(req, res, next) {
     const entries = [];
 
     for (const o of orders) {
+      const cancelled = o.status === "CANCELLED";
       entries.push({
         date: o.createdAt,
         type: "ORDER",
+        status: cancelled ? "CANCELLED" : "ACTIVE",
         orderId: o.id,
+        orderNumber: o.orderNumber || null,
         ref: o.orderNumber || `#${o.id}`,
         description: `طلب ${o.orderNumber || o.id} — ${o.status}`,
-        debit: round2(Number(o.total)),
+        // A cancelled order was never owed. It is listed so the history is
+        // complete, at zero, so it cannot move the balance.
+        debit: cancelled ? 0 : round2(Number(o.total)),
         credit: 0,
+        amount: round2(Number(o.total)),
+        notes: o.notes || null,
       });
     }
 
@@ -273,24 +292,36 @@ async function statement(req, res, next) {
     // columns while the running balance still jumped 64,860 — money appearing
     // from nowhere, on the one screen that has to be believable.
     for (const p of payments) {
+      const voided = !!p.voidedAt;
+      const shared = {
+        date: p.receivedAt,
+        ref: `PAY-${p.id}`,
+        status: voided ? "VOIDED" : "ACTIVE",
+        method: p.method,
+        orderId: p.orderId,
+        orderNumber: p.order?.orderNumber || null,
+        notes: voided ? p.voidReason || p.notes || null : p.notes || null,
+        amount: round2(Math.abs(Number(p.amount))),
+      };
+
       if (p.orderId === null && Number(p.amount) < 0) {
         entries.push({
-          date: p.receivedAt,
+          ...shared,
           type: "OPENING",
-          ref: `PAY-${p.id}`,
           description: "رصيد أولي — مديونية سابقة",
-          debit: round2(Math.abs(Number(p.amount))),
+          debit: voided ? 0 : round2(Math.abs(Number(p.amount))),
           credit: 0,
         });
         continue;
       }
       entries.push({
-        date: p.receivedAt,
+        ...shared,
         type: "PAYMENT",
-        ref: `PAY-${p.id}`,
         description: `دفعة — ${p.method}`,
         debit: 0,
-        credit: round2(Number(p.amount)),
+        // A voided payment was reversed on the treasury too; it belongs in the
+        // history but not in the arithmetic.
+        credit: voided ? 0 : round2(Number(p.amount)),
       });
     }
 
@@ -298,10 +329,16 @@ async function statement(req, res, next) {
       entries.push({
         date: r.createdAt,
         type: "REFUND",
+        status: "ACTIVE",
         ref: r.creditNoteNumber || `REF-${r.id}`,
+        orderId: r.orderId,
+        orderNumber: null,
+        method: r.method,
+        notes: null,
         description: `مرتجع — ${r.method}`,
         debit: 0,
         credit: round2(Number(r.amount)),
+        amount: round2(Number(r.amount)),
       });
     }
 
