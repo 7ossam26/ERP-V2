@@ -1,16 +1,19 @@
 // services/bulkNumbering.service.js
 // Atomic counter allocation for Bulk POS document numbers (orders, receipts,
-// tax invoices, credit notes). Uses MySQL row-level locking via SELECT ... FOR
-// UPDATE so concurrent confirm transactions cannot collide on the same number.
-
-const VALID_KEYS = new Set(["ORDER", "SALES_RECEIPT", "TAX_INVOICE", "CREDIT_NOTE", "PROFORMA"]);
+// tax invoices). Uses MySQL row-level locking via SELECT ... FOR UPDATE so
+// concurrent confirm transactions cannot collide on the same number.
+//
+// CREDIT_NOTE was a key here until إشعار دائن was removed. It never issued a
+// number in production — the counter row sat at 1 — so it is dropped rather
+// than kept as a sequence nothing can ask for.
+const VALID_KEYS = new Set(["ORDER", "SALES_RECEIPT", "TAX_INVOICE", "PROFORMA"]);
 
 /**
  * Allocate the next number in a sequence inside an existing Prisma transaction.
  * Returns a formatted string like "BULK-0007".
  *
  * @param {object} tx Prisma transaction client
- * @param {'ORDER'|'SALES_RECEIPT'|'TAX_INVOICE'|'CREDIT_NOTE'|'PROFORMA'} key
+ * @param {'ORDER'|'SALES_RECEIPT'|'TAX_INVOICE'|'PROFORMA'} key
  * @param {{ pad?: number }} [opts] zero-pad width (default 4)
  * @returns {Promise<string>}
  */

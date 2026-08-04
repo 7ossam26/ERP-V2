@@ -126,7 +126,6 @@ const DOC_TITLES = {
   SALES_RECEIPT: "إيصال بيع",
   TAX_INVOICE: "فاتورة ضريبية",
   PROFORMA: "عرض سعر",
-  CREDIT_NOTE: "إشعار دائن",
 };
 
 export function formatBulkInvoiceMoney(value) {

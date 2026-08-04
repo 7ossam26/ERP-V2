@@ -35,15 +35,12 @@ exports.createReturn = async (req, res, next) => {
 
     const body = req.body || {};
 
-    // CREDIT_NOTE is no longer issuable. It was a second way to return an order
-    // that moved no cash, and in the life of the system it was used exactly once
-    // — by the script that corrected BULK-0025. Nobody on the floor ever chose
-    // it, so it sat on the screen as a wrong answer waiting to be clicked next
-    // to the right one.
-    //
-    // The enum value stays in the schema and the historical row keeps rendering;
-    // only creation is closed. A return is one thing now: the goods come back to
-    // the warehouse they left, and the cash the customer paid goes back to them.
+    // إشعار دائن is gone. It was a second way to return an order that moved no
+    // cash, and in the life of the system it was used exactly once — by the
+    // script that corrected BULK-0025. Nobody on the floor ever chose it, so it
+    // sat on the screen as a wrong answer waiting to be clicked next to the
+    // right one. A return is one thing now: the goods go back to the warehouse
+    // they left, and the cash the customer paid goes back to them.
     const method = "CASH_REFUND";
     if (body.method && body.method !== "CASH_REFUND") {
       return res.status(400).json({
@@ -52,10 +49,9 @@ exports.createReturn = async (req, res, next) => {
       });
     }
 
-    const amount = Number(body.amount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return res.status(400).json({ error: "amount must be a positive number" });
-    }
+    // NOTE: body.amount is deliberately ignored. The refund is always the whole
+    // refundable balance, computed below from the order's own rows. See the
+    // comment at the computation for why a partial figure was never coherent.
     const treasuryId = parseInt(body.treasuryId, 10);
     if (!Number.isInteger(treasuryId) || treasuryId <= 0) {
       return res.status(400).json({ error: "treasuryId is required" });
@@ -84,43 +80,41 @@ exports.createReturn = async (req, res, next) => {
         err.status = 409; throw err;
       }
 
-      // A refund hands money back, so it cannot exceed the money still held
-      // against this order.
+      // THE AMOUNT IS NOT AN INPUT.
       //
-      // Without this, voiding a payment and then returning the order takes the
-      // same amount out of the treasury TWICE — the void reverses the credit and
-      // the refund pays it out again — while the stock comes back only once,
-      // because voidPayment does not touch inventory. BULK-0025 (حراز, 03/08/2026)
-      // is the case: 11,800 in at 13:10, voided at 21:38, refunded at 21:41, and
-      // خزينة الإدارة ended 11,800 short on a customer who never took cash back.
+      // A return sends back every line of the order at its full quantity —
+      // applyBulkOrderStockMovement has no partial mode — and closes the order at
+      // balanceDue 0. A hand-typed amount could never be consistent with that:
+      // type less than was paid and the customer is silently short-changed while
+      // the books say the order is settled; type more and the treasury pays out
+      // money it never took in. There is exactly one correct figure, so the
+      // server computes it and the client only displays it.
       //
-      // This is now also what makes an unpaid credit order un-returnable: with no
-      // credit note left, refundable is 0 and there is nothing to hand back. That
-      // is a deliberate consequence of dropping CREDIT_NOTE, not an oversight.
+      // That figure is the money still held against this order. A VOIDED payment
+      // has already been reversed on the treasury, so it does not count. Without
+      // that exclusion, voiding a payment and then returning the order takes the
+      // same amount out TWICE — the void reverses the credit and the refund pays
+      // it out again — while the stock comes back once, because voidPayment does
+      // not touch inventory. BULK-0025 (حراز, 03/08/2026) is the case: 11,800 in
+      // at 13:10, voided at 21:38, refunded at 21:41, and خزينة الإدارة ended
+      // 11,800 short on a customer who never took cash back.
       const livePaid = order.payments
         .filter((p) => !p.voidedAt)
         .reduce((s, p) => s + Number(p.amount), 0);
       const alreadyRefunded = order.refunds
         .filter((r) => r.method === "CASH_REFUND")
         .reduce((s, r) => s + Number(r.amount), 0);
-      const refundable = Math.round((livePaid - alreadyRefunded) * 100) / 100;
+      const amount = Math.round((livePaid - alreadyRefunded) * 100) / 100;
 
-      if (amount > refundable + 0.005) {
-        const err = new Error(
-          `Cash refund (${amount}) exceeds refundable amount (${refundable})`,
-        );
+      // Nothing left to hand back. With إشعار دائن gone this is also what makes
+      // an unpaid credit order un-returnable — a deliberate consequence of the
+      // removal, not an oversight.
+      if (amount <= 0) {
+        const err = new Error(`Nothing refundable on order ${orderId}`);
         err.status = 400;
-        err.data = {
-          error: "REFUND_EXCEEDS_PAID",
-          requested: amount,
-          refundable,
-          livePaid,
-          alreadyRefunded,
-        };
+        err.data = { error: "NOTHING_REFUNDABLE", livePaid, alreadyRefunded };
         err.message =
-          refundable <= 0
-            ? "لا يوجد مبلغ مدفوع قابل للاسترداد على هذا الطلب، فمفيش فلوس ترجع للعميل. لو الدفعة اتلغت بالفعل فالفلوس رجعت خلاص."
-            : `المبلغ المسترد (${amount}) أكبر من المدفوع فعليًا على الطلب (${refundable}).`;
+          "لا يوجد مبلغ مدفوع قابل للاسترداد على هذا الطلب، فمفيش فلوس ترجع للعميل. لو الدفعة اتلغت بالفعل فالفلوس رجعت خلاص.";
         throw err;
       }
 
@@ -163,13 +157,16 @@ exports.createReturn = async (req, res, next) => {
         include: orderInclude,
       });
 
-      return { updated, refund, treasuryBefore, treasuryAfter, orderBefore };
+      return { updated, refund, treasuryBefore, treasuryAfter, orderBefore, amount };
     });
 
     // ─── post-commit audit + log ───
     const ip = clientIp(req);
     const actorId = req.user?.id ?? null;
     const branchId = req.user?.branch?.id ?? req.user?.branchId ?? null;
+    // Computed inside the transaction from the order's own rows, never from the
+    // request body.
+    const amount = result.amount;
 
     console.log(
       `[bulk-order] return #${result.updated.orderNumber} ` +
@@ -211,7 +208,6 @@ exports.createReturn = async (req, res, next) => {
         method: result.refund.method,
         amount: Number(result.refund.amount),
         treasuryId: result.refund.treasuryId,
-        creditNoteNumber: result.refund.creditNoteNumber,
         reason: result.refund.reason,
       },
       ipAddress: ip,

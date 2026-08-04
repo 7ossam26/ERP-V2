@@ -31,7 +31,10 @@ const METHOD_LABELS = {
   CHEQUE: "شيك",
   CREDIT: "آجل",
   CASH_REFUND: "استرداد نقدي",
-  CREDIT_NOTE: "إشعار دائن",
+  // Not offered anywhere any more. One production row from before the removal
+  // still carries it — REF-1, the correction of BULK-0025 — so it keeps a label
+  // that describes what that row is rather than advertising a method.
+  CREDIT_NOTE: "إرجاع بدون نقدية (تصحيح)",
 };
 
 // ─── shared filter ────────────────────────────────────────────────────────────

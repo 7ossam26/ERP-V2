@@ -27,7 +27,6 @@ const DOC_TYPE_LABELS = {
   SALES_RECEIPT: "إيصال بيع",
   TAX_INVOICE: "فاتورة ضريبية",
   PROFORMA: "عرض سعر",
-  CREDIT_NOTE: "إشعار دائن",
 };
 
 // Legal status transitions: maps current status → [{label, icon, tone?, action}]

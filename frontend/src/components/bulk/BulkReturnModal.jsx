@@ -44,7 +44,6 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
   const warehouseName = order?.warehouse?.name || "—";
 
   const [treasuries, setTreasuries] = useState([]);
-  const [amount, setAmount] = useState(refundable > 0 ? refundable.toFixed(2) : "");
   const [treasuryId, setTreasuryId] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -62,32 +61,21 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
 
   const treasuryName =
     treasuries.find((t) => String(t.id) === String(treasuryId))?.name || "—";
-  const amt = Number(amount);
-  const amtValid = Number.isFinite(amt) && amt > 0;
 
   const submit = async (e) => {
     e.preventDefault();
     if (blocked) return;
-    if (!amtValid) {
-      toast.error("أدخل مبلغًا صحيحًا");
-      return;
-    }
     if (!treasuryId) {
       toast.error("اختر الخزينة");
-      return;
-    }
-    // Mirrors the server-side cap so the operator is stopped here, with the
-    // reason, instead of by a 400 after committing to the action.
-    if (amt > refundable + 0.005) {
-      toast.error(`أقصى مبلغ يمكن استرداده هو ${formatEGP(refundable)}`);
       return;
     }
 
     setSaving(true);
     try {
+      // No amount is sent. The server recomputes it from the order's payments —
+      // the figure shown above is a display of that same computation, not an
+      // input to it.
       const updated = await bulkService.returnOrder(order.id, {
-        method: "CASH_REFUND",
-        amount: amt,
         treasuryId: Number(treasuryId),
         reason: reason.trim() || undefined,
       });
@@ -176,23 +164,25 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
             </div>
           )}
 
-          {/* amount */}
-          <label className="block">
-            <span className="text-sm font-medium text-text-light dark:text-text-dark">
-              مبلغ الاسترداد
-            </span>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              max={refundable}
-              disabled={blocked}
-              className="mt-1 w-full rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-2.5 ltr-numbers text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </label>
+          {/* The amount is stated, not entered. A return always sends every line
+              of the order back in full and closes it at zero, so there is exactly
+              one figure that keeps the stock and the cash consistent — showing it
+              as a field invited someone to type a different one. */}
+          {!blocked && (
+            <div className="rounded-xl border border-border-light dark:border-border-dark bg-accent/10 dark:bg-primary/5 p-3.5 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-light dark:text-text-dark">
+                  مبلغ الاسترداد
+                </p>
+                <p className="text-[11px] text-text-light/50 dark:text-text-dark/50 mt-0.5">
+                  المدفوع فعليًا على الطلب — غير قابل للتعديل
+                </p>
+              </div>
+              <p className="text-xl font-bold ltr-numbers text-text-light dark:text-text-dark">
+                {formatEGP(refundable)}
+              </p>
+            </div>
+          )}
 
           {/* treasury */}
           <label className="block">
@@ -233,7 +223,7 @@ export default function BulkReturnModal({ order, onSuccess, onClose }) {
                     <p className="text-sm text-text-light dark:text-text-dark">
                       يخرج{" "}
                       <strong className="ltr-numbers text-red-600 dark:text-red-400">
-                        {formatEGP(amtValid ? amt : 0)}
+                        {formatEGP(refundable)}
                       </strong>{" "}
                       من <strong>{treasuryName}</strong>
                     </p>
