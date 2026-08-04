@@ -217,7 +217,12 @@ async function voidPayment(prisma, paymentId, reason, actorUserId, ctx = {}) {
     if (payment.voidedAt) {
       throw Object.assign(new Error("Payment already voided"), { status: 409 });
     }
-    if (payment.orderId == null) {
+    // Old-debt entries are negative and touch no treasury; they are removed with
+    // the delete endpoint, not voided. A POSITIVE row with no order is the
+    // overpayment credit written by createCustomerPayment — that one did move
+    // cash, so it must stay voidable or a mistyped collection would be
+    // uncorrectable from the UI.
+    if (payment.orderId == null && Number(payment.amount) < 0) {
       throw Object.assign(
         new Error("Old-debt entries cannot be voided — use the delete endpoint instead"),
         { status: 400 },
@@ -243,7 +248,9 @@ async function voidPayment(prisma, paymentId, reason, actorUserId, ctx = {}) {
       });
     }
 
-    const orderBalance = await recomputeOrderBalance(tx, payment.orderId);
+    // No order to recompute when the row is a floating overpayment credit.
+    const orderBalance =
+      payment.orderId != null ? await recomputeOrderBalance(tx, payment.orderId) : null;
     return {
       payment: { ...payment, voidedAt: new Date(), voidReason: reason },
       orderBalance,
@@ -381,15 +388,29 @@ async function createCustomerPayment(prisma, customerId, data, actorUserId, ctx 
       remaining = round2(remaining - apply);
     }
 
-    // If no orders to apply against, create a floating payment (orderId = null)
-    if (payments.length === 0) {
+    // Whatever the open orders could not absorb is still money the customer
+    // handed over, so it goes on their account as a floating credit.
+    //
+    // This used to read `if (payments.length === 0)` — "only if we found no
+    // order at all". That made the treasury and the customer's account disagree
+    // every time an order absorbed PART of the payment: the treasury was
+    // incremented by the full `amount` above, unconditionally, while the loop
+    // only ever wrote rows worth `Math.min(remaining, due)`. On 02/08/2026 اوبس
+    // paid 75,120 against one order owing 10,260; the treasury took all of it
+    // and 64,860 left no record anywhere, because one payment row existed and
+    // the fallback was skipped.
+    //
+    // The old-debt balance is the usual reason for the gap — it is stored as a
+    // payment row, not an order, so the distribution loop structurally cannot
+    // see it no matter how large it is.
+    if (remaining > 0) {
       const payment = await tx.bulkPayment.create({
         data: {
           orderId: null,
           customerId,
           treasuryId: parseInt(treasuryId, 10),
           method: "CASH",
-          amount: round2(Number(amount)),
+          amount: round2(remaining),
           createdByUserId: actorUserId,
           notes: notes || null,
         },
