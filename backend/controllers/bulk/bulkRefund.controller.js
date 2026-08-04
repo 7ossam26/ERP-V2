@@ -62,7 +62,12 @@ exports.createReturn = async (req, res, next) => {
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.bulkOrder.findUnique({
         where: { id: orderId },
-        include: { items: true, customer: true },
+        include: {
+          items: true,
+          customer: true,
+          payments: { select: { amount: true, voidedAt: true } },
+          refunds: { select: { amount: true, method: true } },
+        },
       });
       if (!order) {
         const err = new Error("Order not found"); err.status = 404; throw err;
@@ -70,6 +75,48 @@ exports.createReturn = async (req, res, next) => {
       if (!["CONFIRMED", "PARTIALLY_PAID", "PAID"].includes(order.status)) {
         const err = new Error(`Cannot return order in status ${order.status}`);
         err.status = 409; throw err;
+      }
+
+      // A CASH refund hands money back, so it cannot exceed the money still
+      // held against this order.
+      //
+      // Without this, voiding a payment and then returning the order takes the
+      // same amount out of the treasury TWICE — the void reverses the credit and
+      // the refund pays it out again — while the stock comes back only once,
+      // because voidPayment does not touch inventory. BULK-0025 (حراز, 03/08/2026)
+      // is the case: 11,800 in at 13:10, voided at 21:38, refunded at 21:41, and
+      // خزينة الإدارة ended 11,800 short on a customer who never took cash back.
+      //
+      // Deliberately not applied to CREDIT_NOTE: crediting a customer for goods
+      // they returned is legitimate whether or not they had paid yet, and it
+      // moves no cash.
+      if (method === "CASH_REFUND") {
+        const livePaid = order.payments
+          .filter((p) => !p.voidedAt)
+          .reduce((s, p) => s + Number(p.amount), 0);
+        const alreadyRefunded = order.refunds
+          .filter((r) => r.method === "CASH_REFUND")
+          .reduce((s, r) => s + Number(r.amount), 0);
+        const refundable = Math.round((livePaid - alreadyRefunded) * 100) / 100;
+
+        if (amount > refundable + 0.005) {
+          const err = new Error(
+            `Cash refund (${amount}) exceeds refundable amount (${refundable})`,
+          );
+          err.status = 400;
+          err.data = {
+            error: "REFUND_EXCEEDS_PAID",
+            requested: amount,
+            refundable,
+            livePaid,
+            alreadyRefunded,
+          };
+          err.message =
+            refundable <= 0
+              ? "لا يوجد مبلغ مدفوع قابل للاسترداد على هذا الطلب. لو الدفعة اتلغت بالفعل فالفلوس رجعت، اختر «إشعار دائن» أو ارجع البضاعة بدون استرداد نقدي."
+              : `المبلغ المسترد (${amount}) أكبر من المدفوع فعليًا على الطلب (${refundable}).`;
+          throw err;
+        }
       }
 
       // Reverse stock back to warehouse
