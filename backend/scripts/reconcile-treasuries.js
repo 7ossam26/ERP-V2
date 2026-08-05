@@ -105,8 +105,16 @@ async function rebuild(treasury, config) {
   push("مسحوبات", -1, wit._sum.amount, wit._count);
 
   // ── spending ───────────────────────────────────────────────────────────────
+  // A purchase writes BOTH a Purchase row and a mirroring Expense of type
+  // PURCHASE ("Purchase Invoice #1390"), while debiting the treasury once. The
+  // Purchase is the source of truth because it carries paidAmount, which is what
+  // actually left the drawer on a partly-paid invoice; the expense always shows
+  // the invoice. Counting both charged purchase #16 twice on 05/08/2026 and
+  // raised a false 2,664 alarm against خزينة الإدارة.
   const exp = await prisma.expense.aggregate({
-    where: { treasuryId: id }, _sum: { amount: true }, _count: true,
+    where: { treasuryId: id, NOT: { type: "PURCHASE" } },
+    _sum: { amount: true },
+    _count: true,
   });
   push("مصروفات", -1, exp._sum.amount, exp._count);
 
