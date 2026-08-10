@@ -138,6 +138,14 @@ const POSReport80mm = ({ report, settings = {} }) => {
   const expenseBreakdown = report.expenseBreakdown || { count: 0, total: 0 };
   const totalAdvances = Number(report.totalAdvances || 0);
   const pilotSettlementDifference = Number(report.pilotSettlementDifference || 0);
+
+  // Wholesale (جملة) cash in this shift's drawer. Voids and refunds print as
+  // one line — both are cash handed back out of this same drawer.
+  const wholesale = report.wholesale || null;
+  const wholesaleCashIn = Number(wholesale?.cashCollected || 0);
+  const wholesaleCashOut =
+    Number(wholesale?.cashVoided || 0) + Number(wholesale?.cashRefunded || 0);
+
   const expenses = Array.isArray(report.expenses) ? report.expenses : [];
   const deliveryDetails = Array.isArray(report.deliveryDetails)
     ? report.deliveryDetails
@@ -324,6 +332,20 @@ const POSReport80mm = ({ report, settings = {} }) => {
           <div className="pr-row">
             <span>− فرق تسوية الطيارين</span>
             <span className="pr-num">-{fmt(pilotSettlementDifference)}</span>
+          </div>
+        )}
+        {/* Wholesale cash reaches this same drawer. Printed here so the
+            subtraction below stays reproducible from its own operands. */}
+        {wholesaleCashIn > 0 && (
+          <div className="pr-row">
+            <span>+ تحصيل الجملة</span>
+            <span className="pr-num">+{fmt(wholesaleCashIn)}</span>
+          </div>
+        )}
+        {wholesaleCashOut > 0 && (
+          <div className="pr-row">
+            <span>− مرتجع وإلغاء الجملة</span>
+            <span className="pr-num">-{fmt(wholesaleCashOut)}</span>
           </div>
         )}
         <div

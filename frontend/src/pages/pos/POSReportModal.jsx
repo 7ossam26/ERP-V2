@@ -53,6 +53,13 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
   const totalAdvances = reportData?.totalAdvances || 0;
   const pilotSettlementDifference = reportData?.pilotSettlementDifference || 0;
 
+  // Wholesale (جملة) cash in this shift's drawer. Voids and refunds are one
+  // line because both are cash handed back out of this same drawer.
+  const wholesale = reportData?.wholesale || null;
+  const wholesaleCashIn = Number(wholesale?.cashCollected || 0);
+  const wholesaleCashOut =
+    Number(wholesale?.cashVoided || 0) + Number(wholesale?.cashRefunded || 0);
+
   const expenses = reportData?.expenses || [];
   const deliveryDetails = reportData?.deliveryDetails || [];
   const discounts = reportData?.discounts || { count: 0, total: 0, byReason: [] };
@@ -215,6 +222,21 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
                 <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-orange-600 dark:text-orange-400">
                   <span className="flex-1 text-right">- فرق تسوية الطيارين</span>
                   <span className="w-32 text-left font-mono font-bold">-{fmt(pilotSettlementDifference)}</span>
+                </div>
+              )}
+              {/* Wholesale cash lands in this same drawer. Without these lines
+                  the cashier counted it and the shift closed over by exactly
+                  this much, with nothing on the report to name it. */}
+              {wholesaleCashIn > 0 && (
+                <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-green-600 dark:text-green-400">
+                  <span className="flex-1 text-right">+ تحصيل الجملة</span>
+                  <span className="w-32 text-left font-mono font-bold">+{fmt(wholesaleCashIn)}</span>
+                </div>
+              )}
+              {wholesaleCashOut > 0 && (
+                <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-red-600 dark:text-red-400">
+                  <span className="flex-1 text-right">- مرتجع وإلغاء الجملة</span>
+                  <span className="w-32 text-left font-mono font-bold">-{fmt(wholesaleCashOut)}</span>
                 </div>
               )}
               <div className="flex items-center py-2.5 px-4 bg-gray-50 dark:bg-zinc-800 font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-zinc-700">

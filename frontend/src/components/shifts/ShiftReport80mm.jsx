@@ -185,6 +185,14 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
   const cashExpenseTotal = Number(report.expenseBreakdown?.total || 0);
   const pilotSettlementDifference = Number(report.pilotSettlementDifference || 0);
 
+  // Wholesale (جملة) cash in this shift's drawer. Voids and refunds print as
+  // one line — both are cash handed back out of this same drawer.
+  const wholesale = report.wholesale || null;
+  const wholesaleCashIn = Number(wholesale?.cashCollected || 0);
+  const wholesaleCashOut =
+    Number(wholesale?.cashVoided || 0) + Number(wholesale?.cashRefunded || 0);
+  const wholesaleNonCash = Number(wholesale?.nonCashCollected || 0);
+
   // The settlement block is recomputed from the shift as it stands NOW, so it
   // always agrees with the lines printed above it. `systemExpectedCash` and
   // `shortage` are what was frozen at close; when the two disagree the block
@@ -327,6 +335,20 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
           <div className="sr-row">
             <span>− فرق تسوية الطيارين (كاش)</span>
             <span className="sr-num">{fmt(pilotSettlementDifference)} ج.م</span>
+          </div>
+        )}
+        {/* Wholesale cash reaches this same drawer. Printed here so the
+            subtraction below stays reproducible from its own operands. */}
+        {wholesaleCashIn > 0 && (
+          <div className="sr-row">
+            <span>+ تحصيل الجملة (كاش)</span>
+            <span className="sr-num">{fmt(wholesaleCashIn)} ج.م</span>
+          </div>
+        )}
+        {wholesaleCashOut > 0 && (
+          <div className="sr-row">
+            <span>− مرتجع وإلغاء الجملة (كاش)</span>
+            <span className="sr-num">{fmt(wholesaleCashOut)} ج.م</span>
           </div>
         )}
         <div

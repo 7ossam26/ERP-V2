@@ -354,6 +354,93 @@ async function calculateSystemExpectedCash(shiftId) {
     expected -= pilotSettlementDifference;
   }
 
+  // Wholesale (جملة) cash taken at the register.
+  //
+  // A bulk collection credits Branch.treasuryId directly (bulkPayments.service
+  // .js, bulkOrder.controller.js) and writes no Sale row, no Deposit row and no
+  // shiftId — bulk_payments has no such column. Every term above reads either
+  // the Shift.sales relation or a treasury+window aggregate over tables the
+  // bulk module never touches, so the money was invisible by construction, not
+  // by a filter: the cashier counted it, the formula did not expect it, and the
+  // shift closed with an overage nobody could account for.
+  //
+  // Attributed by branch treasury + time window, the same compensating model
+  // the expense and transfer terms use, and for the same reason stated above —
+  // the table carries no shift link.
+  //
+  // ONLY method=CASH. CASH_METHODS in the bulk service is {CASH, BANK_TRANSFER,
+  // CHEQUE} and all three credit the treasury, but only cash passes through the
+  // register. The other two are measured as `bulkNonCash` and reported with the
+  // safe movements below, never added to the drawer.
+  //
+  // `receivedAt` is the recorded-at timestamp, not a user date: createPayment,
+  // createCustomerPayment and confirm all leave it at its now() default. The one
+  // backdatable writer, createOldDebtPayment, writes method=CREDIT with a null
+  // treasury and a NEGATIVE amount, so `amount > 0` keeps it out twice over.
+  //
+  // VOIDS ARE SUBTRACTED, NOT FILTERED. A collection taken in this shift is
+  // drawer cash in this shift even if it is voided next week; the void hands the
+  // money back out of whichever drawer is open when it happens. Filtering on
+  // voidedAt:null instead would net a collect-and-void inside one shift to
+  // −amount rather than zero, and would retroactively pull cash out of an
+  // already-closed shift's recomputed figure. Counting the collection at
+  // receivedAt and the void at voidedAt is symmetric, and mirrors how a cash
+  // transfer is already handled below.
+  let bulkCashCollected = 0;
+  let bulkCashVoided = 0;
+  let bulkCashRefunded = 0;
+  let bulkNonCashCollected = 0;
+
+  if (branchTreasuryId && windowStart) {
+    const window = { gte: windowStart, lte: windowEnd };
+
+    const [bulkInAgg, bulkVoidAgg, bulkRefundAgg, bulkNonCashAgg] =
+      await Promise.all([
+        prisma.bulkPayment.aggregate({
+          where: {
+            treasuryId: branchTreasuryId,
+            method: "CASH",
+            amount: { gt: 0 },
+            receivedAt: window,
+          },
+          _sum: { amount: true },
+        }),
+        prisma.bulkPayment.aggregate({
+          where: {
+            treasuryId: branchTreasuryId,
+            method: "CASH",
+            amount: { gt: 0 },
+            voidedAt: window,
+          },
+          _sum: { amount: true },
+        }),
+        prisma.bulkRefund.aggregate({
+          where: {
+            treasuryId: branchTreasuryId,
+            method: "CASH_REFUND",
+            createdAt: window,
+          },
+          _sum: { amount: true },
+        }),
+        prisma.bulkPayment.aggregate({
+          where: {
+            treasuryId: branchTreasuryId,
+            method: { in: ["BANK_TRANSFER", "CHEQUE"] },
+            amount: { gt: 0 },
+            receivedAt: window,
+          },
+          _sum: { amount: true },
+        }),
+      ]);
+
+    bulkCashCollected = Number(bulkInAgg._sum.amount || 0);
+    bulkCashVoided = Number(bulkVoidAgg._sum.amount || 0);
+    bulkCashRefunded = Number(bulkRefundAgg._sum.amount || 0);
+    bulkNonCashCollected = Number(bulkNonCashAgg._sum.amount || 0);
+
+    expected += bulkCashCollected - bulkCashVoided - bulkCashRefunded;
+  }
+
   // Branch-SAFE movements. Measured and reported so a variance can be traced to
   // one, but deliberately NOT folded into the drawer.
   //
@@ -472,6 +559,13 @@ async function calculateSystemExpectedCash(shiftId) {
     cashExpenses: round(cashExpenses),
     advances: round(advances),
     pilotSettlementDifference: round(pilotSettlementDifference),
+    // Wholesale cash. `bulkCashCollected − bulkCashVoided − bulkCashRefunded` is
+    // the part inside `expected`; `bulkNonCashCollected` is reported only.
+    bulkCashCollected: round(bulkCashCollected),
+    bulkCashVoided: round(bulkCashVoided),
+    bulkCashRefunded: round(bulkCashRefunded),
+    bulkNonCashCollected: round(bulkNonCashCollected),
+    bulkNetCash: round(bulkCashCollected - bulkCashVoided - bulkCashRefunded),
     startCash: round(startCash),
     expectedVisa: round(expectedVisa),
     expectedInstapay: round(expectedInstapay),
@@ -775,6 +869,11 @@ router.post("/end", async (req, res, next) => {
       cashExpenses,
       advances,
       pilotSettlementDifference,
+      bulkCashCollected,
+      bulkCashVoided,
+      bulkCashRefunded,
+      bulkNonCashCollected,
+      bulkNetCash,
       startCash,
       expectedVisa,
       expectedInstapay,
@@ -869,6 +968,11 @@ router.post("/end", async (req, res, next) => {
         cashExpenses,
         advances,
         pilotSettlementDifference,
+        bulkCashCollected,
+        bulkCashVoided,
+        bulkCashRefunded,
+        bulkNonCashCollected,
+        bulkNetCash,
         systemExpectedCash,
         expectedVisa,
         expectedInstapay,
@@ -1789,6 +1893,104 @@ router.get(
       const drawerBreakdown = await calculateSystemExpectedCash(shift.id);
       const drawerAmount = drawerBreakdown.expected;
 
+      // Wholesale (جملة) activity in this shift's window.
+      //
+      // The TOTALS come from drawerBreakdown, never recomputed here — the report
+      // once carried its own copy of the drawer arithmetic and the two drifted.
+      // Only the itemised rows are read below, matched the same way the totals
+      // are (branch treasury + window) so every figure on the section traces to
+      // a row, and three separate queries rather than one OR so each row lands
+      // under the term it actually belongs to.
+      const wholesaleRows = [];
+      if (shift.branch?.treasuryId && shift.startTime) {
+        const endFilter = shift.endTime || new Date();
+        const bulkWindow = { gte: shift.startTime, lte: endFilter };
+        // The three methods that actually credit a treasury — CASH_METHODS in
+        // services/bulkPayments.service.js. Listing a CREDIT row here would put
+        // a line on the section that no total accounts for.
+        const bulkWhere = {
+          treasuryId: shift.branch.treasuryId,
+          amount: { gt: 0 },
+          method: { in: ["CASH", "BANK_TRANSFER", "CHEQUE"] },
+        };
+        // BulkCustomer has no `name` — it is companyName, with tradeName as the
+        // shop sign people actually say out loud. Same pair the bulk reports
+        // select (controllers/bulk/bulkReport.controller.js).
+        const bulkInclude = {
+          customer: { select: { companyName: true, tradeName: true } },
+          order: { select: { orderNumber: true } },
+        };
+        const customerName = (c) =>
+          c?.tradeName || c?.companyName || "—";
+
+        const [collected, voided, refunded] = await Promise.all([
+          prisma.bulkPayment.findMany({
+            where: { ...bulkWhere, receivedAt: bulkWindow },
+            include: bulkInclude,
+            orderBy: { receivedAt: "desc" },
+          }),
+          prisma.bulkPayment.findMany({
+            where: { ...bulkWhere, method: "CASH", voidedAt: bulkWindow },
+            include: bulkInclude,
+            orderBy: { voidedAt: "desc" },
+          }),
+          prisma.bulkRefund.findMany({
+            where: {
+              treasuryId: shift.branch.treasuryId,
+              method: "CASH_REFUND",
+              createdAt: bulkWindow,
+            },
+            include: {
+              order: {
+                select: {
+                  orderNumber: true,
+                  customer: { select: { companyName: true, tradeName: true } },
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          }),
+        ]);
+
+        collected.forEach((p) => {
+          wholesaleRows.push({
+            kind: "COLLECTION",
+            // Only CASH reaches the drawer; BANK_TRANSFER/CHEQUE credit the same
+            // treasury but never pass the register, so they are listed with
+            // affectsDrawer=false rather than hidden.
+            affectsDrawer: p.method === "CASH",
+            orderNumber: p.order?.orderNumber || null,
+            customerName: customerName(p.customer),
+            amount: parseFloat(p.amount),
+            method: p.method,
+            time: p.receivedAt,
+          });
+        });
+        voided.forEach((p) => {
+          wholesaleRows.push({
+            kind: "VOID",
+            affectsDrawer: true,
+            orderNumber: p.order?.orderNumber || null,
+            customerName: customerName(p.customer),
+            amount: -parseFloat(p.amount),
+            method: p.method,
+            time: p.voidedAt,
+          });
+        });
+        refunded.forEach((r) => {
+          wholesaleRows.push({
+            kind: "REFUND",
+            affectsDrawer: true,
+            orderNumber: r.order?.orderNumber || null,
+            customerName: customerName(r.order?.customer),
+            amount: -parseFloat(r.amount),
+            method: r.method,
+            time: r.createdAt,
+          });
+        });
+        wholesaleRows.sort((a, b) => new Date(b.time) - new Date(a.time));
+      }
+
       // Variance booked by earlier approval cycles — see sumPostedShiftVariance.
       const priorPostedVariance = await sumPostedShiftVariance(
         shift.id,
@@ -1872,6 +2074,22 @@ router.get(
         expenseBreakdown: { count: cashExpenseCount, total: Math.round(cashExpenseTotal * 100) / 100 },
         pilotSettlementDifference,
         drawerAmount,
+
+        // Wholesale (جملة). A bulk collection credits the branch treasury with
+        // no Sale, no Deposit and no shiftId, so until this section existed the
+        // cash reached the drawer with nothing on the report to name it and the
+        // shift closed over. `netCash` is the part inside drawerAmount;
+        // `nonCashCollected` is BANK_TRANSFER/CHEQUE, which credit the same
+        // treasury but never pass the register — reported, never in the drawer.
+        wholesale: {
+          cashCollected: drawerBreakdown.bulkCashCollected,
+          cashVoided: drawerBreakdown.bulkCashVoided,
+          cashRefunded: drawerBreakdown.bulkCashRefunded,
+          nonCashCollected: drawerBreakdown.bulkNonCashCollected,
+          netCash: drawerBreakdown.bulkNetCash,
+          count: wholesaleRows.length,
+          collections: wholesaleRows,
+        },
 
         // Branch-SAFE movements in this shift's window. NONE of them is part of
         // `drawerAmount` — see the note in calculateSystemExpectedCash for why a

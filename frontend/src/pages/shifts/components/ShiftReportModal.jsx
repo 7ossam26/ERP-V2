@@ -69,6 +69,18 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
   const driverShares = round2(report?.cashBreakdown?.driverSharesWithheld);
   const codPending = round2(report?.cashBreakdown?.codPendingExcluded);
 
+  // Wholesale (جملة). Split into the two directions the ladder shows; voids and
+  // refunds are one line because both are cash handed back out of this drawer.
+  const wholesale = report?.wholesale || null;
+  const wholesaleCashIn = round2(wholesale?.cashCollected);
+  const wholesaleCashOut = round2(
+    Number(wholesale?.cashVoided || 0) + Number(wholesale?.cashRefunded || 0),
+  );
+  const wholesaleNonCash = round2(wholesale?.nonCashCollected);
+  const wholesaleRows = Array.isArray(wholesale?.collections)
+    ? wholesale.collections
+    : [];
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`تقرير وردية #${shiftId}`}>
       {loading ? (
@@ -311,6 +323,25 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                   </span>
                 </div>
               )}
+              {/* Wholesale cash reaches the same drawer as a retail cash sale,
+                  so it belongs in this ladder. Before it was here the cashier
+                  counted it and the shift closed over by exactly this much. */}
+              {wholesaleCashIn > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-green-600">
+                  <span>+ تحصيل الجملة (كاش)</span>
+                  <span className="font-mono font-bold">
+                    {wholesaleCashIn.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {wholesaleCashOut > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-red-600">
+                  <span>- مرتجع وإلغاء الجملة (كاش)</span>
+                  <span className="font-mono font-bold">
+                    {wholesaleCashOut.toLocaleString()}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center py-2 bg-gray-50 rounded px-2 font-bold">
                 <span>= المتوقع في الدرج</span>
                 <span className="font-mono text-xl">
@@ -386,6 +417,92 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               </div>
             </div>
           </div>
+
+          {/* Wholesale (جملة) Breakdown — its own section rather than folded
+              into the retail totals, so an operator can see at a glance which
+              part of the drawer came from wholesale and trace each figure to a
+              collection. Only CASH rows move the drawer; BANK_TRANSFER/CHEQUE
+              are listed with a muted badge so the section still reconciles
+              against the treasury. */}
+          {wholesaleRows.length > 0 && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-3 font-bold text-gray-700 border-b border-gray-200 flex justify-between items-center">
+                <span>تفاصيل الجملة</span>
+                <span className="text-xs font-normal bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                  {wholesaleRows.length} حركة
+                </span>
+              </div>
+              <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-gray-50 text-gray-500 font-medium">
+                    <tr>
+                      <th className="p-3">العميل</th>
+                      <th className="p-3">رقم الطلب</th>
+                      <th className="p-3">النوع</th>
+                      <th className="p-3">المبلغ (ج.م)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {wholesaleRows.map((row, index) => (
+                      <tr key={index} className="hover:bg-gray-50/50">
+                        <td className="p-3 font-medium">{row.customerName}</td>
+                        <td className="p-3 text-sm text-gray-600 font-mono">
+                          {row.orderNumber || "—"}
+                        </td>
+                        <td className="p-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs ${
+                              row.kind === "COLLECTION"
+                                ? row.affectsDrawer
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-100 text-gray-600"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {row.kind === "COLLECTION"
+                              ? row.affectsDrawer
+                                ? "تحصيل نقدي"
+                                : "تحصيل (لم يدخل الدرج)"
+                              : row.kind === "VOID"
+                                ? "إلغاء دفعة"
+                                : "مرتجع"}
+                          </span>
+                        </td>
+                        <td
+                          className={`p-3 font-bold ${row.amount < 0 ? "text-red-600" : "text-green-600"}`}
+                        >
+                          {Number(row.amount).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t border-gray-200">
+                    <tr>
+                      <td colSpan="3" className="p-3 font-bold text-gray-700">
+                        صافي الجملة في الدرج
+                      </td>
+                      <td className="p-3 font-bold text-green-600">
+                        {Number(wholesale?.netCash || 0).toLocaleString()}
+                      </td>
+                    </tr>
+                    {wholesaleNonCash > 0 && (
+                      <tr>
+                        <td
+                          colSpan="3"
+                          className="p-3 text-xs font-normal text-gray-500"
+                        >
+                          تحويل بنكي/شيك (للخزنة، لم يدخل الدرج)
+                        </td>
+                        <td className="p-3 text-xs font-bold text-gray-500">
+                          {wholesaleNonCash.toLocaleString()}
+                        </td>
+                      </tr>
+                    )}
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Expenses Breakdown */}
           {report.expenses && report.expenses.length > 0 && (
