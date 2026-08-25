@@ -3,28 +3,12 @@ const router = express.Router();
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission, requireSensitiveAccess } = require("../middleware/auth");
 const { calculateSystemExpectedCash } = require("./shifts");
+// Cairo-pinned date parsing, shared with routes/reports.js so both pages agree
+// on where a month starts and ends regardless of the server's local timezone.
+const { parseDateStart, parseDateEnd } = require("../utils/dateRange");
 
 // Protect all routes with authentication
 router.use(authenticateToken);
-
-// Africa/Cairo is UTC+2 with no DST. Date filters from the UI ("YYYY-MM-DD")
-// are Cairo wall-clock dates; convert to UTC instants by subtracting 2h so the
-// query is correct regardless of the server's local timezone.
-const CAIRO_OFFSET_MS = 2 * 60 * 60 * 1000;
-
-const cairoTodayISO = () => {
-  const nowCairoMs = Date.now() + CAIRO_OFFSET_MS;
-  return new Date(nowCairoMs).toISOString().slice(0, 10);
-};
-
-const parseDateStart = (s) => {
-  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(s || "") ? s : cairoTodayISO();
-  return new Date(Date.parse(`${ymd}T00:00:00.000Z`) - CAIRO_OFFSET_MS);
-};
-const parseDateEnd = (s) => {
-  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(s || "") ? s : cairoTodayISO();
-  return new Date(Date.parse(`${ymd}T23:59:59.999Z`) - CAIRO_OFFSET_MS);
-};
 
 // GET all branches
 router.get("/", async (req, res, next) => {
@@ -188,12 +172,18 @@ router.get("/balances", async (req, res, next) => {
 
     const branchIds = branches.map((b) => b.id);
     // Bulk orders are scoped to a warehouse, not a branch directly. Build a
-    // warehouse → branch map so we can attribute bulk paidAmount back to the
+    // warehouse → branch map so we can attribute wholesale money back to the
     // owning branch.
     const warehouseToBranch = Object.fromEntries(
       branches.filter((b) => b.warehouseId).map((b) => [b.warehouseId, b.id]),
     );
-    const branchWarehouseIds = Object.keys(warehouseToBranch).map(Number);
+
+    // Expense links to Treasury (not Branch directly); the same map also
+    // attributes a wholesale payment that carries no order.
+    const treasuryToBranch = Object.fromEntries(
+      branches.filter((b) => b.treasuryId).map((b) => [b.treasuryId, b.id]),
+    );
+    const branchTreasuryIds = Object.keys(treasuryToBranch).map(Number);
 
     // Aggregate Visa + Instapay sales per branch for the window.
     // Sum `total` to mirror what sales.js:759,788 actually increments into the
@@ -205,6 +195,7 @@ router.get("/balances", async (req, res, next) => {
       where: {
         paymentMethod: { in: ["INSTAPAY", "VISA"] },
         status: "COMPLETED",
+        isVoided: false,
         createdAt: { gte: rangeStart, lte: rangeEnd },
         branchId: { in: branchIds },
       },
@@ -245,6 +236,7 @@ router.get("/balances", async (req, res, next) => {
       where: {
         paymentMethod: "CASH",
         status: "COMPLETED",
+        isVoided: false,
         createdAt: { gte: rangeStart, lte: rangeEnd },
         branchId: { in: branchIds },
         OR: [
@@ -260,6 +252,7 @@ router.get("/balances", async (req, res, next) => {
     // Used for the per-branch invoice count and the previous-window total.
     const collectedSaleWhere = (start, end) => ({
       status: "COMPLETED",
+      isVoided: false,
       createdAt: { gte: start, lte: end },
       branchId: { in: branchIds },
       OR: [
@@ -271,9 +264,16 @@ router.get("/balances", async (req, res, next) => {
       ],
     });
 
+    // A refund is a COMPLETED sale carrying a NEGATIVE total (routes/sales.js
+    // writes it that way), so it correctly nets the money down in the sums
+    // above. It must not also count as another invoice — a sale plus its refund
+    // was displaying "2 فاتورة" against a total of roughly zero.
     const salesCounts = await prisma.sale.groupBy({
       by: ["branchId"],
-      where: collectedSaleWhere(rangeStart, rangeEnd),
+      where: {
+        ...collectedSaleWhere(rangeStart, rangeEnd),
+        NOT: { saleNumber: { startsWith: "REFUND-" } },
+      },
       _count: { id: true },
     });
     const salesCountMap = Object.fromEntries(
@@ -296,41 +296,94 @@ router.get("/balances", async (req, res, next) => {
       prevRetailSales.map((r) => [r.branchId, Number(r._sum.total || 0)]),
     );
 
-    const prevBulkOrders = branchWarehouseIds.length
-      ? await prisma.bulkOrder.groupBy({
-          by: ["warehouseId"],
-          where: {
-            createdAt: { gte: prevStart, lte: prevEnd },
-            warehouseId: { in: branchWarehouseIds },
-            status: { notIn: ["DRAFT", "CANCELLED"] },
-          },
-          _sum: { paidAmount: true },
-        })
-      : [];
-    const prevBulkMap = Object.fromEntries(
-      prevBulkOrders.map((r) => [
-        warehouseToBranch[r.warehouseId],
-        Number(r._sum.paidAmount || 0),
-      ]),
-    );
+    // Wholesale COLLECTIONS in the window — money that actually arrived, dated
+    // by when it arrived.
+    //
+    // This used to sum BulkOrder.paidAmount filtered by the ORDER's createdAt.
+    // paidAmount is a running total on the order, so a payment settled in
+    // September against an August order was counted in AUGUST: re-running a
+    // closed month returned a different figure than it did at the time. Dating
+    // by BulkPayment.receivedAt is both what this page means ("محصّل") and
+    // stable once a month is closed.
+    //
+    // Attribution is by the order's warehouse, as before. A payment carrying no
+    // order (a legacy debt settlement) has no warehouse to go by, so it falls
+    // back to the treasury the cash landed in — see collectionsToBranchMap.
+    const bulkCollectionsWhere = (start, end) => ({
+      receivedAt: { gte: start, lte: end },
+      // A voided payment was reversed on the treasury too; it belongs in the
+      // history but not in the arithmetic (same rule as bulkReport.controller.js).
+      voidedAt: null,
+      // Exclude legacy opening debt — a balance carried from before the system,
+      // stored as a BulkPayment with orderId = NULL and a NEGATIVE amount (see
+      // services/bulkPayments.service.js createOldDebtPayment). It is a
+      // pre-existing receivable, not money collected in this window; left in, it
+      // subtracts an old debt from this month's takings.
+      //
+      // Written as the positive complement of (orderId IS NULL AND amount < 0)
+      // rather than NOT(AND(...)): a flat OR of two scalar filters is the shape
+      // used everywhere else in this codebase and translates predictably.
+      OR: [{ orderId: { not: null } }, { amount: { gte: 0 } }],
+    });
 
-    // Bulk orders per branch (via warehouseId). Mirrors retail logic — sum
-    // paidAmount in window, exclude DRAFT/CANCELLED so only money that
-    // actually moved through the order counts.
-    const bulkOrders = branchWarehouseIds.length
-      ? await prisma.bulkOrder.groupBy({
-          by: ["warehouseId"],
-          where: {
-            createdAt: { gte: rangeStart, lte: rangeEnd },
-            warehouseId: { in: branchWarehouseIds },
-            status: { notIn: ["DRAFT", "CANCELLED"] },
-          },
-          _sum: { paidAmount: true },
-        })
-      : [];
-    const bulkMap = Object.fromEntries(
-      bulkOrders.map((r) => [warehouseToBranch[r.warehouseId], Number(r._sum.paidAmount || 0)]),
-    );
+    const collectionsToBranchMap = (rows) => {
+      const map = {};
+      for (const r of rows) {
+        const branchId =
+          warehouseToBranch[r.order?.warehouseId] ?? treasuryToBranch[r.treasuryId];
+        // A payment into a treasury that isn't a branch treasury (e.g. HQ) has
+        // no branch to sit under on this page.
+        if (!branchId) continue;
+        map[branchId] = (map[branchId] || 0) + Number(r.amount);
+      }
+      return map;
+    };
+
+    const collectionSelect = {
+      amount: true,
+      treasuryId: true,
+      order: { select: { warehouseId: true } },
+    };
+
+    // Cash handed back on a wholesale return reduces collections. A CREDIT_NOTE
+    // moves no cash, so it must not.
+    const bulkCashRefundWhere = (start, end) => ({
+      createdAt: { gte: start, lte: end },
+      method: "CASH_REFUND",
+    });
+
+    const [bulkPayments, bulkCashRefunds, prevBulkPayments, prevBulkCashRefunds] =
+      await Promise.all([
+        prisma.bulkPayment.findMany({
+          where: bulkCollectionsWhere(rangeStart, rangeEnd),
+          select: collectionSelect,
+        }),
+        prisma.bulkRefund.findMany({
+          where: bulkCashRefundWhere(rangeStart, rangeEnd),
+          select: collectionSelect,
+        }),
+        prisma.bulkPayment.findMany({
+          where: bulkCollectionsWhere(prevStart, prevEnd),
+          select: collectionSelect,
+        }),
+        prisma.bulkRefund.findMany({
+          where: bulkCashRefundWhere(prevStart, prevEnd),
+          select: collectionSelect,
+        }),
+      ]);
+
+    const netCollections = (paid, refunded) => {
+      const paidMap = collectionsToBranchMap(paid);
+      const refundMap = collectionsToBranchMap(refunded);
+      const out = { ...paidMap };
+      for (const [branchId, amount] of Object.entries(refundMap)) {
+        out[branchId] = (out[branchId] || 0) - amount;
+      }
+      return out;
+    };
+
+    const bulkMap = netCollections(bulkPayments, bulkCashRefunds);
+    const prevBulkMap = netCollections(prevBulkPayments, prevBulkCashRefunds);
 
     const instapayMap = Object.fromEntries(
       instapaySales.map((r) => [r.branchId, Number(r._sum.total || 0)]),
@@ -342,13 +395,9 @@ router.get("/balances", async (req, res, next) => {
       cashSales.map((r) => [r.branchId, Number(r._sum.total || 0)]),
     );
 
-    // Expenses per branch — Expense links to Treasury (not Branch directly), so
-    // build a treasuryId → branchId map and aggregate via treasuryId.
-    const treasuryToBranch = Object.fromEntries(
-      branches.filter((b) => b.treasuryId).map((b) => [b.treasuryId, b.id]),
-    );
-    const branchTreasuryIds = Object.keys(treasuryToBranch).map(Number);
-
+    // Expenses per branch — aggregated via treasuryId using the
+    // treasuryToBranch map built above.
+    //
     // Split by type. The two answer different questions and must not be
     // conflated:
     //   totalExpenses     — every expense row, so it matches the cash that

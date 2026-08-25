@@ -1,16 +1,19 @@
 // controllers/bulk/bulkReport.controller.js
 const prisma = require("../../config/database");
+const { parseDateStart, parseDateEnd } = require("../../utils/dateRange");
 
 function round2(n) {
   return Math.round(Number(n) * 100) / 100;
 }
 
+// Cairo wall-clock day boundaries, same helpers the general report and the
+// branches page use. An omitted `from` still means "since the beginning";
+// only a supplied date goes through the Cairo conversion.
 function parseDateRange(from, to) {
-  const start = from ? new Date(from) : new Date(0);
-  const end = to ? new Date(to) : new Date();
-  start.setHours(0, 0, 0, 0);
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
+  return {
+    start: from ? parseDateStart(from) : new Date(0),
+    end: parseDateEnd(to),
+  };
 }
 
 /**

@@ -1459,6 +1459,10 @@ model BulkOrderItem {
   quantity  Decimal @db.Decimal(12, 4)
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
   lineTotal Decimal @map("line_total") @db.Decimal(12, 2)
+  // COGS snapshot: the item's cost-per-unit at the moment the order was placed,
+  // so profit reporting subtracts the historical cost rather than the current
+  // one. Same contract as SaleItem.costPrice.
+  costPrice Decimal @default(0) @map("cost_price") @db.Decimal(10, 2)
 
   order BulkOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   item  Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)

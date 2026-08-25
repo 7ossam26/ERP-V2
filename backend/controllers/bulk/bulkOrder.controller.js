@@ -6,6 +6,7 @@ const { assertCreditLimitOk } = require("../../services/bulkCredit.service");
 const { recomputeOrderBalance } = require("../../services/bulkPayments.service");
 const { writeAudit } = require("../../utils/auditLogger");
 const { resolveOperatingBranch } = require("../../middleware/auth");
+const { resolveSaleLineUnitCost } = require("../../lib/costing");
 
 function clientIp(req) {
   return (
@@ -77,6 +78,23 @@ function validateLines(rawLines) {
     });
   }
   return cleaned;
+}
+
+/**
+ * COGS snapshot: resolve each line's cost-per-unit at order time so wholesale
+ * profit reporting subtracts the historical cost, exactly as routes/sales.js
+ * does for retail lines. Bulk lines are always plain items — never BOMs — so
+ * bomId is null, but resolveSaleLineUnitCost still covers the manufactured-item
+ * case where Item.costPrice hasn't been stamped by a production run yet.
+ */
+async function attachLineCosts(db, lines) {
+  const costs = await Promise.all(
+    lines.map((l) => resolveSaleLineUnitCost(db, { itemId: l.itemId, bomId: null })),
+  );
+  return lines.map((l, idx) => ({
+    ...l,
+    costPrice: round2(costs[idx] || 0),
+  }));
 }
 
 const orderInclude = {
@@ -211,7 +229,7 @@ exports.create = async (req, res, next) => {
         balanceDue: totals.total,
         notes: body.notes ?? null,
         scheduledPickupDate: body.scheduledPickupDate ? new Date(body.scheduledPickupDate) : null,
-        items: { create: lines },
+        items: { create: await attachLineCosts(prisma, lines) },
       },
       include: orderInclude,
     });

@@ -196,7 +196,13 @@ const GeneralReportPage = () => {
             التقرير العام
           </h2>
           <p className="text-gray-500 dark:text-gray-400">
-            ملخص أداء المبيعات والمخزون
+            ملخص أداء المبيعات والمخزون — بالفوترة (تجزئة + جملة)
+          </p>
+          {/* The two sales screens measure different things on purpose. Saying
+              so here is what stops the next person "fixing" one to match. */}
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            يحسب كل ما تمت فوترته في الفترة. لمعرفة المُحصَّل فعليًا في الخزينة
+            راجع صفحة مبيعات الفروع.
           </p>
         </div>
         <Link
@@ -305,6 +311,26 @@ const GeneralReportPage = () => {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {reportData?.summary?.totalSales?.toLocaleString()} ج.م
               </h3>
+              {/* Retail/wholesale split — the headline used to be retail only,
+                  which is why it never agreed with مبيعات الفروع. */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs">
+                <span className="text-gray-500 dark:text-gray-400">
+                  تجزئة:{" "}
+                  <span className="font-bold text-gray-700 dark:text-gray-200 tabular-nums">
+                    {Number(
+                      reportData?.summary?.retailSales || 0,
+                    ).toLocaleString()}
+                  </span>
+                </span>
+                <span className="text-amber-700/80 dark:text-amber-400/80">
+                  جملة:{" "}
+                  <span className="font-bold text-amber-700 dark:text-amber-400 tabular-nums">
+                    {Number(
+                      reportData?.summary?.wholesaleSales || 0,
+                    ).toLocaleString()}
+                  </span>
+                </span>
+              </div>
             </div>
             <div className="p-2 bg-primary/10 rounded-lg">
               <span className="material-icons-round text-primary text-xl">
@@ -312,6 +338,18 @@ const GeneralReportPage = () => {
               </span>
             </div>
           </div>
+          {/* Wholesale is keyed off the branch's linked warehouse. Without one
+              the جملة line can only ever read 0, which is not the same as
+              "no wholesale sales" — say which it is. */}
+          {reportData?.summary?.branchesMissingWarehouse?.length > 0 && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2 leading-snug">
+              لا يوجد مخزن مرتبط بـ
+              {" "}
+              {reportData.summary.branchesMissingWarehouse.join("، ")}
+              {" "}
+              — مبيعات الجملة لا يمكن احتسابها لهذا الفرع.
+            </p>
+          )}
         </div>
         <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-2 h-full bg-success group-hover:w-3 transition-all"></div>
@@ -386,6 +424,20 @@ const GeneralReportPage = () => {
               </span>
               <span className="font-bold text-gray-900 dark:text-white">
                 {(reportData?.summary?.totalSales || 0).toLocaleString()} ج.م
+              </span>
+            </div>
+            {/* Retail/wholesale split of the line above — wholesale used to be
+                missing from this statement entirely. */}
+            <div className="flex justify-between items-center py-1 pr-4 text-xs">
+              <span className="text-gray-400 dark:text-gray-500">تجزئة</span>
+              <span className="text-gray-500 dark:text-gray-400 tabular-nums">
+                {(reportData?.summary?.retailSales || 0).toLocaleString()} ج.م
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-1 pr-4 text-xs">
+              <span className="text-gray-400 dark:text-gray-500">جملة</span>
+              <span className="text-gray-500 dark:text-gray-400 tabular-nums">
+                {(reportData?.summary?.wholesaleSales || 0).toLocaleString()} ج.م
               </span>
             </div>
             {/* COGS */}

@@ -2,6 +2,12 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
+const {
+  parseDateStart,
+  parseDateEnd,
+  cairoDayKey,
+  cairoHourKey,
+} = require("../utils/dateRange");
 
 /**
  * GET /api/reports/general
@@ -19,11 +25,11 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     const { startDate, endDate, branchId } = req.query;
 
     // --- 1. Filter Setup ---
-    const start = startDate ? new Date(startDate) : new Date();
-    start.setHours(0, 0, 0, 0);
-
-    const end = endDate ? new Date(endDate) : new Date();
-    end.setHours(23, 59, 59, 999);
+    // Cairo wall-clock day boundaries. Previously this used `new Date(str)` +
+    // setHours(), which resolves in the SERVER's timezone and so put this report
+    // on different month boundaries than /api/branches/balances.
+    const start = parseDateStart(startDate);
+    const end = parseDateEnd(endDate);
 
     // Get user's allowed branches (without req to get full list, not active-branch filtered)
     const authorizedBranchFilter = await getUserBranchFilter(req.user.id);
@@ -69,6 +75,9 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
         createdAt: { gte: start, lte: end },
         ...branchFilter,
         status: "COMPLETED",
+        // routes/shifts.js has always excluded voided sales and its comment
+        // claims to mirror this query. It didn't — this is the missing half.
+        isVoided: false,
       },
       include: {
         items: {
@@ -79,6 +88,78 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
         branch: true,
       },
     });
+
+    // A2. Wholesale (Bulk) Data
+    //
+    // Wholesale lives in its own table (bulk_orders) and is scoped to a
+    // WAREHOUSE, not a branch. Branch.warehouseId is @unique, so the mapping is
+    // one-to-one. A branch with no warehouse linked can never surface wholesale;
+    // that is reported explicitly below rather than rendering as a real zero.
+    let scopedWarehouseIds = null; // null = every warehouse (global "all branches")
+    let branchesMissingWarehouse = [];
+    if (!isAllBranches) {
+      const scopedBranches = await prisma.branch.findMany({
+        where: { id: { in: filterBranchIds } },
+        select: { id: true, name: true, warehouseId: true },
+      });
+      scopedWarehouseIds = scopedBranches
+        .map((b) => b.warehouseId)
+        .filter((id) => id != null);
+      branchesMissingWarehouse = scopedBranches
+        .filter((b) => b.warehouseId == null)
+        .map((b) => b.name);
+    }
+
+    const bulkOrderWhere = {
+      createdAt: { gte: start, lte: end },
+      // DRAFT moved no stock and no money; CANCELLED was never owed.
+      status: { notIn: ["DRAFT", "CANCELLED"] },
+    };
+    if (scopedWarehouseIds) {
+      bulkOrderWhere.warehouseId = { in: scopedWarehouseIds };
+    }
+
+    // `warehouse.branch` resolves the owning branch (Branch.warehouseId is
+    // @unique) so wholesale can join the per-branch table alongside retail.
+    const bulkOrderInclude = {
+      items: { include: { item: { select: { name: true } } } },
+      warehouse: { select: { branch: { select: { name: true } } } },
+    };
+
+    const bulkOrders = await prisma.bulkOrder.findMany({
+      where: bulkOrderWhere,
+      include: bulkOrderInclude,
+    });
+
+    // Wholesale returns reverse revenue the way a retail REFUND- row does, but
+    // they are booked in the window the RETURN happened, not by pulling the
+    // original order out of the month it was invoiced in — otherwise an August
+    // return silently rewrites January's closed total.
+    //
+    // A bulk return is always whole-order (bulkRefund.controller.js calls
+    // applyBulkOrderStockMovement with "CREDIT" for every line), so the reversal
+    // is the order's full total and full COGS. BulkRefund.amount is only the
+    // CASH handed back, which is smaller whenever the customer hadn't paid in
+    // full — that is a cash-flow figure and does not belong in a revenue reversal.
+    const bulkRefundWhere = { createdAt: { gte: start, lte: end } };
+    if (scopedWarehouseIds) {
+      bulkRefundWhere.order = { warehouseId: { in: scopedWarehouseIds } };
+    }
+    const bulkRefundRows = await prisma.bulkRefund.findMany({
+      where: bulkRefundWhere,
+      include: { order: { include: bulkOrderInclude } },
+    });
+    // One reversal per order even if several refund rows exist against it. The
+    // refund's own createdAt is carried so the chart books the reversal on the
+    // day the goods came back.
+    const returnedOrders = [
+      ...new Map(
+        bulkRefundRows.map((r) => [
+          r.orderId,
+          { ...r.order, returnedOn: r.createdAt },
+        ]),
+      ).values(),
+    ].filter((o) => o && o.id);
 
     // B. Expenses Data
     const expenseWhere = {
@@ -101,20 +182,14 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     // C. Inventory (Snapshot - Current State)
     // We can't easily "go back in time" for inventory without a ledger, so we return CURRENT warning levels.
     // C. Inventory (Snapshot - Current State)
+    // Reuses the warehouse scope resolved for wholesale above — same branch →
+    // warehouse mapping, one query instead of two.
     let inventoryWhere = {};
     if (!isAllBranches) {
-      const branches = await prisma.branch.findMany({
-        where: { id: { in: filterBranchIds } },
-        select: { warehouseId: true },
-      });
-      const warehouseIds = branches
-        .map(b => b.warehouseId)
-        .filter(id => id != null);
-      if (warehouseIds.length > 0) {
-        inventoryWhere = { warehouseId: { in: warehouseIds } };
-      } else {
-        inventoryWhere = { warehouseId: -1 };
-      }
+      inventoryWhere =
+        scopedWarehouseIds.length > 0
+          ? { warehouseId: { in: scopedWarehouseIds } }
+          : { warehouseId: -1 };
     }
 
     const inventoryRecords = await prisma.inventory.findMany({
@@ -155,10 +230,34 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     // );
 
     // > Summary Cards
-    const totalSales = sales.reduce(
+    //
+    // This report is the ACCRUAL view: what was invoiced in the window, retail
+    // and wholesale together. It deliberately differs from /api/branches/balances,
+    // which is the CASH view (what actually reached the till) — that page gates
+    // cash sales on delivery and counts wholesale by payment date. Do not "fix"
+    // one to match the other; they answer different questions.
+
+    // Retail — sales.total is the tax-inclusive grand total. Refund rows are
+    // negative COMPLETED sales, so they net the figure down on their own.
+    const retailSales = sales.reduce(
       (sum, sale) => sum + parseFloat(sale.total),
       0,
     );
+
+    // Wholesale — BulkOrder.total is the equivalent tax-inclusive grand total,
+    // so the two are directly addable. Returns reverse the full order.
+    const wholesaleGross = bulkOrders.reduce(
+      (sum, o) => sum + parseFloat(o.total),
+      0,
+    );
+    const wholesaleReturns = returnedOrders.reduce(
+      (sum, o) => sum + parseFloat(o.total),
+      0,
+    );
+    const wholesaleSales = wholesaleGross - wholesaleReturns;
+
+    const totalSales = retailSales + wholesaleSales;
+
     // Operating expenses EXCLUDE inventory purchases (type "PURCHASE"): a
     // purchase's cost is recognized as cost of goods sold when the stock is
     // sold, not when it's bought — counting both would double-count it.
@@ -166,33 +265,48 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
       .filter((exp) => exp.type !== "PURCHASE")
       .reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
 
-    // Cost of goods sold from each sale line's cost snapshot (SaleItem.costPrice).
-    // Refund lines carry negative quantity, so they unwind COGS automatically.
-    const totalCOGS = sales.reduce(
-      (sum, sale) =>
-        sum +
-        sale.items.reduce(
-          (s, it) => s + Number(it.costPrice || 0) * Number(it.quantity),
-          0,
-        ),
-      0,
-    );
+    // Cost of goods sold from each line's cost snapshot. Retail uses
+    // SaleItem.costPrice (refund lines carry negative quantity, so they unwind
+    // COGS automatically); wholesale uses BulkOrderItem.costPrice, whose
+    // reversal is explicit because a returned order keeps its positive lines.
+    const lineCOGS = (items) =>
+      items.reduce(
+        (s, it) => s + Number(it.costPrice || 0) * Number(it.quantity),
+        0,
+      );
+
+    const retailCOGS = sales.reduce((sum, sale) => sum + lineCOGS(sale.items), 0);
+    const wholesaleCOGS =
+      bulkOrders.reduce((sum, o) => sum + lineCOGS(o.items), 0) -
+      returnedOrders.reduce((sum, o) => sum + lineCOGS(o.items), 0);
+
+    const totalCOGS = retailCOGS + wholesaleCOGS;
 
     // Net Profit = Sales − COGS − operating expenses.
     const grossProfit = totalSales - totalCOGS;
     const netProfit = grossProfit - operatingExpenses;
-    const invoiceCount = sales.length;
+    // Refund rows are extra sales rows carrying a negative total. They must net
+    // the money down but must NOT each count as another invoice — a sale plus
+    // its refund is not "2 فاتورة" against a zero total.
+    // A wholesale order returned later is still an invoice that was issued in
+    // this window, so returns don't decrement the count either — only the money.
+    const isRefundRow = (sale) => String(sale.saleNumber || "").startsWith("REFUND-");
+    const invoiceCount =
+      sales.filter((s) => !isRefundRow(s)).length + bulkOrders.length;
 
     // Inventory Alerts (Items below reorder point)
     const stockAlerts = stockAlertsList.length;
 
     // > Sales Chart (Over Time)
-    // If range is 1 day => Group by Hour
-    // If range > 1 day => Group by Day
-    // > Sales Chart (Over Time)
-    // If range is 1 day => Group by Hour
-    // If range > 1 day => Group by Day
-    const isSingleDay = start.toDateString() === end.toDateString();
+    // Single day => group by hour, longer range => group by day.
+    //
+    // Buckets and sales must be keyed the SAME way. They used to disagree: the
+    // day buckets were seeded from the range in one zone while each sale was
+    // keyed with `toISOString()` (UTC), so a sale just after Cairo midnight
+    // landed on a key that was never seeded and the `!== undefined` guard below
+    // silently dropped it — the chart could total less than the summary card.
+    // Both sides now go through the Cairo key helpers.
+    const isSingleDay = cairoDayKey(start) === cairoDayKey(end);
     const salesOverTime = {};
 
     // Initialize zero-filled data
@@ -202,58 +316,68 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
         salesOverTime[hour] = 0;
       }
     } else {
-      // Fill days between start and end
-      const current = new Date(start);
-      while (current <= end) {
-        const day = current.toISOString().split("T")[0];
-        salesOverTime[day] = 0;
-        current.setDate(current.getDate() + 1);
+      // Fill Cairo days between start and end. `start` is a Cairo midnight, and
+      // Cairo has no DST, so stepping a fixed 24h stays on midnight.
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      for (let t = start.getTime(); t <= end.getTime(); t += DAY_MS) {
+        salesOverTime[cairoDayKey(new Date(t))] = 0;
       }
     }
 
-    sales.forEach((sale) => {
-      const date = new Date(sale.createdAt);
-      // Adjust for local time offset if needed, but for now assuming server time is consistent
-      // If running locally, Date objects are local.
+    // Every series below folds in wholesale as well as retail, so the chart and
+    // the table still add up to the "إجمالي المبيعات" card above them.
+    const addToBucket = (when, amount) => {
+      const key = isSingleDay ? cairoHourKey(when) : cairoDayKey(when);
+      if (salesOverTime[key] !== undefined) salesOverTime[key] += amount;
+    };
 
-      let key;
-      if (isSingleDay) {
-        const hour = String(date.getHours()).padStart(2, "0") + ":00";
-        key = hour;
-      } else {
-        key = date.toISOString().split("T")[0];
-      }
-
-      if (salesOverTime[key] !== undefined) {
-        salesOverTime[key] += parseFloat(sale.total);
-      }
-    });
+    sales.forEach((sale) => addToBucket(sale.createdAt, parseFloat(sale.total)));
+    bulkOrders.forEach((o) => addToBucket(o.createdAt, parseFloat(o.total)));
+    // A return is booked on the day it happened, matching the summary card.
+    returnedOrders.forEach((o) => addToBucket(o.returnedOn, -parseFloat(o.total)));
 
     // > Sales By Category (Doughnut)
     const salesByCategory = {};
+    const addToItem = (itemName, amount) => {
+      const name = itemName || "غير محدد";
+      if (!salesByCategory[name]) salesByCategory[name] = 0;
+      salesByCategory[name] += amount;
+    };
+
     sales.forEach((sale) => {
       sale.items.forEach((saleItem) => {
-        const itemName = saleItem.item.name;
-        if (!salesByCategory[itemName]) salesByCategory[itemName] = 0;
-        salesByCategory[itemName] += parseFloat(saleItem.total);
+        addToItem(saleItem.item?.name, parseFloat(saleItem.total));
       });
     });
-    // console.log("[DEBUG] Final Sales By Item:", salesByCategory);
+    bulkOrders.forEach((o) => {
+      o.items.forEach((line) => addToItem(line.item?.name, parseFloat(line.lineTotal)));
+    });
+    returnedOrders.forEach((o) => {
+      o.items.forEach((line) => addToItem(line.item?.name, -parseFloat(line.lineTotal)));
+    });
 
     // > Sales By Branch (Table)
     const branchStats = {};
-    sales.forEach((sale) => {
-      const branchName = sale.branch ? sale.branch.name : "Unknown";
-      if (!branchStats[branchName]) {
-        branchStats[branchName] = {
-          name: branchName,
-          totalSales: 0,
-          invoiceCount: 0,
-        };
+    const bumpBranch = (branchName, amount, invoiceDelta) => {
+      const name = branchName || "Unknown";
+      if (!branchStats[name]) {
+        branchStats[name] = { name, totalSales: 0, invoiceCount: 0 };
       }
-      branchStats[branchName].totalSales += parseFloat(sale.total);
-      branchStats[branchName].invoiceCount += 1;
-    });
+      branchStats[name].totalSales += amount;
+      branchStats[name].invoiceCount += invoiceDelta;
+    };
+
+    sales.forEach((sale) =>
+      // Refunds net the money down but are not extra invoices — same rule as
+      // the invoiceCount card, so averageInvoice below stays believable.
+      bumpBranch(sale.branch?.name, parseFloat(sale.total), isRefundRow(sale) ? 0 : 1),
+    );
+    bulkOrders.forEach((o) =>
+      bumpBranch(o.warehouse?.branch?.name, parseFloat(o.total), 1),
+    );
+    returnedOrders.forEach((o) =>
+      bumpBranch(o.warehouse?.branch?.name, -parseFloat(o.total), 0),
+    );
 
     // Calculate Averages for Branch table
     const salesByBranch = Object.values(branchStats).map((stat) => ({
@@ -267,13 +391,22 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     // --- 4. Response Construction ---
     res.json({
       summary: {
+        // totalSales stays the combined headline figure so existing consumers
+        // keep working; the split is additive.
         totalSales,
+        retailSales,
+        wholesaleSales,
+        wholesaleOrderCount: bulkOrders.length,
         cogs: totalCOGS,
         grossProfit,
         operatingExpenses,
         netProfit,
         invoiceCount,
         stockAlerts,
+        // Wholesale is keyed off Branch.warehouseId. A branch without one can
+        // never report wholesale, so say that instead of showing a bare 0 that
+        // reads as "no wholesale sales this month".
+        branchesMissingWarehouse,
       },
       charts: {
         salesOverTime: {

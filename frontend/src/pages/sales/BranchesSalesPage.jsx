@@ -113,7 +113,10 @@ function BranchCard({ branch, windowLabel }) {
             <div className="w-2 h-2 rounded-full bg-amber-500" />
             <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">جملة</p>
           </div>
-          <p className="text-[9px] font-black uppercase tracking-wider text-amber-700/60 dark:text-amber-400/60">{windowLabel}</p>
+          {/* Wholesale is counted when the customer pays (BulkPayment.receivedAt),
+              not when the order is raised — captioned so it can't be read as
+              order value. */}
+          <p className="text-[9px] font-black uppercase tracking-wider text-amber-700/60 dark:text-amber-400/60">محصّل · {windowLabel}</p>
           <p className="font-black text-sm text-amber-700 dark:text-amber-300 tabular-nums text-center leading-tight mt-0.5">
             {fmt(bulkSales)}
             <span className="text-[10px] font-normal block text-amber-700/60 dark:text-amber-400/60">ج.م</span>
@@ -156,7 +159,7 @@ function TotalsCard({ totals, count, windowLabel }) {
         <Stat label="نقدي" caption={windowLabel} value={fmt(totals.cashSales)} color="text-emerald-700 dark:text-emerald-400" />
         <Stat label="فيزا" caption={windowLabel} value={fmt(totals.visa)} color="text-blue-700 dark:text-blue-400" />
         <Stat label="انستاباي" caption={windowLabel} value={fmt(totals.instapay)} color="text-purple-700 dark:text-purple-400" />
-        <Stat label="جملة" caption={windowLabel} value={fmt(totals.bulkSales)} color="text-amber-700 dark:text-amber-400" />
+        <Stat label="جملة" caption={`محصّل · ${windowLabel}`} value={fmt(totals.bulkSales)} color="text-amber-700 dark:text-amber-400" />
         <Stat label="مصروفات" caption={windowLabel} value={fmt(totals.totalExpenses)} color="text-rose-700 dark:text-rose-400" />
       </div>
     </div>
@@ -294,7 +297,14 @@ const BranchesSalesPage = () => {
                 مبيعات الفروع
               </h1>
               <p className="text-primary/80 dark:text-accent/80 text-sm md:text-base">
-                متابعة مبيعات كل فرع حسب الفترة المحددة
+                المُحصَّل فعليًا في الخزينة لكل فرع حسب الفترة المحددة
+              </p>
+              {/* This page and التقرير العام differ on purpose: delivery cash
+                  still on the road isn't collected yet, and wholesale counts
+                  when the customer pays, not when the order is raised. */}
+              <p className="text-xs text-text-light/50 dark:text-text-dark/40">
+                لا يشمل نقدية الطلبات التي لم تُسلَّم بعد. للمبيعات بالفوترة
+                راجع التقرير العام.
               </p>
             </div>
             <button
