@@ -20,6 +20,7 @@ jest.mock("../../config/database", () => ({
 jest.mock("../../middleware/auth", () => ({
   authenticateToken: (req, res, next) => next(),
   requirePermission: () => (req, res, next) => next(),
+  requireAnyPermission: () => (req, res, next) => next(),
   // null = global role, sees every branch (no branch filter applied)
   getUserBranchFilter: jest.fn(async () => null),
 }));
@@ -256,5 +257,59 @@ describe("branch scoping", () => {
 
     expect(summary.wholesaleSales).toBe(0);
     expect(summary.branchesMissingWarehouse).toEqual(["فرع بدون مخزن"]);
+  });
+});
+
+describe("the invoice count says which half is which", () => {
+  // عدد الفواتير here is retail + wholesale, but مبيعات الفروع counts retail
+  // only — so the same day read "709" on one screen and "705" on the other and
+  // looked like a bug. Reporting the halves separately is the fix; the blended
+  // figure stays for existing consumers.
+  test("the two halves add up to the blended count", async () => {
+    setData({ sales: [retailSale, retailRefund], bulk: [bulkOrder] });
+    const { summary } = await runReport(AUG);
+
+    expect(summary.retailInvoiceCount).toBe(1); // the REFUND- row is not an invoice
+    expect(summary.wholesaleOrderCount).toBe(1);
+    expect(summary.invoiceCount).toBe(2);
+    expect(summary.retailInvoiceCount + summary.wholesaleOrderCount).toBe(
+      summary.invoiceCount,
+    );
+  });
+
+  test("REGRESSION: the blended count keeps its old meaning", async () => {
+    // Splitting the display must not change what invoiceCount reports; a
+    // consumer reading it before this change reads the same number after.
+    setData({ sales: [retailSale, retailRefund], bulk: [] });
+    const { summary } = await runReport(AUG);
+
+    expect(summary.invoiceCount).toBe(1);
+  });
+});
+
+describe("what counts as invoiced wholesale", () => {
+  test("uses an allow-list of statuses, never an exclusion list", async () => {
+    setData({ sales: [], bulk: [] });
+    await runReport(AUG);
+
+    const where = prisma.bulkOrder.findMany.mock.calls[0][0].where;
+
+    // `notIn: ["DRAFT","CANCELLED"]` also let QUOTED through — a quotation
+    // nobody owes yet, booked as revenue the moment it was raised — and would
+    // count any status added to the enum later. The Prisma mock echoes whatever
+    // it is handed, so this can only be asserted as a PREDICATE SHAPE; do not
+    // "improve" it into a data assertion, which would pass no matter what.
+    expect(where.status).toEqual({
+      in: ["CONFIRMED", "PARTIALLY_PAID", "PAID", "RETURNED"],
+    });
+    expect(where.status.notIn).toBeUndefined();
+    expect(where.status.in).not.toContain("QUOTED");
+    expect(where.status.in).not.toContain("DRAFT");
+    expect(where.status.in).not.toContain("CANCELLED");
+    // RETURNED must stay in: the order WAS invoiced in its window, and the
+    // reversal is booked separately on the day the goods came back. Dropping it
+    // would break "a returned order still counts as an invoice issued in its
+    // window" above.
+    expect(where.status.in).toContain("RETURNED");
   });
 });

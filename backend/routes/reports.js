@@ -1,13 +1,22 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../config/database");
-const { authenticateToken, requirePermission, getUserBranchFilter } = require("../middleware/auth");
+const {
+  authenticateToken,
+  requirePermission,
+  requireAnyPermission,
+  getUserBranchFilter,
+} = require("../middleware/auth");
 const {
   parseDateStart,
   parseDateEnd,
   cairoDayKey,
   cairoHourKey,
 } = require("../utils/dateRange");
+const {
+  computeSalesBasisBridge,
+  INVOICED_BULK_STATUSES,
+} = require("../lib/salesBasisBridge");
 
 /**
  * GET /api/reports/general
@@ -20,6 +29,56 @@ const {
 // Protect all routes with authentication
 router.use(authenticateToken);
 
+/**
+ * Which branches may this request read?
+ *
+ * `getUserBranchFilter` is called WITHOUT `req` on purpose: that suppresses the
+ * `x-active-branch-id` header path, so a report covers every branch the user is
+ * allowed to see rather than only the one the BranchSwitcher happens to be on.
+ *
+ * Shared by /general and /sales-basis so the reconciliation is computed over
+ * exactly the branches the report it explains was computed over. Returns
+ * `{ denied: true }` when the caller asks for a branch outside their access.
+ */
+const resolveBranchScope = async (userId, branchId) => {
+  const authorizedBranchFilter = await getUserBranchFilter(userId);
+
+  // Determine allowed branch IDs
+  let allowedBranchIds = null; // null = global role, can see all
+  if (authorizedBranchFilter) {
+    allowedBranchIds = authorizedBranchFilter.id.in
+      ? authorizedBranchFilter.id.in
+      : [authorizedBranchFilter.id];
+  }
+
+  // Build branchFilter: respect query param branchId but validate against allowed list
+  let branchFilter = {};
+  let isAllBranches = false;
+  let filterBranchIds = [];
+
+  const requestedBranchId = branchId && branchId !== "all" ? parseInt(branchId) : null;
+
+  if (requestedBranchId) {
+    // User requested a specific branch — validate access
+    if (allowedBranchIds && !allowedBranchIds.includes(requestedBranchId)) {
+      return { denied: true };
+    }
+    branchFilter = { branchId: requestedBranchId };
+    filterBranchIds = [requestedBranchId];
+  } else if (!allowedBranchIds) {
+    // Global role requesting all branches
+    isAllBranches = true;
+  } else {
+    // Non-global role with no specific branch — scope to all allowed branches
+    branchFilter = allowedBranchIds.length === 1
+      ? { branchId: allowedBranchIds[0] }
+      : { branchId: { in: allowedBranchIds } };
+    filterBranchIds = allowedBranchIds;
+  }
+
+  return { denied: false, branchFilter, isAllBranches, filterBranchIds };
+};
+
 router.get("/general", requirePermission("REPORTS"), async (req, res) => {
   try {
     const { startDate, endDate, branchId } = req.query;
@@ -31,41 +90,14 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     const start = parseDateStart(startDate);
     const end = parseDateEnd(endDate);
 
-    // Get user's allowed branches (without req to get full list, not active-branch filtered)
-    const authorizedBranchFilter = await getUserBranchFilter(req.user.id);
-
-    // Determine allowed branch IDs
-    let allowedBranchIds = null; // null = global role, can see all
-    if (authorizedBranchFilter) {
-      allowedBranchIds = authorizedBranchFilter.id.in
-        ? authorizedBranchFilter.id.in
-        : [authorizedBranchFilter.id];
+    // Which branches may this user read? Extracted so /sales-basis resolves the
+    // exact same scope — a reconciliation computed over a different branch set
+    // than the report it explains would tie out to the wrong number.
+    const scope = await resolveBranchScope(req.user.id, branchId);
+    if (scope.denied) {
+      return res.status(403).json({ error: "Access denied to this branch" });
     }
-
-    // Build branchFilter: respect query param branchId but validate against allowed list
-    let branchFilter = {};
-    let isAllBranches = false;
-    let filterBranchIds = [];
-
-    const requestedBranchId = branchId && branchId !== "all" ? parseInt(branchId) : null;
-
-    if (requestedBranchId) {
-      // User requested a specific branch — validate access
-      if (allowedBranchIds && !allowedBranchIds.includes(requestedBranchId)) {
-        return res.status(403).json({ error: "Access denied to this branch" });
-      }
-      branchFilter = { branchId: requestedBranchId };
-      filterBranchIds = [requestedBranchId];
-    } else if (!allowedBranchIds) {
-      // Global role requesting all branches
-      isAllBranches = true;
-    } else {
-      // Non-global role with no specific branch — scope to all allowed branches
-      branchFilter = allowedBranchIds.length === 1
-        ? { branchId: allowedBranchIds[0] }
-        : { branchId: { in: allowedBranchIds } };
-      filterBranchIds = allowedBranchIds;
-    }
+    const { branchFilter, isAllBranches, filterBranchIds } = scope;
 
     // --- 2. Fetch Data ---
 
@@ -112,8 +144,13 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
 
     const bulkOrderWhere = {
       createdAt: { gte: start, lte: end },
-      // DRAFT moved no stock and no money; CANCELLED was never owed.
-      status: { notIn: ["DRAFT", "CANCELLED"] },
+      // An allow-list, not `notIn: ["DRAFT","CANCELLED"]`. DRAFT moved no stock
+      // and no money and CANCELLED was never owed — but the exclusion list also
+      // let QUOTED through, booking a quotation nobody owes yet as revenue the
+      // moment it was raised, and would count any status added to the enum
+      // later. Shared with lib/salesBasisBridge.js so the report and the
+      // reconciliation can never disagree on what "invoiced" means.
+      status: { in: INVOICED_BULK_STATUSES },
     };
     if (scopedWarehouseIds) {
       bulkOrderWhere.warehouseId = { in: scopedWarehouseIds };
@@ -290,9 +327,16 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
     // its refund is not "2 فاتورة" against a zero total.
     // A wholesale order returned later is still an invoice that was issued in
     // this window, so returns don't decrement the count either — only the money.
+    //
+    // The two halves are reported separately as well as blended. A wholesale
+    // order is not the same kind of thing as a POS receipt, and مبيعات الفروع
+    // counts only the retail half — so a bare blended number made the two
+    // screens look like they disagreed about invoices when they were simply
+    // counting different things. `invoiceCount` keeps its old blended meaning
+    // for existing consumers; the split is additive.
     const isRefundRow = (sale) => String(sale.saleNumber || "").startsWith("REFUND-");
-    const invoiceCount =
-      sales.filter((s) => !isRefundRow(s)).length + bulkOrders.length;
+    const retailInvoiceCount = sales.filter((s) => !isRefundRow(s)).length;
+    const invoiceCount = retailInvoiceCount + bulkOrders.length;
 
     // Inventory Alerts (Items below reorder point)
     const stockAlerts = stockAlertsList.length;
@@ -401,7 +445,11 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
         grossProfit,
         operatingExpenses,
         netProfit,
+        // Blended (retail + wholesale) — unchanged for existing consumers.
         invoiceCount,
+        // The retail half on its own. This is the figure that is directly
+        // comparable with `salesCount` on مبيعات الفروع.
+        retailInvoiceCount,
         stockAlerts,
         // Wholesale is keyed off Branch.warehouseId. A branch without one can
         // never report wholesale, so say that instead of showing a bare 0 that
@@ -432,6 +480,70 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
       .json({ error: "Failed to generate report", details: error.message });
   }
 });
+
+/**
+ * GET /api/reports/sales-basis
+ *
+ * Why التقرير العام and مبيعات الفروع report different totals for the same
+ * filter, term by term. Read-only; changes nothing either page displays.
+ *
+ * The two pages measure different things on purpose — invoiced vs collected —
+ * but the gap is neither small nor stable (measured on production it swung from
+ * −75,120 to +40,470 inside one day), so without this a user cannot tell a
+ * legitimate wholesale timing difference from a bug.
+ *
+ * Accepts `from`/`to` as aliases for `startDate`/`endDate` so مبيعات الفروع can
+ * forward its own filter state unchanged.
+ *
+ * Permission is REPORTS *or* SALES: مبيعات الفروع is reachable without REPORTS,
+ * and the panel must not 403 for the branch managers who live on that page.
+ * Branch scoping still runs through getUserBranchFilter, so this exposes no
+ * branch the caller could not already read.
+ */
+router.get(
+  "/sales-basis",
+  requireAnyPermission(["REPORTS", "SALES"]),
+  async (req, res) => {
+    try {
+      const startDate = req.query.startDate || req.query.from;
+      const endDate = req.query.endDate || req.query.to;
+      const start = parseDateStart(startDate);
+      const end = parseDateEnd(endDate);
+
+      const scope = await resolveBranchScope(req.user.id, req.query.branchId);
+      if (scope.denied) {
+        return res.status(403).json({ error: "Access denied to this branch" });
+      }
+
+      const bridge = await computeSalesBasisBridge({
+        start,
+        end,
+        // null = every branch, matching /general's "all branches" scope.
+        branchIds: scope.isAllBranches ? null : scope.filterBranchIds,
+      });
+
+      res.json({
+        window: {
+          startDate,
+          endDate,
+          startUtc: start.toISOString(),
+          endUtc: end.toISOString(),
+        },
+        scope: {
+          isAllBranches: scope.isAllBranches,
+          branchIds: scope.isAllBranches ? null : scope.filterBranchIds,
+        },
+        ...bridge,
+      });
+    } catch (error) {
+      console.error("❌ Error building sales basis bridge:", error);
+      res.status(500).json({
+        error: "Failed to build sales basis reconciliation",
+        details: error.message,
+      });
+    }
+  },
+);
 
 /**
  * GET /api/reports/call-center

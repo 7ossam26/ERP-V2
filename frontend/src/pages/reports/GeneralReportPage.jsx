@@ -16,6 +16,8 @@ import { Line, Doughnut } from "react-chartjs-2";
 import { reportService, branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import BranchFilterHelper from "../../utils/BranchFilterHelper";
+import { cairoTodayISO } from "../../utils/dateRange";
+import SalesBasisBridge from "../../components/reports/SalesBasisBridge";
 import toast from "react-hot-toast";
 
 ChartJS.register(
@@ -30,12 +32,11 @@ ChartJS.register(
   Filler,
 );
 
-const getLocalToday = () => {
-  const date = new Date();
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date - offset).toISOString().slice(0, 10);
-};
-
+// "Today" means today in CAIRO, because that is what the backend resolves a
+// YYYY-MM-DD filter against (backend/utils/dateRange.js is pinned to UTC+2).
+// This used to be the browser's local day, so on any machine outside Cairo this
+// page opened on a different day than مبيعات الفروع while both said "اليوم" —
+// two screens showing two different days is not a difference anyone can debug.
 const GeneralReportPage = () => {
   const currentUser = AuthService.getCurrentUser();
   console.log("Logged In User:", currentUser); // DEBUG USER ROLE
@@ -44,8 +45,8 @@ const GeneralReportPage = () => {
   const [error, setError] = useState(null);
   const [branches, setBranches] = useState([]);
   const [filters, setFilters] = useState({
-    startDate: getLocalToday(),
-    endDate: getLocalToday(),
+    startDate: cairoTodayISO(),
+    endDate: cairoTodayISO(),
     branchId: BranchFilterHelper.getDefaultBranchId(currentUser),
   });
 
@@ -379,6 +380,29 @@ const GeneralReportPage = () => {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {reportData?.summary?.invoiceCount}
               </h3>
+              {/* A wholesale order is not a POS receipt, and مبيعات الفروع
+                  counts only the retail half — so a bare blended number made
+                  the two screens look like they disagreed about invoices when
+                  they were counting different things. Same split treatment as
+                  the إجمالي المبيعات card above. */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs">
+                <span className="text-gray-500 dark:text-gray-400">
+                  تجزئة:{" "}
+                  <span className="font-bold text-gray-700 dark:text-gray-200 tabular-nums">
+                    {Number(
+                      reportData?.summary?.retailInvoiceCount || 0,
+                    ).toLocaleString()}
+                  </span>
+                </span>
+                <span className="text-amber-700/80 dark:text-amber-400/80">
+                  أوامر جملة:{" "}
+                  <span className="font-bold text-amber-700 dark:text-amber-400 tabular-nums">
+                    {Number(
+                      reportData?.summary?.wholesaleOrderCount || 0,
+                    ).toLocaleString()}
+                  </span>
+                </span>
+              </div>
             </div>
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               <span className="material-icons-round text-blue-600 dark:text-blue-400 text-xl">
@@ -405,6 +429,18 @@ const GeneralReportPage = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Sits directly under the totals it explains and above the P&L that
+          consumes them. The prose note in the header says these two pages
+          differ on purpose; this is that sentence in numbers. */}
+      <div className="mb-8">
+        <SalesBasisBridge
+          startDate={filters.startDate}
+          endDate={filters.endDate}
+          branchId={filters.branchId}
+          side="accrual"
+        />
       </div>
 
       {/* Profit & Loss Statement */}

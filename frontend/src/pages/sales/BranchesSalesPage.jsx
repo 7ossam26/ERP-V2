@@ -7,6 +7,7 @@ import {
 import DateFilterBar from "../../components/branches/DateFilterBar";
 import { computePresetRange } from "../../utils/dateRange";
 import TreasuryHeaderCards from "../../components/branches/TreasuryHeaderCards";
+import SalesBasisBridge from "../../components/reports/SalesBasisBridge";
 
 const fmt = (n) =>
   Number(n || 0).toLocaleString("ar-EG", {
@@ -369,6 +370,17 @@ const BranchesSalesPage = () => {
                 {branches.length > 1 && (
                   <TotalsCard totals={totals} count={branches.length} windowLabel={windowLabel} />
                 )}
+
+                {/* Reconciles the total just above against التقرير العام. The
+                    note in the header says the two differ on purpose; this
+                    shows by exactly how much and why, invoice by invoice.
+                    branchId is omitted: this page is chain-wide by design. */}
+                <SalesBasisBridge
+                  startDate={filter.from}
+                  endDate={filter.to}
+                  side="cash"
+                  windowLabel={windowLabel}
+                />
               </>
             )}
           </div>
