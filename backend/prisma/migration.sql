@@ -2181,15 +2181,32 @@ ALTER TABLE `deposits` ADD CONSTRAINT `deposits_shift_id_fkey` FOREIGN KEY (`shi
 -- AddForeignKey
 ALTER TABLE `withdrawals` ADD CONSTRAINT `withdrawals_shift_id_fkey` FOREIGN KEY (`shift_id`) REFERENCES `shifts`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
--- ============================================================
--- 20260801000000_shift_reopen_cycles
--- ============================================================
--- Allow a shift to be reopened AFTER approval without losing the treasury
--- correction approval posts. UNIQUE(shift_id, source) permitted one
--- SHIFT_VARIANCE posting per shift for all time, so a second approval raised
--- P2002 and its correction silently never reached the treasury. Widening the
--- key to (shift_id, source, cycle) lets each approval cycle post exactly once.
--- Add-only and constraint-relaxing: existing rows backfill to cycle 0.
+
+-- Migration: 20260801000000_shift_reopen_cycles
+-- Allow a shift to be reopened AFTER approval, without losing the treasury
+-- correction that approval posts.
+--
+-- WHY
+-- ---
+-- POST /shifts/approve posts a Deposit/Withdrawal (source=SHIFT_VARIANCE) and
+-- moves treasury.balance. The previous UNIQUE(shift_id, source) allowed exactly
+-- one such posting per shift for all time, which was correct while approval was
+-- terminal. Now that a CLOSED shift can be reopened and approved again, that
+-- index made the SECOND approval raise P2002 — the route translated it to a 409
+-- "already approved" and the corrected variance never reached the treasury. Not
+-- a double post: a silently MISSING one.
+--
+-- Widening the key to (shift_id, source, cycle) lets each approval cycle post
+-- once, while still rejecting a replayed approve within the same cycle. Each
+-- posting is a delta against the LIVE balance, so cycles supersede rather than
+-- accumulate and no reversal is needed — see lib/shiftTreasury.js.
+--
+-- This is a NON-DESTRUCTIVE, ADD-ONLY migration. Every new column is NOT NULL
+-- with a DEFAULT of 0, so existing rows backfill to cycle 0 / reopen_count 0.
+-- The unique constraint is RELAXED, never tightened: any row set that satisfied
+-- UNIQUE(shift_id, source) also satisfies UNIQUE(shift_id, source, cycle), so
+-- the index rebuild cannot fail on existing data. No column is dropped,
+-- renamed, retyped, or made nullable.
 
 -- AlterTable
 ALTER TABLE `shifts` ADD COLUMN `reopen_count` INTEGER NOT NULL DEFAULT 0;
@@ -2202,12 +2219,18 @@ ALTER TABLE `withdrawals` ADD COLUMN `cycle` INTEGER NOT NULL DEFAULT 0;
 
 -- CreateIndex
 --
--- ORDER MATTERS: create the new index BEFORE dropping the old one.
--- deposits_shift_id_fkey / withdrawals_shift_id_fkey (added above) need an index
--- whose leftmost prefix is shift_id, and UNIQUE(shift_id, source) was the only
--- one. Dropping it first fails with MySQL 1553, "needed in a foreign key
--- constraint". UNIQUE(shift_id, source, cycle) satisfies the FK, so once it
--- exists the old index drops cleanly.
+-- ORDER MATTERS: the new index MUST be created before the old one is dropped.
+--
+-- deposits.shift_id and withdrawals.shift_id each carry an FK to shifts
+-- (deposits_shift_id_fkey / withdrawals_shift_id_fkey). InnoDB requires an index
+-- whose LEFTMOST prefix is the FK column, and UNIQUE(shift_id, source) was the
+-- only such index on either table. Dropping it first therefore fails with MySQL
+-- error 1553, "Cannot drop index 'deposits_shift_id_source_key': needed in a
+-- foreign key constraint" — and because MySQL DDL is not transactional, that
+-- leaves the migration applied halfway.
+--
+-- Creating UNIQUE(shift_id, source, cycle) first hands each FK an index it can
+-- use (same leftmost prefix, shift_id), after which the old index drops cleanly.
 CREATE UNIQUE INDEX `deposits_shift_id_source_cycle_key` ON `deposits`(`shift_id`, `source`, `cycle`);
 
 -- CreateIndex
@@ -2218,5 +2241,64 @@ DROP INDEX `deposits_shift_id_source_key` ON `deposits`;
 
 -- DropIndex
 DROP INDEX `withdrawals_shift_id_source_key` ON `withdrawals`;
+
+
+-- Migration: 20260826000000_add_bulk_order_item_cost_price
+-- AlterTable: COGS snapshot on each bulk order line, mirroring sale_items.cost_price.
+--
+-- The general report now counts wholesale revenue in totalSales. Without a cost
+-- snapshot that revenue would carry zero cost and inflate gross/net profit by
+-- the full wholesale amount, so this column is a prerequisite, not an extra.
+-- Appended rather than placed AFTER `line_total` on purpose: MySQL 8.0 can only
+-- use ALGORITHM=INSTANT when the column goes last. Naming a position forces a
+-- full table rebuild and takes a metadata lock, which is not worth paying on a
+-- live database for cosmetic column order. Nothing reads columns positionally.
+ALTER TABLE `bulk_order_items`
+ADD COLUMN `cost_price` DECIMAL(10, 2) NOT NULL DEFAULT 0;
+
+-- Backfill historical lines from the item's CURRENT cost. There is no cost
+-- ledger to reconstruct what each item cost on the day its order was placed, so
+-- pre-existing wholesale orders are valued at today's cost. New orders stamp the
+-- real cost at creation time (see bulkOrder.controller.js validateLines).
+UPDATE `bulk_order_items` `boi`
+JOIN `items` `i` ON `i`.`id` = `boi`.`item_id`
+SET `boi`.`cost_price` = `i`.`cost_price`
+WHERE `boi`.`cost_price` = 0;
+
+
+-- Migration: 20260827000000_add_overtime_bonus_transaction_types
+-- Add اضافي (OVERTIME) and مكافئة (BONUS) to the employee transaction type enum,
+-- and give payrolls frozen snapshot columns for the two additive amounts.
+--
+-- This is a NON-DESTRUCTIVE, SUPERSET-ONLY + ADD-ONLY migration:
+--
+--   * The ENUM MODIFY only ENLARGES the value list. 'ADVANCE' and 'DEDUCTION'
+--     keep their existing positions (1 and 2), and MySQL stores ENUM values by
+--     ordinal — appending values at the END never renumbers or rewrites the
+--     existing ones, so every employee_transactions row is left fully intact.
+--     Values are NEVER inserted in the middle or reordered, for this reason.
+--
+--   * The two new payrolls columns are NOT NULL DEFAULT 0, so MySQL backfills
+--     every historical payroll with 0. That keeps the reconciliation invariant
+--         net_salary = base_salary - advances - deductions + overtime + bonuses
+--     true for pre-existing rows exactly as it is for new ones.
+--
+-- Nothing is dropped, renamed, retyped, narrowed, or made NOT NULL without a
+-- default. The value list is generated from config/employeeTransactionTypes.js
+-- (the single source of truth) and is verified against prisma/schema.prisma by
+-- tests/unit/employeeTransactionTypeEnum.test.js.
+--
+-- OVERTIME and BONUS are ACCRUALS ONLY: no cash moves when they are recorded,
+-- they are settled together with the salary at payout. Nothing in the shift
+-- drawer or treasury reconciliation reads them (those paths filter on ADVANCE).
+
+-- AlterTable
+ALTER TABLE `employee_transactions`
+  MODIFY `type` ENUM('ADVANCE', 'DEDUCTION', 'OVERTIME', 'BONUS') NOT NULL;
+
+-- AlterTable
+ALTER TABLE `payrolls`
+  ADD COLUMN `overtime` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  ADD COLUMN `bonuses` DECIMAL(10, 2) NOT NULL DEFAULT 0;
 
 

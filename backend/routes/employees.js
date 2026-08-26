@@ -3,6 +3,14 @@ const router = express.Router();
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission, requireSensitiveAccess } = require("../middleware/auth");
 const { isAdminRole } = require("../config/roles");
+const {
+  isValidTransactionType,
+  isCashOutType,
+} = require("../config/employeeTransactionTypes");
+const {
+  summarizeEmployeeTransactions,
+  computeNetSalary,
+} = require("../utils/payrollMath");
 
 // Helper to get date range for a month
 const getMonthDateRange = (month, year) => {
@@ -21,6 +29,24 @@ const resolveIsManager = async (req) => {
     select: { hasSensitiveAccess: true },
   });
   return !!u?.hasSensitiveAccess;
+};
+
+// A payroll row is a FROZEN snapshot of the month it was paid for. Once it
+// exists, editing or deleting one of that month's transactions would silently
+// desync the snapshot from the ledger — and the pay dialog already promises the
+// operator that "لن يمكن تعديل المعاملات الخاصة بهذا الشهر بعد ذلك". Nothing
+// enforced it until now.
+const monthIsPaid = async (employeeId, date) => {
+  const paid = await prisma.payroll.findFirst({
+    where: {
+      employeeId,
+      status: "PAID",
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+    },
+    select: { id: true },
+  });
+  return !!paid;
 };
 
 // Protect all routes with authentication
@@ -70,18 +96,12 @@ router.get("/", requirePermission("EMPLOYEES"), async (req, res) => {
       },
     });
 
-    // Calculate processed fields
+    // Calculate processed fields. The same helpers back POST /:id/pay, so the
+    // "المرتب المتبقي" shown here is by construction the amount that gets paid.
     const processedEmployees = employees.map((emp) => {
-      const advances = emp.transactions
-        .filter((t) => t.type === "ADVANCE")
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      const deductions = emp.transactions
-        .filter((t) => t.type === "DEDUCTION")
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
+      const summary = summarizeEmployeeTransactions(emp.transactions);
       const baseSalary = Number(emp.salary);
-      const remaining = baseSalary - advances - deductions;
+      const remaining = computeNetSalary(baseSalary, summary);
 
       // Check if paid
       const payroll = emp.payrolls[0];
@@ -90,8 +110,11 @@ router.get("/", requirePermission("EMPLOYEES"), async (req, res) => {
       return {
         ...emp,
         salary: baseSalary,
-        advances,
-        deductions,
+        advances: summary.advances,
+        deductions: summary.deductions,
+        overtime: summary.overtime,
+        bonuses: summary.bonuses,
+        additions: summary.additions,
         remaining,
         isPaid,
         payrollId: payroll?.id,
@@ -143,8 +166,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST create transaction (Advance/Deduction)
-router.post("/:id/transactions", authenticateToken, async (req, res) => {
+// POST create transaction (سلفة / خصم / اضافي / مكافئة)
+router.post("/:id/transactions", requirePermission("EMPLOYEES"), async (req, res) => {
   try {
     const { type, amount, reason, date, branchId } = req.body;
     const employeeId = parseInt(req.params.id);
@@ -154,6 +177,24 @@ router.post("/:id/transactions", authenticateToken, async (req, res) => {
       return res.status(400).json({
         error: "Reason is required",
         message: "يرجى كتابة سبب المعاملة",
+      });
+    }
+
+    // Allow-list the type before touching the DB. This branch used to fall
+    // through: anything that wasn't "ADVANCE" — including a typo or a type the
+    // client didn't know about — was silently written as a DEDUCTION.
+    if (!isValidTransactionType(type)) {
+      return res.status(400).json({
+        error: "Invalid transaction type",
+        message: "نوع المعاملة غير صالح",
+      });
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({
+        error: "Invalid amount",
+        message: "يجب إدخال مبلغ أكبر من صفر",
       });
     }
 
@@ -181,13 +222,18 @@ router.post("/:id/transactions", authenticateToken, async (req, res) => {
       });
     }
     const shiftId = activeShift?.id ?? null;
-    const parsedAmount = parseFloat(amount);
 
-    // Advances are cash handed to the employee: they require an open shift on
-    // the branch (non-managers), deduct the branch's cash treasury, and appear
-    // in that shift's records — exactly like a cash expense. Deductions move no
-    // cash and are recorded as-is (no shift gate).
-    if (type === "ADVANCE") {
+    // ADVANCE is the only type that moves cash: it requires an open shift on the
+    // branch (non-managers), deducts the branch's cash treasury, and appears in
+    // that shift's records — exactly like a cash expense.
+    //
+    // DEDUCTION / OVERTIME / BONUS are ACCRUALS ONLY. No cash moves when they
+    // are recorded and there is no shift gate; they are settled together with
+    // the salary at payout via POST /:id/pay. They still record branchId and
+    // shiftId for audit attribution, but every drawer and reconciliation path
+    // (routes/shifts.js, scripts/reconcile-shift-treasury.js) filters on
+    // ADVANCE, so they can never affect a cash count.
+    if (isCashOutType(type)) {
       const isManager = await resolveIsManager(req);
 
       if (!shiftId && !isManager) {
@@ -237,7 +283,8 @@ router.post("/:id/transactions", authenticateToken, async (req, res) => {
       return res.status(201).json(transaction);
     }
 
-    // DEDUCTION (no cash movement, no shift gate).
+    // Accrual types (DEDUCTION / OVERTIME / BONUS) — no cash movement, no shift
+    // gate. Reached only by an allow-listed type; see the note above.
     const transaction = await prisma.employeeTransaction.create({
       data: {
         employeeId,
@@ -265,7 +312,15 @@ router.get("/transactions/all", async (req, res) => {
     const { type, startDate, endDate, branchId } = req.query;
     const where = {};
 
+    // Reject unknown types here rather than letting Prisma's enum validation
+    // surface as a 500 from the catch below.
     if (type) {
+      if (!isValidTransactionType(type)) {
+        return res.status(400).json({
+          error: "Invalid transaction type",
+          message: "نوع المعاملة غير صالح",
+        });
+      }
       where.type = type;
     }
 
@@ -350,10 +405,23 @@ router.put("/transactions/:id", authenticateToken, async (req, res) => {
 
     const existing = await prisma.employeeTransaction.findUnique({
       where: { id: transactionId },
-      select: { id: true, type: true, amount: true, branchId: true },
+      select: {
+        id: true,
+        type: true,
+        amount: true,
+        branchId: true,
+        employeeId: true,
+        date: true,
+      },
     });
     if (!existing) {
       return res.status(404).json({ error: "Transaction not found" });
+    }
+
+    if (await monthIsPaid(existing.employeeId, existing.date)) {
+      return res.status(400).json({
+        error: "لا يمكن تعديل معاملة بعد صرف راتب هذا الشهر",
+      });
     }
 
     const newAmount =
@@ -361,11 +429,18 @@ router.put("/transactions/:id", authenticateToken, async (req, res) => {
         ? parseFloat(amount)
         : Number(existing.amount);
 
+    if (!Number.isFinite(newAmount) || newAmount <= 0) {
+      return res.status(400).json({
+        error: "Invalid amount",
+        message: "يجب إدخال مبلغ أكبر من صفر",
+      });
+    }
+
     // Advances moved cash out of the branch treasury, so keep it balanced when
     // the amount changes. Legacy advances (branchId null) never moved cash, and
-    // deductions never move cash — both skip the treasury adjustment.
+    // the accrual types never move cash — both skip the treasury adjustment.
     const isCashAdvance =
-      existing.type === "ADVANCE" && existing.branchId != null;
+      isCashOutType(existing.type) && existing.branchId != null;
 
     const transaction = await prisma.$transaction(async (tx) => {
       if (isCashAdvance && newAmount !== Number(existing.amount)) {
@@ -422,15 +497,28 @@ router.delete("/transactions/:id", authenticateToken, async (req, res) => {
     const transactionId = parseInt(req.params.id);
     const existing = await prisma.employeeTransaction.findUnique({
       where: { id: transactionId },
-      select: { id: true, type: true, amount: true, branchId: true },
+      select: {
+        id: true,
+        type: true,
+        amount: true,
+        branchId: true,
+        employeeId: true,
+        date: true,
+      },
     });
     if (!existing) {
       return res.status(204).send(); // already gone — idempotent
     }
 
+    if (await monthIsPaid(existing.employeeId, existing.date)) {
+      return res.status(400).json({
+        error: "لا يمكن حذف معاملة بعد صرف راتب هذا الشهر",
+      });
+    }
+
     // Refund the branch treasury for cash advances (see PUT note above).
     const isCashAdvance =
-      existing.type === "ADVANCE" && existing.branchId != null;
+      isCashOutType(existing.type) && existing.branchId != null;
 
     await prisma.$transaction(async (tx) => {
       if (isCashAdvance) {
@@ -472,13 +560,7 @@ router.post("/:id/pay", authenticateToken, async (req, res) => {
       },
     });
 
-    const advances = transactions
-      .filter((t) => t.type === "ADVANCE")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const deductions = transactions
-      .filter((t) => t.type === "DEDUCTION")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+    const summary = summarizeEmployeeTransactions(transactions);
 
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
@@ -490,7 +572,19 @@ router.post("/:id/pay", authenticateToken, async (req, res) => {
     }
 
     const baseSalary = Number(employee.salary);
-    const netSalary = baseSalary - advances - deductions;
+    // base − advances − deductions + overtime + bonuses
+    const netSalary = computeNetSalary(baseSalary, summary);
+
+    // A negative net means the month's سلف + خصومات exceed base + اضافي +
+    // مكافآت. This used to create a PAID payroll with a negative net, no cash
+    // movement, and a permanently burned @@unique([employeeId, month, year])
+    // slot — the employee read as "تم الدفع" while still owing money, with no
+    // way to correct it. Reject and make the operator settle it explicitly.
+    if (netSalary < 0) {
+      return res.status(400).json({
+        error: "صافي الراتب سالب — راجع السلف والخصومات قبل الصرف",
+      });
+    }
 
     // Resolve which treasury to debit. The HR pay dialog lets the user pick any
     // treasury in the system; when none is supplied we fall back to the
@@ -562,8 +656,10 @@ router.post("/:id/pay", authenticateToken, async (req, res) => {
           month,
           year,
           baseSalary,
-          advances,
-          deductions,
+          advances: summary.advances,
+          deductions: summary.deductions,
+          overtime: summary.overtime,
+          bonuses: summary.bonuses,
           netSalary,
           status: "PAID",
           paymentDate: new Date(),

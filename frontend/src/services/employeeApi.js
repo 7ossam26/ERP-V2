@@ -47,9 +47,16 @@ const toFrontend = (backendData) => {
     workHours: backendData.workingHoursPerDay.toString(),
     weekend: backendData.weeklyHoliday,
     salary: backendData.salary.toString(),
-    advances: backendData.advances || 0,
-    deductions: backendData.deductions || 0,
-    remaining: backendData.remaining || backendData.salary,
+    advances: backendData.advances ?? 0,
+    deductions: backendData.deductions ?? 0,
+    overtime: backendData.overtime ?? 0,
+    bonuses: backendData.bonuses ?? 0,
+    // Combined اضافي + مكافئة, for the HR table's "الإضافات" column.
+    additions: backendData.additions ?? 0,
+    // `??`, not `||`: a legitimately-zero remaining (advances exactly cancelling
+    // the salary) is falsy, and `||` used to substitute the FULL base salary —
+    // which drives both the pay dialog's net preview and its treasury gate.
+    remaining: backendData.remaining ?? Number(backendData.salary ?? 0),
     transactions: backendData.transactions || [],
     isPaid: backendData.isPaid || false,
     payrollId: backendData.payrollId || null,
@@ -110,9 +117,9 @@ export const employeeService = {
   },
 
   /**
-   * Add transaction (Advance/Deduction)
+   * Add transaction (سلفة / خصم / اضافي / مكافئة)
    * @param {number} id - Employee ID
-   * @param {Object} data - { type: "ADVANCE"|"DEDUCTION", amount: number, reason: string, date: string, branchId?: number }
+   * @param {Object} data - { type: "ADVANCE"|"DEDUCTION"|"OVERTIME"|"BONUS", amount: number, reason: string, date: string, branchId?: number }
    */
   addTransaction: async (id, data) => {
     return await api.post(`/employees/${id}/transactions`, data);
@@ -184,6 +191,8 @@ export const employeeService = {
         baseSalary: p.baseSalary,
         advances: p.advances,
         deductions: p.deductions,
+        overtime: p.overtime,
+        bonuses: p.bonuses,
         month: p.month,
         year: p.year,
         // Format Date as DD/MM/YYYY

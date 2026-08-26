@@ -634,6 +634,12 @@ router.post("/reset/:category", async (req, res) => {
         await prisma.employeeTransaction.deleteMany({ where: { type: "ADVANCE" } });
         break;
 
+      case "additions":
+        await prisma.employeeTransaction.deleteMany({
+          where: { type: { in: ["OVERTIME", "BONUS"] } },
+        });
+        break;
+
       case "shifts":
         // Sale references shift with onDelete: Restrict — null it out first
         await prisma.sale.updateMany({ data: { shiftId: null } });

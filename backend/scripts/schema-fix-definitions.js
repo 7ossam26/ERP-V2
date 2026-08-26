@@ -52,6 +52,22 @@ const requiredColumnFixes = [
     column: "paid_at",
     addSql: "ALTER TABLE `sales` ADD COLUMN `paid_at` DATETIME(3) NULL",
   },
+  // Frozen snapshot of the additive HR amounts (اضافي / مكافئة) on each payroll.
+  // NOT NULL DEFAULT 0 keeps the reconciliation invariant
+  //   net_salary = base_salary - advances - deductions + overtime + bonuses
+  // true for historical rows too.
+  {
+    table: "payrolls",
+    column: "overtime",
+    addSql:
+      "ALTER TABLE `payrolls` ADD COLUMN `overtime` DECIMAL(10, 2) NOT NULL DEFAULT 0",
+  },
+  {
+    table: "payrolls",
+    column: "bonuses",
+    addSql:
+      "ALTER TABLE `payrolls` ADD COLUMN `bonuses` DECIMAL(10, 2) NOT NULL DEFAULT 0",
+  },
 ];
 
 const foreignKeyFixes = [

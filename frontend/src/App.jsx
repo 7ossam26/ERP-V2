@@ -45,6 +45,8 @@ import CashTransferHistory from "./pages/reports/history/CashTransferHistory";
 import CreationHistory from "./pages/reports/history/CreationHistory";
 import DailyTransactions from "./pages/reports/history/DailyTransactions";
 import DeductionHistory from "./pages/reports/history/DeductionHistory";
+import OvertimeHistory from "./pages/reports/history/OvertimeHistory";
+import BonusHistory from "./pages/reports/history/BonusHistory";
 import PurchaseHistory from "./pages/reports/history/PurchaseHistory";
 import StockTransferHistory from "./pages/reports/history/StockTransferHistory";
 import SettingsPage from "./pages/settings/SettingsPage";
@@ -368,6 +370,22 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="REPORTS">
                 <DeductionHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/custom/overtime"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <OvertimeHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/custom/bonuses"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <BonusHistory />
               </ProtectedRoute>
             }
           />

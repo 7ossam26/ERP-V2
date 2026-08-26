@@ -212,6 +212,15 @@ const probes = {
     (await columnExists("shifts", "reopen_count")) &&
     (await columnExists("deposits", "cycle")) &&
     (await columnExists("withdrawals", "cycle")),
+
+  // All four conditions are ANDed on purpose: a partially applied state must
+  // FAIL the probe so the whole migration re-runs, rather than passing on the
+  // enum alone and leaving payrolls without its snapshot columns.
+  "20260827000000_add_overtime_bonus_transaction_types": async () =>
+    (await enumHasValue("employee_transactions", "type", "OVERTIME")) &&
+    (await enumHasValue("employee_transactions", "type", "BONUS")) &&
+    (await columnExists("payrolls", "overtime")) &&
+    (await columnExists("payrolls", "bonuses")),
 };
 
 // --- Main ---------------------------------------------------------

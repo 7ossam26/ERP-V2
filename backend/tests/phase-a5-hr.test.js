@@ -5,14 +5,18 @@
  *  - GET employees returns records with salary fields
  *  - Adding an ADVANCE reduces employee's remaining salary
  *  - Adding a DEDUCTION reduces employee's remaining salary
+ *  - Adding an OVERTIME (اضافي) INCREASES remaining and moves no cash
+ *  - Adding a BONUS (مكافئة) INCREASES remaining and moves no cash
+ *  - An unknown transaction type is rejected with 400
  *  - Paying salary deducts from branch treasury
+ *  - Payroll snapshot reconciles to base − advances − deductions + overtime + bonuses
  *  - Cannot pay salary twice for same month/year → 400
  *  - Insufficient treasury blocks salary payment → 400
  *
  * Usage:
  *   node backend/tests/phase-a5-hr.test.js [BASE_URL] [TOKEN]
  *
- * NOTE: Advance/deduction tests create real employee transactions.
+ * NOTE: These tests create real employee transactions.
  */
 
 const BASE_URL = process.argv[2] || process.env.BASE_URL || "http://localhost:3001";
@@ -185,6 +189,121 @@ const testAddDeductionReducesRemaining = async () => {
   pass("POST DEDUCTION transaction → 201");
 };
 
+// اضافي / مكافئة are ACCRUALS: they raise the net salary but must not move any
+// cash at record time. The treasury assertion is the real contract test — if an
+// implementation routed them down the ADVANCE path, remaining would still look
+// right but the branch drawer would be short.
+const testAdditiveTypeIncreasesRemaining = async (type, label, code) => {
+  section(`${code} — Adding ${type} (${label}) increases remaining, moves no cash`);
+
+  if (!ctx.employee) { skip(`${type} test`, "No employees found"); return; }
+
+  const now   = new Date();
+  const month = now.getMonth() + 1;
+  const year  = now.getFullYear();
+
+  const fetchEmployee = async () => {
+    const res  = await req("GET", `/api/employees?month=${month}&year=${year}`);
+    const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
+    return list.find(e => e.id === ctx.employee.id) || null;
+  };
+
+  const fetchTreasuryBalance = async () => {
+    if (!ctx.branchTreasury?.id) return null;
+    const res = await req("GET", `/api/treasuries/${ctx.branchTreasury.id}`);
+    return res.status === 200 ? Number(res.data?.balance ?? NaN) : null;
+  };
+
+  const before          = await fetchEmployee();
+  const remainingBefore = Number(before?.remaining ?? 0);
+  const balanceBefore   = await fetchTreasuryBalance();
+  const amount          = 1;
+
+  const r = await req("POST", `/api/employees/${ctx.employee.id}/transactions`, {
+    type,
+    amount,
+    reason: `Automated test ${type.toLowerCase()}`,
+    date:   new Date().toISOString(),
+  });
+
+  if (r.status !== 200 && r.status !== 201) {
+    fail(`POST /api/employees/:id/transactions (${type})`, `Expected 201, got ${r.status}: ${JSON.stringify(r.data)}`);
+    return;
+  }
+  pass(`POST ${type} transaction → 201`);
+
+  const after = await fetchEmployee();
+  if (after) {
+    const remainingAfter = Number(after.remaining ?? 0);
+    const delta          = remainingAfter - remainingBefore;
+    if (Math.abs(delta - amount) < 0.01) {
+      pass(`Remaining salary INCREASED by ${type} amount`, `${remainingBefore} → ${remainingAfter}`);
+    } else {
+      fail(`Remaining after ${type}`, `Expected +${amount}, got delta=${delta}`);
+    }
+  } else {
+    console.log(`  ${YELLOW}INFO${RESET} Cannot re-fetch employee — verify manually`);
+  }
+
+  const balanceAfter = await fetchTreasuryBalance();
+  if (balanceBefore === null || balanceAfter === null || Number.isNaN(balanceBefore)) {
+    skip(`${type} moves no cash`, "Branch treasury balance unavailable");
+  } else if (Math.abs(balanceAfter - balanceBefore) < 0.01) {
+    pass(`${type} moved NO cash (treasury unchanged)`, `balance=${balanceAfter}`);
+  } else {
+    fail(`${type} must not move cash`, `Treasury changed ${balanceBefore} → ${balanceAfter}`);
+  }
+};
+
+// Regression test for the old fallthrough, where any unrecognised type was
+// silently written as a DEDUCTION instead of being rejected.
+const testUnknownTypeRejected = async () => {
+  section("A5-08 — Unknown transaction type is rejected");
+
+  if (!ctx.employee) { skip("Unknown type test", "No employees found"); return; }
+
+  const r = await req("POST", `/api/employees/${ctx.employee.id}/transactions`, {
+    type:   "NONSENSE",
+    amount: 1,
+    reason: "Automated test invalid type",
+    date:   new Date().toISOString(),
+  });
+
+  if (r.status === 400) {
+    pass("POST unknown type → 400", JSON.stringify(r.data?.message ?? r.data?.error ?? ""));
+  } else {
+    fail("Unknown type guard", `Expected 400 — got ${r.status}. It may have been silently stored as a DEDUCTION.`);
+  }
+};
+
+// The payroll row is a frozen snapshot; it must satisfy the identity on its own.
+const testPayrollSnapshotReconciles = async () => {
+  section("A5-09 — Payroll snapshot reconciles to the net-salary identity");
+
+  const now   = new Date();
+  const month = now.getMonth() + 1;
+  const year  = now.getFullYear();
+
+  const res = await req("GET", `/api/employees/payrolls/all?month=${month}&year=${year}`);
+  if (res.status !== 200) { skip("Payroll reconciliation", `GET payrolls returned ${res.status}`); return; }
+
+  const rows = Array.isArray(res.data) ? res.data : res.data?.data || [];
+  if (rows.length === 0) { skip("Payroll reconciliation", "No payrolls this month"); return; }
+
+  const bad = rows.filter(p => {
+    const expected =
+      Number(p.baseSalary) - Number(p.advances) - Number(p.deductions) +
+      Number(p.overtime ?? 0) + Number(p.bonuses ?? 0);
+    return Math.abs(Number(p.netSalary) - expected) > 0.01;
+  });
+
+  if (bad.length === 0) {
+    pass("All payroll rows reconcile", `${rows.length} checked`);
+  } else {
+    fail("Payroll reconciliation", `${bad.length}/${rows.length} rows fail: ids ${bad.map(p => p.id).join(", ")}`);
+  }
+};
+
 const testSalaryPaymentDeductsTreasury = async () => {
   section("A5-04 — Salary payment deducts from branch treasury");
 
@@ -274,7 +393,11 @@ const main = async () => {
   await testEmployeeEndpoint();
   await testAddAdvanceReducesRemaining();
   await testAddDeductionReducesRemaining();
+  await testAdditiveTypeIncreasesRemaining("OVERTIME", "اضافي", "A5-06");
+  await testAdditiveTypeIncreasesRemaining("BONUS", "مكافئة", "A5-07");
+  await testUnknownTypeRejected();
   await testSalaryPaymentDeductsTreasury();
+  await testPayrollSnapshotReconciles();
   await testCannotPaySalaryTwice();
 
   console.log(`\n${BOLD}${"─".repeat(62)}${RESET}`);

@@ -19,6 +19,18 @@ test("schema fix plan repairs treasury scope drift", () => {
   );
 });
 
+test("schema fix plan repairs missing payroll addition snapshot columns", () => {
+  for (const column of ["overtime", "bonuses"]) {
+    const fix = requiredColumnFixes.find(
+      (f) => f.table === "payrolls" && f.column === column
+    );
+    assert.ok(fix, `missing payrolls.${column} fix`);
+    // Must default to 0 so historical payrolls keep satisfying
+    // net_salary = base_salary - advances - deductions + overtime + bonuses
+    assert.match(fix.addSql, /NOT NULL DEFAULT 0/);
+  }
+});
+
 test("schema fix plan repairs renamed digital treasury columns", () => {
   assert.ok(
     requiredColumnFixes.some(

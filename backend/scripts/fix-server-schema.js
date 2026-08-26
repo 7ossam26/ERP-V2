@@ -14,6 +14,9 @@ const {
   requiredColumnFixes,
 } = require("./schema-fix-definitions");
 const { buildModuleEnumSql } = require("../config/modules");
+const {
+  buildTransactionTypeEnumSql,
+} = require("../config/employeeTransactionTypes");
 
 const prisma = new PrismaClient();
 
@@ -723,6 +726,17 @@ async function run() {
     }
   }
   console.log(">>> [FIX] widened quantity columns to DECIMAL(18,6): OK");
+
+  // 11. Idempotent, NON-DESTRUCTIVE enum widen for employee transaction types,
+  //     sourced from config/employeeTransactionTypes.js (the single source of
+  //     truth). Enlarging a MySQL ENUM to a superset preserves every existing
+  //     row. Pairs with migration
+  //     20260827000000_add_overtime_bonus_transaction_types; the payrolls
+  //     overtime/bonuses columns are handled by requiredColumnFixes above.
+  await executeIgnoringDuplicate(
+    `ALTER TABLE \`employee_transactions\` MODIFY \`type\` ${buildTransactionTypeEnumSql()} NOT NULL`
+  );
+  console.log(">>> [FIX] employee transaction type enum (اضافي/مكافئة): OK");
 
   console.log(">>> [FIX] All schema fixes applied successfully.");
 }

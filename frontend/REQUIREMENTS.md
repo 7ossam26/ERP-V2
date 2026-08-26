@@ -29,8 +29,8 @@ This document outlines the functional and non-functional requirements for the ER
 
 - **REQ-HR-01**: Management of employee profiles (Name, Title, ID, Contact).
 - **REQ-HR-02**: Tracking of work stats (Days, Hours, Weekend settings).
-- **REQ-HR-03**: Management of financial transactions per employee (Advances, Deductions).
-- **REQ-HR-04**: Calculation of "Remaining Salary" based on base salary minus deductions/advances.
+- **REQ-HR-03**: Management of financial transactions per employee (Advances, Deductions, Overtime, Bonuses).
+- **REQ-HR-04**: Calculation of "Remaining Salary" as base salary minus advances/deductions plus overtime/bonuses.
 - **REQ-HR-05**: Branch-based filtering for employee lists.
 
 ### 2.4 Financial & Reports

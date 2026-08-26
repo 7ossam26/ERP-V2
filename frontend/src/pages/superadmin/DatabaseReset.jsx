@@ -27,9 +27,10 @@ const RESET_CATEGORIES = {
         { category: "opening-inventory", label: "مسح مخزون الافتتاح", icon: "warehouse", description: "حذف سجلات المخزون الافتتاحي وتصفير جميع الكميات الحالية" },
     ],
     hrPayroll: [
-        { category: "hr", label: "مسح حركات الموارد البشرية", icon: "groups", description: "حذف جميع حركات الموظفين (سلف وخصومات)" },
+        { category: "hr", label: "مسح حركات الموارد البشرية", icon: "groups", description: "حذف جميع حركات الموظفين (سلف وخصومات واضافي ومكافآت)" },
         { category: "payroll", label: "مسح الرواتب", icon: "payments", description: "حذف جميع سجلات الرواتب الشهرية" },
         { category: "advances", label: "مسح السلف", icon: "request_quote", description: "حذف سجلات السلفيات للموظفين فقط" },
+        { category: "additions", label: "مسح الإضافات", icon: "trending_up", description: "حذف سجلات الاضافي والمكافآت للموظفين فقط" },
     ],
     delivery: [
         { category: "delivery-man-transactions", label: "مسح حركات المناديب", icon: "delivery_dining", description: "حذف جميع حركات الديون والتسويات للمناديب" },

@@ -8,6 +8,25 @@ import BranchFilterHelper from "../../utils/BranchFilterHelper";
 import Modal from "../../components/ui/Modal";
 import NoShiftModal from "../expenses/NoShiftModal";
 import PrintableReport from "../../components/shared/PrintableReport";
+import NewTransactionMenu from "./NewTransactionMenu";
+import {
+  EMPLOYEE_TRANSACTION_TYPES,
+  EMPLOYEE_TRANSACTION_TYPE_ORDER,
+  MODAL_TO_TYPE,
+  TYPE_TO_MODAL,
+  txTypeLabel,
+  txTypeTextClass,
+} from "../../utils/employeeTransactionTypes";
+
+// Static modal titles. The 'history'/'report' titles interpolate state, so they
+// stay inline at the call site.
+const MODAL_TITLES = {
+  advance: "إضافة سلفة عامة",
+  deduction: "إضافة خصم عام",
+  overtime: "إضافة اضافي",
+  bonus: "إضافة مكافأة",
+  confirm_payment: "تأكيد دفع الراتب",
+};
 
 const TransactionForm = ({
   type,
@@ -25,12 +44,9 @@ const TransactionForm = ({
     // branch (editable below).
     branchId:
       isSingleEmployee && employees.length > 0 ? employees[0].branchId : "",
-    type:
-      type === "entry"
-        ? "ADVANCE"
-        : type === "advance"
-        ? "ADVANCE"
-        : "DEDUCTION",
+    // "entry" is the per-employee modal, which lets the user pick the type
+    // below; every other modal locks it to the one its slug names.
+    type: type === "entry" ? "ADVANCE" : MODAL_TO_TYPE[type] ?? "ADVANCE",
   });
 
   // Searchable Select State
@@ -179,27 +195,26 @@ const TransactionForm = ({
           <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
             نوع المعاملة
           </label>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="type"
-                checked={formData.type === "ADVANCE"}
-                onChange={() => setFormData({ ...formData, type: "ADVANCE" })}
-                className="w-4 h-4 text-orange-600"
-              />
-              <span>سلفة</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="type"
-                checked={formData.type === "DEDUCTION"}
-                onChange={() => setFormData({ ...formData, type: "DEDUCTION" })}
-                className="w-4 h-4 text-red-600"
-              />
-              <span>خصم</span>
-            </label>
+          {/* grid, not a flex row: four options overflow the modal width */}
+          <div className="grid grid-cols-2 gap-3">
+            {EMPLOYEE_TRANSACTION_TYPE_ORDER.map((txType) => (
+              <label
+                key={txType}
+                className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="type"
+                  checked={formData.type === txType}
+                  onChange={() => setFormData({ ...formData, type: txType })}
+                  className="w-4 h-4"
+                />
+                <span
+                  className={`material-symbols-outlined text-[18px] ${EMPLOYEE_TRANSACTION_TYPES[txType].text}`}>
+                  {EMPLOYEE_TRANSACTION_TYPES[txType].icon}
+                </span>
+                <span>{EMPLOYEE_TRANSACTION_TYPES[txType].label}</span>
+              </label>
+            ))}
           </div>
         </div>
       )}
@@ -249,9 +264,8 @@ const TransactionForm = ({
         <button
           type="submit"
           className={`flex-1 py-2.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg transition-all ${
-            formData.type === "ADVANCE"
-              ? "bg-[#FF7043] hover:bg-[#F4511E]"
-              : "bg-red-600 hover:bg-red-700"
+            EMPLOYEE_TRANSACTION_TYPES[formData.type]?.button ??
+            "bg-primary hover:bg-primary-hover"
           }`}>
           تأكيد
         </button>
@@ -273,11 +287,14 @@ const HRPage = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'advance', 'deduction', 'history', 'transaction_entry', 'confirm_payment', 'report'
+  // 'advance' | 'deduction' | 'overtime' | 'bonus' (the four type-locked entry
+  // modals, opened from the معاملة جديدة menu), plus 'history',
+  // 'transaction_entry', 'confirm_payment', 'report'.
+  const [modalType, setModalType] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   // Shift gating (mirrors the Expenses page): non-managers must have an OPEN
-  // shift to record advances/deductions or pay salaries.
+  // shift to record employee transactions or pay salaries.
   const [activeShift, setActiveShift] = useState(null);
   const [shiftLoading, setShiftLoading] = useState(true);
   const [showNoShiftModal, setShowNoShiftModal] = useState(false);
@@ -359,6 +376,11 @@ const HRPage = () => {
     (sum, emp) => sum + Number(emp.deductions),
     0
   );
+  // اضافي + مكافئة, summed by the backend into `additions`.
+  const totalAdditions = processedEmployees.reduce(
+    (sum, emp) => sum + Number(emp.additions ?? 0),
+    0
+  );
 
   const openModal = (type, employee = null) => {
     setModalType(type);
@@ -368,12 +390,21 @@ const HRPage = () => {
 
   const handleSaveTransaction = async (data) => {
     try {
+      // Pass the type through. This used to be a ternary that collapsed
+      // anything-not-ADVANCE into DEDUCTION, which would have silently turned
+      // every اضافي and مكافئة into a خصم.
+      const resolvedType =
+        modalType === "transaction_entry"
+          ? data.type
+          : MODAL_TO_TYPE[modalType];
+
+      if (!resolvedType) {
+        toast.error("نوع المعاملة غير صالح");
+        return;
+      }
+
       const transactionData = {
-        type:
-          modalType === "advance" ||
-          (modalType === "transaction_entry" && data.type === "ADVANCE")
-            ? "ADVANCE"
-            : "DEDUCTION",
+        type: resolvedType,
         amount: parseFloat(data.amount),
         reason: data.reason,
         date: new Date().toISOString(), // Or user selected date
@@ -447,8 +478,9 @@ const HRPage = () => {
     }
   };
 
-  // Build the monthly operations report: advances + deductions + salary
-  // payments for the selected month/year, honoring the branch filter.
+  // Build the monthly operations report: all employee transactions (سلف،
+  // خصومات، اضافي، مكافآت) + salary payments for the selected month/year,
+  // honoring the branch filter.
   const handleOpenReport = async () => {
     setModalType("report");
     setIsModalOpen(true);
@@ -485,7 +517,7 @@ const HRPage = () => {
         originalDate: t.originalDate,
         date: t.date,
         time: t.time,
-        typeLabel: t.type === "ADVANCE" ? "سلفة" : "خصم",
+        typeLabel: txTypeLabel(t.type),
         typeKey: t.type,
         employeeName: t.employeeName,
         branchName: t.branchName,
@@ -552,7 +584,7 @@ const HRPage = () => {
               إدارة الموارد البشرية
             </h1>
             <p className="text-sm text-text-light/60 dark:text-text-dark/60 mt-2">
-              إدارة الموظفين والرواتب والسلف
+              إدارة الموظفين والرواتب والسلف والخصومات والاضافي والمكافآت
             </p>
           </div>
 
@@ -618,31 +650,15 @@ const HRPage = () => {
               <span>تقرير</span>
             </button>
 
-            <button
-              onClick={() => openModal("advance")}
+            <NewTransactionMenu
               disabled={!canOperate || shiftLoading}
-              title={!canOperate ? "يجب فتح وردية أولاً" : undefined}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#FF7043] hover:bg-[#F4511E] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FF7043]">
-              <span className="material-symbols-outlined text-[20px]">
-                money_off
-              </span>
-              <span>إضافة سلفة</span>
-            </button>
-
-            <button
-              onClick={() => openModal("deduction")}
-              disabled={!canOperate || shiftLoading}
-              title={!canOperate ? "يجب فتح وردية أولاً" : undefined}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600">
-              <span className="material-symbols-outlined text-[20px]">
-                remove_circle
-              </span>
-              <span>إضافة خصم</span>
-            </button>
+              disabledTitle={!canOperate ? "يجب فتح وردية أولاً" : undefined}
+              onSelect={(txType) => openModal(TYPE_TO_MODAL[txType])}
+            />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           {/* Card 1 */}
           <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark flex flex-col justify-between">
             <div className="flex justify-between items-start mb-2">
@@ -715,11 +731,29 @@ const HRPage = () => {
               </p>
             </div>
           </div>
+
+          {/* Card 5 - Total Additions (اضافي + مكافئة) */}
+          <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark flex flex-col justify-between">
+            <div className="flex justify-between items-start mb-2">
+              <div className="p-2 rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-900/20 dark:text-teal-400">
+                <span className="material-symbols-outlined">trending_up</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">
+                إجمالي الإضافات
+              </p>
+              <p className="text-3xl font-black text-text-light dark:text-text-dark">
+                {totalAdditions.toLocaleString()}{" "}
+                <span className="text-lg font-normal text-gray-400">ج.م</span>
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden flex flex-col">
           <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[1020px]">
               <thead>
                 <tr className="bg-gray-50/50 dark:bg-surface-dark border-b border-border-light dark:border-border-dark">
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -739,6 +773,9 @@ const HRPage = () => {
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     الخصومات
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    الإضافات
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     المرتب المتبقي
@@ -786,6 +823,14 @@ const HRPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500">
                         {Number(employee.deductions).toLocaleString()} ج.م
                       </td>
+                      <td
+                        className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
+                          employee.additions > 0
+                            ? "text-teal-600 dark:text-teal-400"
+                            : "text-gray-400 dark:text-gray-500"
+                        }`}>
+                        {Number(employee.additions ?? 0).toLocaleString()} ج.م
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600 dark:text-green-400">
                         {Number(employee.remaining).toLocaleString()} ج.م
                       </td>
@@ -827,7 +872,7 @@ const HRPage = () => {
                             title={
                               !canOperate
                                 ? "يجب فتح وردية أولاً"
-                                : "إضافة سلفة/خصم"
+                                : "تسجيل معاملة"
                             }>
                             <span className="material-symbols-outlined text-[20px]">
                               add_circle
@@ -840,7 +885,7 @@ const HRPage = () => {
                 ) : (
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan="9"
                       className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       لا يوجد موظفين في هذا الفرع.
                     </td>
@@ -857,23 +902,45 @@ const HRPage = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={
-          modalType === "advance"
-            ? "إضافة سلفة عامة"
-            : modalType === "deduction"
-            ? "إضافة خصم عام"
-            : modalType === "history"
+          MODAL_TITLES[modalType] ??
+          (modalType === "history"
             ? `سجل معاملات ${selectedEmployee?.name}`
-            : modalType === "confirm_payment"
-            ? "تأكيد دفع الراتب"
             : modalType === "report"
             ? `تقرير العمليات - ${reportMonthLabel}`
-            : "تسجيل معاملة مالية"
+            : "تسجيل معاملة مالية")
         }>
         {modalType === "history" && selectedEmployee ? (
           <div className="space-y-4">
-            <div className="flex justify-between bg-gray-50 p-3 rounded-lg">
+            {/* Grid, not a flex row: the four per-type totals overflow otherwise.
+                This is where the اضافي / مكافئة split stays visible — the main
+                table combines them into a single "الإضافات" column. */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg text-sm">
               <span>
                 الراتب الأساسي: <strong>{selectedEmployee.salary}</strong>
+              </span>
+              <span>
+                السلف:{" "}
+                <strong className={txTypeTextClass("ADVANCE")}>
+                  {Number(selectedEmployee.advances ?? 0).toLocaleString()}
+                </strong>
+              </span>
+              <span>
+                الخصومات:{" "}
+                <strong className={txTypeTextClass("DEDUCTION")}>
+                  {Number(selectedEmployee.deductions ?? 0).toLocaleString()}
+                </strong>
+              </span>
+              <span>
+                اضافي:{" "}
+                <strong className={txTypeTextClass("OVERTIME")}>
+                  {Number(selectedEmployee.overtime ?? 0).toLocaleString()}
+                </strong>
+              </span>
+              <span>
+                مكافآت:{" "}
+                <strong className={txTypeTextClass("BONUS")}>
+                  {Number(selectedEmployee.bonuses ?? 0).toLocaleString()}
+                </strong>
               </span>
               <span>
                 المتبقي:{" "}
@@ -882,7 +949,7 @@ const HRPage = () => {
                 </strong>
               </span>
               {selectedEmployee.isPaid && (
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full flex items-center gap-1">
+                <span className="col-span-2 md:col-span-3 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full flex items-center gap-1 w-fit">
                   <span className="material-symbols-outlined text-[14px]">
                     check_circle
                   </span>
@@ -905,13 +972,8 @@ const HRPage = () => {
                 <tbody>
                   {selectedEmployee.transactions?.map((t, idx) => (
                     <tr key={idx} className="border-b">
-                      <td
-                        className={`p-2 font-bold ${
-                          t.type === "ADVANCE"
-                            ? "text-orange-600"
-                            : "text-red-600"
-                        }`}>
-                        {t.type === "ADVANCE" ? "سلفة" : "خصم"}
+                      <td className={`p-2 font-bold ${txTypeTextClass(t.type)}`}>
+                        {txTypeLabel(t.type)}
                       </td>
                       <td className="p-2">{t.amount}</td>
                       <td className="p-2">{t.reason}</td>
@@ -1059,14 +1121,8 @@ const HRPage = () => {
                         <td
                           key={i}
                           className={`p-2 text-right whitespace-nowrap ${
-                            col.header === "النوع" && row.typeKey === "ADVANCE"
-                              ? "text-orange-600 font-bold"
-                              : col.header === "النوع" &&
-                                row.typeKey === "DEDUCTION"
-                              ? "text-red-600 font-bold"
-                              : col.header === "النوع" &&
-                                row.typeKey === "PAYROLL"
-                              ? "text-green-600 font-bold"
+                            col.header === "النوع"
+                              ? `${txTypeTextClass(row.typeKey)} font-bold`
                               : "text-gray-700 dark:text-gray-200"
                           }`}>
                           {col.render ? col.render(row) : row[col.accessor]}
@@ -1111,7 +1167,7 @@ const HRPage = () => {
         onViewOnly={() => setShowNoShiftModal(false)}
         subtitle="يجب فتح وردية أولاً لتسجيل معاملات الموظفين"
         bodyTitle="تسجيل المعاملات محظور"
-        bodyText="لا يمكن تسجيل سلف أو خصومات أو دفع رواتب بدون وردية مفتوحة. توجه إلى نقطة البيع لبدء وردية جديدة."
+        bodyText="لا يمكن تسجيل معاملات الموظفين أو دفع رواتب بدون وردية مفتوحة. توجه إلى نقطة البيع لبدء وردية جديدة."
         footerSecondary="أو الاستمرار لعرض البيانات فقط."
         viewOnlyLabel="عرض البيانات فقط"
       />

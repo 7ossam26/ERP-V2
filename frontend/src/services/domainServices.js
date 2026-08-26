@@ -81,3 +81,39 @@ export const advanceService = {
     throw new Error("Create not supported directly");
   },
 };
+
+export const overtimeService = {
+  getAll: async (filters = {}) => {
+    return await employeeService.getAllTransactions({
+      ...filters,
+      type: "OVERTIME",
+    });
+  },
+  update: async (id, data) => {
+    return await employeeService.updateTransaction(id, data);
+  },
+  delete: async (id) => {
+    return await employeeService.deleteTransaction(id);
+  },
+  create: async () => {
+    throw new Error("Create not supported directly");
+  },
+};
+
+export const bonusService = {
+  getAll: async (filters = {}) => {
+    return await employeeService.getAllTransactions({
+      ...filters,
+      type: "BONUS",
+    });
+  },
+  update: async (id, data) => {
+    return await employeeService.updateTransaction(id, data);
+  },
+  delete: async (id) => {
+    return await employeeService.deleteTransaction(id);
+  },
+  create: async () => {
+    throw new Error("Create not supported directly");
+  },
+};
