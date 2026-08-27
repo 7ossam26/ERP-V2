@@ -78,6 +78,12 @@ const MODULE_CODES = [
   // separately from the ability to ring up a sale or record a purchase.
   "SALES_RETURNS",
   "PURCHASE_RETURNS",
+
+  // --- Stock write-off (إهلاك) ---
+  // Deliberately NOT implied by INVENTORY_COUNT: viewing the جرد must not imply
+  // the ability to destroy stock and move the P&L. Appended LAST — MySQL ENUMs
+  // are ordinal, so inserting anywhere else rewrites existing permission rows.
+  "STOCK_WRITE_OFF",
 ];
 
 const MODULE_CODE_SET = new Set(MODULE_CODES);

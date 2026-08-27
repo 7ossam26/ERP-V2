@@ -221,6 +221,21 @@ const probes = {
     (await enumHasValue("employee_transactions", "type", "BONUS")) &&
     (await columnExists("payrolls", "overtime")) &&
     (await columnExists("payrolls", "bonuses")),
+
+  // fix-server-schema.js widens permissions.module from config/modules.js on
+  // EVERY boot, so on a live server this probe already passes before `migrate
+  // deploy` is reached and the ALTER never re-runs. The migration file is what
+  // makes a fresh install, and the migration history, correct.
+  "20260828000000_add_stock_writeoff_permission_module": async () =>
+    enumHasValue("permissions", "module", "STOCK_WRITE_OFF"),
+
+  // Split from the permission migration on purpose. CREATE TABLE is the one
+  // statement in this pair that is NOT idempotent, so it must be able to fail
+  // its probe and re-run on its own. Bundled with the ALTER, a failed probe
+  // would re-run `CREATE TABLE stock_writeoffs` against a database that already
+  // has it — MySQL 1050, and start.js exits before the server comes up.
+  "20260828000100_add_stock_writeoffs_table": async () =>
+    tableExists("stock_writeoffs"),
 };
 
 // --- Main ---------------------------------------------------------

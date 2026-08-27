@@ -485,6 +485,30 @@ const GeneralReportPage = () => {
                 {(reportData?.summary?.cogs || 0).toLocaleString()} ج.م
               </span>
             </div>
+            {/* Split of the line above. Write-offs (إهلاك) are shown separately
+                because they are the one COGS term with no matching revenue —
+                without this line a month with heavy consumable usage looks like
+                an unexplained cost jump. */}
+            <div className="flex justify-between items-center py-1 pr-4 text-xs">
+              <span className="text-gray-400 dark:text-gray-500">
+                تكلفة المبيعات
+              </span>
+              <span className="text-gray-500 dark:text-gray-400 tabular-nums">
+                {(
+                  (reportData?.summary?.retailCogs || 0) +
+                  (reportData?.summary?.wholesaleCogs || 0)
+                ).toLocaleString()}{" "}
+                ج.م
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-1 pr-4 text-xs">
+              <span className="text-gray-400 dark:text-gray-500">
+                إهلاك ومستهلكات ({reportData?.summary?.writeOffCount || 0})
+              </span>
+              <span className="text-gray-500 dark:text-gray-400 tabular-nums">
+                {(reportData?.summary?.writeOffCost || 0).toLocaleString()} ج.م
+              </span>
+            </div>
             {/* Gross Profit */}
             <div className="flex justify-between items-center py-2.5 border-y border-dashed border-border-light dark:border-border-dark">
               <span className="font-bold text-gray-900 dark:text-white">

@@ -17,6 +17,7 @@ const { buildModuleEnumSql } = require("../config/modules");
 const {
   buildTransactionTypeEnumSql,
 } = require("../config/employeeTransactionTypes");
+const { buildWriteOffReasonEnumSql } = require("../config/writeOffReasons");
 
 const prisma = new PrismaClient();
 
@@ -737,6 +738,24 @@ async function run() {
     `ALTER TABLE \`employee_transactions\` MODIFY \`type\` ${buildTransactionTypeEnumSql()} NOT NULL`
   );
   console.log(">>> [FIX] employee transaction type enum (اضافي/مكافئة): OK");
+
+  // 12. Idempotent, NON-DESTRUCTIVE enum widen for stock write-off (إهلاك)
+  //     reasons, sourced from config/writeOffReasons.js (the single source of
+  //     truth). Enlarging a MySQL ENUM to a superset preserves every row, so
+  //     adding a sixth reason later costs one append there plus this line.
+  //
+  //     Guarded on tableExists because this script runs BEFORE `migrate deploy`
+  //     creates the table on a fresh server. Note there is deliberately no
+  //     CREATE TABLE here: the table is created solely by migration
+  //     20260828000100, whose baseline-migrations probe already covers both
+  //     directions. A second creation path is exactly how a re-run turns into a
+  //     MySQL 1050 that stops the server from booting.
+  if (await tableExists("stock_writeoffs")) {
+    await executeIgnoringDuplicate(
+      `ALTER TABLE \`stock_writeoffs\` MODIFY \`reason\` ${buildWriteOffReasonEnumSql()} NOT NULL DEFAULT 'OTHER'`
+    );
+    console.log(">>> [FIX] stock write-off reason enum (إهلاك): OK");
+  }
 
   console.log(">>> [FIX] All schema fixes applied successfully.");
 }

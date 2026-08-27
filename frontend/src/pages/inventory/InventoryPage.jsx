@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import GenericDataTable from "../../components/shared/GenericDataTable";
 import { useBranch } from "../../contexts/BranchContext";
 import InitialInventoryTab from "./InitialInventoryTab";
+import StockWriteOffTab from "./StockWriteOffTab";
+import AuthService from "../../services/authService";
 
 import { categoryService, branchService } from "../../services/domainServices";
 import { inventoryService } from "../../services/inventoryService";
@@ -342,13 +344,35 @@ const InventoryPage = () => {
           <span className="material-symbols-outlined text-base">history_edu</span>
           المخزون الافتتاحي
         </button>
+        {/* إهلاك removes stock and charges its cost to COGS, so it is gated on
+            its own permission rather than on INVENTORY_COUNT. Rose, not amber:
+            it must never be mistaken for the opening tab, which ADDS stock. */}
+        {AuthService.hasPermission("STOCK_WRITE_OFF") && (
+          <button
+            onClick={() => setActiveTab("writeoff")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === "writeoff"
+                ? "bg-rose-500 text-white shadow-sm"
+                : "text-text-muted dark:text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+            }`}>
+            <span className="material-symbols-outlined text-base">
+              delete_sweep
+            </span>
+            إهلاك
+          </button>
+        )}
       </div>
 
       {/* Initial Inventory Tab */}
       {activeTab === "initial" && <InitialInventoryTab />}
 
-      {/* Main Inventory (hidden when initial tab active) */}
-      {activeTab !== "initial" && <>
+      {/* Stock Write-Off Tab */}
+      {activeTab === "writeoff" && <StockWriteOffTab />}
+
+      {/* Main Inventory. Gated on an explicit === "inventory": a `!== "initial"`
+          test renders this whole page underneath every tab added after the
+          second one. */}
+      {activeTab === "inventory" && <>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">

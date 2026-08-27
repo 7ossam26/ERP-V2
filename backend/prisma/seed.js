@@ -56,6 +56,7 @@ const SUPERADMIN_MODULES = [
   "CALL_CENTER",
   "BULK_POS", "BULK_CUSTOMERS", "BULK_PRICING", "BULK_CREDIT", "BULK_REPORTS",
   "SALES_RETURNS", "PURCHASE_RETURNS",
+  "STOCK_WRITE_OFF",
 ];
 
 // Returns are manager-level: they move money out of a treasury and stock back
@@ -66,10 +67,20 @@ const SUPERADMIN_MODULES = [
 // "Cashier" role, starts with no row and is denied by default.
 const RETURN_MODULES = ["SALES_RETURNS", "PURCHASE_RETURNS"];
 
+// Recording an إهلاك removes stock and books its cost to COGS, so it changes
+// reported profit. Seeded to Superadmin and Admin only — Admin because
+// reversing a write-off is additionally restricted to those two roles, so the
+// role that can undo one must be able to hold the permission at all. Every
+// other role starts denied: seedPermissions only ever grants (upsert with
+// canAccess: true), never revokes, and the code is new so no row exists.
+// Grant it to Manager/General Manager per-site via PermissionConfig if wanted.
+const WRITE_OFF_MODULES = ["STOCK_WRITE_OFF"];
+
 const ADMIN_MODULES = [
   "DEPOSITS", "CREATES_DEPOSITS", "WITHDRAWALS", "CREATES_WITHDRAWALS",
   "WAREHOUSE_TRANSFER_MANAGEMENT",
   ...RETURN_MODULES,
+  ...WRITE_OFF_MODULES,
 ];
 
 const GENERAL_MANAGER_MODULES = [

@@ -198,6 +198,35 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
       ).values(),
     ].filter((o) => o && o.id);
 
+    // B0. Stock write-offs (إهلاك) — stock consumed internally, damaged,
+    // expired, or lost to a count variance.
+    //
+    // There is no sale, so no SaleItem/BulkOrderItem line exists to carry the
+    // cost. Without this term the purchase price of every consumable (tissues,
+    // bags) is recognised NOWHERE: it is excluded from operating expenses just
+    // below as a PURCHASE row, and it never becomes COGS because the item never
+    // sells. Net profit was overstated by that amount, permanently.
+    //
+    // Recognised as COGS, not as an operating expense: it is the cost of goods
+    // that left the shelf. It writes no Expense row on purpose — the filter
+    // below excludes only PURCHASE (a deny-list) while routes/branches.js admits
+    // only MANUAL (an allow-list), so a new expense type would make the two
+    // pages silently disagree by exactly this amount; and routes/shifts.js sums
+    // every CASH expense on a branch treasury inside the shift window, which
+    // would invent a cashier shortage for money that never moved.
+    //
+    // Scoped by WAREHOUSE exactly like bulkOrderWhere above (Branch.warehouseId
+    // is @unique), and filtered on `date` — the Cairo-midnight business date the
+    // service writes via utils/dateRange — never on createdAt.
+    const writeOffWhere = { date: { gte: start, lte: end } };
+    if (scopedWarehouseIds) {
+      writeOffWhere.warehouseId = { in: scopedWarehouseIds };
+    }
+    const writeOffs = await prisma.stockWriteOff.findMany({
+      where: writeOffWhere,
+      select: { quantity: true, unitCost: true, reason: true },
+    });
+
     // B. Expenses Data
     const expenseWhere = {
       date: { gte: start, lte: end },
@@ -317,9 +346,39 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
       bulkOrders.reduce((sum, o) => sum + lineCOGS(o.items), 0) -
       returnedOrders.reduce((sum, o) => sum + lineCOGS(o.items), 0);
 
-    const totalCOGS = retailCOGS + wholesaleCOGS;
+    // Write-offs are the third COGS term. A reversal is a contra row carrying a
+    // NEGATIVE quantity, so it unwinds its original automatically — the same
+    // mechanism that lets a retail REFUND- line unwind retailCOGS above, and the
+    // reason a reversal is a new row rather than a delete: deleting would
+    // rewrite the closed month the original landed in. The contra row COPIES the
+    // original's unitCost rather than re-resolving it, so the pair nets to
+    // exactly zero even after Item.costPrice has moved.
+    const writeOffCOGS = writeOffs.reduce(
+      (s, w) => s + Number(w.unitCost || 0) * Number(w.quantity),
+      0,
+    );
 
-    // Net Profit = Sales − COGS − operating expenses.
+    const totalCOGS = retailCOGS + wholesaleCOGS + writeOffCOGS;
+
+    // A reversal is not another إهلاك — the same rule invoiceCount applies to
+    // REFUND- rows below.
+    const writeOffCount = writeOffs.filter((w) => Number(w.quantity) > 0).length;
+
+    const writeOffReasonMap = {};
+    writeOffs.forEach((w) => {
+      const key = w.reason || "OTHER";
+      if (!writeOffReasonMap[key]) {
+        writeOffReasonMap[key] = { reason: key, cost: 0, quantity: 0 };
+      }
+      writeOffReasonMap[key].cost +=
+        Number(w.unitCost || 0) * Number(w.quantity);
+      writeOffReasonMap[key].quantity += Number(w.quantity);
+    });
+    const writeOffsByReason = Object.values(writeOffReasonMap).sort(
+      (a, b) => b.cost - a.cost,
+    );
+
+    // Net Profit = Sales − (retail + wholesale + write-off COGS) − operating expenses.
     const grossProfit = totalSales - totalCOGS;
     const netProfit = grossProfit - operatingExpenses;
     // Refund rows are extra sales rows carrying a negative total. They must net
@@ -442,6 +501,13 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
         wholesaleSales,
         wholesaleOrderCount: bulkOrders.length,
         cogs: totalCOGS,
+        // The three halves of `cogs`, so a jump in it is explainable rather than
+        // mysterious. `cogs` keeps its meaning and position for existing consumers.
+        retailCogs: retailCOGS,
+        wholesaleCogs: wholesaleCOGS,
+        // إهلاك: consumables used up, damaged or expired stock, count variances.
+        writeOffCost: writeOffCOGS,
+        writeOffCount,
         grossProfit,
         operatingExpenses,
         netProfit,
@@ -468,6 +534,11 @@ router.get("/general", requirePermission("REPORTS"), async (req, res) => {
       },
       tables: {
         salesByBranch,
+        // Additive on purpose. Write-offs are deliberately kept OUT of
+        // salesByBranch and both charts above — they are not sales, and adding
+        // them there would break the invariant that the chart and the branch
+        // table each total to totalSales.
+        writeOffsByReason,
         // We can add stock alerts detail if needed
         // We can add stock alerts detail if needed
         stockAlertsList: stockAlertsList.slice(0, 5), // Top 5

@@ -59,6 +59,8 @@ model User {
   voidedBulkPayments        BulkPayment[]       @relation("BulkPaymentVoider")
   createdBulkRefunds        BulkRefund[]        @relation("BulkRefundCreator")
 
+  stockWriteOffs StockWriteOff[]
+
   @@map("users")
 }
 
@@ -137,6 +139,15 @@ enum Module {
   // Return authorization (manager-level; NOT implied by POS/SALES/PURCHASES)
   SALES_RETURNS
   PURCHASE_RETURNS
+
+  // Recording an إهلاك removes stock and books its cost to COGS. Gated
+  // separately from INVENTORY_COUNT: being able to view the جرد must not imply
+  // the ability to destroy stock and move the P&L.
+  //
+  // APPENDED LAST on purpose. MySQL stores ENUM values by ordinal, so adding at
+  // the end is free while inserting anywhere else silently rewrites the meaning
+  // of every existing `permissions` row.
+  STOCK_WRITE_OFF
 }
 
 model Permission {
@@ -293,6 +304,7 @@ model Warehouse {
   systemConfigAsMain      SystemConfiguration[]
   initialInventoryEntries InitialInventory[]
   bulkOrders              BulkOrder[]
+  stockWriteOffs          StockWriteOff[]
 
   @@map("warehouses")
 }
@@ -469,6 +481,7 @@ model Item {
   initialInventoryEntries InitialInventory[]
   bulkContractPrices      BulkContractPrice[]
   bulkOrderItems          BulkOrderItem[]
+  stockWriteOffs          StockWriteOff[]
 
   @@map("items")
 }
@@ -1240,6 +1253,77 @@ model InitialInventory {
   user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@map("initial_inventory")
+}
+
+// ============================================
+// Stock Write-Off (إهلاك)
+// ============================================
+
+// Keep in sync with config/writeOffReasons.js — tests/unit/writeOffReasonEnum.test.js
+// parses this block and fails CI on drift, order included. Never reorder: MySQL
+// stores ENUM values by ordinal. Only append.
+enum StockWriteOffReason {
+  INTERNAL_USE // استهلاك داخلي
+  DAMAGED // تالف
+  EXPIRED // منتهي الصلاحية
+  COUNT_VARIANCE // فرق جرد
+  OTHER // أخرى
+}
+
+/// Stock that left a warehouse without being sold: consumed internally,
+/// damaged, expired, or lost to a count variance.
+///
+/// Consumables (tissues, bags) are bought but never sold, so no SaleItem or
+/// BulkOrderItem line ever carries their cost — and PURCHASE expenses are
+/// excluded from operating expenses by design (routes/reports.js). Their cost
+/// was therefore recognised NOWHERE and netProfit was overstated by it forever.
+/// This table is where that cost is recognised, as COGS.
+///
+/// Deliberately NOT an Expense row: no cash moves, and an Expense row would land
+/// in operatingExpenses (reports.js is a deny-list) while being excluded by
+/// branches.js (an allow-list), and would invent a cashier shortage in
+/// shifts.js, which sums every CASH expense on a branch treasury.
+model StockWriteOff {
+  id          Int @id @default(autoincrement())
+  itemId      Int @map("item_id")
+  warehouseId Int @map("warehouse_id")
+
+  /// Signed. A reversal is a contra row carrying a NEGATIVE quantity, dated the
+  /// day it happened — the same shape as a REFUND- sale row. That is what lets
+  /// the report's COGS term unwind with no extra code, and what stops a reversal
+  /// from rewriting the closed month the original landed in.
+  quantity Decimal @db.Decimal(18, 6)
+
+  /// Cost-per-unit snapshot taken at write-off time. Decimal(10,2) deliberately
+  /// matches SaleItem.costPrice and BulkOrderItem.costPrice so all three COGS
+  /// terms are computed on one basis. NEVER written back to Item.costPrice.
+  unitCost Decimal @default(0) @map("unit_cost") @db.Decimal(10, 2)
+
+  reason StockWriteOffReason @default(OTHER)
+
+  /// The business date, as a Cairo-midnight instant from utils/dateRange. This
+  /// is what the report window filters on — never createdAt.
+  date      DateTime @default(now())
+  notes     String?  @db.Text
+  userId    Int      @map("user_id")
+
+  /// Set only on a contra row. @unique means a write-off can be reversed at most
+  /// once, enforced by the database rather than an application check that races.
+  reversesId Int? @unique @map("reverses_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  item      Item           @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reverses  StockWriteOff? @relation("StockWriteOffReversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversal  StockWriteOff? @relation("StockWriteOffReversal")
+
+  // Exactly the pair routes/reports.js filters on, every page load.
+  @@index([date, warehouseId])
+  @@index([itemId, date])
+  @@map("stock_writeoffs")
 }
 
 // ============================================

@@ -1,0 +1,22 @@
+-- Add STOCK_WRITE_OFF to the `permissions.module` ENUM.
+--
+-- Recording an إهلاك removes stock from a warehouse and books its cost to COGS,
+-- so it is gated separately from INVENTORY_COUNT instead of being implied by it:
+-- being able to view the جرد must not imply the ability to destroy stock and
+-- move the P&L.
+--
+-- This is a NON-DESTRUCTIVE, superset-only MODIFY: enlarging a MySQL ENUM keeps
+-- every existing row intact. It does not touch, delete, or drop any data.
+-- STOCK_WRITE_OFF is APPENDED LAST on purpose — MySQL stores ENUM values by
+-- ordinal, so inserting it anywhere else would silently rewrite the meaning of
+-- every existing `permissions` row.
+--
+-- Deliberately SPLIT from the CREATE TABLE in 20260828000100: this statement is
+-- idempotent and safe to re-run, that one is not. Keeping them apart means a
+-- failed probe can re-run the table creation without dragging an already-applied
+-- ALTER along with it.
+--
+-- The value list is generated from backend/config/modules.js (the single source
+-- of truth) and verified against prisma/schema.prisma by
+-- tests/unit/moduleEnum.test.js.
+ALTER TABLE `permissions` MODIFY `module` ENUM('HR','INVENTORY','INVENTORY_COUNT','STOCK_TRANSFER','POS','PURCHASES','SALES','REPORTS','TREASURIES','CASH_TRANSFER','TRANSFER_MANAGEMENT','WAREHOUSE_TRANSFER_MANAGEMENT','BRANCHES','EMPLOYEES','CLIENTS','SUPPLIERS','SUPPLIER_ACCOUNTS','CATEGORIES','ITEMS','WAREHOUSES','SETTINGS','EXPENSES','SHIFTS','DELIVERY_SETTLEMENT','CREATES_WAREHOUSES','CREATES_EMPLOYEES','CREATES_SUPPLIERS','CREATES_CLIENTS','CREATES_CATEGORIES','CREATES_ITEMS','CREATES_TREASURIES','CREATES_BRANCHES','DEPOSITS','CREATES_DEPOSITS','WITHDRAWALS','CREATES_WITHDRAWALS','DELIVERY_MEN','CREATES_DELIVERY_MEN','DELIVERY_ZONES','CREATES_DELIVERY_ZONES','CREATES_PRODUCTION','PRODUCTION','INITIAL_INVENTORY','CALL_CENTER','BULK_POS','BULK_CUSTOMERS','BULK_PRICING','BULK_CREDIT','BULK_REPORTS','SALES_RETURNS','PURCHASE_RETURNS','STOCK_WRITE_OFF') NOT NULL;

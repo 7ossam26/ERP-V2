@@ -11,6 +11,7 @@ jest.mock("../../config/database", () => ({
   sale: { findMany: jest.fn() },
   bulkOrder: { findMany: jest.fn() },
   bulkRefund: { findMany: jest.fn() },
+  stockWriteOff: { findMany: jest.fn() },
   expense: { findMany: jest.fn() },
   branch: { findMany: jest.fn() },
   inventory: { findMany: jest.fn() },
@@ -86,10 +87,20 @@ const bulkOrder = {
   ],
 };
 
-const setData = ({ sales = [], bulk = [], refunds = [], expenses = [] }) => {
+// `writeOffs` defaults to [] so every assertion in this file stays exactly as it
+// was before إهلاك existed — which is itself the regression proof that the new
+// COGS term is inert when no stock has been written off.
+const setData = ({
+  sales = [],
+  bulk = [],
+  refunds = [],
+  expenses = [],
+  writeOffs = [],
+}) => {
   prisma.sale.findMany.mockResolvedValue(sales);
   prisma.bulkOrder.findMany.mockResolvedValue(bulk);
   prisma.bulkRefund.findMany.mockResolvedValue(refunds);
+  prisma.stockWriteOff.findMany.mockResolvedValue(writeOffs);
   prisma.expense.findMany.mockResolvedValue(expenses);
   prisma.inventory.findMany.mockResolvedValue([]);
   prisma.item.findMany.mockResolvedValue([]);

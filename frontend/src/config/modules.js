@@ -295,6 +295,15 @@ export const MODULES = [
     icon: "assignment_return",
     category: "ACTION",
   },
+  {
+    id: "stock_write_off",
+    code: "STOCK_WRITE_OFF",
+    label: "إهلاك المخزون",
+    description:
+      "خصم كميات مستهلكة أو تالفة وتحميل تكلفتها على تكلفة البضاعة المباعة",
+    icon: "delete_sweep",
+    category: "ACTION",
+  },
 ];
 
 export const getCreationModules = () =>
