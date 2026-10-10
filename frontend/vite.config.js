@@ -31,13 +31,18 @@ export default defineConfig(({ mode }) => {
   //   prod → .env.production
   const env = loadEnv(mode, process.cwd(), "");
 
+  // VITE_API_URL is only the dev-server proxy target. Built bundles call the
+  // API same-origin via VITE_API_BASE_URL (default `/api`).
   const isDev = mode === "development";
-  const apiUrl =
-    env.VITE_API_URL ||
-    (isDev ? "http://localhost:3001" : "https://elghonemy.kiko-tech.com");
+  const apiUrl = env.VITE_API_URL || "http://localhost:3001";
+  const apiBase = env.VITE_API_BASE_URL || "/api";
 
   console.log(`\n🔧 Vite Mode: ${mode.toUpperCase()}`);
-  console.log(`🌐 API Target: ${apiUrl}\n`);
+  console.log(
+    isDev
+      ? `🌐 API Target (dev proxy): ${apiUrl}\n`
+      : `🌐 API Base (bundle): ${apiBase}\n`,
+  );
 
   return {
     customLogger,

@@ -14,6 +14,12 @@ const envBackend = path.resolve(__dirname, ".env");
 const envRootLocal = path.resolve(__dirname, "../.env.local");
 const envBackendLocal = path.resolve(__dirname, ".env.local");
 
+// Variables already present in the process environment (set by the platform,
+// e.g. Dokploy) must always win. The file loads below use `override: true` to
+// order the files among themselves; without this snapshot a stale .env file
+// baked into an image could silently replace the platform's DATABASE_URL.
+const platformEnv = { ...process.env };
+
 // Step 1: Load base configs (lower priority)
 if (fs.existsSync(envRoot)) {
   console.log(`>>> [ENV] Loading root .env (${envRoot})...`);
@@ -39,6 +45,7 @@ if (fs.existsSync(envBackendLocal)) {
   );
   require("dotenv").config({ path: envBackendLocal, override: true });
 }
+Object.assign(process.env, platformEnv);
 
 const isProduction = process.env.NODE_ENV === "production";
 console.log(
@@ -143,23 +150,36 @@ if (process.env.NODE_ENV !== "production") {
 console.log(`>>> [CORS] NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(`>>> [CORS] Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
 
+// The production frontend is served by this same server and calls `/api`
+// same-origin. Browsers still send an Origin header on same-origin POSTs, so
+// an origin whose host matches the request's Host is always allowed —
+// otherwise login would depend on FRONTEND_URL listing the exact domain.
+const isSameOrigin = (origin, req) => {
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+};
+
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        console.error(
-          `>>> [CORS] BLOCKED: Origin '${origin}' not in allowed list.`,
-        );
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+  cors((req, callback) => {
+    const origin = req.headers.origin;
+    const corsOptions = {
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    };
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (
+      !origin ||
+      isSameOrigin(origin, req) ||
+      allowedOrigins.indexOf(origin) !== -1
+    ) {
+      return callback(null, { ...corsOptions, origin: true });
+    }
+    console.error(`>>> [CORS] BLOCKED: Origin '${origin}' not in allowed list.`);
+    callback(new Error("Not allowed by CORS"));
   }),
 );
 
@@ -315,13 +335,7 @@ if (fs.existsSync(CLIENT_DIST_PATH)) {
 console.log(">>> [BOOT] Calling app.listen...");
 const server = app.listen(PORT, () => {
   console.log(`🚀 [SERVER] Server successfully running on port ${PORT}`);
-  const healthHost =
-    process.env.NODE_ENV === "production"
-      ? "elghonemy.kiko-tech.com"
-      : "localhost";
-  console.log(
-    `📍 [SERVER] Health check available at: http://${healthHost}:${PORT}/api/health`,
-  );
+  console.log(`📍 [SERVER] Health check available at: /api/health (port ${PORT})`);
 });
 
 server.on("error", (error) => {

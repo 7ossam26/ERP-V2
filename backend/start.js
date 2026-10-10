@@ -27,6 +27,15 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+// Log only the target host/database (never credentials) so deployment logs
+// show which database this container was actually given.
+try {
+  const dbUrl = new URL(process.env.DATABASE_URL);
+  console.log(`>>> [DB] Target: ${dbUrl.host}${dbUrl.pathname}`);
+} catch {
+  console.error(">>> [DB] DATABASE_URL is not a valid URL.");
+}
+
 // Run baseline + migrations before starting the server
 const { execSync } = require("child_process");
 const scriptDir = __dirname;
