@@ -186,7 +186,7 @@ const InventoryCountReportA4 = ({
   includePrices = true,
   settings = {},
 }) => {
-  const companyName = settings.companyName || "Elghonemy ERP";
+  const companyName = settings.companyName || "BerryModa";
   const printedIso = printedAt || new Date().toISOString();
 
   // Sort items ascending by code (numeric) for a sequential, easy-to-scan sheet.
@@ -211,7 +211,7 @@ const InventoryCountReportA4 = ({
 
       {/* Header — logo centered */}
       <div className="ic-header">
-        <img className="ic-logo" src="/assets/logo.png" alt="Logo" />
+        <img className="ic-logo" src="/assets/berrymoda-logo.svg" alt="Logo" />
         <h1 className="ic-title">جرد المخزون</h1>
         <p className="ic-company">{companyName}</p>
         <div className="ic-meta-row">

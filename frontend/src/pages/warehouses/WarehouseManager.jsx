@@ -147,7 +147,7 @@ const WarehouseManager = () => {
   return (
     <GenericPageManager
       title="عرض المخازن"
-      subtitle="قائمة بجميع المخازن المسجلين في نظام الغنيمي"
+      subtitle="قائمة بجميع المخازن المسجلين في نظام BerryModa"
       icon="warehouse"
       service={warehouseService}
       columns={columns}

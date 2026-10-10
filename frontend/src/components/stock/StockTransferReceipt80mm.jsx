@@ -109,14 +109,14 @@ const PRINT_STYLES = `
 const StockTransferReceipt80mm = ({ transfer, settings = {} }) => {
   if (!transfer) return null;
 
-  const companyName = settings.companyName || "Elghonemy ERP";
+  const companyName = settings.companyName || "BerryModa";
 
   return (
     <div className={R}>
       <style>{PRINT_STYLES}</style>
 
       <div style={{ textAlign: "center", marginBottom: 4 }}>
-        <img src="/assets/logo.png" alt="Logo" />
+        <img src="/assets/berrymoda-logo.svg" alt="Logo" />
         <div style={{ fontSize: 13, margin: "2px 0" }}>{companyName}</div>
         <div style={{ fontSize: 12, margin: "2px 0" }}>إيصال تحويل مخزني</div>
         <div className="st-meta" style={{ fontSize: 9, margin: "1px 0" }}>

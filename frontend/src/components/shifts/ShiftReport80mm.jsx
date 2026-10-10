@@ -152,7 +152,7 @@ const PRINT_STYLES = `
 const ShiftReport80mm = ({ report, settings = {} }) => {
   if (!report) return null;
 
-  const companyName = settings.companyName || report.branchName || "Elghonemy ERP";
+  const companyName = settings.companyName || report.branchName || "BerryModa";
 
   // Live figures, recomputed with totalSales — NOT the columns frozen at close.
   // Mixing the two is what let shift #210 print a settlement block whose own
@@ -217,7 +217,7 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
 
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 4 }}>
-        <img src="/assets/logo.png" alt="Logo" />
+        <img src="/assets/berrymoda-logo.svg" alt="Logo" />
         <h2 style={{ fontSize: 14, margin: "2px 0" }}>{companyName}</h2>
         <p style={{ fontSize: 11, margin: "1px 0" }}>
           تقرير وردية #{report.shiftId ?? ""}

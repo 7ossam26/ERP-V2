@@ -2490,12 +2490,12 @@ const POSPage = () => {
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "4px" }}>
           <img
-            src="/assets/logo.png"
+            src="/assets/berrymoda-logo.svg"
             alt="Logo"
             style={{ maxWidth: "44mm", margin: "0 auto 3px auto", display: "block" }}
           />
           <h2 style={{ fontSize: "14px", fontWeight: "bold", margin: "2px 0" }}>
-            {companyName || currentUser?.branch?.name || "Elghonemy ERP"}
+            {companyName || currentUser?.branch?.name || "BerryModa"}
           </h2>
           <p style={{ fontSize: "10px", margin: "1px 0" }}>
             {lastSale?.date || new Date().toLocaleString("ar-EG")}
@@ -2643,7 +2643,7 @@ const POSPage = () => {
         {/* Footer */}
         <div style={{ textAlign: "center", fontSize: "10px", marginTop: "4px" }}>
           <p style={{ fontWeight: "bold", margin: "1px 0" }}>نأمل رؤيتكم مرة أخرى</p>
-          <p style={{ margin: "1px 0" }}>{companyName || "Elghonemy ERP"}</p>
+          <p style={{ margin: "1px 0" }}>{companyName || "BerryModa"}</p>
         </div>
 
       </div>

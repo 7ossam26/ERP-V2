@@ -232,9 +232,9 @@ export default function BulkInvoicePrint({ order, doc, settings }) {
   const warehouseName = order?.warehouse?.name || "—";
   const createdByName = order?.createdBy?.name || "—";
 
-  const companyName = settings?.companyName?.trim() || "Elghonemy · Coffee";
+  const companyName = settings?.companyName?.trim() || "BerryModa";
   const companyTaxNumber = settings?.taxNumber?.trim() || "";
-  const logoSrc = "/assets/logo.png";
+  const logoSrc = "/assets/berrymoda-logo.svg";
 
   return h(React.Fragment, null, [
     h("style", { key: "styles" }, buildBulkInvoicePrintStyles()),

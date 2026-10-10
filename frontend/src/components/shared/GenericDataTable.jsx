@@ -23,18 +23,18 @@ const GenericDataTable = ({
     <div
       className={`overflow-x-auto overflow-y-auto ${maxHeightClass} print:overflow-visible`}>
       <table className="w-full text-center border-collapse print:border print:border-black">
-        <thead className="bg-gray-50 dark:bg-gray-800/50 sticky top-0 z-10 border-b border-gray-100 dark:border-gray-700 print:bg-gray-200 print:border-b-2 print:border-black">
+        <thead className="bg-surface-raised dark:bg-gray-800/50 sticky top-0 z-10 border-b-2 border-primary/15 dark:border-gray-700 print:bg-gray-200 print:border-b-2 print:border-black">
           <tr>
             {columns.map((col, index) => (
               <th
                 key={index}
-                className={`${headPad} font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center print:px-3 print:py-2 print:text-black print:border print:border-black`}>
+                className={`${headPad} font-bold text-primary/80 dark:text-gray-400 uppercase tracking-wider text-center print:px-3 print:py-2 print:text-black print:border print:border-black`}>
                 {col.header}
               </th>
             ))}
             {/* Actions Header - Render only if onEdit or onDelete or customActions provided */}
             {(onEdit || onDelete || customActions) && (
-              <th className="px-3 py-3 sm:px-6 sm:py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center print:hidden">
+              <th className="px-3 py-3 sm:px-6 sm:py-4 text-xs font-bold text-primary/80 dark:text-gray-400 uppercase tracking-wider text-center print:hidden">
                 {customActions ? "عرض" : "إجراءات"}
               </th>
             )}
@@ -64,7 +64,7 @@ const GenericDataTable = ({
             data.map((item) => (
               <tr
                 key={item.id}
-                className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-default print:border-b print:border-gray-300">
+                className="even:bg-gray-50/50 hover:bg-primary/5 dark:hover:bg-gray-800/50 transition-colors cursor-default print:border-b print:border-gray-300">
                 {columns.map((col, index) => (
                   <td
                     key={index}

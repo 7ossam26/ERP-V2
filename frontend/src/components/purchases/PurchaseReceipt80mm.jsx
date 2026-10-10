@@ -120,7 +120,7 @@ const PRINT_STYLES = `
 const PurchaseReceipt80mm = ({ purchase, settings = {} }) => {
   if (!purchase) return null;
 
-  const companyName = settings.companyName || "Elghonemy ERP";
+  const companyName = settings.companyName || "BerryModa";
   const taxNumber = settings.taxNumber;
 
   const isCancelled = purchase.paymentStatus === "CANCELLED";
@@ -134,7 +134,7 @@ const PurchaseReceipt80mm = ({ purchase, settings = {} }) => {
 
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 4 }}>
-        <img src="/assets/logo.png" alt="Logo" />
+        <img src="/assets/berrymoda-logo.svg" alt="Logo" />
         <div style={{ fontSize: 13, margin: "2px 0" }}>{companyName}</div>
         {taxNumber && (
           <div className="pu-meta" style={{ fontSize: 9, margin: "1px 0" }}>

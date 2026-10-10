@@ -119,7 +119,7 @@ const ThermalReceipt80mm = ({ sale, settings = {} }) => {
   if (!sale) return null;
 
   const companyName =
-    settings.companyName || sale.branch?.name || "Elghonemy ERP";
+    settings.companyName || sale.branch?.name || "BerryModa";
   const companyTaxNumber = settings.taxNumber || "";
 
   const items = sale.items || [];
@@ -147,7 +147,7 @@ const ThermalReceipt80mm = ({ sale, settings = {} }) => {
 
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 4 }}>
-        <img src="/assets/logo.png" alt="Logo" />
+        <img src="/assets/berrymoda-logo.svg" alt="Logo" />
         <h2 style={{ fontSize: 14, fontWeight: "bold", margin: "2px 0" }}>
           {companyName}
         </h2>

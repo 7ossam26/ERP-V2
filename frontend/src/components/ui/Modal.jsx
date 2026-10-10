@@ -24,17 +24,18 @@ const Modal = ({ isOpen, onClose, title, children, zIndex }) => {
       role="dialog"
       aria-modal="true">
       <div
-        className="fixed inset-0 bg-background-dark/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-gray-950/50 backdrop-blur-sm transition-opacity animate-fade-in"
         onClick={onClose}
         aria-hidden="true"></div>
-      <div className="relative bg-surface-light dark:bg-surface-dark rounded-none sm:rounded-2xl shadow-2xl w-full sm:max-w-lg md:max-w-2xl transform transition-all flex flex-col h-full sm:h-auto sm:max-h-[90vh] border-0 sm:border sm:border-white/10 dark:border-border-dark animate-fade-in-up">
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-accent/5 dark:bg-primary/5 rounded-t-none sm:rounded-t-2xl">
+      <div className="relative bg-surface-light dark:bg-surface-dark rounded-none sm:rounded-3xl shadow-2xl w-full sm:max-w-lg md:max-w-2xl transform transition-all flex flex-col h-full sm:h-auto sm:max-h-[90vh] border-0 sm:border sm:border-border-light dark:border-border-dark animate-fade-in-up">
+        <div className="h-1 w-full bm-gradient shrink-0 sm:rounded-t-3xl" />
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-surface-raised dark:bg-primary/5">
           <div className="flex items-center gap-3">
             {/* Icon Logic can be passed or generic */}
-            <div className="bg-primary text-white p-1.5 sm:p-2 rounded-lg shadow-sm">
+            <div className="bm-gradient text-white p-1.5 sm:p-2 rounded-xl shadow-glow">
               <span className="material-icons-round text-lg sm:text-xl">warehouse</span>
             </div>
-            <h3 className="text-lg sm:text-xl font-bold text-primary dark:text-text-dark">
+            <h3 className="text-lg sm:text-xl font-bold text-text-light dark:text-text-dark">
               {title}
             </h3>
           </div>

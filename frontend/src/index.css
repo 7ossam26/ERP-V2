@@ -1,9 +1,26 @@
-@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,700;1,700&display=swap");
 @import url("https://fonts.googleapis.com/icon?family=Material+Icons+Round");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
 
 @import "tailwindcss";
 @config "../tailwind.config.js";
+
+/* BerryModa neutrals: Tailwind's gray scale re-hued toward mauve so the
+   thousands of existing gray-* classes sit inside the brand palette.
+   Lightness steps match the defaults, so text contrast is unchanged. */
+@theme {
+  --color-gray-50: oklch(98.5% 0.004 340);
+  --color-gray-100: oklch(96.7% 0.006 340);
+  --color-gray-200: oklch(92.8% 0.01 340);
+  --color-gray-300: oklch(87.2% 0.014 340);
+  --color-gray-400: oklch(70.7% 0.022 340);
+  --color-gray-500: oklch(55.1% 0.026 340);
+  --color-gray-600: oklch(44.6% 0.028 340);
+  --color-gray-700: oklch(37.3% 0.03 340);
+  --color-gray-800: oklch(27.8% 0.028 340);
+  --color-gray-900: oklch(21% 0.026 340);
+  --color-gray-950: oklch(13% 0.02 340);
+}
 
 @layer base {
   html {
@@ -12,6 +29,48 @@
 
   body {
     @apply font-body transition-colors duration-300 min-h-screen flex flex-col;
+  }
+
+  ::selection {
+    background: rgba(192, 38, 109, 0.18);
+  }
+
+  /* Brand-colored native controls (checkboxes, radios, range) */
+  input,
+  select,
+  textarea,
+  progress {
+    accent-color: #c0266d;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(192, 38, 109, 0.55);
+    outline-offset: 2px;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
+}
+
+@layer components {
+  /* Brand gradient used on hero headers and active navigation */
+  .bm-gradient {
+    background-image: linear-gradient(135deg, #e23d8b 0%, #c0266d 45%, #7c3aed 100%);
+  }
+
+  .bm-gradient-text {
+    background-image: linear-gradient(135deg, #c0266d 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Referenced by modals/pages; scrollbars stay hidden app-wide */
+  .custom-scrollbar {
+    overscroll-behavior: contain;
   }
 }
 

@@ -4,6 +4,7 @@ import AuthService from "../services/authService";
 import Modal from "../components/ui/Modal";
 import Footer from "../components/shared/Footer";
 import BranchSwitcher from "../components/BranchSwitcher";
+import BrandLogo from "../components/shared/BrandLogo";
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -57,17 +58,27 @@ const MainLayout = ({ children }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isUserDropdownOpen]);
 
+  const userInitial = (user?.name || user?.username || "?").trim().charAt(0);
+
   return (
-    <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 min-h-screen flex flex-col relative overflow-hidden">
+    <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 min-h-screen flex flex-col relative isolate overflow-hidden">
+      {/* Decorative brand glow */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden no-print" aria-hidden="true">
+        <div className="absolute -top-40 -right-32 w-[28rem] h-[28rem] rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute top-1/3 -left-40 w-[26rem] h-[26rem] rounded-full bg-secondary/10 blur-3xl" />
+        <div className="absolute -bottom-40 right-1/4 w-[22rem] h-[22rem] rounded-full bg-coral/10 blur-3xl" />
+      </div>
+
       {/* Navigation */}
-      <nav className="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark shadow-sm z-50 fixed top-0 w-full">
+      <nav className="bg-surface-light/85 dark:bg-surface-dark/85 backdrop-blur-md border-b border-border-light dark:border-border-dark shadow-sm z-50 fixed top-0 w-full">
+        <div className="h-1 w-full bm-gradient" />
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
-          <div className="flex justify-between h-16 sm:h-20 items-center relative">
-            <div className="flex items-center gap-2">
+          <div className="flex justify-between h-16 sm:h-[4.5rem] items-center relative">
+            <div className="flex items-center gap-1 sm:gap-2">
               {/* Back Button */}
               <button
                 onClick={() => navigate(-1)}
-                className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
+                className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-3 py-2 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
                 <span className="material-icons-round text-xl">
                   arrow_forward
                 </span>
@@ -79,7 +90,11 @@ const MainLayout = ({ children }) => {
               {/* Home Page Button - Icon only on mobile */}
               <Link
                 to="/dashboard"
-                className="flex items-center gap-2 text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary transition-colors duration-200 px-2 sm:px-4 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 min-w-touch min-h-touch justify-center">
+                className={`flex items-center gap-2 transition-colors duration-200 px-2 sm:px-3 py-2 rounded-full min-w-touch min-h-touch justify-center ${
+                  location.pathname === "/dashboard"
+                    ? "bg-primary/10 text-primary dark:bg-primary/20"
+                    : "text-text-light/70 hover:text-primary dark:text-text-dark/70 dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20"
+                }`}>
                 <span className="material-icons-round text-xl">home</span>
                 <span className="text-sm font-semibold hidden sm:inline">
                   الصفحة الرئيسية
@@ -89,19 +104,23 @@ const MainLayout = ({ children }) => {
 
             <Link
               to="/dashboard"
-              className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2 hover:opacity-80 transition-opacity">
+              aria-label="BerryModa"
+              className="flex items-center absolute left-1/2 transform -translate-x-1/2 hover:opacity-90 transition-opacity">
+              <span className="hidden md:inline-flex">
+                <BrandLogo size="md" />
+              </span>
               <img
-                src="/assets/logo.png"
-                alt="Elghonemy Logo"
-                className="h-12 sm:h-16 w-auto object-contain"
+                src="/assets/berrymoda-mark.svg"
+                alt="BerryModa"
+                className="h-10 w-10 md:hidden"
               />
             </Link>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Branch Switcher */}
               <BranchSwitcher />
 
-{/* Help / User Manual Button */}
+              {/* Help / User Manual Button */}
               <Link
                 to="/manual"
                 title="دليل المستخدم"
@@ -113,25 +132,40 @@ const MainLayout = ({ children }) => {
               <div className="relative user-dropdown">
                 <button
                   onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                  className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 rounded-lg hover:bg-accent/10 dark:hover:bg-accent/5 transition-colors min-w-touch min-h-touch">
+                  className={`flex items-center gap-2 sm:gap-3 ps-1 pe-1 sm:pe-3 py-1 rounded-full border transition-colors min-w-touch min-h-touch ${
+                    isUserDropdownOpen
+                      ? "border-primary/30 bg-primary/5"
+                      : "border-transparent hover:border-border-light dark:hover:border-border-dark hover:bg-accent/20 dark:hover:bg-accent/5"
+                  }`}>
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 bm-gradient rounded-full flex items-center justify-center text-white font-bold shadow-glow">
+                    {userInitial}
+                  </div>
                   <div className="text-right hidden sm:block">
-                    <p className="text-sm font-bold text-text-light dark:text-text-dark">
+                    <p className="text-sm font-bold text-text-light dark:text-text-dark leading-tight">
                       {user?.name || "المستخدم"}
                     </p>
-                    <p className="text-xs text-text-light/60 dark:text-text-dark/60">
+                    <p className="text-xs text-secondary/80 dark:text-text-dark/60 font-semibold">
                       {user?.role || ""}
                     </p>
                   </div>
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center">
-                    <span className="material-icons-round text-primary text-lg sm:text-xl">
-                      person
-                    </span>
-                  </div>
+                  <span className="material-icons-round text-base text-text-light/40 dark:text-text-dark/40 hidden sm:inline">
+                    expand_more
+                  </span>
                 </button>
 
                 {/* Dropdown Menu */}
                 {isUserDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-44 sm:w-48 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg py-2 z-50">
+                  <div className="absolute left-0 mt-2 w-56 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-2xl shadow-card overflow-hidden z-50 animate-fade-in-up">
+                    <div className="px-4 py-3 bg-surface-raised dark:bg-card-dark border-b border-border-light dark:border-border-dark">
+                      <p className="text-sm font-bold text-text-light dark:text-text-dark truncate">
+                        {user?.name || "المستخدم"}
+                      </p>
+                      {user?.role && (
+                        <p className="text-xs text-text-light/60 dark:text-text-dark/60 truncate">
+                          {user.role}
+                        </p>
+                      )}
+                    </div>
                     {/* Swapped: Logout Button (was Home Page) */}
                     <button
                       onClick={() => {
@@ -142,7 +176,7 @@ const MainLayout = ({ children }) => {
                       <span className="material-icons-round text-lg">
                         logout
                       </span>
-                      <span className="text-sm">تسجيل خروج</span>
+                      <span className="text-sm font-semibold">تسجيل خروج</span>
                     </button>
                   </div>
                 )}
@@ -153,7 +187,7 @@ const MainLayout = ({ children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-grow flex flex-col p-3 sm:p-6 transition-all duration-300 mt-16 sm:mt-20">
+      <main className="flex-grow flex flex-col p-3 sm:p-6 transition-all duration-300 mt-[4.25rem] sm:mt-[4.75rem]">
         <div className="w-full max-w-7xl mx-auto">{children}</div>
       </main>
 
@@ -169,12 +203,12 @@ const MainLayout = ({ children }) => {
           <div className="flex justify-end gap-3 mt-4">
             <button
               onClick={() => setIsLogoutModalOpen(false)}
-              className="px-4 py-2 rounded-lg text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              className="px-5 py-2.5 rounded-xl font-semibold text-text-light dark:text-text-dark border border-border-light dark:border-border-dark hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
               إلغاء
             </button>
             <button
               onClick={handleConfirmLogout}
-              className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+              className="px-5 py-2.5 rounded-xl font-semibold bg-red-600 text-white hover:bg-red-700 shadow-sm transition-colors">
               تسجيل خروج
             </button>
           </div>

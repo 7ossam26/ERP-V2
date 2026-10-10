@@ -151,7 +151,7 @@ const SettlementReceipt = forwardRef(({ data }, ref) => {
             <div ref={ref} className={R}>
                 {/* Header */}
                 <div style={{ textAlign: 'center', marginBottom: 4 }}>
-                    <img src="/assets/logo.png" alt="Logo" />
+                    <img src="/assets/berrymoda-logo.svg" alt="Logo" />
                     <div style={{ fontSize: 12, margin: '2px 0' }}>
                         إيصال تسوية طيار
                     </div>

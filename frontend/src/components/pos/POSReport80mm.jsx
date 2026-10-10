@@ -129,7 +129,7 @@ const POSReport80mm = ({ report, settings = {} }) => {
   if (!report) return null;
 
   const companyName =
-    settings.companyName || report.branchName || "Elghonemy ERP";
+    settings.companyName || report.branchName || "BerryModa";
 
   const takeaway = report.takeaway || { count: 0, total: 0 };
   const delivery = report.delivery || { count: 0, total: 0 };
@@ -175,7 +175,7 @@ const POSReport80mm = ({ report, settings = {} }) => {
 
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 4 }}>
-        <img src="/assets/logo.png" alt="Logo" />
+        <img src="/assets/berrymoda-logo.svg" alt="Logo" />
         <h2 style={{ fontSize: 13, margin: "2px 0" }}>{companyName}</h2>
         <p style={{ fontSize: 11, margin: "1px 0" }}>
           تقرير نهاية وردية #{report.shiftId ?? ""}

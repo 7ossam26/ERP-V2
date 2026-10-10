@@ -114,11 +114,12 @@ const GenericPageManager = ({
   };
 
   return (
-    <div className="bg-surface-light dark:bg-surface-dark w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-100px)] transition-colors duration-200 print:h-auto print:shadow-none print:rounded-none">
+    <div className="bg-surface-light dark:bg-surface-dark w-full rounded-3xl shadow-card border border-border-light dark:border-border-dark overflow-hidden flex flex-col h-[calc(100vh-100px)] transition-colors duration-200 print:h-auto print:shadow-none print:rounded-none">
       {/* Header */}
-      <div className="px-6 py-5 sm:px-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-surface-dark z-10 shrink-0 print:border-b-2 print:border-black print:py-3">
+      <div className="h-1 w-full bm-gradient shrink-0 print:hidden" />
+      <div className="px-6 py-5 sm:px-8 border-b border-border-light dark:border-gray-700 flex justify-between items-center bg-white dark:bg-surface-dark z-10 shrink-0 print:border-b-2 print:border-black print:py-3">
         <div className="flex items-center gap-4">
-          <div className="bg-primary text-white w-12 h-12 flex items-center justify-center rounded-xl shadow-lg print:hidden">
+          <div className="bm-gradient text-white w-12 h-12 flex items-center justify-center rounded-2xl shadow-glow print:hidden">
             <span className="material-icons-round text-2xl">{icon}</span>
           </div>
           <div>
@@ -142,7 +143,7 @@ const GenericPageManager = ({
 
       {/* Filters Section */}
       {FilterComponent && (
-        <div className="px-6 py-4 sm:px-8 bg-gray-50 dark:bg-gray-800/30 border-b border-gray-100 dark:border-gray-700 shrink-0 print:hidden">
+        <div className="px-6 py-4 sm:px-8 bg-surface-raised dark:bg-gray-800/30 border-b border-border-light dark:border-gray-700 shrink-0 print:hidden">
           <FilterComponent onFilter={loadData} {...props} />
         </div>
       )}
@@ -161,11 +162,11 @@ const GenericPageManager = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="px-6 py-5 sm:px-8 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-surface-dark/50 flex flex-col sm:flex-row gap-3 shrink-0 print:hidden">
+      <div className="px-6 py-5 sm:px-8 border-t border-border-light dark:border-gray-700 bg-surface-raised dark:bg-surface-dark/50 flex flex-col sm:flex-row gap-3 shrink-0 print:hidden">
         {!hideAddButton && (
           <button
             onClick={openNewModal}
-            className="flex-1 sm:flex-none bg-primary hover:bg-primary-hover text-white font-bold py-3 px-8 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+            className="flex-1 sm:flex-none bm-gradient hover:brightness-110 text-white font-bold py-3 px-8 rounded-xl shadow-glow transition-all flex items-center justify-center gap-2">
             <span className="material-icons-round text-lg">add</span>
             إضافة جديد
           </button>

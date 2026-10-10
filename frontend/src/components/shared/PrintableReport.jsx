@@ -143,7 +143,7 @@ const PrintableReport = ({ title, subtitle, data, columns }) => {
             fontSize: "11px",
             color: "#9ca3af",
           }}>
-          Elghonemy ERP System - تقرير مطبوع
+          BerryModa ERP - تقرير مطبوع
         </p>
       </div>
     </div>
