@@ -32,7 +32,9 @@ if (!dbUrl || (!dbUrl.includes("localhost") && !dbUrl.includes("127.0.0.1"))) {
 // 3. Run the merged seed script
 console.log("🚀 Launching prisma/seed.js...");
 const seedMain = require('../prisma/seed.js');
-seedMain()
+// This script exists to restore a known local password, so it opts in to the
+// reset explicitly (the seed never resets an existing account by default).
+seedMain({ resetAdminPassword: true })
     .then(() => console.log("✅ Seed complete."))
     .catch((err) => {
         console.error("❌ Seed failed:", err);

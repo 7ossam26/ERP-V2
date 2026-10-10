@@ -1,5 +1,6 @@
 // Global setup — Seeds test data via API before all tests run
 const { ApiHelpers } = require('./fixtures/api-helpers');
+const { USERS } = require('./fixtures/test-data');
 
 const BASE = 'http://localhost:3001/api';
 
@@ -31,7 +32,10 @@ async function globalSetup() {
   const api = new ApiHelpers();
 
   // Step 1: Login as Superadmin
-  const loginRes = await api.login('superadmin', '246810@Ad');
+  if (!USERS.superadmin.password) {
+    throw new Error('Set E2E_SUPERADMIN_PASSWORD (or ADMIN_PASSWORD) to the local superadmin password before running E2E.');
+  }
+  const loginRes = await api.login(USERS.superadmin.username, USERS.superadmin.password);
   if (!loginRes.ok) {
     console.error('❌ Superadmin login failed:', loginRes.data);
     throw new Error('Cannot seed: superadmin login failed');

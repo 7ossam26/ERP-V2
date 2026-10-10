@@ -562,6 +562,19 @@ async function applyLegacyMigrationFixes() {
 async function run() {
   console.log(">>> [FIX] Checking and applying missing schema changes...");
 
+  // These repairs patch databases that already HAVE the base schema. On a
+  // fresh (or not-yet-migrated) database there is nothing to repair: the
+  // unguarded ALTER TABLE `purchases` below would throw and abort startup
+  // before `prisma migrate deploy` ever got the chance to create the schema,
+  // and the CREATE TABLEs above it would leave stray tables that later
+  // migrations then collide with. Defer to the migrations instead.
+  if (!(await tableExists("purchases"))) {
+    console.log(
+      ">>> [FIX] `purchases` table not found — database is not migrated yet. Skipping schema repair; `prisma migrate deploy` will create the schema."
+    );
+    return { skipped: true };
+  }
+
   // 1. Create purchase_returns table if missing
   if (!(await tableExists("purchase_returns"))) {
     await prisma.$executeRawUnsafe(`
@@ -758,11 +771,16 @@ async function run() {
   }
 
   console.log(">>> [FIX] All schema fixes applied successfully.");
+  return { skipped: false };
 }
 
-run()
-  .catch((err) => {
-    console.error(">>> [FIX] Schema fix failed:", err.message);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  run()
+    .catch((err) => {
+      console.error(">>> [FIX] Schema fix failed:", err.message);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
+
+module.exports = { run, prisma };

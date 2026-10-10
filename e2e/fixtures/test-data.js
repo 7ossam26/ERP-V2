@@ -4,7 +4,8 @@
 const BASE_URL = 'http://localhost:3001/api';
 
 const USERS = {
-  superadmin: { username: 'superadmin', password: '246810@Ad', role: 'Superadmin' },
+  // No hardcoded superadmin password: use the one the local DB was seeded with.
+  superadmin: { username: process.env.ADMIN_USERNAME || 'superadmin', password: process.env.E2E_SUPERADMIN_PASSWORD || process.env.ADMIN_PASSWORD, role: 'Superadmin' },
   admin: { username: 'test_admin', password: 'Test1234!', role: 'Admin' },
   gm: { username: 'test_gm', password: 'Test1234!', role: 'General Manager' },
   branchMgr: { username: 'test_branch_mgr', password: 'Test1234!', role: 'Branch Manager' },

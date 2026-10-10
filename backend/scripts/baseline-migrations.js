@@ -263,8 +263,14 @@ async function readPrismaMigrationsTable() {
   }
 }
 
+// Set in main(). On a fresh database `_prisma_migrations` does not exist yet
+// (`migrate deploy` creates it), so there are no rows to delete — and issuing
+// the DELETE anyway throws, which used to abort startup before the first
+// migration could run.
+let migrationsTablePresent = true;
+
 async function deleteRow(name) {
-  if (DRY_RUN) return;
+  if (DRY_RUN || !migrationsTablePresent) return;
   await prisma.$executeRawUnsafe(
     `DELETE FROM _prisma_migrations WHERE migration_name = ?`,
     name
@@ -296,6 +302,7 @@ async function main() {
   );
 
   const folders = listMigrationFolders();
+  migrationsTablePresent = await tableExists("_prisma_migrations");
   const rows = await readPrismaMigrationsTable();
 
   // A row counts as "applied" iff finished_at is set. applied_steps_count can
@@ -378,9 +385,13 @@ async function main() {
   console.log("   Next: `npx prisma migrate deploy`\n");
 }
 
-main()
-  .catch((e) => {
-    console.error("Baseline failed:", e.message);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error("Baseline failed:", e.message);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
+
+module.exports = { main, probes, prisma };

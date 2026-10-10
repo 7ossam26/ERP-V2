@@ -1,5 +1,6 @@
 // AUTH-login.spec.js — Login / logout / session persistence
 const { test, expect } = require('@playwright/test');
+const { USERS } = require('../../fixtures/test-data');
 
 const LOGIN_URL = '/';
 const USERNAME_SEL = 'input[placeholder="Enter your username"]';
@@ -14,7 +15,7 @@ test.describe('AUTH — Login & Session', () => {
     await page.waitForLoadState('networkidle');
 
     await page.fill(USERNAME_SEL, 'superadmin');
-    await page.fill(PASSWORD_SEL, '246810@Ad');
+    await page.fill(PASSWORD_SEL, USERS.superadmin.password);
     await page.click(SUBMIT_SEL);
 
     // Should navigate away from the login page
@@ -57,7 +58,7 @@ test.describe('AUTH — Login & Session', () => {
     await page.goto(LOGIN_URL);
     await page.waitForLoadState('networkidle');
     await page.fill(USERNAME_SEL, 'superadmin');
-    await page.fill(PASSWORD_SEL, '246810@Ad');
+    await page.fill(PASSWORD_SEL, USERS.superadmin.password);
     await page.click(SUBMIT_SEL);
     await page.waitForURL((url) => url.pathname !== '/', { timeout: 10000 });
     await page.waitForLoadState('networkidle');
@@ -80,7 +81,7 @@ test.describe('AUTH — Login & Session', () => {
     await page.goto(LOGIN_URL);
     await page.waitForLoadState('networkidle');
     await page.fill(USERNAME_SEL, 'superadmin');
-    await page.fill(PASSWORD_SEL, '246810@Ad');
+    await page.fill(PASSWORD_SEL, USERS.superadmin.password);
     await page.click(SUBMIT_SEL);
     await page.waitForURL((url) => url.pathname !== '/', { timeout: 10000 });
 

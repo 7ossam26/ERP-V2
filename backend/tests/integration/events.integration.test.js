@@ -43,7 +43,10 @@ const http = require("http");
 const jwt = require("jsonwebtoken");
 const bus = require("../../lib/eventBus");
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_key_change_me";
+// The auth middleware no longer falls back to a hardcoded secret, so the test
+// supplies its own (read by the middleware at request time).
+process.env.JWT_SECRET = process.env.JWT_SECRET || "events-integration-test-secret";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function startServer() {
   const app = express();

@@ -13,14 +13,17 @@ const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const { PrismaClient } = require("@prisma/client");
 
-// Load env (.env then .env.local, latter overrides)
+// Load env files WITHOUT override, highest priority first, so the effective
+// order is: real environment > backend/.env.local > .env.local > backend/.env
+// > .env. An explicitly passed DATABASE_URL / ADMIN_PASSWORD must win — a
+// stray .env must never silently repoint the seed at a different database.
 for (const f of [
-  path.resolve(__dirname, "../../.env"),
-  path.resolve(__dirname, "../.env"),
-  path.resolve(__dirname, "../../.env.local"),
   path.resolve(__dirname, "../.env.local"),
+  path.resolve(__dirname, "../../.env.local"),
+  path.resolve(__dirname, "../.env"),
+  path.resolve(__dirname, "../../.env"),
 ]) {
-  if (fs.existsSync(f)) require("dotenv").config({ path: f, override: true });
+  if (fs.existsSync(f)) require("dotenv").config({ path: f });
 }
 
 const prisma = new PrismaClient();
@@ -267,20 +270,60 @@ async function seedGeneralSupplier() {
   console.log(`✅ General supplier created → ${GENERAL_SUPPLIER_NAME}`);
 }
 
-async function seedSuperadminUser(superadminRole) {
-  const username = process.env.ADMIN_USERNAME || "superadmin";
-  const password = process.env.ADMIN_PASSWORD || "246810@Ad";
-  const hashed = await bcrypt.hash(password, 10);
+const MIN_ADMIN_PASSWORD_LENGTH = 12;
 
-  const user = await prisma.user.upsert({
+// There is NO default password. ADMIN_PASSWORD is only required when the
+// superadmin has to be created (or when a reset is explicitly requested), and
+// it is validated before the seed writes anything, so a missing secret never
+// leaves a half-seeded database behind.
+async function resolveSuperadminPlan({ resetAdminPassword = false } = {}) {
+  const username = process.env.ADMIN_USERNAME || "superadmin";
+  const existing = await prisma.user.findUnique({
     where: { username },
-    update: {
-      password: hashed,
-      roleId: superadminRole.id,
-      hasSensitiveAccess: true,
-      isActive: true,
-    },
-    create: {
+    select: { id: true },
+  });
+  const needsPassword = !existing || resetAdminPassword;
+  if (!needsPassword) return { username, existing, password: null };
+
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password) {
+    throw new Error(
+      `ADMIN_PASSWORD is not set. It is required to ${
+        existing ? "reset" : "create"
+      } the superadmin "${username}". Set it in the environment of this one-off command only.`
+    );
+  }
+  if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
+    throw new Error(
+      `ADMIN_PASSWORD must be at least ${MIN_ADMIN_PASSWORD_LENGTH} characters.`
+    );
+  }
+  return { username, existing, password };
+}
+
+async function seedSuperadminUser(superadminRole, plan, { resetAdminPassword = false } = {}) {
+  const { username, existing, password } = plan;
+
+  // An existing account is never modified implicitly: no password reset, no
+  // re-activation, no role change. Only an explicit --reset-admin-password
+  // run (from the container shell) touches it.
+  if (existing && !resetAdminPassword) {
+    console.log(`✅ Superadmin user → ${username} (id#${existing.id}) already exists, left unchanged`);
+    return;
+  }
+
+  const hashed = await bcrypt.hash(password, 10);
+  if (existing) {
+    await prisma.user.update({
+      where: { id: existing.id },
+      data: { password: hashed },
+    });
+    console.log(`✅ Superadmin user → ${username} (id#${existing.id}) password reset`);
+    return;
+  }
+
+  const user = await prisma.user.create({
+    data: {
       name: "Superadmin",
       username,
       password: hashed,
@@ -289,13 +332,14 @@ async function seedSuperadminUser(superadminRole) {
       hasSensitiveAccess: true,
     },
   });
-  console.log(`✅ Superadmin user → ${user.username} (id#${user.id})`);
+  console.log(`✅ Superadmin user → ${user.username} (id#${user.id}) created`);
 }
 
 // ===== Main ================================================================
 
-async function main() {
+async function main(options = {}) {
   console.log("🌱 Seeding…");
+  const superadminPlan = await resolveSuperadminPlan(options);
   await assertNoLegacyAllBranches();
   const roles = await seedRoles();
   await seedPermissions(roles);
@@ -303,15 +347,18 @@ async function main() {
   await seedDigitalTreasuriesAndConfig();
   await seedWalkinClient();
   await seedGeneralSupplier();
-  await seedSuperadminUser(roles.Superadmin);
+  await seedSuperadminUser(roles.Superadmin, superadminPlan, options);
   console.log("✨ Seed complete.");
 }
 
 // Auto-run when invoked directly (`node prisma/seed.js` or `prisma db seed`).
-// When require()d as a module, just export `main` so callers can invoke it
-// programmatically (e.g. the /api/dangerous-reset-db endpoint).
+// When require()d as a module, just export `main` so local helper scripts can
+// invoke it programmatically. It is intentionally not reachable over HTTP.
+//
+//   node prisma/seed.js                          create-only; never touches an existing superadmin
+//   node prisma/seed.js --reset-admin-password   explicit reset to ADMIN_PASSWORD
 if (require.main === module) {
-  main()
+  main({ resetAdminPassword: process.argv.includes("--reset-admin-password") })
     .catch((err) => {
       console.error("❌ Seed failed:", err);
       process.exit(1);
@@ -320,3 +367,4 @@ if (require.main === module) {
 }
 
 module.exports = main;
+module.exports.MIN_ADMIN_PASSWORD_LENGTH = MIN_ADMIN_PASSWORD_LENGTH;

@@ -21,10 +21,9 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "fallback_secret_key_change_me"
-    );
+    // No fallback: with JWT_SECRET unset, verify() throws and the request is
+    // rejected below, instead of accepting tokens signed with a public string.
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Verify user still exists in DB (handles DB reset / deleted users)
     const userExists = await prisma.user.findUnique({
