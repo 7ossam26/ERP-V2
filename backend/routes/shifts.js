@@ -16,6 +16,7 @@ const { drainPendingForBranch } = require("../lib/orderService");
 // of that file. Its two postings assumed the branch treasury IS the drawer; it
 // is the branch SAFE, and the shift lifecycle must not move money in it.
 const { roundMoney } = require("../utils/money");
+const { postShiftVariance } = require("../lib/shiftTreasury");
 
 // Reopening discards the cashier's submitted cash count, so the audit trail
 // needs a real explanation rather than a keystroke.
@@ -204,12 +205,21 @@ async function determineShiftType() {
  * money out of, or put it into, the register during the shift.
  *
  *   IN   startCash, cash sales, COD returned at driver settlement (net of the
- *        driver's share).
+ *        driver's share), wholesale cash, cash transfers RECEIVED INTO THE
+ *        DRAWER (toDrawer, stamped with this shift).
  *   OUT  cash expenses (petty cash paid at the register), employee advances,
- *        driver InstaPay dues paid out of the drawer.
- *   NOT  anything that moves the safe: cash transfers either way, manual
+ *        driver InstaPay dues paid out of the drawer, cash transfers SENT FROM
+ *        THE DRAWER (fromDrawer, stamped with this shift).
+ *   NOT  anything that moves the safe: safe transfers either way, manual
  *        deposits/withdrawals, payroll, supplier payments. Measured and
  *        reported, never subtracted — see the block below.
+ *
+ * A transfer's container is RECORDED, never inferred: the person sending or
+ * receiving it says drawer or safe (routes/treasuries.js). Inferring it is what
+ * went wrong twice — "every transfer is from the drawer" printed a manager's
+ * safe → HQ transfer as the cashier's shortage (shift #210), and "every
+ * transfer is from the safe" printed a cashier's drawer → HQ transfer the same
+ * way whenever the opening float had been carried forward in full.
  *
  * Two failure modes to keep in mind when editing:
  *
@@ -246,7 +256,7 @@ async function calculateSystemExpectedCash(shiftId) {
     },
   });
 
-  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0, advances: 0, expectedVisa: 0, expectedInstapay: 0, pilotSettlementDifference: 0 };
+  if (!shift) return { expected: 0, cashSales: 0, cashExpenses: 0, advances: 0, expectedVisa: 0, expectedInstapay: 0, pilotSettlementDifference: 0, drawerTransfersIn: 0, drawerTransfersOut: 0 };
 
   // Start with opening cash
   let startCash = parseFloat(shift.startCash) || 0;
@@ -310,16 +320,37 @@ async function calculateSystemExpectedCash(shiftId) {
   const windowStart = shift.startTime;
   const windowEnd = shift.endTime || new Date();
 
+  //
+  // EXCEPT supplier payments. Paying a supplier on the supplier-accounts screen
+  // (routes/supplierAccounts.js) also writes an Expense — type PURCHASE, CASH,
+  // with NO purchaseId — against whichever treasury paid. That is a manager
+  // paying out of the safe, not the cashier opening the register; it is already
+  // reported as `supplierPayments` below. A purchase's own expense always
+  // carries its purchaseId, so the null is what tells the two apart.
+  let cashExpenseCount = 0;
   if (branchTreasuryId && windowStart) {
-    const expenseAgg = await prisma.expense.aggregate({
-      where: {
-        treasuryId: branchTreasuryId,
-        paymentMethod: "CASH",
-        createdAt: { gte: windowStart, lte: windowEnd },
-      },
-      _sum: { amount: true },
-    });
-    cashExpenses = Number(expenseAgg._sum.amount || 0);
+    const expenseWindow = {
+      treasuryId: branchTreasuryId,
+      paymentMethod: "CASH",
+      createdAt: { gte: windowStart, lte: windowEnd },
+    };
+    const [expenseAgg, supplierExpenseAgg] = await Promise.all([
+      prisma.expense.aggregate({
+        where: expenseWindow,
+        _sum: { amount: true },
+        _count: true,
+      }),
+      prisma.expense.aggregate({
+        where: { ...expenseWindow, type: "PURCHASE", purchaseId: null },
+        _sum: { amount: true },
+        _count: true,
+      }),
+    ]);
+    cashExpenses =
+      Number(expenseAgg._sum.amount || 0) -
+      Number(supplierExpenseAgg._sum.amount || 0);
+    cashExpenseCount =
+      Number(expenseAgg._count || 0) - Number(supplierExpenseAgg._count || 0);
     expected -= cashExpenses;
   }
 
@@ -441,6 +472,59 @@ async function calculateSystemExpectedCash(shiftId) {
     expected += bulkCashCollected - bulkCashVoided - bulkCashRefunded;
   }
 
+  // Cash transfers that physically left or entered THIS drawer.
+  //
+  // Attributed by the shiftId stamped on the transfer when it was sent from /
+  // received into the drawer — never by time window, so a reopened shift and a
+  // later shift can never both claim one.
+  //
+  // OUT is counted from creation: the source is debited the moment a transfer
+  // is sent, PENDING or not, and the cash is out of the register from then.
+  // A REJECTION hands it back:
+  //   - while this shift is still open → back into this drawer, nets to zero,
+  //     so a rejected transfer is excluded;
+  //   - after this shift ended → the cash comes back to the branch after the
+  //     count, i.e. into the safe. The closed shift's drawer really was short
+  //     of it, so it stays subtracted and the closed figure never moves.
+  // Same symmetric rule as wholesale voids above.
+  //
+  // IN is counted once APPROVED — that is when the destination is credited and
+  // the receiver confirms the cash in hand.
+  let drawerTransfersOut = 0;
+  let drawerTransfersIn = 0;
+  {
+    const [liveOutAgg, lateRejectedOutAgg, inAgg] = await Promise.all([
+      prisma.cashTransfer.aggregate({
+        where: {
+          fromShiftId: shift.id,
+          fromDrawer: true,
+          status: { in: ["PENDING", "APPROVED"] },
+        },
+        _sum: { amount: true },
+      }),
+      shift.endTime
+        ? prisma.cashTransfer.aggregate({
+            where: {
+              fromShiftId: shift.id,
+              fromDrawer: true,
+              status: "REJECTED",
+              resolvedAt: { gt: shift.endTime },
+            },
+            _sum: { amount: true },
+          })
+        : null,
+      prisma.cashTransfer.aggregate({
+        where: { toShiftId: shift.id, toDrawer: true, status: "APPROVED" },
+        _sum: { amount: true },
+      }),
+    ]);
+    drawerTransfersOut =
+      Number(liveOutAgg._sum.amount || 0) +
+      Number(lateRejectedOutAgg?._sum.amount || 0);
+    drawerTransfersIn = Number(inAgg._sum.amount || 0);
+    expected += drawerTransfersIn - drawerTransfersOut;
+  }
+
   // Branch-SAFE movements. Measured and reported so a variance can be traced to
   // one, but deliberately NOT folded into the drawer.
   //
@@ -492,20 +576,25 @@ async function calculateSystemExpectedCash(shiftId) {
           where: { treasuryId: branchTreasuryId, source: "MANUAL", createdAt: window },
           _sum: { amount: true },
         }),
-        // A transfer debits the source treasury the moment it is created, while
-        // still PENDING — the cash physically leaves the branch at that point.
-        // A later rejection credits it back, and that refund lands in whichever
-        // shift is open then, which is the correct attribution.
+        // SAFE transfers only — drawer ones are already in `expected` above and
+        // listing them here too would show the same cash twice. A transfer
+        // debits the source the moment it is created, while still PENDING.
         prisma.cashTransfer.aggregate({
           where: {
             fromTreasuryId: branchTreasuryId,
+            fromDrawer: false,
             status: { in: ["PENDING", "APPROVED"] },
             createdAt: window,
           },
           _sum: { amount: true },
         }),
         prisma.cashTransfer.aggregate({
-          where: { toTreasuryId: branchTreasuryId, status: "APPROVED", createdAt: window },
+          where: {
+            toTreasuryId: branchTreasuryId,
+            toDrawer: false,
+            status: "APPROVED",
+            createdAt: window,
+          },
           _sum: { amount: true },
         }),
         prisma.payroll.aggregate({
@@ -557,6 +646,7 @@ async function calculateSystemExpectedCash(shiftId) {
     codDeliveredThisShift: round(codDeliveredThisShift),
     codPendingExcluded: round(codPendingExcluded),
     cashExpenses: round(cashExpenses),
+    cashExpenseCount,
     advances: round(advances),
     pilotSettlementDifference: round(pilotSettlementDifference),
     // Wholesale cash. `bulkCashCollected − bulkCashVoided − bulkCashRefunded` is
@@ -566,6 +656,9 @@ async function calculateSystemExpectedCash(shiftId) {
     bulkCashRefunded: round(bulkCashRefunded),
     bulkNonCashCollected: round(bulkNonCashCollected),
     bulkNetCash: round(bulkCashCollected - bulkCashVoided - bulkCashRefunded),
+    // Inside `expected`: + received into the drawer, − sent from it.
+    drawerTransfersIn: round(drawerTransfersIn),
+    drawerTransfersOut: round(drawerTransfersOut),
     startCash: round(startCash),
     expectedVisa: round(expectedVisa),
     expectedInstapay: round(expectedInstapay),
@@ -874,6 +967,8 @@ router.post("/end", async (req, res, next) => {
       bulkCashRefunded,
       bulkNonCashCollected,
       bulkNetCash,
+      drawerTransfersIn,
+      drawerTransfersOut,
       startCash,
       expectedVisa,
       expectedInstapay,
@@ -891,21 +986,27 @@ router.post("/end", async (req, res, next) => {
     const shortage =
       Math.round((actualCashValue - systemExpectedCash) * 100) / 100;
 
-    // No treasury snapshot is taken. `treasuryVariance` was defined as
-    // `actualCash − branch treasury balance`, which only means anything while the
-    // treasury IS the drawer. It is the branch SAFE: it also holds takings handed
-    // over by earlier shifts, so the difference is not a variance, it is just
-    // however much is sitting in the safe. Recording that as a variance invited
-    // the posting that erased it.
+    // `treasuryVariance` is the correction approval will post to the branch
+    // treasury, and it is the SHORTAGE — never `actualCash − treasury balance`.
     //
-    // The columns stay in the schema and keep their historical values; a drawer
-    // account of its own is what makes them meaningful again.
+    // The branch treasury is drawer + safe in one account. Every movement the
+    // drawer formula counts was already posted to it as it happened, so the
+    // books believe the drawer holds `systemExpectedCash`. The count says it
+    // holds `actualCash`. The account is therefore wrong by exactly `shortage`,
+    // and by nothing else — posting it fixes the books without touching a pound
+    // of the safe. (The old definition, actual − balance, treated the whole
+    // account as the drawer and erased the safe; that is why it was switched off.
+    // No closing balance snapshot is taken for the same reason.)
+    //
+    // Re-based by what earlier approval cycles already posted: `shortage` spans
+    // the whole shift, so on a reopened shift only the change since the last
+    // approval is still owed. Cycles supersede, they never accumulate.
     const closingTreasuryBalance = null;
-    const treasuryVariance = null;
     const priorPostedVariance = await sumPostedShiftVariance(
       parseInt(shiftId),
       shiftToEnd.reopenCount,
     );
+    const treasuryVariance = roundMoney(shortage - priorPostedVariance);
 
     // Update shift to PENDING_REVIEW (not CLOSED yet - needs manager approval)
     const updatedShift = await prisma.shift.update({
@@ -973,6 +1074,8 @@ router.post("/end", async (req, res, next) => {
         bulkCashRefunded,
         bulkNonCashCollected,
         bulkNetCash,
+        drawerTransfersIn,
+        drawerTransfersOut,
         systemExpectedCash,
         expectedVisa,
         expectedInstapay,
@@ -986,11 +1089,10 @@ router.post("/end", async (req, res, next) => {
         closingTreasuryBalance,
         treasuryVariance,
         priorPostedVariance,
-        // Always null now: `treasuryVariance` is no longer captured, because the
-        // drawer and the branch safe are different containers and the difference
-        // between them was never a variance. Kept so a client reading the key
-        // does not break, and so shifts closed before 31/07/2026 — which do carry
-        // a stored variance — still report the drift that was computed for them.
+        // 0 by construction now that treasuryVariance is derived from shortage.
+        // Kept so a client reading the key does not break, and so shifts closed
+        // before 31/07/2026 — whose stored variance was actual − balance — still
+        // report the drift that was computed for them.
         drift:
           treasuryVariance != null
             ? roundMoney(treasuryVariance + priorPostedVariance - shortage)
@@ -1082,9 +1184,9 @@ router.post("/approve", async (req, res, next) => {
           // pre-flight, this is the guard that actually makes approval single-shot.
           // Claim the shift with a conditional write rather than read-then-write.
           // A plain SELECT takes no lock, so two concurrent approvals could both
-          // see PENDING_REVIEW and both proceed. This used to be caught downstream
-          // by UNIQUE(shift_id, source, cycle) on the variance posting; approval
-          // posts nothing now, so the guard has to live in the claim itself.
+          // see PENDING_REVIEW and both proceed. UNIQUE(shift_id, source, cycle)
+          // on the variance posting is a backstop, but a zero shortage posts no
+          // row at all, so the guard has to live in the claim itself.
           // Exactly one updateMany can match, and the loser gets a 409.
           const claimed = await tx.shift.updateMany({
             where: { id: parseInt(shiftId), status: "PENDING_REVIEW" },
@@ -1101,9 +1203,45 @@ router.post("/approve", async (req, res, next) => {
             throw err;
           }
 
-          // Approval moves NO money. The branch treasury is the safe, not the
-          // drawer: forcing its balance onto a drawer count would erase every
-          // pound of earlier takings sitting in it. See lib/shiftTreasury.js.
+          // Post the counted shortage/overage to the branch treasury so the books
+          // stop claiming cash the drawer does not hold (or missing cash it
+          // does). The delta is the `treasuryVariance` POST /end stored — the
+          // shortage re-based by earlier cycles — never a balance forced onto a
+          // count, which would erase the safe. See lib/shiftTreasury.js.
+          //
+          // Read inside the transaction, AFTER the claim: reopenCount is the
+          // posting cycle, and UNIQUE(shift_id, source, cycle) turns a replay
+          // into P2002 (→ 409 below) rather than a second posting.
+          //
+          // A shift closed before this posting existed carries either a null
+          // variance (posts nothing) or a LEGACY one — actual − balance, always
+          // stored next to a closingTreasuryBalance snapshot. The legacy figure
+          // must never be posted: it is exactly the safe-erasing correction
+          // this was switched off for.
+          const claimedShift = await tx.shift.findUnique({
+            where: { id: parseInt(shiftId) },
+            select: {
+              id: true,
+              reopenCount: true,
+              treasuryVariance: true,
+              closingTreasuryBalance: true,
+            },
+          });
+          let posted = null;
+          if (
+            claimedShift.treasuryVariance != null &&
+            claimedShift.closingTreasuryBalance == null &&
+            shift.branch?.treasuryId
+          ) {
+            posted = await postShiftVariance(tx, {
+              shift: claimedShift,
+              treasuryId: shift.branch.treasuryId,
+              cycle: claimedShift.reopenCount,
+              delta: Number(claimedShift.treasuryVariance),
+              actorId: manager.id,
+            });
+          }
+
           const updated = await tx.shift.findUnique({
             where: { id: parseInt(shiftId) },
             include: {
@@ -1113,7 +1251,7 @@ router.post("/approve", async (req, res, next) => {
             },
           });
 
-          return { closedShift: updated, varianceAdjustment: null };
+          return { closedShift: updated, varianceAdjustment: posted };
         },
       ));
     } catch (txError) {
@@ -1156,18 +1294,18 @@ router.post("/approve", async (req, res, next) => {
  *
  * TREASURY: reopening posts nothing and reverses nothing.
  * ------------------------------------------------------
- * /start and /approve are the only routes that move the branch treasury, and
- * both post a DELTA against the live balance rather than an absolute amount:
+ * /approve is the only shift route that moves the branch treasury, and it posts
+ * the shortage RE-BASED by what earlier cycles already posted
+ * (treasuryVariance = shortage − priorPostedVariance, set at /end):
  *
- *     approve1: balance = B1 + (A1 − B1) = A1   (the cash actually counted)
- *     reopen  : balance = A1  ← untouched; the drawer really does hold A1
- *     approve2: balance = … + (A2 − …)  = A2
+ *     approve1: posts S1                 net posted = S1
+ *     reopen  : posts nothing            the drawer really is S1 off the books
+ *     approve2: posts S2 − S1            net posted = S2
  *
  * So a later approval's delta already absorbs the earlier one — cycles supersede
- * instead of accumulating, and the net posted over N cycles is A_final − B_initial
- * exactly once. Reversing approval #1 here would be WRONG: it would set the books
- * back to B1 while the drawer physically holds A1, breaking
- * `treasury.balance === drawer` for the entire reopened window.
+ * instead of accumulating, and the net posted over N cycles is the final
+ * shortage exactly once. Reversing approval #1 here would be WRONG: the count
+ * that produced S1 is still what the drawer holds until the shift closes again.
  *
  * What DOES change is `reopenCount`, which becomes the next approval's posting
  * `cycle`. Without it UNIQUE(shiftId, source, cycle) would reject the second
@@ -1822,16 +1960,11 @@ router.get(
       // read 0.
 
       // Calculate expenses
+      // (The CASH subtotal shown on the ladder comes from the drawer formula —
+      // see expenseBreakdown below.)
       let totalExpenses = 0;
-      let cashExpenseCount = 0;
-      let cashExpenseTotal = 0;
       shift.expenses.forEach((expense) => {
-        const amt = parseFloat(expense.amount);
-        totalExpenses += amt;
-        if (expense.paymentMethod === "CASH") {
-          cashExpenseCount++;
-          cashExpenseTotal += amt;
-        }
+        totalExpenses += parseFloat(expense.amount);
       });
 
       // Calculate employee advances (cash out of the drawer during the shift)
@@ -2071,7 +2204,16 @@ router.get(
 
         // Cash movements
         deposits: { count: depositCount, total: Math.round(depositTotal * 100) / 100 },
-        expenseBreakdown: { count: cashExpenseCount, total: Math.round(cashExpenseTotal * 100) / 100 },
+        // From the drawer formula, not from shift.expenses: the formula counts
+        // by branch treasury + window, which also catches a cash purchase's
+        // expense (shiftId null). Reading shiftId here left that purchase out of
+        // the "− المصروفات" line while it was inside drawerAmount, so the ladder
+        // on screen stopped adding up. `totalExpenses` (all methods, by shiftId)
+        // is unchanged.
+        expenseBreakdown: {
+          count: drawerBreakdown.cashExpenseCount,
+          total: drawerBreakdown.cashExpenses,
+        },
         pilotSettlementDifference,
         drawerAmount,
 
@@ -2097,6 +2239,13 @@ router.get(
         // manager can see what the branch did with its money during the shift,
         // and so a disputed figure can be traced to a specific movement.
         //
+        // Cash transfers sent from / received into THIS drawer. Both are inside
+        // `drawerAmount` (− out, + in); listed so the ladder adds up on screen.
+        drawerTransfers: {
+          out: drawerBreakdown.drawerTransfersOut,
+          in: drawerBreakdown.drawerTransfersIn,
+        },
+
         // The name is now a misnomer and is kept only because renaming a payload
         // key breaks any client reading it. Read it as `safeMovements`.
         drawerMovements: {

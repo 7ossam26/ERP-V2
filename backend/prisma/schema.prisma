@@ -685,6 +685,8 @@ model Shift {
   payrolls   Payroll[]
   deposits    Deposit[]
   withdrawals Withdrawal[]
+  drawerTransfersOut CashTransfer[] @relation("TransfersFromDrawer")
+  drawerTransfersIn  CashTransfer[] @relation("TransfersToDrawer")
 
   @@map("shifts")
 }
@@ -815,8 +817,25 @@ model CashTransfer {
   toTreasuryId   Int            @map("to_treasury_id")
   status         TransferStatus @default(PENDING)
   createdAt      DateTime       @default(now()) @map("created_at")
+  // When the transfer left PENDING (approved or rejected). A rejection refunds
+  // the source; whether that refund lands back in the drawer depends on whether
+  // the drawer's shift was still open at this moment.
+  resolvedAt     DateTime?      @map("resolved_at")
+
+  // Which physical container of a branch the cash left / arrived in. A branch
+  // treasury is drawer + safe in ONE account, so only these flags tell a
+  // drawer transfer (moves the shift's expected cash) from a safe transfer
+  // (does not). false = the safe, which is also what every pre-existing row
+  // means. The shift is stamped when the flag is set, so attribution is by
+  // shiftId, not by time window.
+  fromDrawer  Boolean @default(false) @map("from_drawer")
+  fromShiftId Int?    @map("from_shift_id")
+  toDrawer    Boolean @default(false) @map("to_drawer")
+  toShiftId   Int?    @map("to_shift_id")
 
   // Relations
+  fromShift    Shift?   @relation("TransfersFromDrawer", fields: [fromShiftId], references: [id], onDelete: SetNull)
+  toShift      Shift?   @relation("TransfersToDrawer", fields: [toShiftId], references: [id], onDelete: SetNull)
   fromTreasury Treasury @relation("TransfersFrom", fields: [fromTreasuryId], references: [id], onDelete: Restrict)
   toTreasury   Treasury @relation("TransfersTo", fields: [toTreasuryId], references: [id], onDelete: Restrict)
   createdBy    User     @relation("TransferCreator", fields: [createdById], references: [id])
@@ -824,6 +843,8 @@ model CashTransfer {
   acceptedBy   User?    @relation("TransferAccepter", fields: [acceptedById], references: [id])
   acceptedById Int?     @map("accepted_by_id")
 
+  @@index([fromShiftId])
+  @@index([toShiftId])
   @@map("cash_transfers")
 }
 

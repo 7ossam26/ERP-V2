@@ -8,6 +8,9 @@ const TransferManagementPage = () => {
   const [filteredTransfers, setFilteredTransfers] = useState([]);
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [actionLoading, setActionLoading] = useState(null);
+  // Per-transfer receiving container for a branch destination: "SAFE" (default)
+  // or "DRAWER". Only a drawer receipt raises the open shift's expected cash.
+  const [receiveInto, setReceiveInto] = useState({});
 
   useEffect(() => {
     fetchTransfers();
@@ -41,7 +44,9 @@ const TransferManagementPage = () => {
   const handleApprove = async (id) => {
     try {
       setActionLoading(id);
-      await treasuryService.approveTransfer(id);
+      await treasuryService.approveTransfer(id, {
+        toDrawer: receiveInto[id] === "DRAWER",
+      });
       toast.success("تم قبول التحويل بنجاح");
       fetchTransfers();
     } catch (error) {
@@ -165,9 +170,20 @@ const TransferManagementPage = () => {
                 <div className="flex-1 space-y-3">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold text-primary">
-                      {transfer.amount.toLocaleString()} ج.م
+                      {/* Decimal arrives as a string — format the number. */}
+                      {Number(transfer.amount).toLocaleString()} ج.م
                     </span>
                     {getStatusBadge(transfer.status)}
+                    {transfer.fromDrawer && (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200">
+                        خارج من الدرج
+                      </span>
+                    )}
+                    {transfer.toDrawer && (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                        استلام في الدرج
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 text-sm">
@@ -206,6 +222,24 @@ const TransferManagementPage = () => {
                 {/* Actions */}
                 {transfer.status === "PENDING" && (
                   <div className="flex md:flex-col gap-2">
+                    {/* A branch destination can receive into its register (raises
+                        the open shift's expected cash) or its safe. The server
+                        refuses DRAWER when that branch has no open shift. */}
+                    {transfer.toTreasury?.scope === "BRANCH_CASH" && (
+                      <select
+                        value={receiveInto[transfer.id] || "SAFE"}
+                        onChange={(e) =>
+                          setReceiveInto((prev) => ({
+                            ...prev,
+                            [transfer.id]: e.target.value,
+                          }))
+                        }
+                        disabled={actionLoading === transfer.id}
+                        className="rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm font-bold">
+                        <option value="SAFE">الاستلام في خزنة الفرع</option>
+                        <option value="DRAWER">الاستلام في الدرج</option>
+                      </select>
+                    )}
                     <button
                       onClick={() => handleApprove(transfer.id)}
                       disabled={actionLoading === transfer.id}

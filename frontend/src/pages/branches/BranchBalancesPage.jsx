@@ -253,8 +253,21 @@ const BranchBalancesPage = () => {
                           {fmt(branch.safeCash)} ج.م
                         </span>
                       </div>
+                      {/* PENDING_REVIEW: the drawer is the blind count and the
+                          shortage/overage is posted only at approval, so drawer +
+                          safe differs from the balance by exactly this until then. */}
+                      {Number(branch.pendingVariance || 0) !== 0 && (
+                        <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+                          <span className="text-xs">
+                            {branch.pendingVariance < 0 ? "عجز" : "زيادة"} بانتظار الاعتماد
+                          </span>
+                          <span className="font-bold text-sm">
+                            {fmt(branch.pendingVariance)} ج.م
+                          </span>
+                        </div>
+                      )}
                       <p className="text-[10px] text-green-600 dark:text-green-500 pt-1 leading-relaxed">
-                        التحويل للإدارة من خزنة الفرع فقط
+                        عند التحويل حدّد هل النقدية خارجة من الدرج أم من خزنة الفرع
                       </p>
                     </div>
                   ) : (

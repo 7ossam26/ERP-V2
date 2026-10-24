@@ -145,8 +145,11 @@ const POSReport80mm = ({ report, settings = {} }) => {
   const wholesaleCashIn = Number(wholesale?.cashCollected || 0);
   const wholesaleCashOut =
     Number(wholesale?.cashVoided || 0) + Number(wholesale?.cashRefunded || 0);
+  // Cash transfers recorded as leaving / entering this drawer.
+  const drawerTransfersIn = Number(report.drawerTransfers?.in || 0);
+  const drawerTransfersOut = Number(report.drawerTransfers?.out || 0);
 
-  const expenses = Array.isArray(report.expenses) ? report.expenses : [];
+  const expenses =Array.isArray(report.expenses) ? report.expenses : [];
   const deliveryDetails = Array.isArray(report.deliveryDetails)
     ? report.deliveryDetails
     : [];
@@ -346,6 +349,18 @@ const POSReport80mm = ({ report, settings = {} }) => {
           <div className="pr-row">
             <span>− مرتجع وإلغاء الجملة</span>
             <span className="pr-num">-{fmt(wholesaleCashOut)}</span>
+          </div>
+        )}
+        {drawerTransfersIn > 0 && (
+          <div className="pr-row">
+            <span>+ تحويلات واردة للدرج</span>
+            <span className="pr-num">+{fmt(drawerTransfersIn)}</span>
+          </div>
+        )}
+        {drawerTransfersOut > 0 && (
+          <div className="pr-row">
+            <span>− تحويلات خارجة من الدرج</span>
+            <span className="pr-num">-{fmt(drawerTransfersOut)}</span>
           </div>
         )}
         <div

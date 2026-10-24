@@ -106,11 +106,18 @@ async function rebuild(treasury, config) {
 
   // ── spending ───────────────────────────────────────────────────────────────
   // A purchase writes BOTH a Purchase row and a mirroring Expense of type
-  // PURCHASE ("Purchase Invoice #1390"), while debiting the treasury once. The
-  // Purchase is the source of truth because it carries paidAmount, which is what
-  // actually left the drawer on a partly-paid invoice; the expense always shows
-  // the invoice. Counting both charged purchase #16 twice on 05/08/2026 and
-  // raised a false 2,664 alarm against خزينة الإدارة.
+  // PURCHASE ("Purchase Invoice #1390"), while debiting the treasury once.
+  // Counting both charged purchase #16 twice on 05/08/2026 and raised a false
+  // 2,664 alarm against خزينة الإدارة — so exactly one of them is counted.
+  //
+  // It is the EXPENSE (type PURCHASE with a purchaseId), not purchase.paidAmount.
+  // paidAmount is also raised by every later supplier payment applied to the
+  // invoice (routes/supplierAccounts.js), and that payment is already counted
+  // below as a SupplierPayment against the treasury that actually paid — so
+  // paidAmount charged it twice, and on the wrong treasury when they differ.
+  // The purchase's own expense row is written in the same transaction as the
+  // debit, for exactly the debited amount (netTotal for CASH/CREDIT, the paid
+  // part for MIXED), and is re-synced when the purchase is edited.
   const exp = await prisma.expense.aggregate({
     where: { treasuryId: id, NOT: { type: "PURCHASE" } },
     _sum: { amount: true },
@@ -118,10 +125,37 @@ async function rebuild(treasury, config) {
   });
   push("مصروفات", -1, exp._sum.amount, exp._count);
 
-  const pur = await prisma.purchase.aggregate({
-    where: { treasuryId: id }, _sum: { paidAmount: true }, _count: true,
+  const pur = await prisma.expense.aggregate({
+    where: { treasuryId: id, type: "PURCHASE", purchaseId: { not: null } },
+    _sum: { amount: true },
+    _count: true,
   });
-  push("مشتريات (المدفوع)", -1, pur._sum.paidAmount, pur._count);
+  push("مشتريات (المدفوع)", -1, pur._sum.amount, pur._count);
+
+  // Purchase returns / cancellations credit the purchase's treasury with NO
+  // Deposit row: the whole return for CASH/CREDIT, the paid share for MIXED,
+  // nothing for DEFERRED (that reduces the supplier debt instead). Rebuilt from
+  // the PurchaseReturn rows with the same rule routes/purchases.js applies.
+  // The MIXED share uses today's paidAmount/netTotal, so a MIXED invoice paid
+  // further AFTER its return can show a small residual here.
+  const returns = await prisma.purchaseReturn.findMany({
+    where: { purchase: { treasuryId: id } },
+    select: {
+      totalAmount: true,
+      purchase: { select: { paymentMethod: true, paidAmount: true, netTotal: true } },
+    },
+  });
+  let returnedToTreasury = 0;
+  for (const r of returns) {
+    const method = r.purchase?.paymentMethod;
+    const amt = Number(r.totalAmount || 0);
+    if (method === "CASH" || method === "CREDIT") returnedToTreasury += amt;
+    else if (method === "MIXED") {
+      const net = Number(r.purchase.netTotal || 0);
+      if (net > 0) returnedToTreasury += amt * (Number(r.purchase.paidAmount || 0) / net);
+    }
+  }
+  push("مرتجعات مشتريات", +1, returnedToTreasury, returns.length);
 
   // A NEGATIVE supplier payment is an opening-balance entry — "we already owed
   // this supplier when the system started" — not cash leaving a drawer. Same
@@ -138,17 +172,34 @@ async function rebuild(treasury, config) {
   });
   push("رواتب", -1, pay._sum.netSalary, pay._count);
 
+  // Employee advances debit the BRANCH's treasury (routes/employees.js) and
+  // write only an EmployeeTransaction — no Withdrawal, no Expense — so without
+  // this term every advance ever paid read as unexplained cash missing.
+  const adv = await prisma.employeeTransaction.aggregate({
+    where: { type: "ADVANCE", branch: { treasuryId: id } },
+    _sum: { amount: true },
+    _count: true,
+  });
+  push("سلف موظفين", -1, adv._sum.amount, adv._count);
+
   // ── transfers between treasuries ───────────────────────────────────────────
-  // Pending and rejected transfers move nothing, so only APPROVED counts.
+  // The two sides move at DIFFERENT times (routes/treasuries.js):
+  //   source       debited when the transfer is CREATED, so PENDING counts too;
+  //                a rejection refunds it, so REJECTED nets to zero.
+  //   destination  credited only on APPROVAL.
+  // Counting the source as APPROVED-only read every in-transit transfer as a
+  // shortage on the sending treasury.
   const tin = await prisma.cashTransfer.aggregate({
     where: { toTreasuryId: id, status: "APPROVED" }, _sum: { amount: true }, _count: true,
   });
   push("تحويلات واردة", +1, tin._sum.amount, tin._count);
 
   const tout = await prisma.cashTransfer.aggregate({
-    where: { fromTreasuryId: id, status: "APPROVED" }, _sum: { amount: true }, _count: true,
+    where: { fromTreasuryId: id, status: { in: ["PENDING", "APPROVED"] } },
+    _sum: { amount: true },
+    _count: true,
   });
-  push("تحويلات صادرة", -1, tout._sum.amount, tout._count);
+  push("تحويلات صادرة (معلقة + معتمدة)", -1, tout._sum.amount, tout._count);
 
   // ── wholesale ──────────────────────────────────────────────────────────────
   // Voided payments were reversed on the balance, so they are excluded here too.

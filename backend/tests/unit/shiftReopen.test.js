@@ -36,14 +36,13 @@
  *    dropped, and the re-close recomputing over the WHOLE shift rather than only
  *    the latest cycle.
  *
- * 5. THE SHIFT LIFECYCLE MOVES NO MONEY (section 6 — the reason this file has a
- *    fake treasury at all). Starting, ending, approving and reopening a shift all
- *    leave `treasury.balance` untouched and write no Deposit/Withdrawal row.
- *    /start and /approve briefly did post — against the branch SAFE, which they
- *    mistook for the drawer — and booked 112,250 EGP out of three branches in two
- *    days. Section 6 is the wall against that coming back. Approval is still
- *    single-shot, but on a conditional claim now rather than on a unique index
- *    over a posting that no longer exists.
+ * 5. THE SHIFT LIFECYCLE MOVES EXACTLY THE COUNTED VARIANCE (section 6 — the
+ *    reason this file has a fake treasury at all). Starting, ending and reopening
+ *    a shift leave `treasury.balance` untouched; approval posts the shortage
+ *    (actual − expected) and nothing else. /start and /approve once posted
+ *    against the whole account as if it were the drawer — booking 112,250 EGP out
+ *    of three branches in two days — and section 6 is the wall against that.
+ *    Sections 10–11 pin which cash transfers are drawer movements.
  */
 
 const BRANCH_ID = 4;
@@ -103,15 +102,21 @@ const matchScalar = (value, cond) => {
   if (cond !== null && typeof cond === "object" && !(cond instanceof Date)) {
     if ("in" in cond) return cond.in.includes(value);
     if ("not" in cond) return value !== cond.not;
+    // A range filter can only match a value that exists. Without this a missing
+    // date compared as NaN and quietly failed every bound.
+    if (value === undefined || value === null) return false;
     // Numbers compare numerically (cycle), everything else as dates.
     const cmp = (a, b) =>
       typeof a === "number" && typeof b === "number"
         ? a - b
         : new Date(a) - new Date(b);
-    if ("gte" in cond) return cmp(value, cond.gte) >= 0;
-    if ("lte" in cond) return cmp(value, cond.lte) <= 0;
-    if ("lt" in cond) return cmp(value, cond.lt) < 0;
-    if ("gt" in cond) return cmp(value, cond.gt) > 0;
+    // Every bound present must hold. Returning on the first one made a
+    // { gte, lte } window ignore its upper end.
+    if ("gte" in cond && !(cmp(value, cond.gte) >= 0)) return false;
+    if ("lte" in cond && !(cmp(value, cond.lte) <= 0)) return false;
+    if ("lt" in cond && !(cmp(value, cond.lt) < 0)) return false;
+    if ("gt" in cond && !(cmp(value, cond.gt) > 0)) return false;
+    return true;
   }
   return value === cond;
 };
@@ -372,6 +377,17 @@ jest.mock("../../config/database", () => {
         mockSumAgg(mockStore.cashTransfers, where, "amount"),
       ),
     },
+    // Wholesale terms of the drawer formula. This suite never rings a bulk
+    // sale, so empty stores keep them at zero — but the formula and the report
+    // query them on every /end, and a missing model turned /end into a 500.
+    bulkPayment: {
+      aggregate: jest.fn(async () => ({ _sum: { amount: null } })),
+      findMany: jest.fn(async () => []),
+    },
+    bulkRefund: {
+      aggregate: jest.fn(async () => ({ _sum: { amount: null } })),
+      findMany: jest.fn(async () => []),
+    },
     payroll: { aggregate: jest.fn(async () => ({ _sum: { netSalary: null } })) },
     supplierPayment: {
       aggregate: jest.fn(async () => ({ _sum: { amount: null } })),
@@ -533,34 +549,62 @@ const ringCashSale = (total) => {
  */
 const addTransferOut = (
   amount,
-  { createdAt = new Date(Date.now() - 2 * 60 * 60 * 1000) } = {},
+  {
+    createdAt = new Date(Date.now() - 2 * 60 * 60 * 1000),
+    // false = out of the branch SAFE, the default every legacy row carries.
+    fromDrawer = false,
+    fromShiftId = fromDrawer ? SHIFT_ID : null,
+    status = "PENDING",
+    resolvedAt = null,
+    // A rejected transfer was refunded to the source, so the net is zero.
+    refund = false,
+  } = {},
 ) => {
   mockStore.treasuryBalance -= amount;
+  if (refund) mockStore.treasuryBalance += amount;
   const row = {
     id: mockStore.nextTransferId++,
     amount,
     fromTreasuryId: TREASURY_ID,
     toTreasuryId: TREASURY_ID + 1,
-    status: "PENDING",
+    status,
     createdAt,
+    resolvedAt,
+    fromDrawer,
+    fromShiftId,
+    toDrawer: false,
+    toShiftId: null,
   };
   mockStore.cashTransfers.push(row);
   return row;
 };
 
-/** Head office topping the branch safe up. Credits the safe, not the drawer. */
+/**
+ * Head office sending cash to the branch. Credits the safe by default; with
+ * toDrawer the receiver put it in the register of this shift.
+ */
 const addTransferIn = (
   amount,
-  { createdAt = new Date(Date.now() - 2 * 60 * 60 * 1000) } = {},
+  {
+    createdAt = new Date(Date.now() - 2 * 60 * 60 * 1000),
+    toDrawer = false,
+    toShiftId = toDrawer ? SHIFT_ID : null,
+    status = "APPROVED",
+  } = {},
 ) => {
-  mockStore.treasuryBalance += amount;
+  if (status === "APPROVED") mockStore.treasuryBalance += amount;
   const row = {
     id: mockStore.nextTransferId++,
     amount,
     fromTreasuryId: TREASURY_ID + 1,
     toTreasuryId: TREASURY_ID,
-    status: "APPROVED",
+    status,
     createdAt,
+    resolvedAt: status === "PENDING" ? null : createdAt,
+    fromDrawer: false,
+    fromShiftId: null,
+    toDrawer,
+    toShiftId,
   };
   mockStore.cashTransfers.push(row);
   return row;
@@ -1346,29 +1390,26 @@ describe("sales stay attached to the same shift across every reopen cycle", () =
 });
 
 // ---------------------------------------------------------------------------
-// 6. Treasury: the shift lifecycle must not move money at all
+// 6. Treasury: the shift lifecycle moves exactly the counted variance
 //
-// It used to. POST /start posted the gap between the declared float and the
-// branch treasury balance, and POST /approve forced that balance onto the
-// counted drawer. Both assumed `Branch.treasury` IS the drawer.
-//
-// It is the branch SAFE — a second, unmodelled container that holds takings
-// handed over by earlier shifts:
+// The branch treasury is ONE account holding two containers:
 //
 //     الدرج ──handover──► خزنة الفرع ──cash transfer──► الإدارة
 //
-// So a float declared below the balance is the ordinary handover, not cash
-// leaving the company; posting it as a withdrawal booked 112,250 EGP out of
-// three branches in two days, arriving nowhere. And reconciling the safe to a
-// drawer count would erase whatever the safe legitimately holds.
+// Every movement the drawer formula counts was already posted to that account
+// as it happened, so at close the books believe the drawer holds
+// `systemExpectedCash`. The count says otherwise by exactly `shortage`, and
+// approval posts THAT — a Withdrawal for a shortage, a Deposit for an overage —
+// and nothing else.
 //
-// The invariant these tests pin: starting, ending, approving and reopening a
-// shift change `treasury.balance` by exactly zero and write no movement rows.
-// Cash sales still credit the treasury at sale time — that is routes/sales.js,
-// not the shift lifecycle, and it stays.
+// What must never come back: POST /start posting the gap between the declared
+// float and the balance (a float below the balance is the ordinary handover;
+// posting it booked 112,250 EGP out of three branches in two days), and
+// approval forcing the balance onto the drawer count (that erases the safe).
+// Cash sales still credit the treasury at sale time — routes/sales.js.
 // ---------------------------------------------------------------------------
 
-describe("the shift lifecycle moves no money", () => {
+describe("the shift lifecycle moves exactly the counted variance", () => {
   /** OPEN shift, 100 float already in the drawer, 500 rung up in cash sales. */
   const seedLive = () => {
     seedStore(openShiftRow(), { treasuryBalance: 100 });
@@ -1377,11 +1418,18 @@ describe("the shift lifecycle moves no money", () => {
     // treasury 600; expected cash 100 + 500 = 600
   };
 
-  /** Every row either posting used to write. */
+  /** Every row either posting writes. */
   const lifecycleRows = () =>
     [...mockStore.deposits, ...mockStore.withdrawals].filter((r) =>
       ["SHIFT_OPENING", "SHIFT_VARIANCE"].includes(r.source),
     );
+  const varianceRows = () =>
+    [
+      ...mockStore.deposits.map((r) => ({ ...r, signed: Number(r.amount) })),
+      ...mockStore.withdrawals.map((r) => ({ ...r, signed: -Number(r.amount) })),
+    ].filter((r) => r.source === "SHIFT_VARIANCE");
+  const netPosted = () =>
+    Math.round(varianceRows().reduce((n, r) => n + r.signed, 0) * 100) / 100;
 
   const startShift = (body = {}) => {
     asCashier();
@@ -1393,20 +1441,63 @@ describe("the shift lifecycle moves no money", () => {
 
   beforeEach(seedLive);
 
-  test("approval posts nothing and leaves the treasury exactly where it was", async () => {
-    await endShift(590); // counted 590 against a treasury holding 600
+  test("a shortage is posted as a withdrawal of exactly the shortage", async () => {
+    await endShift(590); // counted 590 against 600 expected
     const before = balance();
 
     const res = await approve();
 
     expect(res.status).toBe(200);
     expect(statusOf()).toBe("CLOSED");
-    expect(balance()).toBe(before); // was forced to 590 before this change
+    expect(balance()).toBe(before - 10);
+    const rows = varianceRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].signed).toBe(-10);
+    expect(rows[0].shiftId).toBe(SHIFT_ID);
+    expect(res.body.varianceAdjustment).toMatchObject({ type: "WITHDRAWAL", amount: 10 });
+  });
+
+  test("an overage is posted as a deposit of exactly the overage", async () => {
+    await endShift(625);
+    const before = balance();
+
+    expect((await approve()).status).toBe(200);
+
+    expect(balance()).toBe(before + 25);
+    expect(netPosted()).toBe(25);
+  });
+
+  test("an exact count posts nothing", async () => {
+    await endShift(600);
+    const before = balance();
+
+    const res = await approve();
+
+    expect(res.status).toBe(200);
+    expect(balance()).toBe(before);
     expect(lifecycleRows()).toHaveLength(0);
     expect(res.body.varianceAdjustment).toBeNull();
   });
 
-  test("the shortage is still reported — accountability is not what changed", async () => {
+  test("the variance never touches the safe part of the balance", async () => {
+    // 47,000 of earlier takings sit in the safe. Forcing the account onto the
+    // drawer count — the old posting — would have wiped them out.
+    mockStore.treasuryBalance += 47000;
+    await endShift(590);
+
+    expect((await approve()).status).toBe(200);
+
+    expect(balance()).toBe(47000 + 600 - 10);
+  });
+
+  test("close stores the delta approval will post, and takes no balance snapshot", async () => {
+    await endShift(590);
+
+    expect(shiftRow().closingTreasuryBalance).toBeNull();
+    expect(Number(shiftRow().treasuryVariance)).toBe(-10);
+  });
+
+  test("the shortage is still reported — accountability is unchanged", async () => {
     await endShift(590);
 
     expect(shiftRow().shortage).toBe(-10);
@@ -1414,14 +1505,18 @@ describe("the shift lifecycle moves no money", () => {
     expect(shiftRow().shortage).toBe(-10);
   });
 
-  test("no treasury snapshot is taken at close", async () => {
-    // treasuryVariance = counted − treasury balance only means something while
-    // the treasury IS the drawer. Against the safe it is just "whatever the safe
-    // holds", and storing that as a variance is what invited the posting.
-    await endShift(590);
+  test("a legacy variance (stored next to a balance snapshot) is never posted", async () => {
+    // Shifts closed before 31/07/2026 stored actual − balance, the safe-erasing
+    // figure. One still awaiting approval must close without posting it.
+    seedStore(
+      pendingReviewShiftRow({ closingTreasuryBalance: 47600, treasuryVariance: -47000 }),
+      { treasuryBalance: 47600 },
+    );
 
-    expect(shiftRow().closingTreasuryBalance).toBeNull();
-    expect(shiftRow().treasuryVariance).toBeNull();
+    expect((await approve()).status).toBe(200);
+
+    expect(balance()).toBe(47600);
+    expect(lifecycleRows()).toHaveLength(0);
   });
 
   test("a float BELOW the previous count books nothing — that is the handover", async () => {
@@ -1467,10 +1562,7 @@ describe("the shift lifecycle moves no money", () => {
     expect(lifecycleRows()).toHaveLength(0);
   });
 
-  test("approval stays single-shot: a replay is refused and changes nothing", async () => {
-    // The UNIQUE(shiftId, source, cycle) index used to be what made this
-    // single-shot. Nothing is posted now, so the conditional claim in the route
-    // is the only guard left — this is the test that holds it.
+  test("approval stays single-shot: a replay is refused and posts nothing more", async () => {
     await endShift(590);
     expect((await approve()).status).toBe(200);
     const after = { balance: balance(), reviewer: shiftRow().reviewedById };
@@ -1480,13 +1572,13 @@ describe("the shift lifecycle moves no money", () => {
     expect(replay.status).toBeGreaterThanOrEqual(400);
     expect(balance()).toBe(after.balance);
     expect(shiftRow().reviewedById).toBe(after.reviewer);
-    expect(lifecycleRows()).toHaveLength(0);
+    expect(varianceRows()).toHaveLength(1);
   });
 
   test("the conditional claim, not the pre-flight read, is what refuses a race", async () => {
     // Two approvals interleaved so both clear the pre-flight status read before
-    // either writes — the shape a plain SELECT-then-UPDATE cannot survive.
-    // Exactly one updateMany may match PENDING_REVIEW.
+    // either writes. Exactly one updateMany may match PENDING_REVIEW, so the
+    // variance is posted once.
     await endShift(590);
 
     const [a, b] = await Promise.all([approve(), approve()]);
@@ -1494,55 +1586,51 @@ describe("the shift lifecycle moves no money", () => {
 
     expect(codes[0]).toBe(200);
     expect(codes[1]).toBeGreaterThanOrEqual(400);
-    expect(
-      prisma.shift.updateMany.mock.calls.filter(
-        ([arg]) => arg.data?.status === "CLOSED",
-      ).length,
-    ).toBeGreaterThanOrEqual(1);
     expect(statusOf()).toBe("CLOSED");
-    expect(balance()).toBe(600);
-    expect(lifecycleRows()).toHaveLength(0);
+    expect(balance()).toBe(590);
+    expect(varianceRows()).toHaveLength(1);
   });
 
-  test("many approve → reopen → approve cycles still move nothing", async () => {
-    const before = balance();
-
+  test("approve → reopen → approve cycles supersede: the net posted is the FINAL shortage", async () => {
     for (const counted of [590, 610, 605]) {
       await endShift(counted);
       expect((await approve()).status).toBe(200);
       await reopen();
     }
-    await endShift(600);
+    await endShift(597);
     expect((await approve()).status).toBe(200);
 
-    expect(balance()).toBe(before);
-    expect(lifecycleRows()).toHaveLength(0);
+    expect(netPosted()).toBe(-3);
+    expect(balance()).toBe(597);
+    // one row per cycle that actually differed, each on its own cycle
+    const cycles = varianceRows().map((r) => r.cycle);
+    expect(new Set(cycles).size).toBe(cycles.length);
   });
 
   test("reopening never posts a reversal", async () => {
     await endShift(590);
     await approve();
     const before = balance();
+    const rowsBefore = lifecycleRows().length;
 
     await reopen();
 
     expect(statusOf()).toBe("OPEN");
     expect(balance()).toBe(before);
-    expect(lifecycleRows()).toHaveLength(0);
+    expect(lifecycleRows()).toHaveLength(rowsBefore);
   });
 
-  test("closing and approving never write to the treasury table at all", async () => {
+  test("closing alone never writes to the treasury table", async () => {
     prisma.treasury.update.mockClear();
     prisma.treasury.updateMany.mockClear();
 
     await endShift(590);
-    expect((await approve()).status).toBe(200);
 
     expect(prisma.treasury.update).not.toHaveBeenCalled();
     expect(prisma.treasury.updateMany).not.toHaveBeenCalled();
   });
 
-  test("cash sales still credit the treasury — only the lifecycle stopped posting", async () => {
+  test("cash sales still credit the treasury — only the lifecycle posting changed", async () => {
     // Guards against "fixing" this by unplugging routes/sales.js too.
     const before = balance();
     ringCashSale(250);
@@ -1794,5 +1882,106 @@ describe("branch-safe movements never touch the drawer", () => {
     expect(breakdown.cashExpenses).toBe(600);
     expect(breakdown.systemExpectedCash).toBe(DRAWER - 600);
     expect(res.body.shortage).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11. Cash transfers recorded as leaving / entering THE DRAWER
+//
+// The other half of the rule above. "Every transfer is from the safe" printed a
+// cashier's drawer → HQ transfer as a phantom shortage whenever the opening
+// float had been carried forward in full. The sender now says drawer or safe,
+// and a drawer transfer is stamped with the shift it came out of.
+// ---------------------------------------------------------------------------
+
+describe("drawer transfers move the expected drawer", () => {
+  const FLOAT = 20000; // full previous count carried forward
+  const SALES = 3000;
+
+  const openWithFullFloat = () => {
+    seedStore(openShiftRow({ startCash: FLOAT }), { treasuryBalance: FLOAT });
+    addPreviousShift(FLOAT);
+    ringCashSale(SALES);
+  };
+
+  test("cash sent to HQ from the drawer comes off expected — no phantom shortage", async () => {
+    openWithFullFloat();
+    addTransferOut(17000, { fromDrawer: true });
+
+    const res = await endShift(FLOAT + SALES - 17000); // counted exactly
+
+    const breakdown = res.body.calculationBreakdown;
+    expect(breakdown.drawerTransfersOut).toBe(17000);
+    expect(breakdown.transfersOut).toBe(0); // not reported twice as a safe move
+    expect(breakdown.systemExpectedCash).toBe(FLOAT + SALES - 17000);
+    expect(res.body.shortage).toBe(0); // was −17,000
+  });
+
+  test("the same transfer recorded from the SAFE leaves the drawer alone", async () => {
+    openWithFullFloat();
+    addTransferOut(17000); // fromDrawer false
+
+    const res = await endShift(FLOAT + SALES);
+
+    const breakdown = res.body.calculationBreakdown;
+    expect(breakdown.drawerTransfersOut).toBe(0);
+    expect(breakdown.transfersOut).toBe(17000);
+    expect(res.body.shortage).toBe(0);
+  });
+
+  test("a drawer transfer of ANOTHER shift is not this drawer's", async () => {
+    openWithFullFloat();
+    addTransferOut(5000, { fromDrawer: true, fromShiftId: SHIFT_ID - 1 });
+
+    const res = await endShift(FLOAT + SALES);
+
+    expect(res.body.calculationBreakdown.drawerTransfersOut).toBe(0);
+    expect(res.body.shortage).toBe(0);
+  });
+
+  test("a drawer transfer rejected while the shift is open nets to zero", async () => {
+    openWithFullFloat();
+    addTransferOut(4000, {
+      fromDrawer: true,
+      status: "REJECTED",
+      resolvedAt: new Date(Date.now() - 30 * 60 * 1000),
+      refund: true,
+    });
+
+    const res = await endShift(FLOAT + SALES); // cash came back into the drawer
+
+    expect(res.body.calculationBreakdown.drawerTransfersOut).toBe(0);
+    expect(res.body.shortage).toBe(0);
+  });
+
+  test("a drawer transfer rejected AFTER close still counts for the closed shift", async () => {
+    openWithFullFloat();
+    addTransferOut(4000, { fromDrawer: true });
+    await endShift(FLOAT + SALES - 4000);
+    const expectedAtClose = Number(shiftRow().systemExpectedCash);
+
+    // Rejected later: the refund lands in the safe, not in a drawer that has
+    // already been counted, so the closed shift's figure must not move.
+    const row = mockStore.cashTransfers[0];
+    row.status = "REJECTED";
+    row.resolvedAt = new Date(Date.now() + 60 * 1000);
+
+    const { calculateSystemExpectedCash } = require("../../routes/shifts");
+    const now = await calculateSystemExpectedCash(SHIFT_ID);
+    expect(now.drawerTransfersOut).toBe(4000);
+    expect(now.expected).toBe(expectedAtClose);
+  });
+
+  test("cash received INTO the drawer is added once approved", async () => {
+    openWithFullFloat();
+    addTransferIn(2500, { toDrawer: true });
+    addTransferIn(900, { toDrawer: true, status: "PENDING" }); // not received yet
+
+    const res = await endShift(FLOAT + SALES + 2500);
+
+    const breakdown = res.body.calculationBreakdown;
+    expect(breakdown.drawerTransfersIn).toBe(2500);
+    expect(breakdown.transfersIn).toBe(0);
+    expect(res.body.shortage).toBe(0); // was +2,500
   });
 });

@@ -236,6 +236,15 @@ const probes = {
   // has it — MySQL 1050, and start.js exits before the server comes up.
   "20260828000100_add_stock_writeoffs_table": async () =>
     tableExists("stock_writeoffs"),
+
+  // One ALTER adds all five columns, and a single MySQL ALTER TABLE is atomic,
+  // so they are either all there or none is. ANDed anyway, matching the rest.
+  "20260901000000_cash_transfer_drawer_container": async () =>
+    (await columnExists("cash_transfers", "resolved_at")) &&
+    (await columnExists("cash_transfers", "from_drawer")) &&
+    (await columnExists("cash_transfers", "from_shift_id")) &&
+    (await columnExists("cash_transfers", "to_drawer")) &&
+    (await columnExists("cash_transfers", "to_shift_id")),
 };
 
 // --- Main ---------------------------------------------------------

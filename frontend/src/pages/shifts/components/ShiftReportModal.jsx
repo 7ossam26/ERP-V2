@@ -77,6 +77,8 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
     Number(wholesale?.cashVoided || 0) + Number(wholesale?.cashRefunded || 0),
   );
   const wholesaleNonCash = round2(wholesale?.nonCashCollected);
+  const drawerTransfersIn = round2(report?.drawerTransfers?.in);
+  const drawerTransfersOut = round2(report?.drawerTransfers?.out);
   const wholesaleRows = Array.isArray(wholesale?.collections)
     ? wholesale.collections
     : [];
@@ -339,6 +341,25 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                   <span>- مرتجع وإلغاء الجملة (كاش)</span>
                   <span className="font-mono font-bold">
                     {wholesaleCashOut.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {/* Cash transfers recorded as leaving / entering THIS drawer.
+                  Transfers from the branch safe are not drawer movements and are
+                  deliberately absent from this ladder. */}
+              {drawerTransfersIn > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-green-600">
+                  <span>+ تحويلات واردة للدرج</span>
+                  <span className="font-mono font-bold">
+                    {drawerTransfersIn.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {drawerTransfersOut > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 text-red-600">
+                  <span>- تحويلات خارجة من الدرج</span>
+                  <span className="font-mono font-bold">
+                    {drawerTransfersOut.toLocaleString()}
                   </span>
                 </div>
               )}

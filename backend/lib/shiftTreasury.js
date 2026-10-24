@@ -1,86 +1,60 @@
 /**
  * shiftTreasury.js — posting rules for the two shift↔treasury boundaries.
  *
- * ⚠️ NOT WIRED. routes/shifts.js no longer calls either function. Read this
- * before reconnecting them.
+ * postShiftVariance is WIRED (POST /shifts/approve). postShiftOpening is NOT.
  *
- * The module is built on one premise — "a branch's Treasury.balance IS the
- * drawer" — and that premise is false for this business. A branch holds cash in
- * TWO places:
+ * THE ACCOUNT
+ * -----------
+ * A branch holds cash in TWO places but has ONE account:
  *
  *     الدرج (drawer)  ──at handover──►  خزنة الفرع (branch safe)  ──►  الإدارة
  *
- * `Branch.treasuryId` is @unique, so only one of the two has an account, and it
- * is the SAFE: expenses, purchases, supplier payments and manager transfers all
- * post against it, and it accumulates takings across shifts.
+ * `Branch.treasuryId` is @unique, so the branch treasury is drawer + safe
+ * combined: cash sales credit it while the money is still in the register,
+ * expenses/advances/dues debit it as they are paid, transfers move it.
  *
- * Treating it as the drawer made both postings wrong in the same direction:
+ * VARIANCE (wired)
+ * ----------------
+ * Every movement calculateSystemExpectedCash counts was already posted to the
+ * account as it happened, so at close the books believe the drawer holds
+ * `systemExpectedCash`. The count says `actualCash`. The account is wrong by
+ * exactly `shortage = actual − expected`, and that is the only delta posted:
+ * a shortage books a Withdrawal, an overage a Deposit. It never touches the safe
+ * part of the balance.
  *
- *   postShiftOpening  — a float declared below the safe balance is the ordinary
- *                       handover, not cash leaving the company. Posting the
- *                       difference as a withdrawal booked 112,250 EGP out of
- *                       three branches over two days, arriving nowhere.
- *   postShiftVariance — forcing the safe onto a drawer count erases every pound
- *                       of earlier takings held in it.
+ * The delta used to be `actual − treasury.balance` — "force the account onto
+ * the drawer count" — which treated the whole account as the drawer and erased
+ * every pound of earlier takings sitting in the safe. That is why posting was
+ * switched off on 31/07/2026; shifts closed in between posted nothing.
  *
- * Reconnect only once a branch has a DRAWER account of its own; then the opening
- * delta becomes a transfer drawer ↔ safe (both real accounts) and the variance
- * reconciles the drawer, which the count actually measures.
- *
- * The invariant below is stated against whatever account the shift lifecycle
- * owns — true of a drawer account, never true of the safe:
- *
- *     treasury.balance === calculateSystemExpectedCash(shift).expected
- *
- * Cash sales credit the treasury at sale time (routes/sales.js), expenses debit
- * it at creation (routes/expenses.js), advances at payout (routes/employees.js).
- * Those postings already exist and are NOT repeated here. The only two facts the
- * treasury never learned about were the opening float and the counted variance —
- * that is all this module posts.
- *
- * WHY DELTAS, NOT AMOUNTS
- * -----------------------
- * Both postings are computed as `counted − live treasury balance`, never as an
- * absolute amount:
- *
- *     open:  delta = declaredStartCash − treasury.balance
- *     close: delta = countedActualCash  − treasury.balance
- *
- * Because each reconciles *to* a counted figure instead of accumulating a new
- * one, double-counting is structurally impossible. In the normal carry-forward
- * case (cashier accepts the prefilled figure) the delta is exactly 0 and nothing
- * is written at all — no row, no balance change.
- *
- * It also means a gap in calculateSystemExpectedCash can only mis-report
- * `shortage`; it can never corrupt the treasury. That is deliberate: the drawer
- * formula still misses some movements (cash transfers, payroll, supplier
- * payments), and this module must be safe in spite of that.
+ * OPENING (not wired)
+ * -------------------
+ * postShiftOpening reconciles the account to the declared float. A float
+ * declared below the previous count is the ordinary drawer → safe handover,
+ * which does not change a drawer + safe account at all; posting it booked
+ * 112,250 EGP out of three branches over two days, arriving nowhere. Leave it
+ * unwired unless a branch gets a DRAWER account of its own; then the opening
+ * delta becomes a transfer drawer ↔ safe between two real accounts.
  *
  * IDEMPOTENCY, AND WHY THERE IS A CYCLE
  * -------------------------------------
  * Every row carries (shiftId, source, cycle) under a UNIQUE index, so a replayed
- * start or approve raises P2002 instead of posting twice. Callers translate that
- * to a 409. Manual deposits/withdrawals are never shift-stamped, so the index
- * does not constrain them — see the CashMovementSource comment in schema.prisma.
+ * approve raises P2002 instead of posting twice. Callers translate that to a
+ * 409. Manual deposits/withdrawals are never shift-stamped, so the index does
+ * not constrain them — see the CashMovementSource comment in schema.prisma.
  *
  * `cycle` is the shift's `reopenCount` at posting time. A shift can be reopened
- * after approval, so approval is no longer once-per-shift: keying on
- * (shiftId, source) alone made the SECOND approval raise P2002, which the route
- * reported as "already approved" while the corrected variance silently never
- * reached the treasury. Per-cycle keying lets each approval post once and still
- * rejects a replay within one cycle.
+ * after approval, so approval is not once-per-shift; per-cycle keying lets each
+ * approval post once and still rejects a replay within one cycle.
  *
  * Successive cycles SUPERSEDE, they do not accumulate, and nothing is reversed
- * on reopen. Because each posting reconciles to a counted figure against the
- * live balance, approval #2's delta already absorbs approval #1's:
+ * on reopen: POST /end stores `shortage − already posted by earlier cycles`, so
  *
- *     approve1: balance = B1 + (A1 − B1)          = A1
- *     reopen  : balance = A1        (untouched — the drawer really holds A1)
- *     approve2: balance = A1 + … + (A2 − …)       = A2
+ *     approve1: posts S1          net S1
+ *     approve2: posts S2 − S1     net S2
  *
- * Reversing posting #1 on reopen would be actively WRONG: it would set the books
- * back to B1 while the drawer physically holds A1, breaking the invariant above
- * for the whole reopened window.
+ * The drawer formula excludes every SHIFT_* row (it reads source=MANUAL only),
+ * so a posting can never feed back into the next expected figure.
  */
 
 const { roundMoney } = require("../utils/money");
@@ -199,18 +173,14 @@ async function postShiftOpening(tx, { shift, treasuryId, declaredStartCash, curr
 /**
  * Post the treasury correction captured at blind close.
  *
- * `delta` is the shift's stored `treasuryVariance` (= actualCash − treasury
- * balance at the moment of counting), NOT `shortage`. Applying the stored delta
- * rather than recomputing against the live balance is what lets a deposit or
- * expense recorded during the PENDING_REVIEW window survive approval: the
- * intervening movement is preserved on top of the correction, whereas setting an
- * absolute balance would silently erase it.
+ * `delta` is the shift's stored `treasuryVariance` = shortage (actualCash −
+ * systemExpectedCash) minus whatever earlier approval cycles already posted.
+ * Applying the stored delta rather than recomputing at approval means a deposit
+ * or expense recorded during the PENDING_REVIEW window is simply kept on top of
+ * the correction.
  *
  * Called from POST /shifts/approve, never from POST /shifts/end. `cycle` must be
- * the shift's `reopenCount` as read inside the approving transaction. A shift
- * reopened after approval comes back for approval again, and each pass posts its
- * own correction; nothing posted on an earlier pass is reversed or amended — see
- * the IDEMPOTENCY note at the top of this file for why that is exactly right.
+ * the shift's `reopenCount` as read inside the approving transaction.
  */
 async function postShiftVariance(tx, { shift, treasuryId, cycle, delta, actorId }) {
   return applyDelta(tx, {

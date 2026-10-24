@@ -3,6 +3,7 @@ const router = express.Router();
 const prisma = require("../config/database");
 const { authenticateToken, requirePermission, requireCreatePermission, getUserBranchFilter, requireAnyPermission, requireSensitiveAccess } = require("../middleware/auth");
 const { calculateSystemExpectedCash } = require("./shifts");
+const { splitBranchCash } = require("../lib/branchCash");
 // Cairo-pinned date parsing, shared with routes/reports.js so both pages agree
 // on where a month starts and ends regardless of the server's local timezone.
 const { parseDateStart, parseDateEnd } = require("../utils/dateRange");
@@ -442,7 +443,16 @@ router.get("/balances", async (req, res, next) => {
       ? await prisma.shift.findMany({
           where: { branchId: { in: branchIds }, status: { in: ["OPEN", "PENDING_REVIEW"] } },
           orderBy: { startTime: "desc" },
-          select: { id: true, branchId: true, status: true, startCash: true, startTime: true },
+          select: {
+            id: true,
+            branchId: true,
+            status: true,
+            startCash: true,
+            startTime: true,
+            actualCash: true,
+            systemExpectedCash: true,
+            shortage: true,
+          },
         })
       : [];
     const shiftByBranch = {};
@@ -475,17 +485,18 @@ router.get("/balances", async (req, res, next) => {
     // The drawer half is derivable: it is exactly the figure the shift close is
     // measured against. Whatever the balance holds beyond it is in the safe.
     //
-    // This works because a handover happens at shift END only — the cashier
-    // counts, hands the excess to the safe, and the next shift opens on a
-    // smaller declared float. Nothing leaves the drawer mid-shift, so an open
-    // shift's drawer is its float plus takings, with nothing handed over yet.
+    // Cash that leaves or enters the drawer mid-shift by cash transfer is in
+    // that figure too: the sender/receiver records drawer vs safe on the
+    // transfer, and calculateSystemExpectedCash counts the drawer ones.
     //
-    // With no open shift the split is genuinely unknown: the register still
-    // holds a float for the next shift and no count says how much. Both figures
-    // are null rather than guessed.
+    // The arithmetic (incl. PENDING_REVIEW, where the drawer is the blind count
+    // and the variance is not yet posted, and no-shift, where the split is
+    // unknown) lives in lib/branchCash.js, shared with the transfer screen.
     const drawerByBranch = {};
     await Promise.all(
       Object.values(shiftByBranch).map(async (s) => {
+        // A PENDING_REVIEW drawer is the frozen count; nothing to compute.
+        if (s.status !== "OPEN") return;
         try {
           const { expected } = await calculateSystemExpectedCash(s.id);
           drawerByBranch[s.branchId] = expected;
@@ -512,15 +523,11 @@ router.get("/balances", async (req, res, next) => {
       // drawer"; see drawerCash/safeCash below for the split.
       const currentCashBalance = Number(branch.treasury?.balance || 0);
       const activeShift = shiftByBranch[branch.id] || null;
-      const drawerRaw = drawerByBranch[branch.id];
-      const drawerCash =
-        activeShift && drawerRaw != null
-          ? Math.round(drawerRaw * 100) / 100
-          : null;
-      const safeCash =
-        drawerCash === null
-          ? null
-          : Math.round((currentCashBalance - drawerCash) * 100) / 100;
+      const { drawerCash, safeCash, pendingVariance } = splitBranchCash({
+        balance: currentCashBalance,
+        shift: activeShift,
+        liveExpected: drawerByBranch[branch.id],
+      });
       return {
         id: branch.id,
         name: branch.name,
@@ -529,6 +536,7 @@ router.get("/balances", async (req, res, next) => {
         currentCashBalance,    // stock — ALL cash in branch (drawer + safe)
         drawerCash,            // stock — in the register, null with no open shift
         safeCash,              // stock — in the branch safe, null with no open shift
+        pendingVariance,       // counted − expected awaiting approval (PENDING_REVIEW only)
         cashSales: cashSalesInWindow, // flow — paid CASH revenue in window
         visa,                  // flow — paid VISA revenue in window
         instapay,              // flow — paid INSTAPAY revenue in window

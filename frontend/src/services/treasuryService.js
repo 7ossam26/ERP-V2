@@ -24,14 +24,21 @@ export const treasuryService = {
   // Delete treasury
   delete: (id) => api.delete(`${BASE_URL}/${id}`),
 
-  // Transfer funds
+  // Drawer / branch-safe split of one treasury:
+  // { balance, drawerCash, safeCash, pendingVariance, shift: {id,status,userId,userName} | null }
+  // drawerCash/safeCash are null when the branch has no live shift.
+  getCashSplit: (id) => api.get(`${BASE_URL}/${id}/cash-split`),
+
+  // Transfer funds. { fromTreasuryId, toTreasuryId, amount, notes, fromDrawer, force }
+  // A 409 with data.code === "CONTAINER_LIMIT" is a warning; resend with force.
   transfer: (data) => api.post(`${BASE_URL}/transfer`, data),
 
   // Get all transfers
   getTransfers: () => api.get(`${BASE_URL}/transfers`),
 
-  // Approve transfer
-  approveTransfer: (id) => api.post(`${BASE_URL}/transfer/${id}/approve`),
+  // Approve transfer. { toDrawer } when the receiver puts the cash in the register.
+  approveTransfer: (id, data = {}) =>
+    api.post(`${BASE_URL}/transfer/${id}/approve`, data),
 
   // Reject transfer
   rejectTransfer: (id) => api.post(`${BASE_URL}/transfer/${id}/reject`),

@@ -17,12 +17,19 @@ const CashTransferHistory = () => {
     {
       header: "من خزينة",
       accessor: "fromTreasury",
-      render: (item) => item.fromTreasury?.name || "-",
+      // A branch treasury is drawer + safe; say which one the cash left.
+      render: (item) =>
+        item.fromTreasury?.name
+          ? `${item.fromTreasury.name}${item.fromDrawer ? " (الدرج)" : ""}`
+          : "-",
     },
     {
       header: "إلى خزينة",
       accessor: "toTreasury",
-      render: (item) => item.toTreasury?.name || "-",
+      render: (item) =>
+        item.toTreasury?.name
+          ? `${item.toTreasury.name}${item.toDrawer ? " (الدرج)" : ""}`
+          : "-",
     },
     { header: "المبلغ", accessor: "amount" },
     {

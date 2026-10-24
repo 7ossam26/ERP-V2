@@ -59,6 +59,9 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
   const wholesaleCashIn = Number(wholesale?.cashCollected || 0);
   const wholesaleCashOut =
     Number(wholesale?.cashVoided || 0) + Number(wholesale?.cashRefunded || 0);
+  // Cash transfers recorded as leaving / entering this drawer.
+  const drawerTransfersIn = Number(reportData?.drawerTransfers?.in || 0);
+  const drawerTransfersOut = Number(reportData?.drawerTransfers?.out || 0);
 
   const expenses = reportData?.expenses || [];
   const deliveryDetails = reportData?.deliveryDetails || [];
@@ -237,6 +240,18 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
                 <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-red-600 dark:text-red-400">
                   <span className="flex-1 text-right">- مرتجع وإلغاء الجملة</span>
                   <span className="w-32 text-left font-mono font-bold">-{fmt(wholesaleCashOut)}</span>
+                </div>
+              )}
+              {drawerTransfersIn > 0 && (
+                <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-green-600 dark:text-green-400">
+                  <span className="flex-1 text-right">+ تحويلات واردة للدرج</span>
+                  <span className="w-32 text-left font-mono font-bold">+{fmt(drawerTransfersIn)}</span>
+                </div>
+              )}
+              {drawerTransfersOut > 0 && (
+                <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-red-600 dark:text-red-400">
+                  <span className="flex-1 text-right">- تحويلات خارجة من الدرج</span>
+                  <span className="w-32 text-left font-mono font-bold">-{fmt(drawerTransfersOut)}</span>
                 </div>
               )}
               <div className="flex items-center py-2.5 px-4 bg-gray-50 dark:bg-zinc-800 font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-zinc-700">

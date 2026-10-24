@@ -192,6 +192,10 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
   const wholesaleCashOut =
     Number(wholesale?.cashVoided || 0) + Number(wholesale?.cashRefunded || 0);
   const wholesaleNonCash = Number(wholesale?.nonCashCollected || 0);
+  // Cash transfers recorded as leaving / entering this drawer (safe transfers
+  // are not drawer movements and are not printed in the ladder).
+  const drawerTransfersIn = Number(report.drawerTransfers?.in || 0);
+  const drawerTransfersOut = Number(report.drawerTransfers?.out || 0);
 
   // The settlement block is recomputed from the shift as it stands NOW, so it
   // always agrees with the lines printed above it. `systemExpectedCash` and
@@ -349,6 +353,18 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
           <div className="sr-row">
             <span>− مرتجع وإلغاء الجملة (كاش)</span>
             <span className="sr-num">{fmt(wholesaleCashOut)} ج.م</span>
+          </div>
+        )}
+        {drawerTransfersIn > 0 && (
+          <div className="sr-row">
+            <span>+ تحويلات واردة للدرج</span>
+            <span className="sr-num">{fmt(drawerTransfersIn)} ج.م</span>
+          </div>
+        )}
+        {drawerTransfersOut > 0 && (
+          <div className="sr-row">
+            <span>− تحويلات خارجة من الدرج</span>
+            <span className="sr-num">{fmt(drawerTransfersOut)} ج.م</span>
           </div>
         )}
         <div

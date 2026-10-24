@@ -1762,6 +1762,28 @@ router.delete(
           throw new Error("Sale not found");
         }
 
+        // Only sales whose money movement this route can reverse EXACTLY.
+        //
+        // A REFUND- row already restocked its items and paid cash out; deleting
+        // it would restock a second time below. A dispatched delivery sale moved
+        // no treasury at creation — it accrued a driver-wallet debt, and once
+        // settled it credited the branch treasury net of the driver's share —
+        // so debiting the treasury here takes money that never arrived (or the
+        // wrong amount). Both are refused rather than half-reversed.
+        if (String(sale.saleNumber || "").startsWith("REFUND-") || Number(sale.total) < 0) {
+          throw Object.assign(new Error("لا يمكن حذف فاتورة مرتجع"), {
+            status: 400,
+          });
+        }
+        if (sale.deliveryManId) {
+          throw Object.assign(
+            new Error(
+              "لا يمكن حذف طلب توصيل تم تسليمه لطيار — قم بإلغاء الطلب أو تسويته بدلاً من الحذف",
+            ),
+            { status: 400 },
+          );
+        }
+
         // 2. Restock Items (Increment Inventory)
         if (sale.items && sale.items.length > 0) {
           for (const item of sale.items) {
@@ -1788,14 +1810,21 @@ router.delete(
           }
         }
 
-        // 3. Refund Treasury (If paid)
-        if (Number(sale.paidAmount) > 0) {
+        // 3. Reverse the treasury credit — by `total`, which is what creation
+        // credited (sales.js POST /), NOT `paidAmount`: POS stores the cash
+        // handed over there, change included, so a 95 sale paid with a 100 note
+        // used to take 100 back out. A pending delivery order (zone, no driver)
+        // was never credited at all.
+        const creditedAtCreation =
+          !(sale.deliveryZoneId && sale.deliveryStatus === "PENDING");
+        const reversal = Number(sale.total) || 0;
+        if (creditedAtCreation && reversal > 0) {
           const method = sale.paymentMethod;
 
           if (method === "CASH" && sale.treasuryId) {
             await tx.treasury.update({
               where: { id: sale.treasuryId },
-              data: { balance: { decrement: Number(sale.paidAmount) } },
+              data: { balance: { decrement: reversal } },
             });
           } else if (method === "VISA" || method === "INSTAPAY") {
             const config = await tx.systemConfiguration.findFirst({
@@ -1808,7 +1837,7 @@ router.delete(
             if (destTreasuryId) {
               await tx.treasury.update({
                 where: { id: destTreasuryId },
-                data: { balance: { decrement: Number(sale.paidAmount) } },
+                data: { balance: { decrement: reversal } },
               });
             }
           }

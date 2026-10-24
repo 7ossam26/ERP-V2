@@ -13,6 +13,12 @@ const CashierTransferPage = () => {
   const [sourceTreasuryId, setSourceTreasuryId] = useState("");
   const [toTreasuryId, setToTreasuryId] = useState("");
   const [loading, setLoading] = useState(false);
+  // Drawer / branch-safe split of the selected source (lib/branchCash.js on the
+  // server). A branch treasury is ONE account holding both containers, so the
+  // sender has to say which one the cash physically leaves — only a drawer
+  // transfer lowers the open shift's expected cash.
+  const [split, setSplit] = useState(null);
+  const [container, setContainer] = useState("SAFE");
 
   useEffect(() => {
     const fetchTreasuries = async () => {
@@ -41,10 +47,39 @@ const CashierTransferPage = () => {
     fetchTreasuries();
   }, [currentUser?.id, currentUser?.branch?.id]);
 
+  useEffect(() => {
+    if (!sourceTreasuryId) return;
+    let cancelled = false;
+    treasuryService
+      .getCashSplit(parseInt(sourceTreasuryId))
+      .then((data) => {
+        if (cancelled) return;
+        setSplit(data);
+        // The cashier running the open shift is, by default, sending from the
+        // register they are working; anyone else from the safe.
+        const ownsShift =
+          data?.shift?.status === "OPEN" &&
+          Number(data.shift.userId) === Number(currentUser?.id);
+        setContainer(ownsShift ? "DRAWER" : "SAFE");
+      })
+      .catch(() => {
+        if (!cancelled) setSplit(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceTreasuryId, currentUser?.id]);
+
   const selectedSource = treasuries.find(
     (t) => t.id === parseInt(sourceTreasuryId),
   );
-  const currentBalance = selectedSource ? Number(selectedSource.balance) : 0;
+  const totalBalance = selectedSource ? Number(selectedSource.balance) : 0;
+  const hasOpenShift = split?.shift?.status === "OPEN";
+  // What the chosen container holds. With no open shift the split is unknown
+  // (the next shift's float is the next count), so the whole balance is shown.
+  const currentBalance = hasOpenShift
+    ? Number((container === "DRAWER" ? split.drawerCash : split.safeCash) ?? 0)
+    : totalBalance;
 
   const allowedBranchIds = (() => {
     const ids = new Set();
@@ -61,7 +96,7 @@ const CashierTransferPage = () => {
       toast.error("يرجى إدخال مبلغ صحيح");
       return;
     }
-    if (Number(amount) > currentBalance) {
+    if (Number(amount) > totalBalance) {
       toast.error("رصيد الخزينة غير كافٍ");
       return;
     }
@@ -80,13 +115,25 @@ const CashierTransferPage = () => {
     }
 
     setLoading(true);
+    const payload = {
+      fromTreasuryId: parseInt(sourceTreasuryId),
+      toTreasuryId: parseInt(toTreasuryId),
+      amount: Number(amount),
+      notes,
+      fromDrawer: hasOpenShift && container === "DRAWER",
+    };
     try {
-      await treasuryService.transfer({
-        fromTreasuryId: parseInt(sourceTreasuryId),
-        toTreasuryId: parseInt(toTreasuryId),
-        amount: Number(amount),
-        notes,
-      });
+      try {
+        await treasuryService.transfer(payload);
+      } catch (error) {
+        // The container limit is a warning: both figures are book figures and
+        // the drawer can physically hold more (an overage). Ask, then force.
+        if (error?.data?.code !== "CONTAINER_LIMIT") throw error;
+        if (!window.confirm(`${error.message}\n\nهل تريد المتابعة بالتحويل على أي حال؟`)) {
+          return;
+        }
+        await treasuryService.transfer({ ...payload, force: true });
+      }
       toast.success("تم إرسال طلب التحويل بنجاح");
       navigate("/dashboard");
     } catch (error) {
@@ -115,7 +162,11 @@ const CashierTransferPage = () => {
             <div className="bg-surface-light dark:bg-surface-dark border border-primary/20 rounded-xl p-5 shadow-sm min-w-[280px] flex items-center justify-between">
               <div>
                 <p className="text-sm text-text-secondary dark:text-gray-400 mb-1 font-medium">
-                  الرصيد الحالي المتاح
+                  {hasOpenShift
+                    ? container === "DRAWER"
+                      ? "المتاح في الدرج"
+                      : "المتاح في خزنة الفرع"
+                    : "الرصيد الحالي المتاح"}
                 </p>
                 <p className="text-2xl font-bold text-text-primary dark:text-text-dark dir-ltr text-right">
                   {currentBalance.toLocaleString()}
@@ -194,6 +245,12 @@ const CashierTransferPage = () => {
                       ? `${Number(selectedSource.balance).toLocaleString()} ج.م`
                       : "حدد المصدر"}
                   </p>
+                  {hasOpenShift && (
+                    <p className="text-xs text-text-secondary dark:text-gray-400 mt-1">
+                      الدرج {Number(split.drawerCash).toLocaleString()} + الخزنة{" "}
+                      {Number(split.safeCash).toLocaleString()} ج.م
+                    </p>
+                  )}
                 </div>
 
                 <div className="shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary z-10 sm:rotate-180 rotate-90 my-2 sm:my-0">
@@ -256,6 +313,47 @@ const CashierTransferPage = () => {
 
               {/* Inputs */}
               <div className="space-y-6">
+                {/* Which container the cash physically leaves. Only offered
+                    while the branch has an OPEN shift — without one there is no
+                    drawer figure to move, and the next float is a fresh count. */}
+                {hasOpenShift && (
+                  <div>
+                    <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
+                      النقدية خارجة من
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { key: "DRAWER", label: "الدرج", amount: split.drawerCash, icon: "point_of_sale" },
+                        { key: "SAFE", label: "خزنة الفرع", amount: split.safeCash, icon: "lock" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => setContainer(opt.key)}
+                          disabled={loading}
+                          className={`flex items-center justify-between gap-2 rounded-xl border-2 px-4 py-3 text-right transition-colors ${
+                            container === opt.key
+                              ? "border-primary bg-primary/5 text-primary"
+                              : "border-border-light dark:border-border-dark text-text-secondary dark:text-gray-400 hover:border-primary/40"
+                          }`}>
+                          <span className="flex items-center gap-2 font-bold">
+                            <span className="material-symbols-outlined">{opt.icon}</span>
+                            {opt.label}
+                          </span>
+                          <span className="font-mono text-sm dir-ltr">
+                            {Number(opt.amount ?? 0).toLocaleString()} ج.م
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-text-secondary dark:text-gray-400 mt-2">
+                      {container === "DRAWER"
+                        ? `يُخصم من النقدية المتوقعة في درج وردية ${split.shift.userName || ""}`
+                        : "لا يؤثر على حساب درج الوردية المفتوحة"}
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-bold text-text-primary dark:text-text-dark mb-2">
                     المبلغ المراد توريده

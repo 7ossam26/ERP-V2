@@ -8,6 +8,8 @@ const {
   requireAnyPermission,
   getUserBranchFilter,
 } = require("../middleware/auth");
+const { roundMoney } = require("../utils/money");
+const { getTreasuryCashSplit } = require("../lib/branchCash");
 
 // Protect all routes with authentication
 router.use(authenticateToken);
@@ -126,6 +128,21 @@ router.get("/transfers", async (req, res) => {
   }
 });
 
+// GET the drawer / branch-safe split of one treasury (MUST be before /:id).
+// Feeds the transfer screens: which containers a branch transfer can come from
+// or go into, and how much each holds. See lib/branchCash.js.
+router.get("/:id/cash-split", async (req, res) => {
+  try {
+    const split = await getTreasuryCashSplit(parseInt(req.params.id), prisma);
+    if (!split) return res.status(404).json({ error: "Treasury not found" });
+    res.json(split);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to fetch treasury cash split", message: error.message });
+  }
+});
+
 // GET treasury by ID
 router.get("/:id", async (req, res) => {
   try {
@@ -143,13 +160,37 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// Tolerance for comparing an amount against a computed container figure.
+const CASH_EPSILON = 0.005;
+
+function httpError(status, message, extra = {}) {
+  return Object.assign(new Error(message), { status, ...extra });
+}
+
+// A container limit is a WARNING, not a wall: both figures are book figures,
+// and a drawer can physically hold more than expected (an overage) or the safe
+// more than the books say. The client shows the figures and resends with
+// `force: true` once the user confirms.
+function containerLimitError(message, details) {
+  return httpError(409, message, { code: "CONTAINER_LIMIT", details });
+}
+
 // POST Transfer between treasuries
 // POST Transfer Request (Handshake Step 1)
+//
+// `fromDrawer` says where the cash physically comes from when the source is a
+// branch treasury: the register (true) or the branch safe (false, default —
+// which is also what every transfer before the flag existed means). The branch
+// treasury is ONE account holding both, so only this flag tells the shift's
+// drawer formula whether the cashier's expected cash went down. A drawer
+// transfer is stamped with the branch's OPEN shift; see
+// calculateSystemExpectedCash in routes/shifts.js.
 router.post("/transfer", async (req, res) => {
-  // console.log("Processing transfer request:", req.body); // DEBUG LOG
   try {
     const { fromTreasuryId, toTreasuryId, amount, notes } = req.body;
-    const transferAmount = Number(amount);
+    const transferAmount = roundMoney(Number(amount));
+    const sendFromDrawer = req.body.fromDrawer === true || req.body.fromDrawer === "true";
+    const force = req.body.force === true || req.body.force === "true";
 
     if (!fromTreasuryId || !transferAmount || transferAmount <= 0) {
       return res.status(400).json({ error: "Invalid transfer details" });
@@ -201,35 +242,71 @@ router.post("/transfer", async (req, res) => {
       throw new Error("Cannot transfer from Treasury to itself");
     }
 
+    const sourceId = parseInt(fromTreasuryId);
+
     // Use transaction to ensure data integrity
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Check source balance
-      const source = await tx.treasury.findUnique({
-        where: { id: parseInt(fromTreasuryId) },
-        include: { branch: true },
-      });
+      const split = await getTreasuryCashSplit(sourceId, tx);
+      if (!split) throw new Error("Source treasury not found");
 
-      if (!source) throw new Error("Source treasury not found");
-
-      if (Number(source.balance) < transferAmount) {
-        throw new Error("Insufficient funds in source treasury");
+      let fromShiftId = null;
+      if (sendFromDrawer) {
+        // Only a live, uncounted drawer can be drawn on. A PENDING_REVIEW
+        // drawer has already been counted — moving cash out of it now would
+        // change a figure the count was measured against.
+        if (!split.branchId || split.shift?.status !== "OPEN") {
+          throw httpError(
+            400,
+            split.shift?.status === "PENDING_REVIEW"
+              ? "الوردية بانتظار الاعتماد — اعتمد الوردية أولاً أو حوّل من خزنة الفرع"
+              : "لا توجد وردية مفتوحة لهذا الفرع — لا يمكن التحويل من الدرج",
+            { code: "NO_OPEN_SHIFT" },
+          );
+        }
+        fromShiftId = split.shift.id;
+        if (!force && transferAmount > split.drawerCash + CASH_EPSILON) {
+          throw containerLimitError(
+            `المبلغ أكبر من النقدية المتوقعة في الدرج (${split.drawerCash})`,
+            { container: "DRAWER", drawerCash: split.drawerCash, safeCash: split.safeCash },
+          );
+        }
+      } else if (
+        !force &&
+        split.shift?.status === "OPEN" &&
+        split.safeCash != null &&
+        transferAmount > split.safeCash + CASH_EPSILON
+      ) {
+        // With an OPEN shift, the part of the balance beyond the safe is in the
+        // cashier's register. Sending it "from the safe" would leave the drawer
+        // formula expecting cash that is gone — the phantom shortage this flag
+        // exists to prevent.
+        throw containerLimitError(
+          `المبلغ أكبر من رصيد خزنة الفرع (${split.safeCash}). النقدية في الدرج ${split.drawerCash} — إذا كان التحويل من الدرج اختر "من الدرج"`,
+          { container: "SAFE", drawerCash: split.drawerCash, safeCash: split.safeCash },
+        );
       }
 
-      // 2. Decrement source (Money leaves the branch immediately)
-      await tx.treasury.update({
-        where: { id: parseInt(fromTreasuryId) },
+      // Debit with a compare-and-set, not a read-then-write: two concurrent
+      // transfers could both pass a separate balance check and overdraw.
+      const debit = await tx.treasury.updateMany({
+        where: { id: sourceId, balance: { gte: transferAmount } },
         data: { balance: { decrement: transferAmount } },
       });
+      if (debit.count === 0) {
+        throw httpError(400, "Insufficient funds in source treasury");
+      }
 
-      // 3. Create Transfer Record (PENDING) - Money is "in transit"
+      // Create Transfer Record (PENDING) - Money is "in transit"
       return await tx.cashTransfer.create({
         data: {
-          fromTreasuryId: parseInt(fromTreasuryId),
+          fromTreasuryId: sourceId,
           toTreasuryId: parseInt(destinationTreasuryId),
           amount: transferAmount,
           notes,
           status: "PENDING",
           createdById: req.user.id,
+          fromDrawer: sendFromDrawer,
+          fromShiftId,
         },
       });
     });
@@ -238,15 +315,25 @@ router.post("/transfer", async (req, res) => {
   } catch (error) {
     console.error("Transfer Error:", error);
     const status = error.status && Number.isInteger(error.status) ? error.status : 400;
-    res.status(status).json({ error: error.message || "Transfer failed" });
+    res.status(status).json({
+      error: error.message || "Transfer failed",
+      message: error.message,
+      code: error.code,
+      details: error.details,
+    });
   }
 });
 
 // POST Approve Transfer (Handshake Step 2)
+//
+// `toDrawer` says the receiver put the cash in the register rather than the
+// branch safe. Only valid when the destination branch has an OPEN shift, which
+// is stamped on the transfer so that shift's expected drawer goes up.
 router.post("/transfer/:id/approve", async (req, res) => {
-  // console.log("Processing transfer approval:", req.params.id); // DEBUG LOG
   try {
     const transferId = parseInt(req.params.id);
+    const receiveIntoDrawer =
+      req.body?.toDrawer === true || req.body?.toDrawer === "true";
 
     const result = await prisma.$transaction(async (tx) => {
       const transfer = await tx.cashTransfer.findUnique({
@@ -254,34 +341,65 @@ router.post("/transfer/:id/approve", async (req, res) => {
       });
 
       if (!transfer || transfer.status !== "PENDING") {
-        throw new Error("Transfer not found or not pending");
+        throw httpError(400, "Transfer not found or not pending");
       }
 
-      // 1. Increment details (Money received by Main Treasury)
+      let toShiftId = null;
+      if (receiveIntoDrawer) {
+        const split = await getTreasuryCashSplit(transfer.toTreasuryId, tx);
+        if (!split?.branchId || split.shift?.status !== "OPEN") {
+          throw httpError(
+            400,
+            "لا توجد وردية مفتوحة في الفرع المستلم — لا يمكن الاستلام في الدرج",
+            { code: "NO_OPEN_SHIFT" },
+          );
+        }
+        toShiftId = split.shift.id;
+      }
+
+      // Claim with a conditional write. A plain read takes no lock, so two
+      // concurrent approvals (or an approve racing a reject) could both see
+      // PENDING and both move money. Exactly one claim can match.
+      const claimed = await tx.cashTransfer.updateMany({
+        where: { id: transferId, status: "PENDING" },
+        data: {
+          status: "APPROVED",
+          acceptedById: req.user.id,
+          resolvedAt: new Date(),
+          toDrawer: receiveIntoDrawer,
+          toShiftId,
+        },
+      });
+      if (claimed.count === 0) {
+        throw httpError(409, "Transfer is no longer pending");
+      }
+
+      // Money received by the destination treasury
       await tx.treasury.update({
         where: { id: transfer.toTreasuryId },
         data: { balance: { increment: transfer.amount } },
       });
 
-      // 2. Update Status
-      return await tx.cashTransfer.update({
-        where: { id: transferId },
-        data: {
-          status: "APPROVED",
-          acceptedById: req.user.id,
-        },
-      });
+      return tx.cashTransfer.findUnique({ where: { id: transferId } });
     });
 
     res.json(result);
   } catch (error) {
-    res.status(400).json({ error: error.message || "Approval failed" });
+    const status = error.status && Number.isInteger(error.status) ? error.status : 400;
+    res.status(status).json({
+      error: error.message || "Approval failed",
+      message: error.message,
+      code: error.code,
+    });
   }
 });
 
 // POST Reject Transfer (Refund)
+//
+// The refund goes back to the source treasury. For a drawer transfer, whether
+// the cash lands back in that drawer is decided by `resolvedAt` against the
+// shift's end — see calculateSystemExpectedCash.
 router.post("/transfer/:id/reject", async (req, res) => {
-  // console.log("Processing transfer rejection:", req.params.id); // DEBUG LOG
   try {
     const transferId = parseInt(req.params.id);
 
@@ -291,28 +409,38 @@ router.post("/transfer/:id/reject", async (req, res) => {
       });
 
       if (!transfer || transfer.status !== "PENDING") {
-        throw new Error("Transfer not found or not pending");
+        throw httpError(400, "Transfer not found or not pending");
       }
 
-      // 1. Refund Source (Money returned to branch)
+      // Same conditional claim as approve — see there.
+      const claimed = await tx.cashTransfer.updateMany({
+        where: { id: transferId, status: "PENDING" },
+        data: {
+          status: "REJECTED",
+          acceptedById: req.user.id,
+          resolvedAt: new Date(),
+        },
+      });
+      if (claimed.count === 0) {
+        throw httpError(409, "Transfer is no longer pending");
+      }
+
+      // Refund Source (Money returned to branch)
       await tx.treasury.update({
         where: { id: transfer.fromTreasuryId },
         data: { balance: { increment: transfer.amount } },
       });
 
-      // 2. Update Status
-      return await tx.cashTransfer.update({
-        where: { id: transferId },
-        data: {
-          status: "REJECTED",
-          acceptedById: req.user.id,
-        },
-      });
+      return tx.cashTransfer.findUnique({ where: { id: transferId } });
     });
 
     res.json(result);
   } catch (error) {
-    res.status(400).json({ error: error.message || "Rejection failed" });
+    const status = error.status && Number.isInteger(error.status) ? error.status : 400;
+    res.status(status).json({
+      error: error.message || "Rejection failed",
+      message: error.message,
+    });
   }
 });
 
