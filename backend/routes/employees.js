@@ -64,6 +64,11 @@ router.get("/", requirePermission("EMPLOYEES"), async (req, res) => {
     const branchFilter = await getUserBranchFilter(req.user.id, req);
     const whereClause = branchFilter ? { branch: branchFilter } : {};
 
+    // Archive filter. No/unknown status returns everyone, as before — the HR
+    // page relies on that to keep inactive employees with activity this month.
+    if (req.query.status === "active") whereClause.isActive = true;
+    else if (req.query.status === "inactive") whereClause.isActive = false;
+
     const employees = await prisma.employee.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
@@ -781,6 +786,41 @@ router.put("/:id", requireAnyPermission(["EMPLOYEES", "CREATES_EMPLOYEES"]), req
     res
       .status(500)
       .json({ error: "Failed to update employee", message: error.message });
+  }
+});
+
+// PATCH archive / restore an employee - same guards as PUT /:id. Takes an
+// explicit value rather than flipping, so a double click can't undo itself.
+// Only isActive changes; transactions and payrolls are untouched.
+router.patch("/:id/status", requireAnyPermission(["EMPLOYEES", "CREATES_EMPLOYEES"]), requireSensitiveAccess, async (req, res) => {
+  try {
+    const { isActive } = req.body;
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json({
+        error: "isActive must be a boolean",
+        message: "قيمة الحالة غير صالحة",
+      });
+    }
+
+    const id = parseInt(req.params.id);
+    const existing = await prisma.employee.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: { isActive },
+      include: { branch: true },
+    });
+    res.json(employee);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to update employee status", message: error.message });
   }
 });
 

@@ -61,6 +61,8 @@ const toFrontend = (backendData) => {
     isPaid: backendData.isPaid || false,
     payrollId: backendData.payrollId || null,
     paidBy: backendData.paidBy || null,
+    // Archived employees are false; a missing field (older API) reads as active.
+    isActive: backendData.isActive !== false,
     createdAt: backendData.createdAt,
     updatedAt: backendData.updatedAt,
   };
@@ -113,6 +115,19 @@ export const employeeService = {
   update: async (id, updates) => {
     const backendData = toBackend(updates);
     const updatedEmployee = await api.put(`/employees/${id}`, backendData);
+    return toFrontend(updatedEmployee);
+  },
+
+  /**
+   * Archive (inactive) or restore (active) an employee. Data is never removed.
+   * @param {number} id - Employee ID
+   * @param {boolean} isActive - Target status
+   * @returns {Promise<Object>} Updated employee in frontend format
+   */
+  setActive: async (id, isActive) => {
+    const updatedEmployee = await api.patch(`/employees/${id}/status`, {
+      isActive,
+    });
     return toFrontend(updatedEmployee);
   },
 

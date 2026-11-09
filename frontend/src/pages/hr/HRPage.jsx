@@ -357,8 +357,16 @@ const HRPage = () => {
     checkShift();
   }, [isManager]);
 
+  // Archived (inactive) employees stay visible only in a month where they have
+  // transactions or a payroll, so a leaver can still be settled and past
+  // months keep their totals. `transactions` / `payrollId` are scoped to the
+  // selected month by GET /employees.
+  const visibleEmployees = employees.filter(
+    (emp) => emp.isActive || emp.transactions.length > 0 || !!emp.payrollId
+  );
+
   // Calculations based on fetched data (which already has this month's stats)
-  const processedEmployees = employees.filter(
+  const processedEmployees = visibleEmployees.filter(
     (emp) =>
       selectedBranch === "all" || emp.branchId === parseInt(selectedBranch)
   );
@@ -795,6 +803,11 @@ const HRPage = () => {
                         <div>
                           <div className="text-sm font-bold text-text-light dark:text-text-dark">
                             {employee.name}
+                            {!employee.isActive && (
+                              <span className="mr-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 align-middle">
+                                غير نشط
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
                             {employee.role || employee.title}
@@ -1149,7 +1162,7 @@ const HRPage = () => {
             employees={
               modalType === "transaction_entry" && selectedEmployee
                 ? [selectedEmployee]
-                : employees
+                : visibleEmployees
             }
             branches={filteredBranches}
             isSingleEmployee={

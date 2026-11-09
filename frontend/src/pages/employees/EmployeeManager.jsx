@@ -1,8 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import toast from "react-hot-toast";
 import GenericPageManager from "../../components/shared/GenericPageManager";
 import { employeeService, branchService } from "../../services/domainServices";
 import AuthService from "../../services/authService";
 import { validateEgyptianPhone } from "../../utils/validationUtils";
+import { confirmAction } from "../../utils/toastUtils";
+
+const STATUS_FILTERS = [
+  { value: "active", label: "نشط" },
+  { value: "inactive", label: "غير نشط" },
+  { value: "all", label: "الكل" },
+];
 
 const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast }) => {
   // Calculate next ID if creating new employee
@@ -375,6 +383,64 @@ const EmployeeForm = ({ initialData, onClose, onSave, isSaving, data, showToast 
 };
 
 const EmployeeManager = () => {
+  // Inactive = archived: hidden from the active list and HR, data kept.
+  const [statusFilter, setStatusFilter] = useState("active");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [togglingId, setTogglingId] = useState(null);
+  const canToggleStatus = AuthService.hasSensitiveAccess();
+
+  const service = useMemo(
+    () => ({
+      ...employeeService,
+      getAll: () => employeeService.getAll({ status: statusFilter }),
+    }),
+    [statusFilter]
+  );
+
+  const applyStatus = async (item, isActive) => {
+    setTogglingId(item.id);
+    try {
+      await employeeService.setActive(item.id, isActive);
+      toast.success(
+        isActive ? `تم تفعيل ${item.name}` : `تم أرشفة ${item.name}`
+      );
+      setReloadKey((k) => k + 1);
+    } catch (error) {
+      toast.error(error.message || "فشل في تحديث حالة الموظف");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const handleToggleStatus = (item) => {
+    if (item.isActive) {
+      confirmAction(
+        `سيتم أرشفة ${item.name} وإخفاؤه من صفحة الموارد البشرية. بياناته ستبقى محفوظة. هل تريد المتابعة؟`,
+        () => applyStatus(item, false)
+      );
+    } else {
+      applyStatus(item, true);
+    }
+  };
+
+  const statusTabs = (
+    <div className="inline-flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1 gap-1">
+      {STATUS_FILTERS.map((f) => (
+        <button
+          key={f.value}
+          type="button"
+          onClick={() => setStatusFilter(f.value)}
+          className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+            statusFilter === f.value
+              ? "bg-white dark:bg-surface-dark text-primary dark:text-accent shadow"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          }`}>
+          {f.label}
+        </button>
+      ))}
+    </div>
+  );
+
   const columns = [
     {
       header: "الرقم التعريفي",
@@ -389,7 +455,7 @@ const EmployeeManager = () => {
       header: "الموظف",
       accessor: "name",
       render: (item) => (
-        <div>
+        <div className={item.isActive ? "" : "opacity-60"}>
           <div className="font-bold text-gray-900 dark:text-white">
             {item.name}
           </div>
@@ -467,6 +533,47 @@ const EmployeeManager = () => {
         </span>
       ),
     },
+    {
+      header: "الحالة",
+      accessor: "isActive",
+      render: (item) => {
+        const disabled = !canToggleStatus || togglingId === item.id;
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={item.isActive}
+              disabled={disabled}
+              title={
+                canToggleStatus
+                  ? item.isActive
+                    ? "أرشفة الموظف"
+                    : "تفعيل الموظف"
+                  : "تحتاج صلاحية الوصول الحساس لتغيير الحالة"
+              }
+              onClick={() => handleToggleStatus(item)}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                item.isActive ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+              }`}>
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                  item.isActive ? "left-[22px]" : "left-0.5"
+                }`}
+              />
+            </button>
+            <span
+              className={`text-xs font-bold ${
+                item.isActive
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-gray-500 dark:text-gray-400"
+              }`}>
+              {item.isActive ? "نشط" : "غير نشط"}
+            </span>
+          </div>
+        );
+      },
+    },
   ];
 
   return (
@@ -474,10 +581,16 @@ const EmployeeManager = () => {
       title="إدارة الموظفين"
       subtitle="قائمة بجميع الموظفين المسجلين في النظام"
       icon="badge"
-      service={employeeService}
+      service={service}
+      reloadKey={`${statusFilter}-${reloadKey}`}
+      headerActions={statusTabs}
       columns={columns}
       FormComponent={EmployeeForm}
-      emptyMessage="لا يوجد موظفين مسجلين."
+      emptyMessage={
+        statusFilter === "inactive"
+          ? "لا يوجد موظفين مؤرشفين."
+          : "لا يوجد موظفين مسجلين."
+      }
       hideAddButton={!AuthService.hasPermission("CREATES_EMPLOYEES")}
     />
   );

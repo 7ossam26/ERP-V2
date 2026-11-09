@@ -20,6 +20,8 @@ const GenericPageManager = ({
   headerActions,
   customActions,
   FilterComponent,
+  // Optional: changing it reloads the table (e.g. after a row-level action).
+  reloadKey,
   ...props
 }) => {
   const navigate = useNavigate();
@@ -46,7 +48,7 @@ const GenericPageManager = ({
 
   useEffect(() => {
     loadData();
-  }, [activeBranchId]);
+  }, [activeBranchId, reloadKey]);
 
   // Handle ESC key to navigate back when no modal is open
   useEffect(() => {

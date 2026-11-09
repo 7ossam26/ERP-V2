@@ -202,6 +202,9 @@ model Employee {
   workingHoursPerDay  Decimal  @default(8) @map("working_hours_per_day") @db.Decimal(4, 2)
   weeklyHoliday       String   @default("Friday") @map("weekly_holiday")
   salary              Decimal  @db.Decimal(10, 2)
+  // Archive flag: an employee who left is set inactive instead of deleted, so
+  // their transactions and payrolls survive (delete cascades transactions).
+  isActive            Boolean  @default(true) @map("is_active")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 

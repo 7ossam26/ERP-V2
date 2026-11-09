@@ -245,6 +245,9 @@ const probes = {
     (await columnExists("cash_transfers", "from_shift_id")) &&
     (await columnExists("cash_transfers", "to_drawer")) &&
     (await columnExists("cash_transfers", "to_shift_id")),
+
+  "20261111000000_employee_is_active": async () =>
+    columnExists("employees", "is_active"),
 };
 
 // --- Main ---------------------------------------------------------
