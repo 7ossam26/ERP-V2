@@ -196,6 +196,14 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
   // are not drawer movements and are not printed in the ladder).
   const drawerTransfersIn = Number(report.drawerTransfers?.in || 0);
   const drawerTransfersOut = Number(report.drawerTransfers?.out || 0);
+  // Returns taken in this shift on an invoice from an earlier shift. Already
+  // inside مبيعات الكاش (cash ones) — printed so the lower figure has a name.
+  const previousRefundRows = Array.isArray(report.previousInvoiceRefunds?.rows)
+    ? report.previousInvoiceRefunds.rows
+    : [];
+  const previousRefundsCash = Number(
+    report.previousInvoiceRefunds?.cashTotal || 0,
+  );
 
   // The settlement block is recomputed from the shift as it stands NOW, so it
   // always agrees with the lines printed above it. `systemExpectedCash` and
@@ -317,6 +325,14 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
           <span>+ مبيعات الكاش</span>
           <span className="sr-num">{fmt(report.cashReceived)} ج.م</span>
         </div>
+        {previousRefundsCash > 0 && (
+          <div
+            className="sr-row sr-meta"
+            style={{ paddingRight: 8, fontSize: 9 }}>
+            <span>• شامل خصم مرتجع فواتير سابقة</span>
+            <span className="sr-num">-{fmt(previousRefundsCash)} ج.م</span>
+          </div>
+        )}
         {codDelivered > 0 && (
           <div
             className="sr-row sr-meta"
@@ -468,6 +484,42 @@ const ShiftReport80mm = ({ report, settings = {} }) => {
           style={{ textAlign: "center", fontSize: 9, padding: "4px 0" }}>
           لا توجد طلبات في هذه الوردية
         </div>
+      )}
+
+      {previousRefundRows.length > 0 && (
+        <>
+          <div className="sr-divider-solid" />
+          <div className="sr-section-title">
+            مرتجع فواتير سابقة ({previousRefundRows.length})
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>الفاتورة</th>
+                <th>تاريخها</th>
+                <th className="sr-num">المبلغ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {previousRefundRows.map((r) => (
+                <tr key={r.refundNumber}>
+                  <td>{r.originalSaleNumber}</td>
+                  <td>
+                    {r.originalDate
+                      ? new Date(r.originalDate).toLocaleDateString("ar-EG")
+                      : "—"}
+                  </td>
+                  <td className="sr-num">
+                    -{fmt(r.total)}
+                    {r.paymentMethod !== "CASH"
+                      ? ` (${paymentLabelAr(r.paymentMethod)})`
+                      : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
 
       {expenses.length > 0 && (

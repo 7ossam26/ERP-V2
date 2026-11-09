@@ -47,6 +47,9 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
   const takeaway = reportData?.takeaway || { count: 0, total: 0 };
   const delivery = reportData?.delivery || { count: 0, total: 0 };
   const returned = reportData?.returned || { count: 0, total: 0 };
+  // Returns of invoices from an earlier shift. Already inside `returned` and
+  // (cash ones) inside مبيعات نقدي / المتوقع في الدرج — shown, never subtracted.
+  const previousRefunds = reportData?.previousInvoiceRefunds || { count: 0, total: 0, cashTotal: 0, rows: [] };
   const netSales = reportData?.netSales || 0;
   const expenseBreakdown = reportData?.expenseBreakdown || { count: 0, total: 0 };
   const drawerAmount = reportData?.drawerAmount || 0;
@@ -75,6 +78,8 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
     PROMO: "عرض ترويجي",
     OTHER: "أخرى",
   };
+
+  const PAYMENT_LABELS = { CASH: "نقدي", VISA: "فيزا", INSTAPAY: "انستاباي" };
 
   const fmt = (v) => Number(v).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -135,6 +140,13 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
             <Row label="تيك أواى :" count={takeaway.count} amount={takeaway.total} />
             <Row label="دليفرى :" count={delivery.count} amount={delivery.total} />
             <Row label="مرتجع :" count={returned.count} amount={returned.total} negative={returned.total > 0} />
+            {previousRefunds.count > 0 && (
+              <div className="flex items-center py-2 px-6 text-xs border-b border-gray-100 dark:border-zinc-800">
+                <span className="flex-1 text-right text-gray-600 dark:text-gray-400">منها مرتجع فواتير سابقة :</span>
+                <span className="w-16 text-center font-mono text-gray-500">{previousRefunds.count}</span>
+                <span className="w-32 text-left font-mono font-bold text-red-600 dark:text-red-400">-{fmt(previousRefunds.total)}</span>
+              </div>
+            )}
             <Row label="صافي المبيعات :" amount={netSales} bold border />
           </div>
 
@@ -211,6 +223,14 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
                 <span className="flex-1 text-right">+ مبيعات نقدي</span>
                 <span className="w-32 text-left font-mono font-bold">+{fmt(cashReceived)}</span>
               </div>
+              {/* Explains a lower cash figure; already deducted above, so this
+                  is a note under the line, not another step in the ladder. */}
+              {previousRefunds.cashTotal > 0 && (
+                <div className="flex items-center py-1.5 px-6 text-xs border-b border-gray-100 dark:border-zinc-800 text-gray-500 dark:text-gray-400">
+                  <span className="flex-1 text-right">• شامل خصم مرتجع فواتير سابقة (نقدي)</span>
+                  <span className="w-32 text-left font-mono">-{fmt(previousRefunds.cashTotal)}</span>
+                </div>
+              )}
               <div className="flex items-center py-2 px-4 border-b border-gray-100 dark:border-zinc-800 text-red-600 dark:text-red-400">
                 <span className="flex-1 text-right">- مصروفات نقدي</span>
                 <span className="w-32 text-left font-mono font-bold">-{fmt(expenseBreakdown.total)}</span>
@@ -286,6 +306,30 @@ const POSReportModal = ({ isOpen, onClose, onConfirm, reportData, autoPrint = fa
                     <span className="flex-1 text-right text-gray-700 dark:text-gray-300">{exp.description}</span>
                     <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-zinc-700 rounded mx-2">{exp.paymentMethod === "CASH" ? "نقدي" : "بطاقة"}</span>
                     <span className="w-28 text-left font-mono font-bold text-red-600 dark:text-red-400">{fmt(exp.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Previous-invoice returns detail */}
+          {previousRefunds.count > 0 && (
+            <div className="mx-4 mb-3 border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden print:border-gray-400 print:mx-0">
+              <div className="bg-red-50 dark:bg-red-900/10 px-4 py-2.5 font-bold text-red-700 dark:text-red-400 border-b border-gray-200 dark:border-zinc-700 text-sm flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">assignment_return</span>
+                مرتجع فواتير سابقة ({previousRefunds.count})
+              </div>
+              <div className="divide-y divide-gray-100 dark:divide-zinc-800">
+                {(previousRefunds.rows || []).map((r) => (
+                  <div key={r.refundNumber} className="px-4 py-2 flex items-center text-sm">
+                    <div className="flex-1 text-right flex flex-col">
+                      <span className="text-gray-700 dark:text-gray-300 font-mono">{r.originalSaleNumber}</span>
+                      <span className="text-xs text-gray-500">
+                        فاتورة {r.originalDate ? new Date(r.originalDate).toLocaleDateString("ar-EG") : ""} — {r.refundNumber}
+                      </span>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-zinc-700 rounded mx-2">{PAYMENT_LABELS[r.paymentMethod] || r.paymentMethod}</span>
+                    <span className="w-28 text-left font-mono font-bold text-red-600 dark:text-red-400">-{fmt(r.total)}</span>
                   </div>
                 ))}
               </div>

@@ -134,6 +134,14 @@ const POSReport80mm = ({ report, settings = {} }) => {
   const takeaway = report.takeaway || { count: 0, total: 0 };
   const delivery = report.delivery || { count: 0, total: 0 };
   const returned = report.returned || { count: 0, total: 0 };
+  // Returns of invoices from an earlier shift — already inside `returned` and
+  // (cash ones) inside مبيعات نقدي. Printed as a breakdown, never subtracted.
+  const previousRefunds = report.previousInvoiceRefunds || {
+    count: 0,
+    total: 0,
+    cashTotal: 0,
+    rows: [],
+  };
   const discounts = report.discounts || { count: 0, total: 0, byReason: [] };
   const expenseBreakdown = report.expenseBreakdown || { count: 0, total: 0 };
   const totalAdvances = Number(report.totalAdvances || 0);
@@ -225,6 +233,14 @@ const POSReport80mm = ({ report, settings = {} }) => {
             {fmt(returned.total)}
           </span>
         </div>
+        {previousRefunds.count > 0 && (
+          <div
+            className="pr-row pr-meta"
+            style={{ fontSize: 9, paddingRight: 8 }}>
+            <span>• منها مرتجع فواتير سابقة ({previousRefunds.count})</span>
+            <span className="pr-num">-{fmt(previousRefunds.total)}</span>
+          </div>
+        )}
         <div
           className="pr-row"
           style={{
@@ -321,6 +337,14 @@ const POSReport80mm = ({ report, settings = {} }) => {
           <span>+ مبيعات نقدي</span>
           <span className="pr-num">+{fmt(report.cashReceived)}</span>
         </div>
+        {previousRefunds.cashTotal > 0 && (
+          <div
+            className="pr-row pr-meta"
+            style={{ fontSize: 9, paddingRight: 8 }}>
+            <span>• شامل خصم مرتجع فواتير سابقة</span>
+            <span className="pr-num">-{fmt(previousRefunds.cashTotal)}</span>
+          </div>
+        )}
         <div className="pr-row">
           <span>− مصروفات نقدي</span>
           <span className="pr-num">-{fmt(expenseBreakdown.total)}</span>
@@ -400,6 +424,33 @@ const POSReport80mm = ({ report, settings = {} }) => {
                   </span>
                 </span>
                 <span className="pr-num">-{fmt(exp.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {previousRefunds.count > 0 && (
+        <>
+          <div className="pr-divider-dashed" />
+          <div className="pr-section-title">
+            مرتجع فواتير سابقة ({previousRefunds.count})
+          </div>
+          <div style={{ fontSize: 10 }}>
+            {(previousRefunds.rows || []).map((r) => (
+              <div key={r.refundNumber}>
+                <div className="pr-row">
+                  <span>{r.originalSaleNumber}</span>
+                  <span className="pr-num">-{fmt(r.total)}</span>
+                </div>
+                <div
+                  className="pr-meta"
+                  style={{ fontSize: 9, paddingRight: 8 }}>
+                  • فاتورة {r.originalDate ? fmtDate(r.originalDate) : ""}
+                  {r.paymentMethod && r.paymentMethod !== "CASH"
+                    ? ` — ${r.paymentMethod === "VISA" ? "فيزا" : "انستاباي"}`
+                    : ""}
+                </div>
               </div>
             ))}
           </div>

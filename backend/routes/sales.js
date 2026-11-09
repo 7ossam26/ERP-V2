@@ -133,7 +133,11 @@ router.get(
     try {
       const limit = parseInt(req.query.limit) || 50;
       const branchFilter = await getUserBranchFilter(req.user.id, req);
-      const whereClause = { status: "COMPLETED" };
+      // A return is not itself returnable, so REFUND- rows are left out.
+      const whereClause = {
+        status: "COMPLETED",
+        NOT: { saleNumber: { startsWith: "REFUND-" } },
+      };
       if (branchFilter) {
         if (branchFilter.id.in) {
           whereClause.branchId = { in: branchFilter.id.in };
@@ -147,7 +151,7 @@ router.get(
         take: limit,
         include: {
           client: true,
-          items: { include: { item: true } },
+          items: { include: { item: true, bom: true } },
         },
       });
       res.json(sales);
@@ -235,7 +239,10 @@ router.get(
       const searchTerm = query.trim();
       const branchFilter = await getUserBranchFilter(req.user.id, req);
 
+      // Feeds the return screen only: returnable invoices, never a REFUND- row.
       const whereClause = {
+        status: "COMPLETED",
+        NOT: { saleNumber: { startsWith: "REFUND-" } },
         OR: [
           { saleNumber: { contains: searchTerm } },
           { client: { name: { contains: searchTerm } } },
@@ -266,6 +273,7 @@ router.get(
           items: {
             include: {
               item: true,
+              bom: true,
             },
           },
         },
@@ -296,6 +304,7 @@ router.get(
           items: {
             include: {
               item: true,
+              bom: true,
             },
           },
         },
@@ -1489,6 +1498,7 @@ router.post(
           items: {
             include: {
               item: true,
+              bom: true,
             },
           },
         },
@@ -1502,50 +1512,88 @@ router.post(
         });
       }
 
+      if (
+        String(originalSale.saleNumber || "").startsWith("REFUND-") ||
+        Number(originalSale.total) < 0
+      ) {
+        return res.status(400).json({
+          error: "Cannot refund a refund",
+          message: "لا يمكن استرجاع فاتورة مرتجع",
+        });
+      }
+
+      // Resolve every requested line to the ORIGINAL sale line, and take its
+      // itemId/bomId from there rather than from the client. A BOM-only line is
+      // stored with itemId=null, so matching on itemId alone could not find it,
+      // and a line sold through a BOM deducted raw materials — restocking has to
+      // follow the stored bomId, which the client never sent. `saleItemId` (the
+      // line id) is preferred; `itemId` stays as the fallback for older clients.
+      const refundLines = items.map((refundItem) => {
+        const originalItem = refundItem.saleItemId
+          ? originalSale.items.find(
+              (i) => i.id === parseInt(refundItem.saleItemId),
+            )
+          : originalSale.items.find(
+              (i) =>
+                i.itemId != null && i.itemId === parseInt(refundItem.itemId),
+            );
+
+        if (!originalItem) {
+          throw Object.assign(
+            new Error("أحد الأصناف المختارة غير موجود في الفاتورة الأصلية"),
+            { status: 400 },
+          );
+        }
+
+        const quantity = parseFloat(refundItem.quantity);
+        if (!(quantity > 0)) {
+          throw Object.assign(new Error("كمية الاسترجاع غير صالحة"), {
+            status: 400,
+          });
+        }
+        if (quantity > parseFloat(originalItem.quantity)) {
+          const name =
+            originalItem.item?.name || originalItem.bom?.name || "الصنف";
+          throw Object.assign(
+            new Error(`كمية الاسترجاع لـ ${name} أكبر من الكمية المباعة`),
+            { status: 400 },
+          );
+        }
+
+        return { originalItem, quantity };
+      });
+
+      // A return is booked to the shift open at return time — that is the
+      // drawer the cash leaves. It used to land on the original invoice's
+      // shift, so returning yesterday's invoice showed as an unexplained
+      // shortage today and rewrote yesterday's closed report. Falls back to the
+      // original shift when the caller has no open shift, or their open shift
+      // is in another branch (the cash debit below hits the original branch's
+      // treasury, so it must stay on that branch's shift).
+      const activeShift = await prisma.shift.findFirst({
+        where: { userId: req.user.id, status: "OPEN" },
+        orderBy: { startTime: "desc" },
+        select: { id: true, branchId: true },
+      });
+      const refundShiftId =
+        activeShift && activeShift.branchId === originalSale.branchId
+          ? activeShift.id
+          : originalSale.shiftId;
+
       console.log("💰 Starting refund transaction for sale ID:", saleId);
 
       // Execute refund transaction
       const result = await prisma.$transaction(async (tx) => {
         let refundSubtotal = 0;
 
-        // Calculate refund amounts and validate quantities
-        for (const refundItem of items) {
-          const originalItem = originalSale.items.find(
-            (i) => i.itemId === parseInt(refundItem.itemId),
-          );
+        // Calculate refund amounts and restore inventory
+        for (const { originalItem, quantity: refundQty } of refundLines) {
+          refundSubtotal += parseFloat(originalItem.unitPrice) * refundQty;
 
-          if (!originalItem) {
-            throw new Error(
-              `Item ${refundItem.itemId} was not in the original sale`,
-            );
-          }
-
-          if (
-            parseFloat(refundItem.quantity) > parseFloat(originalItem.quantity)
-          ) {
-            throw new Error(
-              `Refund quantity for ${originalItem.item.name} exceeds original quantity`,
-            );
-          }
-
-          refundSubtotal +=
-            parseFloat(originalItem.unitPrice) *
-            parseFloat(refundItem.quantity);
-
-          // Restore inventory (BOM-aware)
-          const refundItemId = parseInt(refundItem.itemId);
-          const refundQty = parseFloat(refundItem.quantity);
-
-          // Check if this item is a raw BOM (MTO) vs a manufactured item
-          const isBomOnly = String(refundItem.itemId).startsWith("bom_");
-          const refundBomId = refundItem.bomId
-            ? parseInt(refundItem.bomId)
-            : isBomOnly
-              ? parseInt(String(refundItem.itemId).replace("bom_", ""))
-              : null;
-          const refundParsedItemId = isBomOnly
-            ? null
-            : parseInt(refundItem.itemId);
+          // Restore inventory (BOM-aware), mirroring the sale-time deduction:
+          // a line with a bomId consumed raw materials, otherwise the item.
+          const refundBomId = originalItem.bomId;
+          const refundParsedItemId = originalItem.itemId;
 
           let bom = null;
           if (refundBomId) {
@@ -1641,14 +1689,11 @@ router.post(
             branchId: originalSale.branchId,
             treasuryId: refundTreasuryId || originalSale.treasuryId,
             warehouseId: originalSale.warehouseId,
-            // KNOWN LIMITATION (by design): the refund is booked to the ORIGINAL
-            // sale's shift, but the treasury decrement below hits the drawer at
-            // refund time. Refunding an order from an earlier/closed shift thus
-            // removes cash from the CURRENT drawer while the refund row lands on
-            // the old shift — so the current shift shows an unexplained shortage
-            // and the old shift's report shifts retroactively. Left as-is per
-            // product decision; revisit if refunds should follow the active shift.
-            shiftId: originalSale.shiftId,
+            // The shift open at return time (see refundShiftId above). When it
+            // differs from the invoice's shift, the close report lists this row
+            // under "مرتجع فواتير سابقة" via refundOfSaleId.
+            shiftId: refundShiftId,
+            refundOfSaleId: originalSale.id,
             subtotal: -refundSubtotal, // Negative for refund
             discountType: refundDiscountAmount > 0 ? originalSale.discountType : null,
             discountValue: refundDiscountAmount > 0 ? -refundDiscountAmount : null,
@@ -1665,17 +1710,13 @@ router.post(
               ? `استرجاع من فاتورة ${originalSale.saleNumber}: ${notes}`
               : `استرجاع من فاتورة ${originalSale.saleNumber}`,
             items: {
-              create: items.map((item) => {
-                const originalItem = originalSale.items.find(
-                  (i) => i.itemId === parseInt(item.itemId),
-                );
+              create: refundLines.map(({ originalItem, quantity }) => {
                 return {
-                  itemId: parseInt(item.itemId),
-                  quantity: -parseFloat(item.quantity), // Negative for refund
+                  itemId: originalItem.itemId,
+                  bomId: originalItem.bomId,
+                  quantity: -quantity, // Negative for refund
                   unitPrice: parseFloat(originalItem.unitPrice),
-                  total:
-                    -parseFloat(originalItem.unitPrice) *
-                    parseFloat(item.quantity), // Negative
+                  total: -parseFloat(originalItem.unitPrice) * quantity, // Negative
                   // Reverse COGS by the original line's cost (negative quantity
                   // × positive unit cost) so refunds unwind profit symmetrically.
                   costPrice: parseFloat(Number(originalItem.costPrice || 0).toFixed(2)),

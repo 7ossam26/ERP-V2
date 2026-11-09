@@ -82,6 +82,13 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
   const wholesaleRows = Array.isArray(wholesale?.collections)
     ? wholesale.collections
     : [];
+  // Returns taken in this shift on an invoice from an earlier shift. Already
+  // inside مبيعات الكاش (cash ones) — shown so the lower figure has a name.
+  const previousRefunds = report?.previousInvoiceRefunds || null;
+  const previousRefundRows = Array.isArray(previousRefunds?.rows)
+    ? previousRefunds.rows
+    : [];
+  const previousRefundsCash = round2(previousRefunds?.cashTotal);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`تقرير وردية #${shiftId}`}>
@@ -273,6 +280,17 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
                   {report.cashReceived.toLocaleString()}
                 </span>
               </div>
+              {/* Already deducted inside مبيعات الكاش — a note, not a ladder step. */}
+              {previousRefundsCash > 0 && (
+                <div className="ps-4 pb-2 border-b border-gray-100 text-xs text-gray-500">
+                  <div className="flex justify-between">
+                    <span>• شامل خصم مرتجع فواتير سابقة (كاش)</span>
+                    <span className="font-mono">
+                      -{previousRefundsCash.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              )}
               {report.cashBreakdown && (
                 <div className="ps-4 pb-2 border-b border-gray-100 text-xs text-gray-500 space-y-1">
                   <div className="flex justify-between">
@@ -445,6 +463,53 @@ const ShiftReportModal = ({ isOpen, onClose, shiftId }) => {
               collection. Only CASH rows move the drawer; BANK_TRANSFER/CHEQUE
               are listed with a muted badge so the section still reconciles
               against the treasury. */}
+          {previousRefundRows.length > 0 && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-3 font-bold text-gray-700 border-b border-gray-200 flex justify-between items-center">
+                <span>مرتجع فواتير سابقة</span>
+                <span className="text-xs font-normal bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                  {previousRefundRows.length} مرتجع
+                </span>
+              </div>
+              <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-gray-50 text-gray-500 font-medium">
+                    <tr>
+                      <th className="p-3">الفاتورة الأصلية</th>
+                      <th className="p-3">تاريخ الفاتورة</th>
+                      <th className="p-3">رقم المرتجع</th>
+                      <th className="p-3">الطريقة</th>
+                      <th className="p-3">المبلغ (ج.م)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {previousRefundRows.map((row) => (
+                      <tr key={row.refundNumber} className="hover:bg-gray-50/50">
+                        <td className="p-3 font-mono text-sm">{row.originalSaleNumber}</td>
+                        <td className="p-3 text-sm text-gray-600">
+                          {row.originalDate
+                            ? new Date(row.originalDate).toLocaleDateString("ar-EG")
+                            : "—"}
+                        </td>
+                        <td className="p-3 font-mono text-xs text-gray-500">{row.refundNumber}</td>
+                        <td className="p-3 text-sm">
+                          {row.paymentMethod === "CASH"
+                            ? "كاش"
+                            : row.paymentMethod === "VISA"
+                              ? "فيزا"
+                              : "انستاباي"}
+                        </td>
+                        <td className="p-3 font-bold text-red-600">
+                          -{Number(row.total).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {wholesaleRows.length > 0 && (
             <div className="border border-gray-200 rounded-xl overflow-hidden">
               <div className="bg-gray-100 px-4 py-3 font-bold text-gray-700 border-b border-gray-200 flex justify-between items-center">

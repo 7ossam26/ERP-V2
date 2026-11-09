@@ -754,10 +754,15 @@ model Sale {
   status                  SaleStatus        @default(COMPLETED)
   notes                   String?           @db.Text
   paidAt                  DateTime?         @map("paid_at")
+  // Set on a REFUND- row only: the invoice it returns. Null on every refund
+  // made before the column existed (those carry the link in `notes` text).
+  refundOfSaleId          Int?              @map("refund_of_sale_id")
   createdAt               DateTime          @default(now()) @map("created_at")
   updatedAt               DateTime          @updatedAt @map("updated_at")
 
   // Relations
+  refundOf          Sale?         @relation("SaleRefunds", fields: [refundOfSaleId], references: [id], onDelete: SetNull)
+  refunds           Sale[]        @relation("SaleRefunds")
   client            Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
   employee          Employee?     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   user              User?         @relation("SaleCreator", fields: [userId], references: [id], onDelete: Restrict)
@@ -772,6 +777,7 @@ model Sale {
   items             SaleItem[]
   order             Order?
 
+  @@index([refundOfSaleId])
   @@map("sales")
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { FaSearch, FaRedo, FaTrash, FaCheck, FaTimes } from "react-icons/fa";
 import { salesService } from "../../services/domainServices";
@@ -9,7 +9,7 @@ import ManagerAuthModal from "../../components/common/ManagerAuthModal";
 const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId = null }) => {
   const [searchSaleId, setSearchSaleId] = useState("");
   const [saleData, setSaleData] = useState(null);
-  const [refundItems, setRefundItems] = useState([]); // { itemId, quantity, maxQty, name, price }
+  const [refundItems, setRefundItems] = useState([]); // { saleItemId, itemId, quantity, maxQty, name, price }
   const [loading, setLoading] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [refundNote, setRefundNote] = useState("");
@@ -17,6 +17,8 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
   const [shiftRefunds, setShiftRefunds] = useState([]); // Returns made in this shift
   const [recentSales, setRecentSales] = useState([]); // S8: auto-loaded recent sales
   const [refundMethod, setRefundMethod] = useState("CASH");
+  // Latest query typed — a server search answering an older query is dropped.
+  const latestQueryRef = useRef("");
   const [systemConfig, setSystemConfig] = useState({
     visaTreasuryId: null,
     instapayTreasuryId: null,
@@ -58,6 +60,27 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
       setShiftRefunds([]);
     }
   }, [isOpen, initialSaleId, shiftId]);
+
+  // The local filter only covers the last 50 sales, so an invoice from a
+  // previous day never matched while typing. Search the server too, debounced.
+  useEffect(() => {
+    if (!isOpen || saleData) return;
+    const q = searchSaleId.trim();
+    latestQueryRef.current = q;
+    if (!q) return;
+    const timer = setTimeout(() => {
+      salesService
+        .search(q)
+        .then((results) => {
+          if (latestQueryRef.current !== q) return;
+          if (Array.isArray(results) && results.length > 0) {
+            setSearchResults(results);
+          }
+        })
+        .catch(() => {});
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchSaleId, isOpen, saleData]);
 
   const fetchSpecificSale = async (idOrNumber) => {
     setLoading(true);
@@ -111,10 +134,12 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
 
   const initializeRefundItems = (sale) => {
     // Initialize refund items with 0 quantity
+    // Keyed by sale line id: a BOM-only line has itemId=null and no `item`.
     const items = sale.items.map((i) => ({
+      saleItemId: i.id,
       itemId: i.itemId,
-      name: i.item.name,
-      unit: i.item.unit,
+      name: i.item?.name || i.bom?.name || "صنف",
+      unit: i.item?.unit,
       quantity: 0,
       maxQty: parseFloat(i.quantity),
       unitPrice: parseFloat(i.unitPrice),
@@ -123,10 +148,10 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
     setRefundItems(items);
   };
 
-  const handleQuantityChange = (itemId, qty) => {
+  const handleQuantityChange = (saleItemId, qty) => {
     setRefundItems((prev) =>
       prev.map((item) => {
-        if (item.itemId === itemId) {
+        if (item.saleItemId === saleItemId) {
           const newQty = Math.min(
             Math.max(0, parseFloat(qty) || 0),
             item.maxQty,
@@ -153,6 +178,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
     const itemsToReturn = refundItems
       .filter((i) => i.quantity > 0)
       .map((i) => ({
+        saleItemId: i.saleItemId,
         itemId: i.itemId,
         quantity: i.quantity,
       }));
@@ -400,7 +426,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {refundItems.map((item) => (
                     <tr
-                      key={item.itemId}
+                      key={item.saleItemId}
                       className={
                         item.quantity > 0 ? "bg-red-50 dark:bg-red-900/10" : ""
                       }>
@@ -415,7 +441,7 @@ const RefundModal = ({ isOpen, onClose, branchId, initialSaleId = null, shiftId 
                           step={item.unit === "kg" ? "0.1" : "1"}
                           value={item.quantity}
                           onChange={(e) =>
-                            handleQuantityChange(item.itemId, e.target.value)
+                            handleQuantityChange(item.saleItemId, e.target.value)
                           }
                           className="w-20 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-center focus:ring-2 focus:ring-red-500 outline-none"
                         />

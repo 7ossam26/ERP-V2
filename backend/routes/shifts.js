@@ -728,6 +728,47 @@ async function sumPostedShiftVariance(shiftId, beforeCycle) {
   );
 }
 
+/**
+ * Returns taken in a shift on an invoice from ANOTHER shift — usually a
+ * previous day. A return is booked to the shift open when it is made (that is
+ * the drawer the cash leaves), so it sits in this shift's sales as a negative
+ * REFUND- row like any other, and is already counted in `returned`, and a cash
+ * one in cashReceived and the drawer formula. This is a breakdown of those
+ * figures for the report, never a term to subtract again.
+ *
+ * Refunds made before refundOfSaleId existed carry no `refundOf` and were all
+ * booked to their invoice's own shift, so they never appear here.
+ *
+ * @param {Array} sales the shift's COMPLETED sales, with `refundOf` included
+ * @param {number} shiftId
+ */
+function summarizePreviousInvoiceRefunds(sales, shiftId) {
+  const rows = [];
+  let total = 0;
+  let cashTotal = 0;
+  for (const sale of sales) {
+    if (!String(sale.saleNumber || "").startsWith("REFUND-")) continue;
+    if (!sale.refundOf || sale.refundOf.shiftId === shiftId) continue;
+    const amount = Math.abs(parseFloat(sale.total) || 0);
+    total += amount;
+    if (sale.paymentMethod === "CASH") cashTotal += amount;
+    rows.push({
+      refundNumber: sale.saleNumber,
+      originalSaleNumber: sale.refundOf.saleNumber,
+      originalDate: sale.refundOf.createdAt,
+      paymentMethod: sale.paymentMethod,
+      total: roundMoney(amount),
+      time: sale.createdAt,
+    });
+  }
+  return {
+    count: rows.length,
+    total: roundMoney(total),
+    cashTotal: roundMoney(cashTotal),
+    rows,
+  };
+}
+
 // Start a new shift
 router.post("/start", async (req, res, next) => {
   try {
@@ -1766,6 +1807,11 @@ router.get(
           client: { select: { name: true } }, // Include Client Name
           deliveryMan: { select: { name: true } }, // Include Delivery Man Name
           order: { select: { status: true } }, // S6: gate COD cash on DELIVERED
+          // The invoice a REFUND- row returns — to tell a return of this
+          // shift's own sale from a return of an earlier shift's invoice.
+          refundOf: {
+            select: { id: true, saleNumber: true, createdAt: true, shiftId: true },
+          },
           items: {
             include: {
               item: {
@@ -2200,6 +2246,9 @@ router.get(
         takeaway: { count: takeawayCount, total: Math.round(takeawayTotal * 100) / 100 },
         delivery: { count: deliveryCount, total: Math.round(deliveryTotal * 100) / 100 },
         returned: { count: returnCount, total: Math.round(returnTotal * 100) / 100 },
+        // Part of `returned` (and, for cashTotal, of cashReceived / drawerAmount)
+        // — shown so the drop in the drawer has a name. Not a separate term.
+        previousInvoiceRefunds: summarizePreviousInvoiceRefunds(sales, shift.id),
         netSales,
 
         // Cash movements
@@ -2313,3 +2362,4 @@ module.exports = router;
 // once carried its own copy of this arithmetic, the two drifted, and the report
 // started double-counting driver settlements. One implementation, many readers.
 module.exports.calculateSystemExpectedCash = calculateSystemExpectedCash;
+module.exports.summarizePreviousInvoiceRefunds = summarizePreviousInvoiceRefunds;
