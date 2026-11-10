@@ -17,6 +17,10 @@ const {
   computeSalesBasisBridge,
   INVOICED_BULK_STATUSES,
 } = require("../lib/salesBasisBridge");
+const { buildJournal, present: presentJournal } = require("../lib/journal/engine");
+const { computeTieOuts } = require("../lib/journal/tieouts");
+const { buildJournalWorkbook } = require("../lib/journal/excel");
+const { sendWorkbook } = require("../lib/xlsxReport");
 
 /**
  * GET /api/reports/general
@@ -717,6 +721,113 @@ router.get("/call-center", requirePermission("REPORTS"), async (req, res) => {
   } catch (error) {
     console.error("❌ Error generating call-center report:", error);
     res.status(500).json({ error: "Failed to generate report", details: error.message });
+  }
+});
+
+/**
+ * اليومية الأمريكية — the American columnar journal.
+ *
+ * ERP-V2 stores no journal, so it is synthesised from the documents at query
+ * time (lib/journal). Revenue follows التقرير العام (accrual); cash follows
+ * lib/treasuryRebuild. See lib/journal/sources.js for every posting rule.
+ *
+ * Query: startDate, endDate (Cairo), branchId ("all" | id), accounts (comma
+ * list of column ids; the rest fold into حسابات أخرى), mode ("detail" | "daily"),
+ * offset, limit (rows page), tieOut=1 (also tie to /general and, consolidated up
+ * to today, to live treasury/supplier/customer/driver balances).
+ */
+const JOURNAL_PAGE_MAX = 1000;
+const JOURNAL_EXPORT_MAX_ROWS = 50000;
+
+const loadJournal = async (req) => {
+  const { startDate, endDate } = req.query;
+  const start = parseDateStart(startDate);
+  const end = parseDateEnd(endDate);
+  if (end < start) return { error: 400, message: "تاريخ النهاية قبل تاريخ البداية" };
+
+  const scope = await resolveBranchScope(req.user.id, req.query.branchId);
+  if (scope.denied) return { error: 403, message: "Access denied to this branch" };
+  const branchIds = scope.isAllBranches ? null : scope.filterBranchIds;
+
+  const accounts = req.query.accounts
+    ? String(req.query.accounts).split(",").map((s) => s.trim()).filter(Boolean)
+    : null;
+  const mode = req.query.mode === "daily" ? "daily" : "detail";
+
+  const journal = await buildJournal({ start, end, branchIds });
+
+  let tieOuts = null;
+  if (req.query.tieOut === "1") {
+    tieOuts = await computeTieOuts(journal, {
+      start,
+      end,
+      branchIds,
+      // Live balances are company-wide and "as of now": only meaningful for
+      // the consolidated view of a window that reaches today.
+      live: branchIds == null && end.getTime() >= Date.now(),
+    });
+  }
+
+  return {
+    startDate,
+    endDate,
+    branchIds,
+    accounts,
+    mode,
+    journal,
+    tieOuts,
+    window: { startDate, endDate, startUtc: start.toISOString(), endUtc: end.toISOString() },
+    scope: { isAllBranches: scope.isAllBranches, branchIds },
+  };
+};
+
+router.get("/american-journal", requirePermission("REPORTS"), async (req, res) => {
+  try {
+    const ctx = await loadJournal(req);
+    if (ctx.error) return res.status(ctx.error).json({ error: ctx.message });
+
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const limit = Math.min(JOURNAL_PAGE_MAX, Math.max(1, parseInt(req.query.limit, 10) || 200));
+    const view = presentJournal(ctx.journal, {
+      accounts: ctx.accounts,
+      mode: ctx.mode,
+      isBranchView: ctx.branchIds != null,
+      offset,
+      limit,
+    });
+
+    res.json({ window: ctx.window, scope: ctx.scope, mode: ctx.mode, ...view, tieOuts: ctx.tieOuts });
+  } catch (error) {
+    console.error("❌ Error building american journal:", error);
+    res.status(500).json({ error: "Failed to build journal", details: error.message });
+  }
+});
+
+router.get("/american-journal/export", requirePermission("REPORTS"), async (req, res) => {
+  try {
+    const ctx = await loadJournal(req);
+    if (ctx.error) return res.status(ctx.error).json({ error: ctx.message });
+
+    const view = presentJournal(ctx.journal, {
+      accounts: ctx.accounts,
+      mode: ctx.mode,
+      isBranchView: ctx.branchIds != null,
+    });
+    if (view.totalRows > JOURNAL_EXPORT_MAX_ROWS) {
+      return res.status(413).json({
+        error: `عدد الحركات ${view.totalRows} أكبر من الحد المسموح للتصدير (${JOURNAL_EXPORT_MAX_ROWS}) — استخدم العرض اليومي المجمع أو فترة أقصر`,
+      });
+    }
+
+    const scopeLabel = ctx.branchIds
+      ? ctx.branchIds.map((id) => ctx.journal.ctx.branchNames.get(id) || id).join("، ")
+      : "كل الفروع";
+    const title = `اليومية الأمريكية — من ${ctx.startDate || ""} إلى ${ctx.endDate || ""} — ${scopeLabel}`;
+    const wb = buildJournalWorkbook(view, { title, tieOuts: ctx.tieOuts });
+    sendWorkbook(res, wb, `american_journal_${ctx.startDate || "today"}_${ctx.endDate || "today"}.xlsx`);
+  } catch (error) {
+    console.error("❌ Error exporting american journal:", error);
+    res.status(500).json({ error: "Failed to export journal", details: error.message });
   }
 });
 

@@ -91,6 +91,33 @@ const ReportsPage = () => {
               </div>
             </Link>
 
+            {/* American Journal Card */}
+            <Link
+              to="/reports/american-journal"
+              className="group relative bg-surface-light dark:bg-surface-dark rounded-3xl p-8 shadow-soft hover:shadow-hover border border-transparent hover:border-primary/20 transition-all duration-300 flex flex-col items-center justify-center text-center h-64 md:h-72 w-full overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent dark:from-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative z-10 mb-6 transform group-hover:scale-110 transition-transform duration-300">
+                <div className="h-24 w-24 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-glow group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                  <span className="material-symbols-outlined text-5xl">
+                    menu_book
+                  </span>
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="text-2xl font-bold text-text-light dark:text-text-dark mb-2 group-hover:text-primary dark:group-hover:text-accent transition-colors">
+                  اليومية الأمريكية
+                </h3>
+                <p className="text-sm text-text-light/60 dark:text-text-dark/60 group-hover:text-text-light/80 dark:group-hover:text-text-dark/80 transition-colors">
+                  قيود مدين ودائن لكل الحسابات مع أرصدة أول وآخر المدة
+                </p>
+              </div>
+              <div className="absolute bottom-4 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 text-primary dark:text-accent">
+                <span className="material-symbols-outlined text-2xl">
+                  arrow_downward
+                </span>
+              </div>
+            </Link>
+
             {/* Call Center Report Card */}
             <Link
               to="/reports/call-center"

@@ -36,6 +36,7 @@ import ReportsPage from "./pages/reports/ReportsPage";
 import HRPage from "./pages/hr/HRPage";
 import DetailedReportsPage from "./pages/reports/DetailedReportsPage";
 import GeneralReportPage from "./pages/reports/GeneralReportPage"; // Import General Report
+import AmericanJournalPage from "./pages/reports/AmericanJournalPage";
 import AdvancePaymentsHistory from "./pages/reports/history/AdvancePaymentsHistory";
 import ExpensesPage from "./pages/expenses/ExpensesPage";
 import ExpenseCategoryManager from "./pages/expenses/ExpenseCategoryManager";
@@ -288,6 +289,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermission="REPORTS">
                 <GeneralReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/american-journal"
+            element={
+              <ProtectedRoute requiredPermission="REPORTS">
+                <AmericanJournalPage />
               </ProtectedRoute>
             }
           />
