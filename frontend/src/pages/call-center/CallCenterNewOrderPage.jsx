@@ -12,16 +12,12 @@ import CartDrawer from "./components/CartDrawer";
 import ItemsGrid from "./components/ItemsGrid";
 import ZoneChips from "./components/ZoneChips";
 import WeightPickerModal from "./components/WeightPickerModal";
+import LastOrderCard from "./components/LastOrderCard";
 import {
   createClientSelectionState,
   isCustomerInformationComplete,
 } from "./callCenterCustomerSelection";
-
-// How many units of an item can actually be sold: what's on the shelf plus what
-// its BOM can still produce from raw materials. The backend sends `available`
-// pre-computed; the fallback keeps this working against an older response shape.
-const availableOf = (it) =>
-  Number(it?.available ?? ((it?.stock || 0) + (it?.autoProducible || 0)));
+import { availableOf, mergeReorderIntoCart, resolveReorderLines } from "./callCenterReorder";
 
 // ─── main component ───────────────────────────────────────────────────────────
 
@@ -53,6 +49,8 @@ const CallCenterNewOrderPage = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [weightPickerItem, setWeightPickerItem] = useState(null);
   const [savingCustomer, setSavingCustomer] = useState(false);
+  const [lastOrder, setLastOrder] = useState(null);
+  const [lastOrderLoading, setLastOrderLoading] = useState(false);
 
   const searchRef = useRef(null);
   const phoneRef = useRef(null);
@@ -97,6 +95,22 @@ const CallCenterNewOrderPage = () => {
     return () => clearTimeout(t);
   }, [phone, selectedClient]);
 
+  // Most recent order of the selected client — shown so the agent can repeat it
+  const selectedClientId = selectedClient?.id ?? null;
+  const selectedClientHasOrders = selectedClient?.totalOrders !== 0;
+  useEffect(() => {
+    setLastOrder(null);
+    if (!selectedClientId || !selectedClientHasOrders) { setLastOrderLoading(false); return; }
+    let cancelled = false;
+    setLastOrderLoading(true);
+    callCenterService
+      .getClientLastOrder(selectedClientId)
+      .then((order) => { if (!cancelled) setLastOrder(order || null); })
+      .catch(() => {}) // silent — the card is optional
+      .finally(() => { if (!cancelled) setLastOrderLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedClientId, selectedClientHasOrders]);
+
   // Restore last zone for a selected client once zones are loaded
   useEffect(() => {
     if (!selectedClient?.lastZoneId || !zones.length || zoneId) return;
@@ -139,6 +153,11 @@ const CallCenterNewOrderPage = () => {
       if (e.ctrlKey && e.key === "Enter") {
         e.preventDefault();
         if (!submitBlocker) handleSubmit();
+      }
+      // e.code, not e.key — agents type on an Arabic layout
+      if (e.altKey && e.code === "KeyR" && lastOrder) {
+        e.preventDefault();
+        handleReorder();
       }
     };
     window.addEventListener("keydown", handler);
@@ -269,6 +288,48 @@ const CallCenterNewOrderPage = () => {
       prev.map((c) => c.itemId === itemId ? { ...c, quantity: Math.max(0, Math.min(n, c.stock)) } : c)
           .filter((c) => c.quantity > 0)
     );
+  };
+
+  // Last-order lines checked against the selected branch's live catalog
+  const lastOrderLines = useMemo(
+    () => resolveReorderLines(lastOrder?.items, items),
+    [lastOrder, items]
+  );
+
+  const handleReorder = () => {
+    if (!lastOrder) return;
+    if (!readyForPos) {
+      toast.error(posGateReason || "أكمل بيانات العميل أولاً");
+      focusCustomerInformation();
+      return;
+    }
+    if (loadingItems) return;
+
+    const result = mergeReorderIntoCart(cart, lastOrderLines);
+    if (result.added.length === 0) {
+      toast.error(
+        result.clamped.length > 0
+          ? "كل الكميات المتاحة من آخر طلب موجودة بالفعل في السلة"
+          : "لا توجد أصناف متاحة من آخر طلب في هذا الفرع"
+      );
+      return;
+    }
+
+    setCart(result.cart);
+    setLastAddedId(`reorder-${lastOrder.id}`);
+    setTimeout(() => setLastAddedId(null), 300);
+    toast.success(`تمت إضافة ${result.added.length} صنف من آخر طلب`);
+
+    const partial = result.clamped.filter((name) => result.added.includes(name));
+    const notices = [
+      result.skipped.length > 0 && `غير متوفر: ${result.skipped.join("، ")}`,
+      partial.length > 0 && `أُضيفت الكمية المتاحة فقط: ${partial.join("، ")}`,
+    ].filter(Boolean);
+    if (notices.length > 0) {
+      toast(notices.join("\n"), { icon: "⚠️", duration: 6000 });
+    }
+
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
   const openWeightPickerFor = (itemId) => {
@@ -589,6 +650,20 @@ const CallCenterNewOrderPage = () => {
                 </div>
               )}
 
+              {/* Customer's most recent order — one-click reorder */}
+              {selectedClient && (
+                <LastOrderCard
+                  key={lastOrder?.id ?? "none"}
+                  order={lastOrder}
+                  lines={lastOrderLines}
+                  loading={lastOrderLoading}
+                  catalogLoading={loadingItems}
+                  canReorder={readyForPos}
+                  lockedReason={posGateReason}
+                  onReorder={handleReorder}
+                />
+              )}
+
               {/* Name field */}
               <div className="mb-3">
                 <label className="block text-xs font-medium text-text-light/60 dark:text-text-dark/60 mb-1.5">اسم العميل</label>
@@ -800,6 +875,7 @@ const CallCenterNewOrderPage = () => {
                   ["Esc", "مسح البحث / إغلاق القائمة"],
                   ["Enter (في حقل الهاتف)", "اختيار أول عميل"],
                   ["Ctrl+Enter", "إرسال الطلب"],
+                  ["Alt+R", "إعادة آخر طلب للعميل"],
                   ["?", "عرض هذه النافذة"],
                 ].map(([key, desc]) => (
                   <tr key={key}>

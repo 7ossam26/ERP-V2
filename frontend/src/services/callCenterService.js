@@ -11,6 +11,7 @@ export const callCenterService = {
   },
   createClient: (data) => api.post("/call-center/clients", data),
   updateClient: (id, data) => api.patch(`/call-center/clients/${id}`, data),
+  getClientLastOrder: (id) => api.get(`/call-center/clients/${id}/last-order`),
   createOrder: (data) => api.post("/call-center/orders", data),
   listOrders: ({ status, branchId, page = 1, limit = 25 } = {}) => {
     const qs = new URLSearchParams({ page, limit });

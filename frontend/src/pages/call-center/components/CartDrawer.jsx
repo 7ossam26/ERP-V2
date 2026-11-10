@@ -1,16 +1,7 @@
 import React from "react";
 import { Trash2, Send, ShoppingCart, Scale } from "lucide-react";
 import DiscountPanel from "../../../components/pos/DiscountPanel";
-
-const formatQty = (qty, unit) => {
-  const n = Number(qty) || 0;
-  if (unit === "kg") {
-    return n % 1 === 0
-      ? n.toFixed(0)
-      : n.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-  }
-  return String(n);
-};
+import { formatQty } from "../callCenterReorder";
 
 const LineItem = ({ c, onUpdateQty, onEditKg }) => {
   const isKg = c.unit === "kg";

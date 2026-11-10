@@ -159,6 +159,91 @@ exports.searchClients = async (req, res, next) => {
 };
 
 // -------------------------------------------------------------------------
+// GET /api/call-center/clients/:id/last-order — the client's most recent
+// purchase, any channel, so the agent can repeat it in one click.
+// Skips refunds (negative REFUND- rows), voided/held sales and cancelled
+// orders. Responds `null` when there is none.
+// -------------------------------------------------------------------------
+exports.getClientLastOrder = async (req, res, next) => {
+  try {
+    const clientId = parseInt(req.params.id);
+    if (!clientId) return res.status(400).json({ error: "Invalid client id" });
+
+    const sale = await prisma.sale.findFirst({
+      where: {
+        clientId,
+        status: "COMPLETED",
+        isVoided: false,
+        NOT: { saleNumber: { startsWith: "REFUND-" } },
+        OR: [{ order: { is: null } }, { order: { is: { status: { not: "CANCELLED" } } } }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        saleNumber: true,
+        createdAt: true,
+        deliveryAddress: true,
+        subtotal: true,
+        discountAmount: true,
+        deliveryFee: true,
+        total: true,
+        branch: { select: { id: true, name: true } },
+        deliveryZone: { select: { id: true, name: true } },
+        order: { select: { channel: true, status: true } },
+        items: {
+          orderBy: { id: "asc" },
+          select: {
+            itemId: true,
+            quantity: true,
+            unitPrice: true,
+            total: true,
+            item: { select: { id: true, name: true, unit: true } },
+            // POS BOM-only lines carry no itemId — the catalog is keyed by
+            // Item.id, so resolve them to the BOM's output item.
+            bom: {
+              select: {
+                name: true,
+                outputItem: { select: { id: true, name: true, unit: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!sale) return res.json(null);
+
+    res.json({
+      id: sale.id,
+      saleNumber: sale.saleNumber,
+      createdAt: sale.createdAt,
+      channel: sale.order?.channel ?? "POS",
+      orderStatus: sale.order?.status ?? null,
+      branch: sale.branch,
+      deliveryZone: sale.deliveryZone,
+      deliveryAddress: sale.deliveryAddress,
+      subtotal: Number(sale.subtotal),
+      discountAmount: Number(sale.discountAmount || 0),
+      deliveryFee: Number(sale.deliveryFee || 0),
+      total: Number(sale.total),
+      items: sale.items.map((line) => {
+        const item = line.item || line.bom?.outputItem || null;
+        return {
+          itemId: item ? item.id : null,
+          name: item?.name || line.bom?.name || "صنف محذوف",
+          unit: item?.unit || null,
+          quantity: Number(line.quantity),
+          unitPrice: Number(line.unitPrice),
+          total: Number(line.total),
+        };
+      }),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// -------------------------------------------------------------------------
 // POST /api/call-center/clients — inline create (name, phone, address)
 // -------------------------------------------------------------------------
 exports.createClient = async (req, res, next) => {
